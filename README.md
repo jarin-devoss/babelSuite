@@ -1,37 +1,25 @@
-<p align="center">
-  <img src="docs/assets/logo.png" alt="BabelSuite" width="220" />
-</p>
+# BabelSuite
 
-<p align="center">
-  <b>Open-source orchestrator for integration test suites</b><br/>
-  Declare your entire test environment in one file. Run it anywhere.
-</p>
+**Open-source orchestrator for integration test suites.**
+Declare your entire test environment in one file. Run it anywhere.
 
 <p align="center">
   <a href="#quick-start">Quick Start</a>
   &nbsp;•&nbsp;
-  <a href="https://babelsuite.github.io/babelsuite">Docs</a>
+  <a href="https://jarin-devoss.github.io/babelSuite">Docs</a>
   &nbsp;•&nbsp;
   <a href="examples/">Examples</a>
-  &nbsp;•&nbsp;
-  <a href="https://github.com/babelsuite/babelsuite/discussions">Discussions</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/babelsuite/babelsuite/actions/workflows/backend-ci.yml">
-    <img src="https://github.com/babelsuite/babelsuite/actions/workflows/backend-ci.yml/badge.svg?branch=main" alt="Backend CI" />
+  <a href="https://github.com/jarin-devoss/babelSuite/actions/workflows/backend-ci.yml">
+    <img src="https://github.com/jarin-devoss/babelSuite/actions/workflows/backend-ci.yml/badge.svg?branch=main" alt="Backend CI" />
   </a>
-  <a href="https://github.com/babelsuite/babelsuite/actions/workflows/e2e.yml">
-    <img src="https://github.com/babelsuite/babelsuite/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E CI" />
+  <a href="https://github.com/jarin-devoss/babelSuite/actions/workflows/e2e.yml">
+    <img src="https://github.com/jarin-devoss/babelSuite/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E CI" />
   </a>
-  <a href="https://goreportcard.com/report/github.com/babelsuite/babelsuite">
-    <img src="https://goreportcard.com/badge/github.com/babelsuite/babelsuite" alt="Go Report Card" />
-  </a>
-  <a href="https://github.com/babelsuite/babelsuite/blob/main/LICENSE">
+  <a href="https://github.com/jarin-devoss/babelSuite/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache-2.0" />
-  </a>
-  <a href="https://github.com/babelsuite/babelsuite/issues?q=is%3Aopen+label%3A%22good+first+issue%22">
-    <img src="https://img.shields.io/github/issues-search/babelsuite/babelsuite?query=is%3Aopen+label%3A%22good+first+issue%22&label=good+first+issues&color=7057ff" alt="Good First Issues" />
   </a>
 </p>
 
@@ -39,52 +27,85 @@
 
 ## What is BabelSuite?
 
-BabelSuite is an open-source control plane for running complex integration test environments. You define your entire stack — services, databases, mocks, migrations, tests, and traffic — in a single **Starlark** file (`suite.star`). BabelSuite resolves the dependency graph and executes everything in the right order, with live log streaming and full observability built in.
+Setting up a realistic integration environment usually means juggling Docker Compose files, bash scripts, custom seeders, and CI jobs — each in a different format, with no shared model and no live visibility into what's happening.
 
-It is the missing link between your microservices and your CI pipeline: one file to describe what your integration environment looks like, one command to run it.
+BabelSuite replaces that with a single declarative **suite file**. You describe your stack — services, databases, mocks, migrations, tests, and traffic — and BabelSuite resolves the dependency graph, launches everything in the right order, and streams logs and status in real time to the UI and API.
 
-## Why BabelSuite?
+One file. One command. Any environment.
 
-Setting up a realistic integration environment typically means maintaining a tangle of Docker Compose files, bash scripts, custom seeders, and CI jobs — each described in a different format, with no shared model and no live visibility.
+---
 
-BabelSuite replaces that with a single declarative topology that:
+## Suite Example
 
-1. **Resolves dependencies automatically** — steps launch in the correct order and parallelize where they can
-2. **Runs anywhere** — local Docker, Kubernetes, or distributed remote agent pools
-3. **Streams everything live** — every log line and status change is pushed to the UI in real time
-4. **Mocks with state** — built-in stateful mock servers with operation schemas and state machine transitions
-5. **Composes across registries** — pull suite packages from any OCI-compatible registry and nest them as dependencies
+A `suite.star` file for a payment service with Postgres, Kafka, a Stripe mock, fraud worker, traffic, and smoke tests:
+
+```python
+load("@babelsuite/runtime", "service", "task", "test", "traffic")
+
+db               = service.run()
+kafka            = service.run()
+stripe_mock      = service.mock(after=[db])
+bootstrap_topics = task.run(file="bootstrap_topics.sh", image="bash:5.2",   after=[kafka])
+migrations       = task.run(file="migrate.py",           image="python:3.12", after=[db])
+payment_gateway  = service.run(after=[db, stripe_mock, migrations])
+fraud_worker     = service.run(after=[kafka, bootstrap_topics, payment_gateway])
+
+checkout_baseline = traffic.baseline(
+    plan="checkout_baseline.star",
+    target="http://payment_gateway:8080",
+    after=[payment_gateway, fraud_worker],
+)
+
+checkout_smoke = test.run(
+    file="checkout_smoke.py",
+    image="python:3.12",
+    after=[checkout_baseline],
+    exports=[
+        {"path": "reports/junit.xml", "name": "checkout-test-report", "on": "always", "format": "junit"},
+    ],
+)
+```
+
+BabelSuite reads the file, builds the dependency graph, and executes each step in topological order — parallelizing independent branches automatically:
+
+```
+db ──────┬── migrations ──┐
+         └── stripe_mock ─┤
+                           payment_gateway ──┐
+kafka ───┬── bootstrap ───┐                  │
+         └───────────────── fraud_worker ────┤
+                                              checkout_baseline
+                                                    │
+                                              checkout_smoke
+```
+
+---
 
 ## Key Features
 
-**Starlark Suite Definitions**
-Write your environment topology in Starlark — expressive, Python-like, version-controlled. `service`, `task`, `test`, `traffic`, and `suite` are first-class primitives, not YAML keys.
+**Starlark Topology**
+Write your environment in Starlark — expressive, Python-like, version-controlled. `service`, `task`, `test`, `traffic`, and `suite` are first-class primitives, not YAML keys.
 
-**DAG-Based Execution**
-BabelSuite builds a dependency graph from your `after=[]` declarations and executes steps in topological order, parallelizing independent branches automatically.
-
-**Multi-Backend Support**
-- Local Docker — zero-config default for development
-- Kubernetes — production-grade cluster execution
-- Remote Agents — distributed worker pools for large-scale or isolated runs
-
-**Live Event Streaming**
-Step status, log lines, and execution state changes are pushed to the browser UI and REST API clients in real time over Server-Sent Events.
-
-**Stateful Service Mocking**
-Define mock endpoints with per-operation schemas, request/response examples, fallback modes, and state machine transitions. Supports Wiremock, Prism, and service.mock adapters.
-
-**OCI Registry Integration**
-Browse, pull, and compose suite packages from any OCI-compliant registry — Zot, GHCR, ECR, Docker Hub. Pin by tag or content digest.
+**DAG Execution**
+BabelSuite builds a dependency graph from your `after=[]` declarations and executes steps in topological order, parallelizing independent branches.
 
 **Profile System**
-Switch between environment configurations at launch time without editing the suite file. Define profiles for `local`, `ci`, `staging`, `canary`, and `production` — each overlaying different env vars, module settings, and observability targets.
+Switch between environment configurations at launch time without editing the suite file. Define `local`, `ci`, `staging`, and `production` profiles — each overlaying different env vars, secrets, and module settings.
+
+**Stateful Mocks**
+Define mock endpoints with per-operation schemas, request/response examples, and state machine transitions. Supports Wiremock, Prism, and custom adapters.
+
+**OCI Module Packages**
+Reuse topology building blocks — Kafka, Postgres, Redis — packaged as OCI artifacts and loaded with a single `load()` statement.
+
+**Multi-Backend**
+Run against local Docker, Kubernetes, or distributed remote agent pools. No code changes between environments — switch with a profile.
+
+**Live Streaming**
+Every log line and status change is pushed to the UI and REST API clients in real time over Server-Sent Events.
 
 **OpenTelemetry Built-in**
-Traces and metrics are exported via OTLP from both the control plane and frontend out of the box. Plug into your existing Grafana, Jaeger, or Honeycomb stack.
-
-**Authentication & Access Control**
-Local email/password auth for development. OIDC SSO for production. JWT-based sessions throughout.
+Traces and metrics exported via OTLP from both the control plane and the frontend. Plug into Grafana, Jaeger, or Honeycomb.
 
 ---
 
@@ -94,8 +115,8 @@ Local email/password auth for development. OIDC SSO for production. JWT-based se
 
 ```bash
 # Clone the repo
-git clone https://github.com/babelsuite/babelsuite.git
-cd babelsuite
+git clone https://github.com/jarin-devoss/babelSuite.git
+cd babelSuite
 
 # Start the control plane (port 8090)
 cd backend && go run ./cmd/server
@@ -104,41 +125,20 @@ cd backend && go run ./cmd/server
 cd frontend && npm install && npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and sign in with:
+Open [http://localhost:5173](http://localhost:5173) and sign in:
 
-| Field    | Value                    |
-|----------|--------------------------|
-| Email    | `admin@babelsuite.test`  |
-| Password | `admin`                  |
+| Field    | Value                   |
+|----------|-------------------------|
+| Email    | `admin@babelsuite.test` |
+| Password | `admin`                 |
 
-Populate the catalog with the bundled example suites:
+Populate the catalog with the bundled examples:
 
 ```bash
 cd backend && go run ./cmd/seed-zot
 ```
 
-See the [Getting Started guide](https://babelsuite.github.io/babelsuite/getting-started) for the full walkthrough, including environment variables and database setup.
-
----
-
-## How It Works
-
-A suite is a `suite.star` file that declares a dependency graph of steps:
-
-```python
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
-
-db      = service.run()
-kafka   = service.run()
-stripe  = service.mock(after=[db])
-migrate = task.run(file="migrate.py", image="python:3.12", after=[db])
-gateway = service.run(after=[db, stripe, migrate])
-worker  = service.run(after=[kafka, gateway])
-traffic.baseline(plan="checkout.star", target="http://gateway:8080", after=[gateway, worker])
-test.run(file="smoke.py", image="python:3.12", after=[worker])
-```
-
-BabelSuite reads the file, resolves the graph, launches each step against the configured backend, and streams logs and status changes to the UI and API in real time.
+See the [Getting Started guide](https://jarin-devoss.github.io/babelSuite/getting-started) for the full walkthrough, including environment variables and database setup.
 
 ---
 
@@ -156,7 +156,7 @@ Seven runnable examples are included under [`examples/oci-suites/`](examples/oci
 | [`fleet-control-room`](examples/oci-suites/fleet-control-room/) | Fleet management with traffic phases and telemetry |
 | [`composite-readiness`](examples/oci-suites/composite-readiness/) | Nested suite composition across multiple registries |
 
-Each example includes a `suite.star` topology, environment profiles (`local`, `ci`, `staging`), OpenAPI contracts, mock schemas, seed fixtures, and runnable test scripts.
+Each example includes a `suite.star` topology, environment profiles, OpenAPI contracts, mock schemas, seed fixtures, and test scripts.
 
 ---
 
@@ -199,7 +199,6 @@ examples/
   oci-modules/      Reusable Starlark modules (Kafka, Postgres)
 proto/              Protocol Buffer definitions (buf)
 docs/               MkDocs documentation site
-tools/              Local helper scripts (Zot registry, seeding)
 Dockerfile          Multi-stage build — frontend + backend → Alpine image
 ```
 
@@ -207,18 +206,18 @@ Dockerfile          Multi-stage build — frontend + backend → Alpine image
 
 ## Documentation
 
-Full documentation: **[babelsuite.github.io/babelsuite](https://babelsuite.github.io/babelsuite)**
+Full documentation: **[jarin-devoss.github.io/babelSuite](https://jarin-devoss.github.io/babelSuite)**
 
 | Section | Description |
 |---|---|
-| [Getting Started](https://babelsuite.github.io/babelsuite/getting-started) | Prerequisites, local dev flow, first run |
-| [Suite Authoring](https://babelsuite.github.io/babelsuite/suite-authoring) | Package layout, topology primitives, naming |
-| [Runtime Library](https://babelsuite.github.io/babelsuite/runtime-library) | `service`, `task`, `test`, `traffic` reference |
-| [Mocking](https://babelsuite.github.io/babelsuite/mocking) | Mock endpoints, state machines, fallback modes |
-| [Profiles](https://babelsuite.github.io/babelsuite/profiles) | Environment overlays, secrets, launch-time config |
-| [Agents](https://babelsuite.github.io/babelsuite/agents) | Remote worker lifecycle and coordination |
-| [API Reference](https://babelsuite.github.io/babelsuite/api) | Full HTTP API route reference |
-| [Operations](https://babelsuite.github.io/babelsuite/operations) | Health probes, telemetry, datastores |
+| [Getting Started](https://jarin-devoss.github.io/babelSuite/getting-started) | Prerequisites, local dev flow, first run |
+| [Suite Authoring](https://jarin-devoss.github.io/babelSuite/suite-authoring) | Package layout, topology primitives, naming |
+| [Modules](https://jarin-devoss.github.io/babelSuite/modules) | OCI module packages, Kafka, Postgres |
+| [Runtime Library](https://jarin-devoss.github.io/babelSuite/runtime-library) | `service`, `task`, `test`, `traffic` reference |
+| [Mocking](https://jarin-devoss.github.io/babelSuite/mocking) | Mock endpoints, state machines, fallback modes |
+| [Profiles](https://jarin-devoss.github.io/babelSuite/profiles) | Environment overlays, secrets, launch-time config |
+| [API Reference](https://jarin-devoss.github.io/babelSuite/api) | Full HTTP API route reference |
+| [Operations](https://jarin-devoss.github.io/babelSuite/operations) | Health probes, telemetry, datastores |
 
 Run the docs locally:
 
