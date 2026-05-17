@@ -1,4 +1,4 @@
-export type RuntimeKind = 'mock' | 'service' | 'task' | 'test' | 'traffic' | 'suite'
+export type RuntimeKind = 'mock' | 'service' | 'task' | 'test' | 'traffic' | 'suite' | 'security'
 export type RuntimeStatus = 'pending' | 'running' | 'healthy' | 'failed' | 'skipped'
 
 export interface ArtifactExport {
@@ -634,6 +634,15 @@ function topologyKind(rawCall: string): RuntimeKind | null {
       return 'traffic'
     case 'suite.run':
       return 'suite'
+    case 'security.probe':
+    case 'security.fuzz':
+    case 'security.auth':
+    case 'security.flood':
+    case 'security.headers':
+    case 'security.verbs':
+    case 'security.graphql':
+    case 'security.cors':
+      return 'security'
     default:
       return null
   }

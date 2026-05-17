@@ -48,6 +48,7 @@ type StepSpec struct {
 	TotalSteps       int
 	LeaseTTL         time.Duration
 	Load             *suites.LoadSpec
+	Security         *suites.SecuritySpec
 	Evaluation       *suites.StepEvaluation
 	OnFailure        []string
 	ArtifactExports  []ArtifactExport

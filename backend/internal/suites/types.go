@@ -19,12 +19,13 @@ type RegisterRequest struct {
 }
 
 const (
-	NodeKindMock    = "mock"
-	NodeKindService = "service"
-	NodeKindTask    = "task"
-	NodeKindTraffic = "traffic"
-	NodeKindTest    = "test"
-	NodeKindSuite   = "suite"
+	NodeKindMock     = "mock"
+	NodeKindService  = "service"
+	NodeKindTask     = "task"
+	NodeKindTraffic  = "traffic"
+	NodeKindTest     = "test"
+	NodeKindSuite    = "suite"
+	NodeKindSecurity = "security"
 
 	VariantServiceMock     = "service.mock"
 	VariantServicePrism    = "service.prism"
@@ -71,6 +72,7 @@ type TopologyNode struct {
 	Kind              string            `json:"kind"`
 	Variant           string            `json:"variant,omitempty"`
 	Load              *LoadSpec         `json:"traffic,omitempty"`
+	Security          *SecuritySpec     `json:"security,omitempty"`
 	DependsOn         []string          `json:"dependsOn"`
 	ResetMocks        []string          `json:"resetMocks,omitempty"`
 	OnFailure         []string          `json:"onFailure,omitempty"`

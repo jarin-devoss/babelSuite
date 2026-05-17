@@ -38,6 +38,12 @@ type rawTopologyNode struct {
 	Variant           string
 	Arguments         string
 	Ref               string
+	Target            string
+	Technique         string
+	FloodPath         string
+	FloodRate         float64
+	FloodDuration     float64
+	FloodThrottle     bool
 	DependsOn         []string
 	ResetMocks        []string
 	OnFailure         []string
@@ -237,6 +243,17 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 				return resolvedTopology{}, err
 			}
 			node.Load = spec
+		}
+		if raw.Kind == "security" {
+			node.Security = &SecuritySpec{
+				Variant:       raw.Variant,
+				Target:        raw.Target,
+				Technique:     raw.Technique,
+				FloodPath:     raw.FloodPath,
+				FloodRate:     raw.FloodRate,
+				FloodDuration: raw.FloodDuration,
+				FloodThrottle: raw.FloodThrottle,
+			}
 		}
 		final = append(final, node)
 	}
@@ -735,6 +752,9 @@ func topologyKind(call string) (string, bool) {
 		return "suite", true
 	case "traffic.smoke", "traffic.baseline", "traffic.stress", "traffic.spike", "traffic.soak", "traffic.scalability", "traffic.step", "traffic.wave", "traffic.staged", "traffic.constant_throughput", "traffic.constant_pacing", "traffic.open_model":
 		return "traffic", true
+	case "security.probe", "security.fuzz", "security.auth", "security.flood",
+		"security.headers", "security.verbs", "security.graphql", "security.cors":
+		return "security", true
 	default:
 		return "", false
 	}
