@@ -84,7 +84,6 @@ traffic_nodes = []
 for target in api_targets:
     t = traffic.baseline(
         name="login-baseline-" + target.name,
-        plan="login_baseline.star",
         target="http://" + target.name + ":9000",
         after=session_workers + [target],
     )

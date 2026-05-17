@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -188,7 +187,7 @@ func triggerAPISIXTraffic(ctx context.Context, gatewayURL string, cfgJSON []byte
 	return &result, nil
 }
 
-// applyAPISIXResult merges the Lua histogram result into the native loadStats
+// applyAPISIXResult merges the sidecar histogram result into the native loadStats
 // so that finalizeLoadStep / evaluateLoadThresholds work unchanged.
 func applyAPISIXResult(result *apisixTrafficResult, stats *loadStats) {
 	stats.mu.Lock()
@@ -198,46 +197,22 @@ func applyAPISIXResult(result *apisixTrafficResult, stats *loadStats) {
 	stats.Failures = result.Failures
 	stats.FinishedAt = time.Now()
 
-	synthetic := syntheticLatencies(result.Min, result.P50, result.P95, result.P99, result.Max, result.Total)
-	stats.Latencies = synthetic
+	stats.lat = syntheticBuckets(result.Min, result.P50, result.P95, result.P99, result.Max, result.Total)
 
-	if len(stats.Stages) == 0 {
+	if _, exists := stats.Stages[0]; !exists {
 		stats.Stages[0] = &loadStageStats{
-			Index:      0,
-			Requests:   result.Total,
-			Failures:   result.Failures,
-			Latencies:  synthetic,
-			StartedAt:  stats.StartedAt,
-			FinishedAt: stats.FinishedAt,
+			Index:         0,
+			lat:           syntheticBuckets(result.Min, result.P50, result.P95, result.P99, result.Max, result.Total),
+			ThroughputByS: make(map[int]int),
+			Requests:      result.Total,
+			Failures:      result.Failures,
+			StartedAt:     stats.StartedAt,
+			FinishedAt:    stats.FinishedAt,
 		}
 	}
 	if result.Total > stats.PeakUsers {
 		stats.PeakUsers = result.Total
 	}
-}
-
-// syntheticLatencies reconstructs a latency slice from percentile breakpoints
-// so the existing percentile helpers in loadStats.summary() produce correct
-// numbers.  n is capped at 100 for memory safety.
-func syntheticLatencies(minMs, p50, p95, p99, maxMs float64, n int) []time.Duration {
-	if n <= 0 {
-		n = 4
-	}
-	if n > 100 {
-		n = 100
-	}
-	points := []float64{minMs, p50, p95, p99, maxMs}
-	sort.Float64s(points)
-
-	out := make([]time.Duration, 0, n)
-	for i := 0; i < n; i++ {
-		idx := int(float64(i) / float64(n) * float64(len(points)))
-		if idx >= len(points) {
-			idx = len(points) - 1
-		}
-		out = append(out, time.Duration(points[idx]*float64(time.Millisecond)))
-	}
-	return out
 }
 
 func firstNonEmptyStr(a, b string) string {
