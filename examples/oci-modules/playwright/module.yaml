@@ -1,0 +1,15 @@
+kind: OCIExampleModule
+metadata:
+  id: stdlib-playwright
+  title: "@babelsuite/playwright"
+spec:
+  repository: localhost:5000/babelsuite/playwright
+  provider: Stdlib
+  version: 1.0.0
+  entrypoint: module.star
+  tags:
+    - 1.0.0
+    - latest
+  description: Starlark helpers for Playwright browser tests — browser×device matrix, accessibility audits, and visual regression diffs, built on BabelSuite's test primitive.
+  pullCommand: babelctl run localhost:5000/babelsuite/playwright:1.0.0
+  forkCommand: babelctl fork localhost:5000/babelsuite/playwright:1.0.0 ./stdlib-playwright

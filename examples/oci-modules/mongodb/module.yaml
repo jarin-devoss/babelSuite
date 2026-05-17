@@ -1,0 +1,15 @@
+kind: OCIExampleModule
+metadata:
+  id: stdlib-mongodb
+  title: "@babelsuite/mongodb"
+spec:
+  repository: localhost:5000/babelsuite/mongodb
+  provider: Stdlib
+  version: 1.0.0
+  entrypoint: module.star
+  tags:
+    - 1.0.0
+    - latest
+  description: Pure Starlark MongoDB module — cluster lifecycle, collection and index management, document seeding, and script execution built on BabelSuite's runtime primitives.
+  pullCommand: babelctl run localhost:5000/babelsuite/mongodb:1.0.0
+  forkCommand: babelctl fork localhost:5000/babelsuite/mongodb:1.0.0 ./stdlib-mongodb
