@@ -30,39 +30,36 @@ type loadPlanContext struct {
 }
 
 func resolveLoadSpec(raw rawTopologyNode, sourceFiles []SourceFile) (*LoadSpec, error) {
-	planPath := normalizeLoadPlanPath(topologyNamedStringArgument(raw.Arguments, "plan"))
-	if planPath == "" {
-		return nil, fmt.Errorf("invalid suite topology: %s must declare plan", raw.Variant)
-	}
-
 	target := strings.TrimSpace(topologyNamedStringArgument(raw.Arguments, "target"))
 	if target == "" {
 		return nil, fmt.Errorf("invalid suite topology: %s must declare target", raw.Variant)
 	}
 
+	spec := &LoadSpec{
+		Variant:      raw.Variant,
+		Target:       target,
+		RequestsPerS: topologyNamedNumberArgument(raw.Arguments, "rps", "target_rps"),
+		ArrivalRate:  topologyNamedNumberArgument(raw.Arguments, "arrival_rate"),
+	}
+
+	planPath := normalizeLoadPlanPath(topologyNamedStringArgument(raw.Arguments, "plan"))
+	if planPath == "" {
+		if err := validateLoadSpec(spec); err != nil {
+			return nil, err
+		}
+		return spec, nil
+	}
+
+	spec.PlanPath = planPath
 	content, ok := sourceFileContent(sourceFiles, planPath)
 	if !ok {
 		if len(sourceFiles) == 0 {
-			return &LoadSpec{
-				Variant:      raw.Variant,
-				PlanPath:     planPath,
-				Target:       target,
-				RequestsPerS: topologyNamedNumberArgument(raw.Arguments, "rps", "target_rps"),
-				ArrivalRate:  topologyNamedNumberArgument(raw.Arguments, "arrival_rate"),
-			}, nil
+			return spec, nil
 		}
 		return nil, fmt.Errorf("invalid suite topology: traffic plan %q could not be resolved", planPath)
 	}
 	if len(content) > maxLoadPlanBytes {
 		return nil, fmt.Errorf("invalid suite topology: traffic plan %q exceeds the %d byte safety limit", planPath, maxLoadPlanBytes)
-	}
-
-	spec := &LoadSpec{
-		Variant:      raw.Variant,
-		PlanPath:     planPath,
-		Target:       target,
-		RequestsPerS: topologyNamedNumberArgument(raw.Arguments, "rps", "target_rps"),
-		ArrivalRate:  topologyNamedNumberArgument(raw.Arguments, "arrival_rate"),
 	}
 	return parseLoadPlan(spec, content)
 }
@@ -913,6 +910,19 @@ func validateLoadSpec(spec *LoadSpec) error {
 	if err != nil || parsedTarget.Scheme == "" || parsedTarget.Host == "" {
 		return fmt.Errorf("invalid suite topology: traffic target %q must be an absolute URL", spec.Target)
 	}
+
+	// When no plan file is configured the spec carries only target/rps for
+	// the native runner; users and stages are not required.
+	if spec.PlanPath == "" {
+		if spec.RequestsPerS > maxLoadRequestRate {
+			return fmt.Errorf("invalid suite topology: traffic target %q exceeds the %.0f requests-per-second safety limit", spec.Target, maxLoadRequestRate)
+		}
+		if spec.ArrivalRate > maxLoadRequestRate {
+			return fmt.Errorf("invalid suite topology: traffic target %q exceeds the %.0f arrivals-per-second safety limit", spec.Target, maxLoadRequestRate)
+		}
+		return nil
+	}
+
 	if len(spec.Users) == 0 {
 		return fmt.Errorf("invalid suite topology: traffic plan %q must declare at least one user", spec.PlanPath)
 	}

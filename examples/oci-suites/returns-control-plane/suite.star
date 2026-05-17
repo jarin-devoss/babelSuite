@@ -106,7 +106,6 @@ traffic_nodes = []
 for policy in REFUND_POLICIES:
     t = traffic.baseline(
         name="returns-baseline-" + policy,
-        plan="returns_baseline.star",
         target="http://returns-api:8080",
         after=refund_workers,
         env={"REFUND_POLICY": policy},
@@ -116,9 +115,7 @@ for policy in REFUND_POLICIES:
 if ENABLE_SOAK:
     traffic.soak(
         name="returns-soak",
-        plan="returns_soak.star",
         target="http://returns-api:8080",
-        duration="60m",
         after=traffic_nodes,
     )
 

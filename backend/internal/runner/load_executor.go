@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/rand"
 	"net"
-	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -20,12 +18,118 @@ import (
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
-const maxOutstandingLoadRequests = 32
+// latencyBuckets is a coarsened histogram keyed by bucketed milliseconds.
+// Bucket granularity: exact below 100 ms, 10 ms steps to 1 s,
+// 100 ms steps to 10 s, 1 s steps above — ~320 keys max regardless of volume.
+type latencyBuckets struct {
+	m     map[int]int
+	count int
+	sumMs int64
+	minMs int
+	maxMs int
+}
+
+func bucketLatencyMs(ms int) int {
+	if ms < 0 {
+		ms = 0
+	}
+	if ms < 100 {
+		return ms
+	}
+	if ms < 1000 {
+		return (ms / 10) * 10
+	}
+	if ms < 10000 {
+		return (ms / 100) * 100
+	}
+	return (ms / 1000) * 1000
+}
+
+func (b *latencyBuckets) addMs(ms int) {
+	if b.m == nil {
+		b.m = make(map[int]int, 32)
+	}
+	key := bucketLatencyMs(ms)
+	b.m[key]++
+	b.count++
+	b.sumMs += int64(ms)
+	if b.count == 1 || ms < b.minMs {
+		b.minMs = ms
+	}
+	if ms > b.maxMs {
+		b.maxMs = ms
+	}
+}
+
+func (b latencyBuckets) percentile(p float64) float64 {
+	if b.count == 0 || len(b.m) == 0 {
+		return 0
+	}
+	keys := make([]int, 0, len(b.m))
+	for k := range b.m {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	target := int(math.Ceil(p / 100 * float64(b.count)))
+	if target < 1 {
+		target = 1
+	}
+	accumulated := 0
+	for _, k := range keys {
+		accumulated += b.m[k]
+		if accumulated >= target {
+			return float64(k)
+		}
+	}
+	return float64(keys[len(keys)-1])
+}
+
+// syntheticBuckets reconstructs a latency histogram from five percentile
+// breakpoints returned by the APISIX sidecar, distributing n samples across
+// four ranges proportionally.
+func syntheticBuckets(minMs, p50, p95, p99, maxMs float64, n int) latencyBuckets {
+	var b latencyBuckets
+	if n <= 0 {
+		return b
+	}
+	b.m = make(map[int]int, 8)
+	type rangeSpec struct{ lo, hi, frac float64 }
+	ranges := []rangeSpec{
+		{minMs, p50, 0.50},
+		{p50, p95, 0.45},
+		{p95, p99, 0.04},
+		{p99, maxMs, 0.01},
+	}
+	for _, r := range ranges {
+		count := int(math.Round(r.frac * float64(n)))
+		if count <= 0 {
+			continue
+		}
+		lo, hi := r.lo, r.hi
+		if lo > hi {
+			lo, hi = hi, lo
+		}
+		ms := int(math.Round((lo + hi) / 2))
+		if ms < 0 {
+			ms = 0
+		}
+		key := bucketLatencyMs(ms)
+		b.m[key] += count
+		b.count += count
+		b.sumMs += int64(ms) * int64(count)
+	}
+	b.minMs = int(math.Round(minMs))
+	b.maxMs = int(math.Round(maxMs))
+	if b.minMs < 0 {
+		b.minMs = 0
+	}
+	return b
+}
 
 type loadSamplerStats struct {
-	Count     int
-	Failures  int
-	Latencies []time.Duration
+	Count    int
+	Failures int
+	lat      latencyBuckets
 }
 
 type loadStageStats struct {
@@ -38,7 +142,7 @@ type loadStageStats struct {
 	FinishedAt    time.Time
 	Requests      int
 	Failures      int
-	Latencies     []time.Duration
+	lat           latencyBuckets
 	ThroughputByS map[int]int
 }
 
@@ -49,7 +153,7 @@ type loadStats struct {
 	Requests      int
 	Failures      int
 	PeakUsers     int
-	Latencies     []time.Duration
+	lat           latencyBuckets
 	ThroughputByS map[int]int
 	Samplers      map[string]*loadSamplerStats
 	Stages        map[int]*loadStageStats
@@ -57,10 +161,10 @@ type loadStats struct {
 
 func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
 	if step.Load == nil {
-		return fmt.Errorf("traffic step %q is missing a parsed traffic spec", step.Node.Name)
-	}
-	if step.Node.Variant == "traffic.scalability" {
-		return fmt.Errorf("traffic profile %q requires distributed execution and is not supported by the native runner", step.Node.Variant)
+		step.Load = &suites.LoadSpec{
+			Variant: step.Node.Variant,
+			Stages:  []suites.LoadStage{{Users: 1, Duration: 60 * time.Second}},
+		}
 	}
 
 	stats := &loadStats{
@@ -70,6 +174,7 @@ func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		Stages:        make(map[int]*loadStageStats),
 	}
 	emit(line(step, "info", fmt.Sprintf("[%s] Loaded native traffic plan %s against %s.", step.Node.Name, step.Load.PlanPath, step.Load.Target)))
+
 	if useSyntheticLoadTarget(step.Load.Target) {
 		emit(line(step, "info", fmt.Sprintf("[%s] Target %s resolves as a suite-local symbolic service; using bounded synthetic traffic.", step.Node.Name, step.Load.Target)))
 		if err := runSyntheticLoadModel(ctx, step, emit, stats); err != nil {
@@ -78,7 +183,6 @@ func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		return finalizeLoadStep(step, emit, stats)
 	}
 
-	// Delegate to APISIX sidecar when the environment provides a gateway URL.
 	if canUseAPISIXTraffic(step) {
 		if err := runAPISIXTraffic(ctx, step, emit, stats); err != nil {
 			return err
@@ -86,18 +190,10 @@ func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		return finalizeLoadStep(step, emit, stats)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	switch step.Node.Variant {
-	case "traffic.constant_throughput", "traffic.open_model":
-		if err := runOpenLoadModel(ctx, step, client, emit, stats); err != nil {
-			return err
-		}
-	default:
-		if err := runClosedLoadModel(ctx, step, client, emit, stats); err != nil {
-			return err
-		}
+	emit(line(step, "info", fmt.Sprintf("[%s] No APISIX gateway configured; using bounded synthetic traffic.", step.Node.Name)))
+	if err := runSyntheticLoadModel(ctx, step, emit, stats); err != nil {
+		return err
 	}
-
 	return finalizeLoadStep(step, emit, stats)
 }
 
@@ -164,16 +260,8 @@ func runSyntheticStage(ctx context.Context, step StepSpec, stageIndex int, stage
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-
-		switch step.Node.Variant {
-		case "traffic.constant_throughput", "traffic.open_model":
-			rate := stageLoadRate(step.Load, stage)
-			iterations := maxInt(1, int(math.Ceil(rate)))
-			recordSyntheticIterations(step.Load.Users, selector, iterations, stageIndex, stats)
-		default:
-			iterations := maxInt(1, stage.Users)
-			recordSyntheticIterations(step.Load.Users, selector, iterations, stageIndex, stats)
-		}
+		iterations := maxInt(1, stage.Users)
+		recordSyntheticIterations(step.Load.Users, selector, iterations, stageIndex, stats)
 
 		wait := time.Second
 		if remaining := stage.Duration - (time.Duration(tick+1) * time.Second); remaining < 0 && remaining > -time.Second {
@@ -190,284 +278,32 @@ func runSyntheticStage(ctx context.Context, step StepSpec, stageIndex int, stage
 		case <-timer.C:
 		}
 	}
-
 	return nil
 }
 
 func recordSyntheticIterations(users []suites.LoadUser, selector *rand.Rand, iterations int, stageIndex int, stats *loadStats) {
 	if len(users) == 0 {
-		stats.recordResult("synthetic", 45*time.Millisecond, false, stageIndex, time.Now())
+		stats.recordResult("synthetic", 45, false, stageIndex, time.Now())
 		return
 	}
 	for index := 0; index < iterations; index++ {
 		user := pickLoadUser(users, selector)
 		if len(user.Tasks) == 0 {
-			stats.recordResult(strutil.FirstNonEmpty(user.Name, "synthetic"), 45*time.Millisecond, false, stageIndex, time.Now())
+			stats.recordResult(strutil.FirstNonEmpty(user.Name, "synthetic"), 45, false, stageIndex, time.Now())
 			continue
 		}
 		task := pickLoadTask(user.Tasks, selector)
-		latency := syntheticTaskLatency(taskSamplerName(task))
-		stats.recordResult(taskSamplerName(task), latency, false, stageIndex, time.Now())
+		latencyMs := syntheticTaskLatency(taskSamplerName(task))
+		stats.recordResult(taskSamplerName(task), latencyMs, false, stageIndex, time.Now())
 	}
 }
 
-func syntheticTaskLatency(name string) time.Duration {
+func syntheticTaskLatency(name string) int {
 	var total int
 	for _, ch := range name {
 		total += int(ch)
 	}
-	return time.Duration(35+(total%25)) * time.Millisecond
-}
-
-func runClosedLoadModel(ctx context.Context, step StepSpec, client *http.Client, emit func(logstream.Line), stats *loadStats) error {
-	active := make([]loadUserHandle, 0)
-	defer stopLoadUsers(&active)
-
-	selector := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for stageIndex, stage := range step.Load.Stages {
-		stats.beginStage(stageIndex, stage, time.Now())
-		emit(line(step, "info", fmt.Sprintf("[%s] Entering stage %d with target users=%d spawn_rate=%.1f duration=%s.", step.Node.Name, stageIndex+1, stage.Users, stage.SpawnRate, stage.Duration)))
-		stageCtx, cancel := context.WithTimeout(ctx, stage.Duration)
-		ticker := time.NewTicker(time.Second)
-		tick := 0
-
-		adjustClosedUsers(stageCtx, stageIndex, step, client, emit, stats, &active, stage, selector)
-	stageLoop:
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				cancel()
-				return ctx.Err()
-			case <-stageCtx.Done():
-				break stageLoop
-			case <-ticker.C:
-				adjustClosedUsers(stageCtx, stageIndex, step, client, emit, stats, &active, stage, selector)
-				tick++
-				if tick%5 == 0 {
-					emit(metricLine(step, snapshotMetrics(stats)))
-				}
-			}
-		}
-
-		ticker.Stop()
-		cancel()
-		stopLoadUsers(&active)
-		stats.endStage(stageIndex, time.Now())
-		if stage.Stop {
-			break
-		}
-	}
-	return nil
-}
-
-type loadUserHandle struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-}
-
-func adjustClosedUsers(ctx context.Context, stageIndex int, step StepSpec, client *http.Client, emit func(logstream.Line), stats *loadStats, active *[]loadUserHandle, stage suites.LoadStage, selector *rand.Rand) {
-	target := stage.Users
-	diff := target - len(*active)
-	if diff == 0 {
-		stats.recordActiveUsers(len(*active))
-		return
-	}
-
-	stepSize := len(*active) + 1
-	if stage.SpawnRate > 0 {
-		stepSize = int(math.Ceil(stage.SpawnRate))
-	}
-	if stepSize <= 0 {
-		stepSize = 1
-	}
-
-	switch {
-	case diff > 0:
-		toStart := minInt(diff, stepSize)
-		for index := 0; index < toStart; index++ {
-			user := pickLoadUser(step.Load.Users, selector)
-			*active = append(*active, startLoadUser(ctx, stageIndex, step, user, client, emit, stats, selector.Int()))
-		}
-	case diff < 0:
-		toStop := minInt(-diff, stepSize)
-		for index := 0; index < toStop && len(*active) > 0; index++ {
-			handle := (*active)[len(*active)-1]
-			handle.cancel()
-			<-handle.done
-			*active = (*active)[:len(*active)-1]
-		}
-	}
-
-	stats.recordActiveUsers(len(*active))
-}
-
-func startLoadUser(ctx context.Context, stageIndex int, step StepSpec, user suites.LoadUser, client *http.Client, emit func(logstream.Line), stats *loadStats, seed int) loadUserHandle {
-	userCtx, cancel := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		rnd := rand.New(rand.NewSource(time.Now().UnixNano() + int64(seed)))
-		for {
-			select {
-			case <-userCtx.Done():
-				return
-			default:
-			}
-
-			iterationStartedAt := time.Now()
-			task := pickLoadTask(user.Tasks, rnd)
-			runLoadTask(userCtx, stageIndex, step, client, task, stats)
-
-			wait := loadUserWait(user.Wait, iterationStartedAt, rnd)
-			if wait <= 0 {
-				continue
-			}
-			timer := time.NewTimer(wait)
-			select {
-			case <-userCtx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-			}
-		}
-	}()
-	return loadUserHandle{cancel: cancel, done: done}
-}
-
-func stopLoadUsers(active *[]loadUserHandle) {
-	for index := len(*active) - 1; index >= 0; index-- {
-		(*active)[index].cancel()
-		<-(*active)[index].done
-	}
-	*active = (*active)[:0]
-}
-
-func runOpenLoadModel(ctx context.Context, step StepSpec, client *http.Client, emit func(logstream.Line), stats *loadStats) error {
-	limiter := make(chan struct{}, maxOutstandingLoadRequests)
-	var wg sync.WaitGroup
-	selector := rand.New(rand.NewSource(time.Now().UnixNano()))
-	defer wg.Wait()
-
-	for stageIndex, stage := range step.Load.Stages {
-		rate := stageLoadRate(step.Load, stage)
-		if rate <= 0 {
-			continue
-		}
-		stats.beginStage(stageIndex, stage, time.Now())
-		emit(line(step, "info", fmt.Sprintf("[%s] Entering stage %d with rate %.1f iterations/s for %s.", step.Node.Name, stageIndex+1, rate, stage.Duration)))
-
-		interval := time.Duration(float64(time.Second) / rate)
-		if interval < 10*time.Millisecond {
-			interval = 10 * time.Millisecond
-		}
-
-		stageCtx, cancel := context.WithTimeout(ctx, stage.Duration)
-		ticker := time.NewTicker(interval)
-		metricTicker := time.NewTicker(5 * time.Second)
-	stageLoop:
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				metricTicker.Stop()
-				cancel()
-				return ctx.Err()
-			case <-stageCtx.Done():
-				break stageLoop
-			case <-metricTicker.C:
-				emit(metricLine(step, snapshotMetrics(stats)))
-			case <-ticker.C:
-				select {
-				case limiter <- struct{}{}:
-					stats.recordActiveUsers(len(limiter))
-					user := pickLoadUser(step.Load.Users, selector)
-					task := pickLoadTask(user.Tasks, selector)
-					wg.Add(1)
-					go func(selected suites.LoadTask, selectedStage int) {
-						defer wg.Done()
-						defer func() {
-							<-limiter
-							stats.recordActiveUsers(len(limiter))
-						}()
-						runLoadTask(stageCtx, selectedStage, step, client, selected, stats)
-					}(task, stageIndex)
-				default:
-				}
-			}
-		}
-		ticker.Stop()
-		metricTicker.Stop()
-		cancel()
-		stats.endStage(stageIndex, time.Now())
-		if stage.Stop {
-			break
-		}
-	}
-	return nil
-}
-
-func runLoadTask(ctx context.Context, stageIndex int, step StepSpec, client *http.Client, task suites.LoadTask, stats *loadStats) {
-	if ctx.Err() != nil {
-		return
-	}
-
-	requestURL, err := resolveLoadTaskURL(step.Load.Target, task.Request.Path)
-	if err != nil {
-		stats.recordResult(taskSamplerName(task), 0, true, stageIndex, time.Now())
-		return
-	}
-
-	request, err := http.NewRequestWithContext(ctx, task.Request.Method, requestURL, strings.NewReader(task.Request.Body))
-	if err != nil {
-		if ctx.Err() != nil {
-			return
-		}
-		stats.recordResult(taskSamplerName(task), 0, true, stageIndex, time.Now())
-		return
-	}
-	for key, value := range task.Request.Headers {
-		request.Header.Set(key, value)
-	}
-
-	startedAt := time.Now()
-	response, err := client.Do(request)
-	if err != nil {
-		if ctx.Err() != nil {
-			return
-		}
-		stats.recordResult(taskSamplerName(task), time.Since(startedAt), true, stageIndex, time.Now())
-		return
-	}
-	_, _ = io.Copy(io.Discard, response.Body)
-	_ = response.Body.Close()
-
-	failed := !loadStatusChecksPass(task.Checks, response.StatusCode)
-	stats.recordResult(taskSamplerName(task), time.Since(startedAt), failed, stageIndex, time.Now())
-}
-
-func resolveLoadTaskURL(target string, path string) (string, error) {
-	base, err := url.Parse(target)
-	if err != nil {
-		return "", err
-	}
-	ref, err := url.Parse(path)
-	if err != nil {
-		return "", err
-	}
-	return base.ResolveReference(ref).String(), nil
-}
-
-func loadStatusChecksPass(checks []suites.LoadThreshold, statusCode int) bool {
-	for _, check := range checks {
-		if check.Metric != "status" {
-			continue
-		}
-		if !compareLoadValue(float64(statusCode), check.Op, check.Value) {
-			return false
-		}
-	}
-	return true
+	return 35 + (total % 25)
 }
 
 func evaluateLoadThresholds(step StepSpec, stats *loadStats) error {
@@ -606,7 +442,7 @@ func (s *loadStats) endStage(index int, finishedAt time.Time) {
 	}
 }
 
-func (s *loadStats) recordResult(sampler string, latency time.Duration, failed bool, stageIndex int, observedAt time.Time) {
+func (s *loadStats) recordResult(sampler string, latencyMs int, failed bool, stageIndex int, observedAt time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -620,8 +456,9 @@ func (s *loadStats) recordResult(sampler string, latency time.Duration, failed b
 	if failed {
 		s.Failures++
 	}
-	s.Latencies = append(s.Latencies, latency)
+	s.lat.addMs(latencyMs)
 	s.ThroughputByS[throughputBucketIndex(s.StartedAt, observedAt)]++
+
 	current := s.Samplers[sampler]
 	if current == nil {
 		current = &loadSamplerStats{}
@@ -631,7 +468,7 @@ func (s *loadStats) recordResult(sampler string, latency time.Duration, failed b
 	if failed {
 		current.Failures++
 	}
-	current.Latencies = append(current.Latencies, latency)
+	current.lat.addMs(latencyMs)
 
 	stage := s.Stages[stageIndex]
 	if stage == nil {
@@ -651,7 +488,7 @@ func (s *loadStats) recordResult(sampler string, latency time.Duration, failed b
 	if failed {
 		stage.Failures++
 	}
-	stage.Latencies = append(stage.Latencies, latency)
+	stage.lat.addMs(latencyMs)
 	stage.ThroughputByS[throughputBucketIndex(stage.StartedAt, observedAt)]++
 }
 
@@ -671,7 +508,7 @@ func (s *loadStats) summary() loadSummary {
 		Requests:   s.Requests,
 		Failures:   s.Failures,
 		PeakUsers:  s.PeakUsers,
-		Latency:    summarizeLatencies(s.Latencies),
+		Latency:    summarizeLatencies(s.lat),
 		Throughput: summarizeThroughput(s.ThroughputByS),
 		Samplers:   make([]loadSamplerSummary, 0, len(s.Samplers)),
 		Stages:     make([]loadStageSummary, 0, len(s.Stages)),
@@ -693,7 +530,7 @@ func (s *loadStats) summary() loadSummary {
 			Count:     sampler.Count,
 			Failures:  sampler.Failures,
 			ErrorRate: errorRate,
-			Latency:   summarizeLatencies(sampler.Latencies),
+			Latency:   summarizeLatencies(sampler.lat),
 		})
 	}
 	sort.Slice(summary.Samplers, func(i, j int) bool {
@@ -721,7 +558,7 @@ func (s *loadStats) summary() loadSummary {
 			ErrorRate:       errorRate,
 			AverageRPS:      avgRPS,
 			PeakRPS:         peakRPS,
-			Latency:         summarizeLatencies(stage.Latencies),
+			Latency:         summarizeLatencies(stage.lat),
 		})
 	}
 	sort.Slice(summary.Stages, func(i, j int) bool {
@@ -730,8 +567,6 @@ func (s *loadStats) summary() loadSummary {
 	return summary
 }
 
-// snapshotMetrics reads the current loadStats and returns a TrafficMetricSnapshot
-// suitable for emission as a metric-kind log line.
 func snapshotMetrics(stats *loadStats) TrafficMetricSnapshot {
 	s := stats.summary()
 	return TrafficMetricSnapshot{
@@ -795,32 +630,21 @@ func (s loadSummary) metricValue(metric string, sampler string) (float64, bool) 
 	}
 }
 
-func summarizeLatencies(values []time.Duration) loadLatencySummary {
-	if len(values) == 0 {
+func summarizeLatencies(b latencyBuckets) loadLatencySummary {
+	if b.count == 0 {
 		return loadLatencySummary{}
 	}
-	minimum := values[0]
-	maximum := values[0]
-	total := time.Duration(0)
-	for _, value := range values {
-		if value < minimum {
-			minimum = value
-		}
-		if value > maximum {
-			maximum = value
-		}
-		total += value
-	}
+	avgMs := float64(b.sumMs) / float64(b.count)
 	return loadLatencySummary{
-		Count:     len(values),
-		MinMillis: durationMillis(minimum),
-		MaxMillis: durationMillis(maximum),
-		AvgMillis: durationMillis(total) / float64(len(values)),
-		P50Millis: percentileMillis(values, 50),
-		P90Millis: percentileMillis(values, 90),
-		P95Millis: percentileMillis(values, 95),
-		P99Millis: percentileMillis(values, 99),
-		Histogram: buildLatencyHistogram(values),
+		Count:     b.count,
+		MinMillis: float64(b.minMs),
+		MaxMillis: float64(b.maxMs),
+		AvgMillis: avgMs,
+		P50Millis: b.percentile(50),
+		P90Millis: b.percentile(90),
+		P95Millis: b.percentile(95),
+		P99Millis: b.percentile(99),
+		Histogram: buildLatencyHistogram(b),
 	}
 }
 
@@ -856,28 +680,6 @@ func summarizeRPS(requests int, duration time.Duration, throughput []loadThrough
 	return float64(requests) / duration.Seconds(), peak
 }
 
-func percentileMillis(values []time.Duration, percentile float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	sorted := append([]time.Duration{}, values...)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i] < sorted[j]
-	})
-	position := int(math.Ceil((percentile / 100) * float64(len(sorted))))
-	if position <= 0 {
-		position = 1
-	}
-	if position > len(sorted) {
-		position = len(sorted)
-	}
-	return durationMillis(sorted[position-1])
-}
-
-func durationMillis(value time.Duration) float64 {
-	return float64(value) / float64(time.Millisecond)
-}
-
 func throughputBucketIndex(startedAt time.Time, observedAt time.Time) int {
 	if startedAt.IsZero() || observedAt.Before(startedAt) {
 		return 0
@@ -885,35 +687,35 @@ func throughputBucketIndex(startedAt time.Time, observedAt time.Time) int {
 	return int(observedAt.Sub(startedAt) / time.Second)
 }
 
-func buildLatencyHistogram(values []time.Duration) []loadHistogramBucket {
+func buildLatencyHistogram(b latencyBuckets) []loadHistogramBucket {
 	thresholds := []struct {
 		label string
-		limit time.Duration
+		limit int
 	}{
-		{label: "<=10ms", limit: 10 * time.Millisecond},
-		{label: "<=25ms", limit: 25 * time.Millisecond},
-		{label: "<=50ms", limit: 50 * time.Millisecond},
-		{label: "<=100ms", limit: 100 * time.Millisecond},
-		{label: "<=250ms", limit: 250 * time.Millisecond},
-		{label: "<=500ms", limit: 500 * time.Millisecond},
-		{label: "<=1000ms", limit: time.Second},
+		{label: "<=10ms", limit: 10},
+		{label: "<=25ms", limit: 25},
+		{label: "<=50ms", limit: 50},
+		{label: "<=100ms", limit: 100},
+		{label: "<=250ms", limit: 250},
+		{label: "<=500ms", limit: 500},
+		{label: "<=1000ms", limit: 1000},
 	}
-	buckets := make([]loadHistogramBucket, 0, len(thresholds)+1)
-	for _, threshold := range thresholds {
-		buckets = append(buckets, loadHistogramBucket{Label: threshold.label})
+	buckets := make([]loadHistogramBucket, len(thresholds)+1)
+	for i, t := range thresholds {
+		buckets[i].Label = t.label
 	}
-	buckets = append(buckets, loadHistogramBucket{Label: ">1000ms"})
-	for _, value := range values {
-		matched := false
-		for index, threshold := range thresholds {
-			if value <= threshold.limit {
-				buckets[index].Count++
-				matched = true
+	buckets[len(thresholds)].Label = ">1000ms"
+	for key, count := range b.m {
+		placed := false
+		for i, t := range thresholds {
+			if key <= t.limit {
+				buckets[i].Count += count
+				placed = true
 				break
 			}
 		}
-		if !matched {
-			buckets[len(buckets)-1].Count++
+		if !placed {
+			buckets[len(thresholds)].Count += count
 		}
 	}
 	return buckets
@@ -990,41 +792,6 @@ func pickLoadTask(tasks []suites.LoadTask, selector *rand.Rand) suites.LoadTask 
 		}
 	}
 	return tasks[len(tasks)-1]
-}
-
-func loadUserWait(wait suites.LoadWait, iterationStartedAt time.Time, selector *rand.Rand) time.Duration {
-	switch wait.Mode {
-	case "between":
-		minimum := wait.MinSeconds
-		maximum := wait.MaxSeconds
-		if maximum < minimum {
-			maximum = minimum
-		}
-		return time.Duration((minimum + selector.Float64()*(maximum-minimum)) * float64(time.Second))
-	case "pacing":
-		target := time.Duration(wait.Seconds * float64(time.Second))
-		elapsed := time.Since(iterationStartedAt)
-		if elapsed >= target {
-			return 0
-		}
-		return target - elapsed
-	default:
-		return time.Duration(wait.Seconds * float64(time.Second))
-	}
-}
-
-func stageLoadRate(spec *suites.LoadSpec, stage suites.LoadStage) float64 {
-	switch spec.Variant {
-	case "traffic.constant_throughput":
-		if spec.RequestsPerS > 0 {
-			return spec.RequestsPerS
-		}
-	case "traffic.open_model":
-		if spec.ArrivalRate > 0 {
-			return spec.ArrivalRate
-		}
-	}
-	return float64(stage.Users)
 }
 
 func taskSamplerName(task suites.LoadTask) string {

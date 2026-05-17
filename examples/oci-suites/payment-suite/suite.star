@@ -74,28 +74,22 @@ for target in traffic_targets:
     if ACTIVE_TRAFFIC == "baseline":
         t = traffic.baseline(
             name="checkout-baseline-" + target_name,
-            plan="checkout_baseline.star",
             target="http://" + target_name + ":8080",
             rps=traffic_profile["rps"],
-            duration=traffic_profile["duration"],
             after=fraud_workers + [target],
         )
     elif ACTIVE_TRAFFIC == "stress":
         t = traffic.stress(
             name="checkout-stress-" + target_name,
-            plan="checkout_stress.star",
             target="http://" + target_name + ":8080",
             rps=traffic_profile["rps"],
-            duration=traffic_profile["duration"],
             after=fraud_workers + [target],
         )
     else:
         t = traffic.soak(
             name="checkout-soak-" + target_name,
-            plan="checkout_soak.star",
             target="http://" + target_name + ":8080",
             rps=traffic_profile["rps"],
-            duration=traffic_profile["duration"],
             after=fraud_workers + [target],
         )
     traffic_nodes.append(t)
