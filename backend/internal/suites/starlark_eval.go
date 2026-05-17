@@ -2,6 +2,7 @@ package suites
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -59,6 +60,20 @@ func (r *starlarkRegistry) register(n *starlarkNode) {
 	r.mu.Unlock()
 }
 
+var loadStmtRE = regexp.MustCompile(`(?m)^\s*load\s*\(\s*"([^"]+)"((?:\s*,\s*"[^"]+")*)`)
+var loadNameRE = regexp.MustCompile(`"([^"]+)"`)
+
+func parseModuleStubs(src string) map[string][]string {
+	stubs := make(map[string][]string)
+	for _, m := range loadStmtRE.FindAllStringSubmatch(src, -1) {
+		module := m[1]
+		for _, nm := range loadNameRE.FindAllStringSubmatch(m[2], -1) {
+			stubs[module] = append(stubs[module], nm[1])
+		}
+	}
+	return stubs
+}
+
 func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -67,6 +82,7 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	}()
 
 	reg := &starlarkRegistry{}
+	stubs := parseModuleStubs(suiteStar)
 
 	predeclared, err := buildRuntimePredeclared(reg)
 	if err != nil {
@@ -76,7 +92,7 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	thread := &starlark.Thread{
 		Name: "suite.star",
 		Load: func(t *starlark.Thread, module string) (starlark.StringDict, error) {
-			return resolveStarlarkModule(module, reg)
+			return resolveStarlarkModule(module, reg, stubs)
 		},
 	}
 	thread.SetMaxExecutionSteps(starlarkMaxSteps)
@@ -109,12 +125,17 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 	}, nil
 }
 
-func resolveStarlarkModule(module string, reg *starlarkRegistry) (starlark.StringDict, error) {
+func resolveStarlarkModule(module string, reg *starlarkRegistry, stubs map[string][]string) (starlark.StringDict, error) {
 	if module == "@babelsuite/runtime" {
 		return buildRuntimeModule(reg)
 	}
 	if strings.HasPrefix(module, "@babelsuite/") {
-		return starlark.StringDict{}, nil
+		names := stubs[module]
+		dict := make(starlark.StringDict, len(names))
+		for _, name := range names {
+			dict[name] = starlark.NewBuiltin(name, buildNodeFunc(reg, "service.run"))
+		}
+		return dict, nil
 	}
 	return nil, fmt.Errorf("unknown module %q", module)
 }
