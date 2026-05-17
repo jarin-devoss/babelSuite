@@ -1,0 +1,15 @@
+kind: OCIExampleModule
+metadata:
+  id: stdlib-redis
+  title: "@babelsuite/redis"
+spec:
+  repository: localhost:5000/babelsuite/redis
+  provider: Stdlib
+  version: 1.0.0
+  entrypoint: module.star
+  tags:
+    - 1.0.0
+    - latest
+  description: Pure Starlark Redis module — cluster lifecycle, key management, and readiness helpers built on BabelSuite's runtime primitives.
+  pullCommand: babelctl run localhost:5000/babelsuite/redis:1.0.0
+  forkCommand: babelctl fork localhost:5000/babelsuite/redis:1.0.0 ./stdlib-redis

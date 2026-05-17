@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
 load("@babelsuite/kafka",    "kafka", "create_topic")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
@@ -9,11 +9,34 @@ REFUND_POLICIES   = env.get("REFUND_POLICIES", "standard,expedited").split(",")
 ENABLE_FRAUD_GATE = env.get("ENABLE_FRAUD_GATE", "true") == "true"
 ENABLE_SOAK       = env.get("ENABLE_SOAK", "false") == "true"
 
+PAYMENT_SUITE_REF        = env.get("PAYMENT_SUITE_REF",        "localhost:5000/core-platform/payment-suite:stable")
+NOTIFICATION_HUB_REF     = env.get("NOTIFICATION_HUB_REF",     "localhost:5000/core-platform/notification-hub:stable")
+ENABLE_REFUND_NOTIFY     = env.get("ENABLE_REFUND_NOTIFY",      "true") == "true"
+
 REGION_LIMITS = {
     "eu":   {"max_refund_usd": 5000, "sla_hours": 48},
     "us":   {"max_refund_usd": 10000, "sla_hours": 24},
     "apac": {"max_refund_usd": 3000, "sla_hours": 72},
 }
+
+# ── upstream suite dependencies ───────────────────────────────────────────────
+# payment-suite owns the charge records that refunds are issued against
+payment_suite = suite.run(
+    name="payment-suite",
+    ref=PAYMENT_SUITE_REF,
+)
+
+# notification-hub is pulled in only when refund confirmation notifications are active
+if ENABLE_REFUND_NOTIFY:
+    notification_hub = suite.run(
+        name="notification-hub",
+        ref=NOTIFICATION_HUB_REF,
+        after=[payment_suite],
+    )
+    notify_deps = [notification_hub]
+else:
+    notification_hub = None
+    notify_deps      = []
 
 # ── infrastructure ───────────────────────────────────────────────────────────
 db     = pg()
@@ -56,7 +79,7 @@ all_topics = [t for topics in region_topics.values() for t in topics]
 
 # ── returns API ───────────────────────────────────────────────────────────────
 returns_api = service.run(
-    after=api_deps,
+    after=api_deps + [payment_suite] + notify_deps,
     env={
         "ENABLED_REGIONS":   ",".join(REGIONS),
         "FRAUD_GATE_ENABLED": str(ENABLE_FRAUD_GATE).lower(),
