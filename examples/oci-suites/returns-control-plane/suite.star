@@ -1,0 +1,12 @@
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+
+returns_db = service.run()
+broker = service.run()
+refunds_mock = service.mock(after=[returns_db])
+pricing_mock = service.mock(after=[returns_db])
+events_mock = service.mock(after=[broker])
+seed_topics = task.run(file="seed_topics.sh", image="bash:5.2", after=[broker])
+seed_routes = task.run(file="seed_routes.ts", image="node:22", after=[returns_db, refunds_mock, pricing_mock])
+returns_api = service.run(after=[returns_db, refunds_mock, pricing_mock, seed_routes])
+refund_worker = service.run(after=[broker, returns_api, events_mock, seed_topics])
+returns_smoke = test.run(file="returns_smoke.py", image="python:3.12", after=[returns_api, refund_worker])

@@ -1,0 +1,81 @@
+package runner
+
+import (
+	"context"
+	"time"
+
+	"github.com/babelsuite/babelsuite/internal/logstream"
+	"github.com/babelsuite/babelsuite/internal/suites"
+)
+
+type StepNode struct {
+	ID        string
+	Name      string
+	Kind      string
+	Variant   string
+	Image     string
+	DependsOn []string
+}
+
+type ArtifactExport struct {
+	Path   string
+	Name   string
+	On     string
+	Format string
+}
+
+type StepSpec struct {
+	ExecutionID      string
+	SuiteID          string
+	SuiteTitle       string
+	SuiteRepository  string
+	Profile          string
+	RuntimeProfile   string
+	Env              map[string]string
+	Headers          map[string]string
+	Trigger          string
+	BackendID        string
+	BackendLabel     string
+	BackendKind      string
+	SourceSuiteID    string
+	SourceSuiteTitle string
+	SourceRepository string
+	SourceVersion    string
+	ResolvedRef      string
+	Digest           string
+	DependencyAlias  string
+	StepIndex        int
+	TotalSteps       int
+	LeaseTTL         time.Duration
+	Load             *suites.LoadSpec
+	Evaluation       *suites.StepEvaluation
+	OnFailure        []string
+	ArtifactExports  []ArtifactExport
+	// OnArtifact is called once per collected artifact file, with its container path and raw bytes.
+	// May be nil when the backend does not support container-level file collection.
+	OnArtifact func(path string, content []byte)
+	Node             StepNode
+	// GatewayURL is the primary APISIX sidecar address (first mock node).
+	GatewayURL string
+	// GatewayURLs contains one address per mock node in topology order.
+	GatewayURLs []string
+}
+
+type Executor interface {
+	Run(ctx context.Context, step StepSpec, emit func(logstream.Line)) error
+}
+
+type Backend interface {
+	Executor
+	ID() string
+	Label() string
+	Kind() string
+	IsAvailable(ctx context.Context) bool
+}
+
+type BackendConfig struct {
+	ID         string
+	Label      string
+	Kind       string
+	Permissive bool
+}

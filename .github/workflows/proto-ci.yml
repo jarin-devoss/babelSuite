@@ -1,0 +1,35 @@
+name: Proto CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "proto/**"
+      - ".github/workflows/proto-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "proto/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-action@v1
+        with:
+          input: proto
+          lint: true
+          format: true
+          breaking: true
+          breaking_against: "https://github.com/${{ github.repository }}.git#branch=main,subdir=proto"

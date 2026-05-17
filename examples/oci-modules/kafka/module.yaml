@@ -1,0 +1,16 @@
+kind: OCIExampleModule
+metadata:
+  id: stdlib-kafka
+  title: @babelsuite/kafka
+spec:
+  repository: localhost:5000/babelsuite/kafka
+  provider: Stdlib
+  version: 1.2.3
+  entrypoint: module.star
+  tags:
+    - 1.2.3
+    - 1.2.2
+    - latest
+  description: Pure Starlark Kafka module built on top of BabelSuite's built-in runtime service and task primitives.
+  pullCommand: babelctl run localhost:5000/babelsuite/kafka:1.2.3
+  forkCommand: babelctl fork localhost:5000/babelsuite/kafka:1.2.3 ./stdlib-kafka

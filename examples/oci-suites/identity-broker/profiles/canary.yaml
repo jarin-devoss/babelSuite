@@ -1,0 +1,14 @@
+name: Canary
+description: New session persistence behavior and stricter cookie policies.
+default: false
+runtime:
+  suite: identity-broker
+  repository: localhost:5000/security/identity-broker
+  profileFile: canary.yaml
+modules:
+    - vault
+    - postgres
+observability:
+  logs: structured
+  traces: enabled
+  metrics: enabled

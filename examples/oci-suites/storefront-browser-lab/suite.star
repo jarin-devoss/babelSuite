@@ -1,0 +1,10 @@
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+
+broker = service.run()
+catalog_mock = service.mock(after=[broker])
+orders_mock = service.mock(after=[broker])
+seed_topics = task.run(file="seed_topics.sh", image="bash:5.2", after=[broker])
+event_consumer = service.run(after=[broker, seed_topics, orders_mock])
+storefront_api = service.run(after=[catalog_mock, orders_mock, seed_topics])
+storefront_ui = service.run(after=[storefront_api])
+playwright_checkout = test.run(file="playwright_checkout.spec.ts", image="mcr.microsoft.com/playwright:v1.53.0-noble", after=[storefront_ui, event_consumer])

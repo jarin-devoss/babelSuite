@@ -1,0 +1,22 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/events/refund-authorized.metadata.yaml
+    operationId: publish-refund-authorized
+    sourceArtifact: mock/events/refund-authorized.cue
+    suite: returns-control-plane
+spec:
+    adapter: async
+    delayMillis: 0
+    fallback:
+        mode: example
+        examplename: authorized-event
+        proxyurl: ""
+        status: ""
+        mediatype: ""
+        body: ""
+        headers: []
+    parameterConstraints: []
+    resolverUrl: /internal/mock-data/returns-control-plane/refund-events/publish-refund-authorized
+    runtimeUrl: /mocks/async/returns-control-plane/refund-events/publish-refund-authorized
+    state: null

@@ -1,0 +1,9 @@
+{
+  "fixture": "customers.json",
+  "modules": [
+    "postgres",
+    "kafka",
+    "grpc"
+  ],
+  "suite": "returns-control-plane"
+}

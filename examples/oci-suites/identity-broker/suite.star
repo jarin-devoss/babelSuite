@@ -1,0 +1,9 @@
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+
+broker_db = service.run()
+oidc_mock = service.mock(after=[broker_db])
+saml_mock = service.mock(after=[broker_db])
+seed_realms = task.run(file="seed_realms.ts", image="node:22", after=[broker_db])
+broker_api = service.run(after=[broker_db, oidc_mock, saml_mock, seed_realms])
+session_worker = service.run(after=[broker_api])
+login_smoke = test.run(file="login_smoke.py", image="python:3.12", after=[broker_api, session_worker])

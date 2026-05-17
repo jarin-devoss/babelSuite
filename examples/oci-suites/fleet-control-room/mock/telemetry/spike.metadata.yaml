@@ -1,0 +1,27 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/telemetry/spike.metadata.yaml
+    operationId: assign-route
+    sourceArtifact: mock/telemetry/spike.cue
+    suite: fleet-control-room
+spec:
+    adapter: grpc
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "5"
+        mediatype: application/json
+        body: "{\n  \"code\": \"ROUTE_ASSIGNMENT_NOT_FOUND\",\n  \"message\": \"No gRPC exchange matched the incoming vehicle.\" \n}"
+        headers: []
+    parameterConstraints:
+        - name: x-profile
+          source: header
+          required: false
+          forward: true
+          pattern: ""
+    resolverUrl: /internal/mock-data/fleet-control-room/dispatcher-api/assign-route
+    runtimeUrl: /mocks/grpc/fleet-control-room/dispatcher-api/assign-route
+    state: null
