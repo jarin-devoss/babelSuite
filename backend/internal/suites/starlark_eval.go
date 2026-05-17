@@ -468,7 +468,9 @@ func assignIDs(reg *starlarkRegistry, globals starlark.StringDict) {
 	nodeToVar := make(map[*starlarkNode]string, len(reg.nodes))
 	for varName, val := range globals {
 		if node, ok := val.(*starlarkNode); ok {
-			nodeToVar[node] = varName
+			if existing, seen := nodeToVar[node]; !seen || len(varName) > len(existing) || (len(varName) == len(existing) && varName < existing) {
+				nodeToVar[node] = varName
+			}
 		}
 	}
 
