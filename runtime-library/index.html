@@ -1566,16 +1566,19 @@
 </tbody>
 </table>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">perf</span> <span class="o">=</span> <span class="n">traffic</span><span class="o">.</span><span class="n">smoke</span><span class="p">(</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">plan</span><span class="o">=</span><span class="s2">&quot;smoke.star&quot;</span><span class="p">,</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>traffic(...)</code> is intentionally rejected. Use one of the explicit <code>traffic.*</code> forms.</p>
 <p>Each <code>traffic.*</code> node must declare:</p>
 <ul>
-<li><code>plan="..."</code> pointing at a file under <code>traffic/</code></li>
 <li><code>target="..."</code> as an absolute base URL for the native HTTP executor</li>
+</ul>
+<p>Optionally:</p>
+<ul>
+<li><code>plan="..."</code> pointing at a file under <code>traffic/</code> — enables advanced workload definitions with custom users, stages, tasks, and thresholds</li>
+<li><code>rps=&lt;number&gt;</code> or <code>arrival_rate=&lt;number&gt;</code> — override the default request rate</li>
 </ul>
 <p>Recommended meanings:</p>
 <ul>
@@ -1592,7 +1595,8 @@
 <li><code>traffic.constant_pacing</code>: fixed interval between iterations per user</li>
 <li><code>traffic.open_model</code>: fixed arrival-rate style workload independent of response time</li>
 </ul>
-<p>These suite-facing entrypoints work with the native traffic plan builders inside <code>traffic/*.star</code>, including:</p>
+<p>When <code>plan=</code> is omitted the native executor runs a synthetic baseline against <code>target=</code> using the APISIX sidecar — no separate plan file required.</p>
+<p>For advanced workload control, create a <code>traffic/*.star</code> file and reference it via <code>plan=</code>. The native plan builders available inside those files include:</p>
 <ul>
 <li><code>traffic.plan</code></li>
 <li><code>traffic.user</code></li>
@@ -1609,7 +1613,7 @@
 <p>Current behavior:</p>
 <ul>
 <li>the selected traffic profile is preserved in topology metadata and execution step payloads</li>
-<li><code>plan=</code> and <code>target=</code> are parsed into a structured traffic spec on the topology node</li>
+<li><code>target=</code> is the only required argument; <code>plan=</code> is optional and enables advanced workload definitions</li>
 <li>the native plan builders define concrete users, tasks, waits, stages, and thresholds</li>
 <li>the native runner executes real guarded HTTP traffic for supported profiles instead of only emitting synthetic traffic logs</li>
 <li>the native runner now reports richer latency and throughput summaries, including <code>min</code>, <code>avg</code>, <code>max</code>, <code>p50</code>, <code>p90</code>, <code>p95</code>, <code>p99</code>, per-stage summaries, compact throughput timelines, and latency histograms</li>
