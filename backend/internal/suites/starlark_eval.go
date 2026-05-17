@@ -2,6 +2,7 @@ package suites
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -30,6 +31,11 @@ type starlarkNode struct {
 	ref             string
 	plan            string
 	target          string
+	technique       string
+	floodPath       string
+	floodRate       float64
+	floodDuration   float64
+	floodThrottle   bool
 	rps             float64
 	arrivalRate     float64
 	after           []*starlarkNode
@@ -59,6 +65,20 @@ func (r *starlarkRegistry) register(n *starlarkNode) {
 	r.mu.Unlock()
 }
 
+var loadStmtRE = regexp.MustCompile(`(?m)^\s*load\s*\(\s*"([^"]+)"((?:\s*,\s*"[^"]+")*)`)
+var loadNameRE = regexp.MustCompile(`"([^"]+)"`)
+
+func parseModuleStubs(src string) map[string][]string {
+	stubs := make(map[string][]string)
+	for _, m := range loadStmtRE.FindAllStringSubmatch(src, -1) {
+		module := m[1]
+		for _, nm := range loadNameRE.FindAllStringSubmatch(m[2], -1) {
+			stubs[module] = append(stubs[module], nm[1])
+		}
+	}
+	return stubs
+}
+
 func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -67,6 +87,7 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	}()
 
 	reg := &starlarkRegistry{}
+	stubs := parseModuleStubs(suiteStar)
 
 	predeclared, err := buildRuntimePredeclared(reg)
 	if err != nil {
@@ -76,7 +97,7 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	thread := &starlark.Thread{
 		Name: "suite.star",
 		Load: func(t *starlark.Thread, module string) (starlark.StringDict, error) {
-			return resolveStarlarkModule(module, reg)
+			return resolveStarlarkModule(module, reg, stubs)
 		},
 	}
 	thread.SetMaxExecutionSteps(starlarkMaxSteps)
@@ -100,21 +121,27 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 		return nil, err
 	}
 	return starlark.StringDict{
-		"service": runtimeModule["service"],
-		"task":    runtimeModule["task"],
-		"test":    runtimeModule["test"],
-		"traffic": runtimeModule["traffic"],
-		"suite":   runtimeModule["suite"],
-		"env":     frozenEmptyDict(),
+		"service":  runtimeModule["service"],
+		"task":     runtimeModule["task"],
+		"test":     runtimeModule["test"],
+		"traffic":  runtimeModule["traffic"],
+		"suite":    runtimeModule["suite"],
+		"security": runtimeModule["security"],
+		"env":      frozenEmptyDict(),
 	}, nil
 }
 
-func resolveStarlarkModule(module string, reg *starlarkRegistry) (starlark.StringDict, error) {
+func resolveStarlarkModule(module string, reg *starlarkRegistry, stubs map[string][]string) (starlark.StringDict, error) {
 	if module == "@babelsuite/runtime" {
 		return buildRuntimeModule(reg)
 	}
 	if strings.HasPrefix(module, "@babelsuite/") {
-		return starlark.StringDict{}, nil
+		names := stubs[module]
+		dict := make(starlark.StringDict, len(names))
+		for _, name := range names {
+			dict[name] = starlark.NewBuiltin(name, buildNodeFunc(reg, "service.run"))
+		}
+		return dict, nil
 	}
 	return nil, fmt.Errorf("unknown module %q", module)
 }
@@ -158,13 +185,27 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 			"run": buildNodeFunc(reg, "suite.run"),
 		},
 	}
+	security := &starlarkNamespace{
+		reg: reg,
+		methods: map[string]starlarkBuilderFunc{
+			"probe":   buildNodeFunc(reg, "security.probe"),
+			"fuzz":    buildNodeFunc(reg, "security.fuzz"),
+			"auth":    buildNodeFunc(reg, "security.auth"),
+			"flood":   buildNodeFunc(reg, "security.flood"),
+			"headers": buildNodeFunc(reg, "security.headers"),
+			"verbs":   buildNodeFunc(reg, "security.verbs"),
+			"graphql": buildNodeFunc(reg, "security.graphql"),
+			"cors":    buildNodeFunc(reg, "security.cors"),
+		},
+	}
 
 	return starlark.StringDict{
-		"service": service,
-		"task":    task,
-		"test":    test,
-		"traffic": traffic,
-		"suite":   suite,
+		"service":  service,
+		"task":     task,
+		"test":     test,
+		"traffic":  traffic,
+		"suite":    suite,
+		"security": security,
 	}, nil
 }
 
@@ -327,6 +368,37 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 					return nil, err
 				}
 				node.exports = exports
+
+			case "technique":
+				s, ok := starlark.AsString(val)
+				if !ok {
+					return nil, fmt.Errorf("%s: technique must be a string", variant)
+				}
+				node.technique = strings.TrimSpace(s)
+
+			case "path":
+				s, ok := starlark.AsString(val)
+				if !ok {
+					return nil, fmt.Errorf("%s: path must be a string", variant)
+				}
+				node.floodPath = strings.TrimSpace(s)
+
+			case "rate":
+				if f, ok := starlark.AsFloat(val); ok {
+					node.floodRate = f
+				}
+
+			case "duration":
+				if f, ok := starlark.AsFloat(val); ok {
+					node.floodDuration = f
+				}
+
+			case "expect_throttle":
+				b, ok := val.(starlark.Bool)
+				if !ok {
+					return nil, fmt.Errorf("%s: expect_throttle must be a bool", variant)
+				}
+				node.floodThrottle = bool(b)
 			}
 		}
 
@@ -447,7 +519,9 @@ func assignIDs(reg *starlarkRegistry, globals starlark.StringDict) {
 	nodeToVar := make(map[*starlarkNode]string, len(reg.nodes))
 	for varName, val := range globals {
 		if node, ok := val.(*starlarkNode); ok {
-			nodeToVar[node] = varName
+			if existing, seen := nodeToVar[node]; !seen || len(varName) > len(existing) || (len(varName) == len(existing) && varName < existing) {
+				nodeToVar[node] = varName
+			}
 		}
 	}
 
@@ -480,6 +554,21 @@ func buildStarlarkArguments(node *starlarkNode) string {
 	if node.arrivalRate > 0 {
 		parts = append(parts, fmt.Sprintf(`arrival_rate=%g`, node.arrivalRate))
 	}
+	if node.technique != "" {
+		parts = append(parts, fmt.Sprintf(`technique="%s"`, node.technique))
+	}
+	if node.floodPath != "" {
+		parts = append(parts, fmt.Sprintf(`path="%s"`, node.floodPath))
+	}
+	if node.floodRate > 0 {
+		parts = append(parts, fmt.Sprintf(`rate=%g`, node.floodRate))
+	}
+	if node.floodDuration > 0 {
+		parts = append(parts, fmt.Sprintf(`duration=%g`, node.floodDuration))
+	}
+	if node.floodThrottle {
+		parts = append(parts, `expect_throttle=True`)
+	}
 	return strings.Join(parts, ", ")
 }
 
@@ -499,6 +588,12 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			Kind:              node.kind,
 			Variant:           node.variant,
 			Ref:               node.ref,
+			Target:            node.target,
+			Technique:         node.technique,
+			FloodPath:         node.floodPath,
+			FloodRate:         node.floodRate,
+			FloodDuration:     node.floodDuration,
+			FloodThrottle:     node.floodThrottle,
 			Arguments:         buildStarlarkArguments(node),
 			ContinueOnFailure: node.continueOnFail,
 			Evaluation:        node.evaluation,
