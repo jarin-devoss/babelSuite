@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -16,6 +16,15 @@ DEVICE_VIEWPORTS = {
 }
 
 BROWSER_IMAGE = "mcr.microsoft.com/playwright:v1.53.0-noble"
+
+PAYMENT_SUITE_REF = env.get("PAYMENT_SUITE_REF", "localhost:5000/core-platform/payment-suite:stable")
+
+# ── upstream suite dependencies ───────────────────────────────────────────────
+# payment-suite provides the checkout and fraud services the browser tests drive
+payment_suite = suite.run(
+    name="payment-suite",
+    ref=PAYMENT_SUITE_REF,
+)
 
 # ── infrastructure ───────────────────────────────────────────────────────────
 broker       = kafka()
@@ -45,7 +54,7 @@ seed_products = task.run(
 
 # ── event consumer and storefront services ────────────────────────────────────
 event_consumer = service.run(after=topic_nodes + promo_topic_nodes + [orders_mock])
-storefront_api = service.run(after=[catalog_mock, orders_mock, seed_products] + topic_nodes)
+storefront_api = service.run(after=[catalog_mock, orders_mock, seed_products, payment_suite] + topic_nodes)
 storefront_ui  = service.run(after=[storefront_api])
 
 # ── performance monitoring (optional) ────────────────────────────────────────

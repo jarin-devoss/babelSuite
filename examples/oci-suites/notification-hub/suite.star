@@ -1,13 +1,18 @@
-load("@babelsuite/runtime", "service", "task", "test")
+load("@babelsuite/runtime", "service", "task", "test", "suite")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
 # ── environment knobs ────────────────────────────────────────────────────────
-CHANNELS         = env.get("CHANNELS", "email,sms,push,webhook").split(",")
-LOCALES          = env.get("LOCALES", "en,de,fr,ja").split(",")
+CHANNELS          = env.get("CHANNELS", "email,sms,push,webhook").split(",")
+LOCALES           = env.get("LOCALES", "en,de,fr,ja").split(",")
 ENABLE_RATE_LIMIT = env.get("ENABLE_RATE_LIMIT", "true") == "true"
 ENABLE_DLQ        = env.get("ENABLE_DLQ",        "true") == "true"
 RETRY_POLICY      = env.get("RETRY_POLICY",      "exponential")  # linear | exponential | none
+ENABLE_PAYMENT_NOTIFICATIONS = env.get("ENABLE_PAYMENT_NOTIFICATIONS", "true") == "true"
+
+# suites this topology depends on
+IDENTITY_BROKER_REF = env.get("IDENTITY_BROKER_REF", "localhost:5000/core-platform/identity-broker:stable")
+PAYMENT_SUITE_REF   = env.get("PAYMENT_SUITE_REF",   "localhost:5000/core-platform/payment-suite:stable")
 
 CHANNEL_CONFIGS = {
     "email":   {"partitions": 6,  "mock_def": "mock/email",   "image": "node:22"},
@@ -17,6 +22,25 @@ CHANNEL_CONFIGS = {
 }
 
 TEMPLATE_CATEGORIES = ["transactional", "marketing", "alert", "digest"]
+
+# ── upstream suite dependencies ───────────────────────────────────────────────
+# identity-broker provides user identity and preference resolution for targeting
+identity_broker = suite.run(
+    name="identity-broker",
+    ref=IDENTITY_BROKER_REF,
+)
+
+# payment-suite is pulled in only when payment event notifications are active
+if ENABLE_PAYMENT_NOTIFICATIONS:
+    payment_suite  = suite.run(
+        name="payment-suite",
+        ref=PAYMENT_SUITE_REF,
+        after=[identity_broker],
+    )
+    upstream_suites = [identity_broker, payment_suite]
+else:
+    payment_suite  = None
+    upstream_suites = [identity_broker]
 
 # ── infrastructure ────────────────────────────────────────────────────────────
 db     = pg()
@@ -74,7 +98,7 @@ else:
 
 # ── notification API ──────────────────────────────────────────────────────────
 notification_api = service.run(
-    after=[conn, cache] + all_mocks + api_extra + [seed_templates],
+    after=[conn, cache] + all_mocks + api_extra + [seed_templates] + upstream_suites,
     env={
         "ENABLED_CHANNELS":  ",".join(CHANNELS),
         "ENABLED_LOCALES":   ",".join(LOCALES),
@@ -161,3 +185,18 @@ if ENABLE_RATE_LIMIT:
         after=smoke_nodes,
         fail_on_logs=["LIMIT_NOT_ENFORCED", "BURST_THRESHOLD_MISSED"],
     )
+
+# ── payment event notification tests (only when payment suite is loaded) ──────
+if ENABLE_PAYMENT_NOTIFICATIONS and payment_suite != None:
+    PAYMENT_EVENT_TYPES = ["charge.succeeded", "charge.failed", "refund.created", "dispute.opened"]
+    for event_type in PAYMENT_EVENT_TYPES:
+        safe_name = event_type.replace(".", "-")
+        test.run(
+            name="payment-notify-" + safe_name,
+            file="payment_notify_smoke.py",
+            image="python:3.12",
+            after=smoke_nodes + [payment_suite],
+            env={"PAYMENT_EVENT_TYPE": event_type},
+            fail_on_logs=["EVENT_DROPPED", "ROUTING_FAILED", "IDENTITY_MISMATCH"],
+            exports=[{"path": "reports/payment-notify-" + safe_name + ".xml", "name": "payment-notify-" + safe_name, "on": "always", "format": "junit"}],
+        )
