@@ -210,6 +210,59 @@ Current limit:
 - `traffic.scalability` still requires a distributed executor and is rejected by the native runner
 - strict safety caps keep the control plane from self-harming with oversized traffic plans
 
+### `security`
+
+HTTP-layer security scanning via the APISIX sidecar — no extra containers required.
+
+| Call | Kind |
+|------|------|
+| `security.probe` | `security` |
+| `security.fuzz` | `security` |
+| `security.auth` | `security` |
+| `security.flood` | `security` |
+| `security.headers` | `security` |
+| `security.verbs` | `security` |
+| `security.graphql` | `security` |
+| `security.cors` | `security` |
+
+```python
+api   = service.mock(name="api")
+probe = security.probe(name="probe", after=[api],
+    exports=[{"path": "/findings/probe.json", "on": "always"}])
+fuzz  = security.fuzz(name="fuzz", technique="sqli", after=[probe],
+    exports=[{"path": "/findings/fuzz.json", "on": "always"}])
+flood = security.flood(name="flood", path="/api/v1/resource",
+    rate=50.0, duration=5.0, expect_throttle=True, after=[api],
+    exports=[{"path": "/findings/flood.json", "on": "always"}])
+```
+
+`security(...)` is intentionally rejected. Use one of the explicit `security.*` forms.
+
+Mode reference:
+
+- `security.probe`: requests sensitive paths; flags unexpected 2xx/3xx responses
+- `security.fuzz`: injects SQLi, XSS, path traversal, and header-injection payloads
+- `security.auth`: verifies protected endpoints are unreachable without credentials
+- `security.flood`: sends sustained traffic and expects HTTP 429 rate-limit responses
+- `security.headers`: audits security response headers (HSTS, CSP, X-Frame-Options, …)
+- `security.verbs`: probes dangerous HTTP methods (PUT, DELETE, TRACE, TRACK)
+- `security.graphql`: detects exposed GraphQL introspection endpoints
+- `security.cors`: finds CORS misconfigurations (reflected origin, wildcard credentials)
+
+Arguments specific to `security.*` nodes:
+
+| Argument | Used for |
+|----------|---------|
+| `technique="sqli"` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`) |
+| `path="..."` | target path for `security.flood` |
+| `rate=<float>` | requests per second for `security.flood` |
+| `duration=<float>` | run duration in seconds for `security.flood` |
+| `expect_throttle=True` | assert HTTP 429 is returned under flood conditions |
+
+The APISIX sidecar is provisioned automatically alongside every `service.mock` node, so `security.*` nodes derive their gateway URL from the mock's sidecar without a separate `target=` argument.
+
+Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronous JSON findings report: `{"total":N,"passed":N,"failed":N,"findings":[...]}`.
+
 ### `suite`
 
 Imports another suite via `dependencies.yaml`.
