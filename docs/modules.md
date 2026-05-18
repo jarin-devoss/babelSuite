@@ -37,11 +37,9 @@ The workspace loader resolves the `@babelsuite/kafka` path against your configur
 | `@babelsuite/runtime` | built-in | Always available — core topology primitives |
 | `@babelsuite/kafka` | `examples/oci-modules/kafka` | Available |
 | `@babelsuite/postgres` | `examples/oci-modules/postgres` | Available |
-| `@babelsuite/redis` | *(not yet published)* | Referenced in examples, no package yet |
-| `@babelsuite/playwright` | *(not yet published)* | Referenced in examples, no package yet |
-
-!!! note
-    `@babelsuite/redis` and `@babelsuite/playwright` appear in some example suites but have no corresponding OCI package in `examples/oci-modules/` yet. The suite still loads — the `load()` line is recorded as a contract — but no helpers are available.
+| `@babelsuite/redis` | `examples/oci-modules/redis` | Available |
+| `@babelsuite/mongodb` | `examples/oci-modules/mongodb` | Available |
+| `@babelsuite/playwright` | `examples/oci-modules/playwright` | Available |
 
 ---
 
@@ -146,6 +144,162 @@ The app only starts after the seed data is in place. The `pg()` → `connect()` 
 
 ---
 
+## Redis Module
+
+**Import path:** `@babelsuite/redis`  
+**Source:** `examples/oci-modules/redis`
+
+The Redis module starts a cache node and exposes key management helpers. Use it for feature flags, session tokens, rate-limit counters, or any workload that needs a seeded in-memory store before the application starts.
+
+### Package layout
+
+```
+redis/
+  module.star     # public entrypoint — re-exports all symbols
+  cluster.star    # cache lifecycle node
+  commands.star   # key/db management helpers
+  _shared.star    # internal utilities (not exported)
+  usage.star      # runnable examples
+  module.yaml     # OCI metadata
+```
+
+### Exported symbols
+
+| Symbol | Returns | Description |
+|--------|---------|-------------|
+| `redis(name, port, password, max_memory, max_memory_policy)` | node | Start a Redis cache |
+| `wait_ready(cluster, after)` | node | Wait until the cache accepts connections |
+| `set_key(cluster, key, value, ttl_seconds, after)` | node | Set a single key |
+| `set_keys(cluster, mapping, ttl_seconds, after)` | node | Set multiple keys from a dict |
+| `delete_key(cluster, key, after)` | node | Delete a key |
+| `flush_db(cluster, db, after)` | node | Flush one logical database |
+| `flush_all(cluster, after)` | node | Flush all databases |
+
+### Example
+
+```python
+load("@babelsuite/redis",   "redis", "set_keys", "flush_db", "wait_ready")
+load("@babelsuite/runtime", "service")
+
+cache = redis(name="cache", password="s3cr3t", max_memory="512mb")
+ready = wait_ready(cache)
+flush = flush_db(cache, db=0, after=[ready])
+
+seed = set_keys(
+    cache,
+    mapping={"checkout_v2": "true", "promo_engine": "true"},
+    after=[flush],
+)
+
+app = service.run(env={"REDIS_URL": cache["url"]}, after=[seed])
+```
+
+---
+
+## MongoDB Module
+
+**Import path:** `@babelsuite/mongodb`  
+**Source:** `examples/oci-modules/mongodb`
+
+The MongoDB module starts a cluster node and exposes collection and document helpers. Use it for suites that need a real document store — schema creation, index building, seed data, and migration scripts all run as topology nodes wired with `after=[]`.
+
+### Package layout
+
+```
+mongodb/
+  module.star       # public entrypoint — re-exports all symbols
+  cluster.star      # cluster lifecycle node
+  collections.star  # collection, index, and document helpers
+  _shared.star      # internal utilities (not exported)
+  usage.star        # runnable examples
+  module.yaml       # OCI metadata
+```
+
+### Exported symbols
+
+| Symbol | Returns | Description |
+|--------|---------|-------------|
+| `mongodb(name, port, username, password, wired_tiger_cache_gb)` | node | Start a MongoDB cluster |
+| `create_collection(cluster, db, collection, after)` | node | Create a collection |
+| `create_index(cluster, db, collection, keys, unique, after)` | node | Create an index |
+| `insert_documents(cluster, db, collection, documents, after)` | node | Insert documents |
+| `drop_collection(cluster, db, collection, after)` | node | Drop a collection |
+| `run_script(cluster, db, script_path, after)` | node | Execute a JS migration script |
+
+### Example
+
+```python
+load("@babelsuite/mongodb", "mongodb", "create_collection", "create_index", "insert_documents")
+load("@babelsuite/runtime", "service")
+
+db   = mongodb(name="mongo", username="root", password="secret")
+col  = create_collection(cluster=db, db="catalog", collection="products")
+idx  = create_index(cluster=db, db="catalog", collection="products", keys={"sku": 1}, unique=True, after=[col])
+seed = insert_documents(
+    cluster=db, db="catalog", collection="products",
+    documents=[{"sku": "SKU-001", "name": "Widget A", "price": 9.99}],
+    after=[idx],
+)
+
+app = service.run(env={"MONGO_URI": db["uri"]}, after=[seed])
+```
+
+---
+
+## Playwright Module
+
+**Import path:** `@babelsuite/playwright`  
+**Source:** `examples/oci-modules/playwright`
+
+The Playwright module runs browser tests, accessibility audits, and visual regression checks as topology nodes. Each helper spawns test runs across a configurable matrix of browsers and devices and returns a list of nodes — one per combination — that you wire into the rest of the graph with `after=[]`.
+
+### Package layout
+
+```
+playwright/
+  module.star   # public entrypoint — re-exports all symbols
+  runner.star   # browser test, a11y, and visual diff helpers
+  _shared.star  # internal utilities (not exported)
+  usage.star    # runnable examples
+  module.yaml   # OCI metadata
+```
+
+### Exported symbols
+
+| Symbol | Returns | Description |
+|--------|---------|-------------|
+| `browser_test(spec, base_url, browsers, devices, after, env)` | list of nodes | Run a Playwright spec across a browser/device matrix |
+| `a11y_audit(url, after, wcag_level, fail_on_critical)` | node | WCAG accessibility audit against a live URL |
+| `visual_diff(spec, base_url, browsers, threshold, after)` | node | Visual regression snapshot comparison |
+
+### Example
+
+```python
+load("@babelsuite/playwright", "browser_test", "a11y_audit")
+load("@babelsuite/runtime",   "service")
+
+ui = service.run(name="storefront-ui")
+
+checkout_nodes = browser_test(
+    spec     = "checkout.spec.ts",
+    base_url = "http://storefront-ui:3000",
+    browsers = ["chromium", "firefox"],
+    devices  = ["desktop", "mobile"],
+    after    = [ui],
+)
+
+a11y_audit(
+    url            = "http://storefront-ui:3000/checkout",
+    after          = checkout_nodes,
+    wcag_level     = "AA",
+    fail_on_critical = True,
+)
+```
+
+`browser_test` returns one node per browser/device combination, so downstream `after=checkout_nodes` waits for the full matrix to finish.
+
+---
+
 ## Module Metadata
 
 Every OCI module package carries a `module.yaml` file that the catalog uses for discovery and display:
@@ -205,7 +359,7 @@ Push the directory as an OCI artifact to any compatible registry (Zot, GHCR, ECR
 | Layer | Purpose |
 |-------|---------|
 | Runtime library | Built-in topology primitives (`service`, `task`, `test`, `traffic`) |
-| OCI module | Reusable Starlark helpers for specific infrastructure (Kafka, Postgres, ...) |
+| OCI module | Reusable Starlark helpers for specific infrastructure (Kafka, Postgres, Redis, MongoDB, Playwright, …) |
 | Suite | Runnable topology — assembles primitives and modules into a full environment |
 | Suite dependency | Larger compositions of multiple suites via `suite.run(ref="...")` |
 
