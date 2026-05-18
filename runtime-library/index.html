@@ -1794,11 +1794,15 @@
 </tr>
 <tr>
 <td><code>plan="..."</code></td>
-<td>traffic plan file</td>
+<td>traffic plan file (optional — omit to use the native synthetic baseline)</td>
 </tr>
 <tr>
 <td><code>target="..."</code></td>
 <td>native traffic target</td>
+</tr>
+<tr>
+<td><code>rps=&lt;float&gt;</code> or <code>arrival_rate=&lt;float&gt;</code></td>
+<td>request rate override for <code>traffic.*</code> nodes</td>
 </tr>
 <tr>
 <td><code>ref="..."</code></td>
@@ -1895,7 +1899,7 @@
 <li>quoted <code>after=["db"]</code> still parses, but identifier references are the preferred style</li>
 <li><code>task.run(file="...")</code> resolves from <code>tasks/</code></li>
 <li><code>test.run(file="...")</code> resolves from <code>tests/</code></li>
-<li><code>traffic.*(plan="...")</code> resolves from <code>traffic/</code></li>
+<li><code>traffic.*(plan="...")</code> resolves from <code>traffic/</code> — only applies when <code>plan=</code> is specified</li>
 <li><code>ref=</code> is required for <code>suite.run</code>; the parser errors if it is missing</li>
 <li>duplicate <code>after</code> entries are deduplicated automatically</li>
 <li>dependency targets that do not exist in the graph produce a resolver error</li>
@@ -1906,6 +1910,9 @@
 <ul>
 <li><code>examples/oci-modules/kafka</code> -&gt; <code>@babelsuite/kafka</code></li>
 <li><code>examples/oci-modules/postgres</code> -&gt; <code>@babelsuite/postgres</code></li>
+<li><code>examples/oci-modules/redis</code> -&gt; <code>@babelsuite/redis</code></li>
+<li><code>examples/oci-modules/mongodb</code> -&gt; <code>@babelsuite/mongodb</code></li>
+<li><code>examples/oci-modules/playwright</code> -&gt; <code>@babelsuite/playwright</code></li>
 </ul>
 <p>See <a href="../modules/">Modules</a> for those package details.</p>
 

@@ -1318,12 +1318,12 @@
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  services/
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  tasks/
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  tests/
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  traffic/
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  resources/
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  resources/
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  traffic/           # only needed for advanced plan files
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    certs/
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    data/
 </span></code></pre></div>
-<p>The workspace loader assigns first-class meaning to <code>profiles/</code>, <code>api/</code>, <code>mock/</code>, <code>services/</code>, <code>tasks/</code>, <code>tests/</code>, <code>traffic/</code>, and <code>resources/</code>.</p>
+<p>The workspace loader assigns first-class meaning to <code>profiles/</code>, <code>api/</code>, <code>mock/</code>, <code>services/</code>, <code>tasks/</code>, <code>tests/</code>, and <code>resources/</code>. The <code>traffic/</code> folder is recognized when present but is not required.</p>
 <h2 id="suitestar"><code>suite.star</code><a class="headerlink" href="#suitestar" title="Permanent link">&para;</a></h2>
 <p><code>suite.star</code> is authored as a Starlark-like file. BabelSuite recognizes these public runtime families:</p>
 <table>
@@ -1376,7 +1376,7 @@
 <li><code>service.mock(...)</code> is backed by <code>api/</code> and <code>mock/</code></li>
 <li><code>task.run(file="...")</code> reads from <code>tasks/</code></li>
 <li><code>test.run(file="...")</code> reads from <code>tests/</code></li>
-<li><code>traffic.*(plan="...")</code> reads from <code>traffic/</code></li>
+<li><code>traffic.*(plan="...")</code> reads from <code>traffic/</code> — only needed when using advanced plan files; omitting <code>plan=</code> runs a synthetic baseline without a file</li>
 <li><code>resources/</code> holds passive assets such as certificates and static datasets</li>
 </ul>
 <p>That keeps the suite package unambiguous: authors do not need to guess where a file belongs.</p>

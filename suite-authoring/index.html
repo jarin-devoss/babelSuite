@@ -1342,7 +1342,7 @@
 <li><code>metadata.yaml</code> for optional suite labels and tags</li>
 <li><code>profiles/*.yaml</code> for launchable profile options</li>
 <li><code>dependencies.yaml</code> and <code>dependencies.lock.yaml</code> for nested suite manifests</li>
-<li>recognized content folders such as <code>api/</code>, <code>mock/</code>, <code>services/</code>, <code>tasks/</code>, <code>tests/</code>, <code>traffic/</code>, and <code>resources/</code></li>
+<li>recognized content folders such as <code>api/</code>, <code>mock/</code>, <code>services/</code>, <code>tasks/</code>, <code>tests/</code>, and <code>resources/</code>; <code>traffic/</code> is recognized when present but is no longer required</li>
 </ul>
 <h2 id="recommended-package-layout">Recommended Package Layout<a class="headerlink" href="#recommended-package-layout" title="Permanent link">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>my-suite/
@@ -1359,8 +1359,8 @@
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  services/
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  tasks/
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  tests/
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  traffic/
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  resources/
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  resources/
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  traffic/           # only needed for advanced plan files
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    certs/
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    data/
 </span></code></pre></div>
