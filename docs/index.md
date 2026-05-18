@@ -4,9 +4,9 @@ title: BabelSuite
 
 # BabelSuite
 
-BabelSuite is an open-source control plane for running Starlark-defined suites made of services, tasks, tests, traffic phases, mocks, and nested suite composition.
+BabelSuite is an open-source control plane for running Starlark-defined suites made of services, tasks, tests, traffic phases, security assessments, mocks, and nested suite composition.
 
-Each suite describes a topology graph of background services, one-shot tasks, verification tests, traffic steps, and nested suites. BabelSuite resolves that graph, launches steps against a local, Kubernetes, or remote-agent backend, and streams live events and logs to the UI in real time.
+Each suite describes a topology graph of background services, one-shot tasks, verification tests, traffic steps, security steps, and nested suites. BabelSuite resolves that graph, launches steps against a local, Kubernetes, or remote-agent backend, and streams live events and logs to the UI in real time.
 
 ## Core Concepts
 
@@ -39,7 +39,7 @@ Each suite describes a topology graph of background services, one-shot tasks, ve
 - [Suites](suites.md) — suite structure, topology families, nested suites, dependency rules
 - [Suite Authoring Reference](suite-authoring.md) — package layout, recognized folders, naming advice
 - [Dependency Manifests](dependencies.md) — `dependencies.yaml` and `dependencies.lock.yaml` in depth
-- [Runtime Library Reference](runtime-library.md) — built-in Starlark surface: `service`, `task`, `test`, `traffic`, and `suite`
+- [Runtime Library Reference](runtime-library.md) — built-in Starlark surface: `service`, `task`, `test`, `traffic`, `security`, and `suite`
 
 ### Profiles and Mocking
 

@@ -100,7 +100,7 @@ The topology parser ignores them. The workspace loader reads them separately to 
 
 ```python
 load("@babelsuite/postgres", "pg")
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "security")
 
 db       = service.run()
 stripe   = service.mock(after=[db])

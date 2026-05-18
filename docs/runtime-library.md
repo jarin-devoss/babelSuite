@@ -29,7 +29,7 @@ Backslash continuations are supported for chained `.export(...)` calls, but the 
 `load()` statements appear at the top of every example `suite.star`:
 
 ```python
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "security", "suite")
 ```
 
 The topology parser ignores these lines. Their job is different:
