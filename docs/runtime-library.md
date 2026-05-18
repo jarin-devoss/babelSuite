@@ -268,6 +268,16 @@ The APISIX sidecar is provisioned automatically alongside every `service.mock` n
 
 Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronous JSON findings report: `{"total":N,"passed":N,"failed":N,"findings":[...]}`.
 
+Security threshold metrics (analogous to traffic thresholds):
+
+| Metric | Description |
+|--------|-------------|
+| `findings.total` | total number of findings emitted |
+| `findings.failed` | number of failed checks |
+
+Supported operators: `<`, `<=`, `>`, `>=`, `==`.
+
+
 ### `suite`
 
 Imports another suite via `dependencies.yaml`.
@@ -298,6 +308,11 @@ The parser extracts these topology fields from recognized statements:
 | `plan="..."` | traffic plan file (optional — omit to use the native synthetic baseline) |
 | `target="..."` | native traffic target |
 | `rps=<float>` or `arrival_rate=<float>` | request rate override for `traffic.*` nodes |
+| `technique="..."` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`) |
+| `path="..."` | target path for `security.flood` |
+| `rate=<float>` | requests per second for `security.flood` |
+| `duration=<float>` | run duration in seconds for `security.flood` |
+| `expect_throttle=True` | assert HTTP 429 is returned under flood for `security.flood` |
 | `ref="..."` | nested suite alias for `suite.run` |
 | `expect_exit=0` | expected process exit code |
 | `expect_logs="..."` or `expect_logs=["...", "..."]` | required log/output matches |
