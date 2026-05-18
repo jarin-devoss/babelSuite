@@ -1307,8 +1307,8 @@
 
 
 <h1 id="babelsuite">BabelSuite<a class="headerlink" href="#babelsuite" title="Permanent link">&para;</a></h1>
-<p>BabelSuite is an open-source control plane for running Starlark-defined suites made of services, tasks, tests, traffic phases, mocks, and nested suite composition.</p>
-<p>Each suite describes a topology graph of background services, one-shot tasks, verification tests, traffic steps, and nested suites. BabelSuite resolves that graph, launches steps against a local, Kubernetes, or remote-agent backend, and streams live events and logs to the UI in real time.</p>
+<p>BabelSuite is an open-source control plane for running Starlark-defined suites made of services, tasks, tests, traffic phases, security assessments, mocks, and nested suite composition.</p>
+<p>Each suite describes a topology graph of background services, one-shot tasks, verification tests, traffic steps, security steps, and nested suites. BabelSuite resolves that graph, launches steps against a local, Kubernetes, or remote-agent backend, and streams live events and logs to the UI in real time.</p>
 <h2 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1369,7 +1369,7 @@
 <li><a href="suites/">Suites</a> — suite structure, topology families, nested suites, dependency rules</li>
 <li><a href="suite-authoring/">Suite Authoring Reference</a> — package layout, recognized folders, naming advice</li>
 <li><a href="dependencies/">Dependency Manifests</a> — <code>dependencies.yaml</code> and <code>dependencies.lock.yaml</code> in depth</li>
-<li><a href="runtime-library/">Runtime Library Reference</a> — built-in Starlark surface: <code>service</code>, <code>task</code>, <code>test</code>, <code>traffic</code>, and <code>suite</code></li>
+<li><a href="runtime-library/">Runtime Library Reference</a> — built-in Starlark surface: <code>service</code>, <code>task</code>, <code>test</code>, <code>traffic</code>, <code>security</code>, and <code>suite</code></li>
 </ul>
 <h3 id="profiles-and-mocking">Profiles and Mocking<a class="headerlink" href="#profiles-and-mocking" title="Permanent link">&para;</a></h3>
 <ul>
