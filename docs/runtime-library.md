@@ -263,6 +263,15 @@ The APISIX sidecar is provisioned automatically alongside every `service.mock` n
 
 Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronous JSON findings report: `{"total":N,"passed":N,"failed":N,"findings":[...]}`.
 
+Security threshold metrics (analogous to traffic thresholds):
+
+| Metric | Description |
+|--------|-------------|
+| `findings.total` | total number of findings emitted |
+| `findings.failed` | number of failed checks |
+
+Supported operators: `<`, `<=`, `>`, `>=`, `==`.
+
 ### `suite`
 
 Imports another suite via `dependencies.yaml`.
@@ -290,8 +299,14 @@ The parser extracts these topology fields from recognized statements:
 | `after=[db, api]` | dependency edges |
 | `on_failure=[smoke]` | failure-trigger ordering edge |
 | `file="..."` | task/test asset path |
-| `plan="..."` | traffic plan file |
+| `plan="..."` | traffic plan file (optional — omit to use the native synthetic baseline) |
 | `target="..."` | native traffic target |
+| `rps=<float>` or `arrival_rate=<float>` | request rate override for `traffic.*` nodes |
+| `technique="..."` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`) |
+| `path="..."` | target path for `security.flood` |
+| `rate=<float>` | requests per second for `security.flood` |
+| `duration=<float>` | run duration in seconds for `security.flood` |
+| `expect_throttle=True` | assert HTTP 429 is returned under flood for `security.flood` |
 | `ref="..."` | nested suite alias for `suite.run` |
 | `expect_exit=0` | expected process exit code |
 | `expect_logs="..."` or `expect_logs=["...", "..."]` | required log/output matches |
@@ -380,7 +395,7 @@ Current limit:
 - quoted `after=["db"]` still parses, but identifier references are the preferred style
 - `task.run(file="...")` resolves from `tasks/`
 - `test.run(file="...")` resolves from `tests/`
-- `traffic.*(plan="...")` resolves from `traffic/`
+- `traffic.*(plan="...")` resolves from `traffic/` — only applies when `plan=` is specified
 - `ref=` is required for `suite.run`; the parser errors if it is missing
 - duplicate `after` entries are deduplicated automatically
 - dependency targets that do not exist in the graph produce a resolver error
@@ -392,5 +407,8 @@ The runtime library is compiled into BabelSuite. The checked-in example modules 
 
 - `examples/oci-modules/kafka` -> `@babelsuite/kafka`
 - `examples/oci-modules/postgres` -> `@babelsuite/postgres`
+- `examples/oci-modules/redis` -> `@babelsuite/redis`
+- `examples/oci-modules/mongodb` -> `@babelsuite/mongodb`
+- `examples/oci-modules/playwright` -> `@babelsuite/playwright`
 
 See [Modules](modules.md) for those package details.

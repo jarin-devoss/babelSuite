@@ -49,7 +49,7 @@ my-suite/
     data/
 ```
 
-The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`, `services/`, `tasks/`, `tests/`, `traffic/`, and `resources/`.
+The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`, `services/`, `tasks/`, `tests/`, and `resources/`. The `traffic/` folder is recognized when present but is not required.
 
 ## `suite.star`
 
@@ -61,18 +61,19 @@ The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`
 | `task` | `task.run` |
 | `test` | `test.run` |
 | `traffic` | `traffic.smoke`, `traffic.baseline`, `traffic.stress`, `traffic.spike`, `traffic.soak`, `traffic.scalability`, `traffic.step`, `traffic.wave`, `traffic.staged`, `traffic.constant_throughput`, `traffic.constant_pacing`, `traffic.open_model` |
+| `security` | `security.probe`, `security.fuzz`, `security.auth`, `security.flood`, `security.headers`, `security.verbs`, `security.graphql`, `security.cors` |
 | `suite` | `suite.run` |
 
 Each node declares ordering with `after=[db, api]`.
 
-Bare `service(...)`, `task(...)`, `test(...)`, `traffic(...)`, and `suite(...)` are not accepted. Use the explicit family variants.
+Bare `service(...)`, `task(...)`, `test(...)`, `traffic(...)`, `security(...)`, and `suite(...)` are not accepted. Use the explicit family variants.
 
 The only retained legacy bridge is `mock.serve`, which still maps to `service.mock` while older suites are being migrated.
 
 ## Example
 
 ```python
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "security")
 
 db          = service.run()
 stripe_mock = service.mock(after=[db])
@@ -91,7 +92,8 @@ The public authoring model is intentionally aligned with the suite folder struct
 - `service.mock(...)` is backed by `api/` and `mock/`
 - `task.run(file="...")` reads from `tasks/`
 - `test.run(file="...")` reads from `tests/`
-- `traffic.*(plan="...")` reads from `traffic/`
+- `traffic.*(plan="...")` reads from `traffic/` — only needed when using advanced plan files; omitting `plan=` runs a synthetic baseline without a file
+- `security.*` nodes derive their target from the APISIX sidecar provisioned alongside every `service.mock` node — no file or folder needed
 - `resources/` holds passive assets such as certificates and static datasets
 
 That keeps the suite package unambiguous: authors do not need to guess where a file belongs.
