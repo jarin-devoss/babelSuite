@@ -43,13 +43,13 @@ my-suite/
   services/
   tasks/
   tests/
-  traffic/
   resources/
+  traffic/           # only needed for advanced plan files
     certs/
     data/
 ```
 
-The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`, `services/`, `tasks/`, `tests/`, `traffic/`, and `resources/`.
+The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`, `services/`, `tasks/`, `tests/`, and `resources/`. The `traffic/` folder is recognized when present but is not required.
 
 ## `suite.star`
 
@@ -91,7 +91,7 @@ The public authoring model is intentionally aligned with the suite folder struct
 - `service.mock(...)` is backed by `api/` and `mock/`
 - `task.run(file="...")` reads from `tasks/`
 - `test.run(file="...")` reads from `tests/`
-- `traffic.*(plan="...")` reads from `traffic/`
+- `traffic.*(plan="...")` reads from `traffic/` — only needed when using advanced plan files; omitting `plan=` runs a synthetic baseline without a file
 - `resources/` holds passive assets such as certificates and static datasets
 
 That keeps the suite package unambiguous: authors do not need to guess where a file belongs.
