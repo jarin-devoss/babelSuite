@@ -17,7 +17,7 @@ At startup, BabelSuite reads:
 - `metadata.yaml` for optional suite labels and tags
 - `profiles/*.yaml` for launchable profile options
 - `dependencies.yaml` and `dependencies.lock.yaml` for nested suite manifests
-- recognized content folders such as `api/`, `mock/`, `services/`, `tasks/`, `tests/`, `traffic/`, and `resources/`
+- recognized content folders such as `api/`, `mock/`, `services/`, `tasks/`, `tests/`, and `resources/`; `traffic/` is recognized when present but is no longer required
 
 ## Recommended Package Layout
 
@@ -36,8 +36,8 @@ my-suite/
   services/
   tasks/
   tests/
-  traffic/
   resources/
+  traffic/           # only needed for advanced plan files
     certs/
     data/
 ```
