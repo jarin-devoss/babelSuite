@@ -1742,6 +1742,26 @@
 </table>
 <p>The APISIX sidecar is provisioned automatically alongside every <code>service.mock</code> node, so <code>security.*</code> nodes derive their gateway URL from the mock's sidecar without a separate <code>target=</code> argument.</p>
 <p>Each security step POSTs to <code>/_babelsuite/attack/start</code> and returns a synchronous JSON findings report: <code>{"total":N,"passed":N,"failed":N,"findings":[...]}</code>.</p>
+<p>Security threshold metrics (analogous to traffic thresholds):</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>findings.total</code></td>
+<td>total number of findings emitted</td>
+</tr>
+<tr>
+<td><code>findings.failed</code></td>
+<td>number of failed checks</td>
+</tr>
+</tbody>
+</table>
+<p>Supported operators: <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>==</code>.</p>
 <h3 id="suite"><code>suite</code><a class="headerlink" href="#suite" title="Permanent link">&para;</a></h3>
 <p>Imports another suite via <code>dependencies.yaml</code>.</p>
 <table>
@@ -1803,6 +1823,26 @@
 <tr>
 <td><code>rps=&lt;float&gt;</code> or <code>arrival_rate=&lt;float&gt;</code></td>
 <td>request rate override for <code>traffic.*</code> nodes</td>
+</tr>
+<tr>
+<td><code>technique="..."</code></td>
+<td>payload technique for <code>security.fuzz</code> (<code>sqli</code>, <code>xss</code>, <code>traversal</code>)</td>
+</tr>
+<tr>
+<td><code>path="..."</code></td>
+<td>target path for <code>security.flood</code></td>
+</tr>
+<tr>
+<td><code>rate=&lt;float&gt;</code></td>
+<td>requests per second for <code>security.flood</code></td>
+</tr>
+<tr>
+<td><code>duration=&lt;float&gt;</code></td>
+<td>run duration in seconds for <code>security.flood</code></td>
+</tr>
+<tr>
+<td><code>expect_throttle=True</code></td>
+<td>assert HTTP 429 is returned under flood for <code>security.flood</code></td>
 </tr>
 <tr>
 <td><code>ref="..."</code></td>

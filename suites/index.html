@@ -1351,16 +1351,20 @@
 <td><code>traffic.smoke</code>, <code>traffic.baseline</code>, <code>traffic.stress</code>, <code>traffic.spike</code>, <code>traffic.soak</code>, <code>traffic.scalability</code>, <code>traffic.step</code>, <code>traffic.wave</code>, <code>traffic.staged</code>, <code>traffic.constant_throughput</code>, <code>traffic.constant_pacing</code>, <code>traffic.open_model</code></td>
 </tr>
 <tr>
+<td><code>security</code></td>
+<td><code>security.probe</code>, <code>security.fuzz</code>, <code>security.auth</code>, <code>security.flood</code>, <code>security.headers</code>, <code>security.verbs</code>, <code>security.graphql</code>, <code>security.cors</code></td>
+</tr>
+<tr>
 <td><code>suite</code></td>
 <td><code>suite.run</code></td>
 </tr>
 </tbody>
 </table>
 <p>Each node declares ordering with <code>after=[db, api]</code>.</p>
-<p>Bare <code>service(...)</code>, <code>task(...)</code>, <code>test(...)</code>, <code>traffic(...)</code>, and <code>suite(...)</code> are not accepted. Use the explicit family variants.</p>
+<p>Bare <code>service(...)</code>, <code>task(...)</code>, <code>test(...)</code>, <code>traffic(...)</code>, <code>security(...)</code>, and <code>suite(...)</code> are not accepted. Use the explicit family variants.</p>
 <p>The only retained legacy bridge is <code>mock.serve</code>, which still maps to <code>service.mock</code> while older suites are being migrated.</p>
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;traffic&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;traffic&quot;</span><span class="p">,</span> <span class="s2">&quot;security&quot;</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">db</span>          <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">stripe_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
@@ -1377,6 +1381,7 @@
 <li><code>task.run(file="...")</code> reads from <code>tasks/</code></li>
 <li><code>test.run(file="...")</code> reads from <code>tests/</code></li>
 <li><code>traffic.*(plan="...")</code> reads from <code>traffic/</code> — only needed when using advanced plan files; omitting <code>plan=</code> runs a synthetic baseline without a file</li>
+<li><code>security.*</code> nodes derive their target from the APISIX sidecar provisioned alongside every <code>service.mock</code> node — no file or folder needed</li>
 <li><code>resources/</code> holds passive assets such as certificates and static datasets</li>
 </ul>
 <p>That keeps the suite package unambiguous: authors do not need to guess where a file belongs.</p>
