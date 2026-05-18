@@ -71,7 +71,6 @@ for version in SOAP_VERSIONS:
     safe_version = version.replace(".", "_")
     t = traffic.baseline(
         name="claims-baseline-soap-" + safe_version,
-        plan="claims_baseline.star",
         target="http://claims-bridge:8080",
         after=[claims_bridge],
         env={"SOAP_VERSION": version},

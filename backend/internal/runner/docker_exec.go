@@ -294,8 +294,6 @@ func resolveStepImage(step StepSpec) string {
 		return stepImageFromVariant(step.Node.Variant, "service")
 	case "mock":
 		return "wiremock/wiremock:3.10"
-	case "traffic":
-		return stepImageFromVariant(step.Node.Variant, "traffic")
 	}
 	return ""
 }
@@ -308,11 +306,6 @@ func stepImageFromVariant(variant, _ string) string {
 		return "wiremock/wiremock:3.10"
 	case "service.prism":
 		return "stoplight/prism:5"
-	case "traffic.smoke", "traffic.baseline", "traffic.stress", "traffic.spike",
-		"traffic.soak", "traffic.scalability", "traffic.step", "traffic.wave",
-		"traffic.staged", "traffic.constant_throughput", "traffic.constant_pacing",
-		"traffic.open_model":
-		return "grafana/k6:0.54"
 	}
 	return ""
 }

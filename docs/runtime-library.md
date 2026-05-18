@@ -134,7 +134,6 @@ Throughput, concurrency, and latency testing.
 
 ```python
 perf = traffic.smoke(
-    plan="smoke.star",
     target="http://api:8080",
     after=[api],
 )
@@ -144,8 +143,12 @@ perf = traffic.smoke(
 
 Each `traffic.*` node must declare:
 
-- `plan="..."` pointing at a file under `traffic/`
 - `target="..."` as an absolute base URL for the native HTTP executor
+
+Optionally:
+
+- `plan="..."` pointing at a file under `traffic/` — enables advanced workload definitions with custom users, stages, tasks, and thresholds
+- `rps=<number>` or `arrival_rate=<number>` — override the default request rate
 
 Recommended meanings:
 
@@ -162,7 +165,9 @@ Recommended meanings:
 - `traffic.constant_pacing`: fixed interval between iterations per user
 - `traffic.open_model`: fixed arrival-rate style workload independent of response time
 
-These suite-facing entrypoints work with the native traffic plan builders inside `traffic/*.star`, including:
+When `plan=` is omitted the native executor runs a synthetic baseline against `target=` using the APISIX sidecar — no separate plan file required.
+
+For advanced workload control, create a `traffic/*.star` file and reference it via `plan=`. The native plan builders available inside those files include:
 
 - `traffic.plan`
 - `traffic.user`
@@ -179,7 +184,7 @@ These suite-facing entrypoints work with the native traffic plan builders inside
 Current behavior:
 
 - the selected traffic profile is preserved in topology metadata and execution step payloads
-- `plan=` and `target=` are parsed into a structured traffic spec on the topology node
+- `target=` is the only required argument; `plan=` is optional and enables advanced workload definitions
 - the native plan builders define concrete users, tasks, waits, stages, and thresholds
 - the native runner executes real guarded HTTP traffic for supported profiles instead of only emitting synthetic traffic logs
 - the native runner now reports richer latency and throughput summaries, including `min`, `avg`, `max`, `p50`, `p90`, `p95`, `p99`, per-stage summaries, compact throughput timelines, and latency histograms
@@ -271,6 +276,7 @@ Security threshold metrics (analogous to traffic thresholds):
 | `findings.failed` | number of failed checks |
 
 Supported operators: `<`, `<=`, `>`, `>=`, `==`.
+
 
 ### `suite`
 

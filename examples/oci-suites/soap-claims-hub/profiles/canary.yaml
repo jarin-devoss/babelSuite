@@ -11,3 +11,9 @@ observability:
   logs: structured
   traces: enabled
   metrics: enabled
+env:
+  CLAIM_TYPES: medical,dental,vision,pharmacy
+  LEGACY_MODE: "false"
+  ENABLE_ADAPTER: "true"
+  VALIDATION_LEVEL: strict
+  SOAP_VERSIONS: "1.2"

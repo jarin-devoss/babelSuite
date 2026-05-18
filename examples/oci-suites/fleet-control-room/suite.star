@@ -73,7 +73,6 @@ for region in REGIONS:
     if region in LOAD_TEST_REGIONS:
         traffic.stress(
             name="stress-" + region,
-            plan="fleet_stress.star",
             target="http://dispatcher-" + region + ":8080",
             rps=100 * SPIKE_MULTIPLIER,
             after=region_planners,
@@ -93,13 +92,13 @@ for phase in TRAFFIC_PHASES:
     after_nodes = [control_room] + ([prev_phase] if prev_phase != None else [])
 
     if phase == "ramp":
-        t = traffic.baseline(name="fleet-ramp",   plan="fleet_ramp.star",   target="http://control-room:8080", after=after_nodes)
+        t = traffic.baseline(name="fleet-ramp",   target="http://control-room:8080", after=after_nodes)
     elif phase == "steady":
-        t = traffic.baseline(name="fleet-steady",  plan="fleet_steady.star", target="http://control-room:8080", after=after_nodes)
+        t = traffic.baseline(name="fleet-steady",  target="http://control-room:8080", after=after_nodes)
     elif phase == "spike":
-        t = traffic.spike(   name="fleet-spike",   plan="fleet_spike.star",  target="http://control-room:8080", after=after_nodes, multiplier=SPIKE_MULTIPLIER)
+        t = traffic.spike(   name="fleet-spike",   target="http://control-room:8080", after=after_nodes, rps=10 * SPIKE_MULTIPLIER)
     else:
-        t = traffic.soak(    name="fleet-drain",   plan="fleet_drain.star",  target="http://control-room:8080", after=after_nodes)
+        t = traffic.soak(    name="fleet-drain",   target="http://control-room:8080", after=after_nodes)
 
     phase_nodes.append(t)
     prev_phase = t

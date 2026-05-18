@@ -121,30 +121,30 @@ func TestLocalRunnerEmitsTrafficSpecificLogs(t *testing.T) {
 }
 
 func TestLocalRunnerExecutesNativeTrafficPlan(t *testing.T) {
-	runner := NewLocal()
-	var requests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		requests.Add(1)
+	var sidecarHits atomic.Int64
+	sidecar := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		sidecarHits.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"total":42,"failures":0,"p50":12.0,"p95":45.0,"p99":80.0,"min":5.0,"max":120.0}`))
 	}))
-	defer server.Close()
+	defer sidecar.Close()
 
+	runner := NewLocal()
 	lines := make([]logstream.Line, 0)
 	err := runner.Run(context.Background(), StepSpec{
 		ExecutionID: "run-1",
 		SuiteID:     "payment-suite",
 		SuiteTitle:  "Payment Suite",
 		Profile:     "local.yaml",
+		GatewayURL:  sidecar.URL,
 		Load: &suites.LoadSpec{
 			Variant:  "traffic.baseline",
 			PlanPath: "traffic/smoke.star",
-			Target:   server.URL,
+			Target:   "http://api.example.com",
 			Users: []suites.LoadUser{
 				{
 					Name:   "probe",
 					Weight: 1,
-					Wait:   suites.LoadWait{Mode: "constant", Seconds: 0},
 					Tasks: []suites.LoadTask{
 						{
 							Name:   "health",
@@ -153,10 +153,6 @@ func TestLocalRunnerExecutesNativeTrafficPlan(t *testing.T) {
 								Method: "GET",
 								Path:   "/health",
 								Name:   "health",
-							},
-							Checks: []suites.LoadThreshold{
-								{Metric: "status", Op: "==", Value: 200},
-								{Metric: "latency.p95_ms", Op: "<", Value: 1000, Sampler: "health"},
 							},
 						},
 					},
@@ -181,8 +177,8 @@ func TestLocalRunnerExecutesNativeTrafficPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if requests.Load() == 0 {
-		t.Fatal("expected native traffic executor to hit the target server")
+	if sidecarHits.Load() == 0 {
+		t.Fatal("expected traffic step to trigger the APISIX sidecar")
 	}
 	foundNativePlanLog := false
 	foundExtendedLatency := false

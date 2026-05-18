@@ -655,7 +655,7 @@
     "score": 94,
     "pullCommand": "babelctl run localhost:5000/core-platform/payment-suite:v2.4.1",
     "forkCommand": "babelctl fork localhost:5000/core-platform/payment-suite:v2.4.1 ./payment-suite-local",
-    "suiteStar": "load(\"@babelsuite/runtime\", \"service\", \"task\", \"test\", \"traffic\", \"suite\")\n\ndb = service.run()\nkafka = service.run()\nstripe_mock = service.mock(after=[db])\nbootstrap_topics = task.run(file=\"bootstrap_topics.sh\", image=\"bash:5.2\", after=[kafka])\nmigrations = task.run(file=\"migrate.py\", image=\"python:3.12\", after=[db])\npayment_gateway = service.run(after=[db, stripe_mock, migrations])\nfraud_worker = service.run(after=[kafka, bootstrap_topics, payment_gateway])\ncheckout_baseline = traffic.baseline(plan=\"checkout_baseline.star\", target=\"http://payment_gateway:8080\", after=[payment_gateway, fraud_worker])\ncheckout_smoke = test.run(file=\"checkout_smoke.py\", image=\"python:3.12\", after=[checkout_baseline])",
+    "suiteStar": "load(\"@babelsuite/runtime\", \"service\", \"task\", \"test\", \"traffic\", \"suite\")\n\ndb = service.run()\nkafka = service.run()\nstripe_mock = service.mock(after=[db])\nbootstrap_topics = task.run(file=\"bootstrap_topics.sh\", image=\"bash:5.2\", after=[kafka])\nmigrations = task.run(file=\"migrate.py\", image=\"python:3.12\", after=[db])\npayment_gateway = service.run(after=[db, stripe_mock, migrations])\nfraud_worker = service.run(after=[kafka, bootstrap_topics, payment_gateway])\ncheckout_baseline = traffic.baseline(target=\"http://payment_gateway:8080\", after=[payment_gateway, fraud_worker])\ncheckout_smoke = test.run(file=\"checkout_smoke.py\", image=\"python:3.12\", after=[checkout_baseline])",
     "profiles": [
       {
         "fileName": "local.yaml",
@@ -744,14 +744,6 @@
         ]
       },
       {
-        "name": "traffic",
-        "role": "Performance",
-        "description": "Native traffic plans and protocol-safe workload definitions.",
-        "files": [
-          "checkout_baseline.star"
-        ]
-      },
-      {
         "name": "gateway",
         "role": "Extension",
         "description": "Runtime-managed APISIX sidecar routes that front suite APIs and forward traffic into the BabelSuite mock engine.",
@@ -830,11 +822,6 @@
         "path": "profiles/year.yaml",
         "language": "yaml",
         "content": "name: Year-End\ndescription: Ledger rollover fixtures, end-of-year reporting toggles, and settlement edge cases.\ndefault: false\nruntime:\n  suite: payment-suite\n  repository: localhost:5000/core-platform/payment-suite\n  profileFile: year.yaml\nmodules:\n  - postgres\n  - kafka\nobservability:\n  logs: structured\n  traces: enabled\n  metrics: enabled\nsecretRefs:\n  - key: SETTLEMENT_SFTP_KEY\n    provider: Vault\n    ref: kv/payment-suite/year-end-sftp-key\nenv:\n  LEDGER_PERIOD: year_end\n  FRAUD_STRATEGY: settlement_review\nservices:\n  payment_gateway:\n    env:\n      SETTLEMENT_BATCH_SIZE: 500\n  fraud_worker:\n    env:\n      REPLAY_HISTORICAL_CHARGES: true\n      LEDGER_CLOSE_MODE: year-end\n"
-      },
-      {
-        "path": "traffic/checkout_baseline.star",
-        "language": "python",
-        "content": "load(\"@babelsuite/runtime\", \"traffic\")\n\nshopper = traffic.user(\n    name=\"shopper\",\n    weight=1,\n    wait=traffic.between(1, 3),\n    tasks=[\n        traffic.task(\n            name=\"create-charge\",\n            request=traffic.post(\n                \"/charges\",\n                name=\"create-charge\",\n                json={\n                    \"merchantId\": \"merchant-001\",\n                    \"amount\": 4200,\n                    \"currency\": \"USD\",\n                    \"cardToken\": \"tok_visa\",\n                },\n            ),\n            checks=[\n                traffic.threshold(\"status\", \"==\", 200),\n                traffic.threshold(\"latency.p95_ms\", \"<\", 600, sampler=\"create-charge\"),\n            ],\n        ),\n        traffic.task(\n            name=\"get-payment\",\n            request=traffic.get(\"/payments/payment-123\", name=\"get-payment\"),\n            checks=[\n                traffic.threshold(\"status\", \"==\", 200),\n                traffic.threshold(\"latency.p95_ms\", \"<\", 400, sampler=\"get-payment\"),\n            ],\n        ),\n    ],\n)\n\ntraffic.plan(\n    users=[shopper],\n    shape=traffic.stages([\n        traffic.stage(duration=\"3s\", users=4, spawn_rate=2),\n        traffic.stage(duration=\"5s\", users=8, spawn_rate=4),\n        traffic.stage(duration=\"6s\", users=12, spawn_rate=6),\n        traffic.stage(duration=\"2s\", users=0, spawn_rate=6, stop=True),\n    ]),\n    thresholds=[\n        traffic.threshold(\"http.error_rate\", \"<\", 0.01),\n        traffic.threshold(\"http.p95_ms\", \"<\", 600, sampler=\"create-charge\"),\n        traffic.threshold(\"http.p95_ms\", \"<\", 400, sampler=\"get-payment\"),\n    ],\n)\n"
       },
       {
         "path": "tests/checkout_smoke.py",

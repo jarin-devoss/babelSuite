@@ -43,8 +43,8 @@ my-suite/
   services/
   tasks/
   tests/
-  traffic/
   resources/
+  traffic/           # only needed for advanced plan files
     certs/
     data/
 ```

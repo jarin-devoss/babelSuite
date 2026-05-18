@@ -123,7 +123,6 @@ if ENABLE_A11Y:
 for campaign in PROMO_CAMPAIGNS:
     traffic.baseline(
         name="promo-traffic-" + campaign,
-        plan="promo_baseline.star",
         target="http://storefront-api:3000",
         after=browser_test_nodes + promo_topic_nodes,
         env={"CAMPAIGN": campaign},

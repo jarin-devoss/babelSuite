@@ -17,7 +17,7 @@ At startup, BabelSuite reads:
 - `metadata.yaml` for optional suite labels and tags
 - `profiles/*.yaml` for launchable profile options
 - `dependencies.yaml` and `dependencies.lock.yaml` for nested suite manifests
-- recognized content folders such as `api/`, `mock/`, `services/`, `tasks/`, `tests/`, `traffic/`, and `resources/`
+- recognized content folders such as `api/`, `mock/`, `services/`, `tasks/`, `tests/`, and `resources/`; `traffic/` is recognized when present but is no longer required
 
 ## Recommended Package Layout
 
@@ -36,8 +36,8 @@ my-suite/
   services/
   tasks/
   tests/
-  traffic/
   resources/
+  traffic/           # only needed for advanced plan files
     certs/
     data/
 ```
@@ -62,7 +62,7 @@ my-suite/
 | `services/` | Infrastructure | Background service assets and compatibility configs |
 | `tasks/` | Operations | One-shot jobs, migrations, and seed scripts |
 | `tests/` | Verification | Smoke, regression, browser, and protocol assertions |
-| `traffic/` | Performance | Traffic plans and workload definitions |
+| `traffic/` | Performance | Advanced traffic plans and workload definitions (optional) |
 | `resources/` | Assets | Passive data, certificates, and large static blobs |
 
 Compatibility folders still load for older suites:
@@ -106,7 +106,7 @@ db       = service.run()
 stripe   = service.mock(after=[db])
 migrate  = task.run(file="migrate.py", image="python:3.12", after=[db])
 api      = service.run(after=[db, stripe, migrate])
-baseline = traffic.baseline(plan="baseline.star", target="http://api:8080", after=[api])
+baseline = traffic.baseline(target="http://api:8080", after=[api])
 smoke    = test.run(file="go/smoke_test.go", image="golang:1.24", after=[baseline])
 ```
 
@@ -196,7 +196,7 @@ Resolver rules:
 - `task.run(file="seed.sh")` resolves to `tasks/seed.sh`
 - `task.run(file="db/migrate.py")` resolves to `tasks/db/migrate.py`
 - `test.run(file="go/smoke_test.go")` resolves to `tests/go/smoke_test.go`
-- `traffic.baseline(plan="checkout.star")` resolves to `traffic/checkout.star`
+- `traffic.baseline(plan="checkout.star")` resolves to `traffic/checkout.star` (only when `plan=` is specified)
 
 ## Naming Advice
 
