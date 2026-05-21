@@ -5,6 +5,7 @@ import { getSession } from './lib/api'
 import { useRouteTracking } from './hooks/useRouteTracking'
 import AuthCallback from './pages/AuthCallback'
 import Catalog from './pages/Catalog'
+import CronJobs from './pages/CronJobs'
 import ForgotPassword from './pages/ForgotPassword'
 import Home from './pages/Home'
 import LiveExecution from './pages/LiveExecution'
@@ -63,6 +64,7 @@ export default function App() {
           <Route path='/profiles' element={<Guard><Profiles /></Guard>} />
           <Route path='/sandbox' element={<Guard><Sandbox /></Guard>} />
           <Route path='/environments' element={<Guard><Sandboxes /></Guard>} />
+          <Route path='/cron-jobs' element={<Guard><CronJobs /></Guard>} />
           <Route path='/sandboxes' element={<Navigate to='/environments' replace />} />
           <Route path='/settings' element={<AdminGuard><Settings /></AdminGuard>} />
           <Route path='/settings/general' element={<AdminGuard><General /></AdminGuard>} />

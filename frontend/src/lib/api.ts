@@ -569,20 +569,10 @@ export interface AuthConfig {
   providers: SSOProvider[]
 }
 
-export const fallbackSSOProviders: SSOProvider[] = [
-  {
-    providerId: 'oidc',
-    name: 'Single Sign-On',
-    buttonLabel: 'Continue with Single Sign-On',
-    enabled: false,
-    hint: 'Configure the backend OIDC settings to enable single sign-on.',
-  },
-]
-
 export const fallbackAuthConfig: AuthConfig = {
   passwordAuthEnabled: true,
   signUpEnabled: true,
-  providers: fallbackSSOProviders,
+  providers: [],
 }
 
 export async function signIn(payload: { email: string; password: string }) {
@@ -770,3 +760,56 @@ export {
   openExecutionLogStream as streamExecutionLogs,
   openSandboxEventStream as streamSandboxEvents,
 } from './stream/events'
+
+export interface CronEmailConfig {
+  recipients: string[]
+  subject: string
+  body: string
+}
+
+export interface CronSlackConfig {
+  webhookUrl: string
+  message: string
+}
+
+export interface CronJob {
+  id: string
+  name: string
+  schedule: string
+  enabled: boolean
+  email: CronEmailConfig
+  slack: CronSlackConfig
+  lastRunAt?: string
+  nextRunAt?: string
+  lastError: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function listCronJobs() {
+  return request<CronJob[]>('/api/v1/cron-jobs')
+}
+
+export async function getCronJob(id: string) {
+  return request<CronJob>(`/api/v1/cron-jobs/${encodeURIComponent(id)}`)
+}
+
+export async function createCronJob(payload: Omit<CronJob, 'id' | 'lastRunAt' | 'nextRunAt' | 'lastError' | 'createdAt' | 'updatedAt'>) {
+  return request<CronJob>('/api/v1/cron-jobs', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateCronJob(id: string, payload: Omit<CronJob, 'id' | 'lastRunAt' | 'nextRunAt' | 'lastError' | 'createdAt' | 'updatedAt'>) {
+  return request<CronJob>(`/api/v1/cron-jobs/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteCronJob(id: string) {
+  return request<void>(`/api/v1/cron-jobs/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}

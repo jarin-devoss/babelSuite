@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/agent"
+	"github.com/babelsuite/babelsuite/internal/cronjobs"
 	"github.com/babelsuite/babelsuite/internal/domain"
 	"github.com/babelsuite/babelsuite/internal/execution"
 	"github.com/babelsuite/babelsuite/internal/logstream"
@@ -24,6 +25,7 @@ type Store struct {
 	runtimeDocuments *mongo.Collection
 	executions       *mongo.Collection
 	executionLogs    *mongo.Collection
+	cronJobs         *mongo.Collection
 }
 
 func New(uri, dbName string) (*Store, error) {
@@ -47,6 +49,7 @@ func New(uri, dbName string) (*Store, error) {
 		runtimeDocuments: db.Collection("runtime_documents"),
 		executions:       db.Collection("executions"),
 		executionLogs:    db.Collection("execution_logs"),
+		cronJobs:         db.Collection("cron_jobs"),
 	}
 
 	unique := options.Index().SetUnique(true)
@@ -63,6 +66,7 @@ func New(uri, dbName string) (*Store, error) {
 	_, _ = st.executions.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "execution_id", Value: 1}}, Options: unique})
 	_, _ = st.executions.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "started_at", Value: -1}}})
 	_, _ = st.executionLogs.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "execution_id", Value: 1}}})
+	_, _ = st.cronJobs.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "id", Value: 1}}, Options: unique})
 
 	return st, nil
 }
@@ -398,4 +402,53 @@ func (s *Store) saveRuntimeDocument(ctx context.Context, key string, value any) 
 func (s *Store) WriteAuditLog(ctx context.Context, entry *domain.AuditEntry) error {
 	_, err := s.users.Database().Collection("audit_log").InsertOne(ctx, entry)
 	return err
+}
+
+func (s *Store) ListCronJobs(ctx context.Context) ([]cronjobs.CronJob, error) {
+	cur, err := s.cronJobs.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	var jobs []cronjobs.CronJob
+	if err := cur.All(ctx, &jobs); err != nil {
+		return nil, err
+	}
+	return jobs, nil
+}
+
+func (s *Store) GetCronJob(ctx context.Context, id string) (*cronjobs.CronJob, error) {
+	var job cronjobs.CronJob
+	err := s.cronJobs.FindOne(ctx, bson.D{{Key: "id", Value: id}}).Decode(&job)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, cronjobs.ErrNotFound
+	}
+	return &job, err
+}
+
+func (s *Store) CreateCronJob(ctx context.Context, job *cronjobs.CronJob) error {
+	_, err := s.cronJobs.InsertOne(ctx, job)
+	return err
+}
+
+func (s *Store) UpdateCronJob(ctx context.Context, job *cronjobs.CronJob) error {
+	res, err := s.cronJobs.ReplaceOne(ctx, bson.D{{Key: "id", Value: job.ID}}, job)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return cronjobs.ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) DeleteCronJob(ctx context.Context, id string) error {
+	res, err := s.cronJobs.DeleteOne(ctx, bson.D{{Key: "id", Value: id}})
+	if err != nil {
+		return err
+	}
+	if res.DeletedCount == 0 {
+		return cronjobs.ErrNotFound
+	}
+	return nil
 }
