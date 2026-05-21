@@ -52,4 +52,5 @@ jobs:
         env:
           MONGO_URI: mongodb://localhost:27017
           BABELSUITE_ENABLE_DEMO: "false"
+          GOGC: "50"
         run: go test -v -tags=e2e -timeout=5m ./tests/e2e/...

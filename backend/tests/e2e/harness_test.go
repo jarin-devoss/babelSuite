@@ -19,6 +19,8 @@ import (
 
 	"github.com/babelsuite/babelsuite/internal/app"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const (
@@ -70,6 +72,7 @@ registries:
 `, testAdminEmail))
 
 	mongoURI := envOrDefault("MONGO_URI", "mongodb://localhost:27017")
+	mongoDBName := "babelsuite_e2e_" + randHex()
 
 	a, err := app.New(context.Background(), app.Config{
 		JWTSecret:     "e2e-jwt-secret-" + randHex(),
@@ -77,7 +80,7 @@ registries:
 		AdminPassword: testAdminPassword,
 
 		MongoURI: mongoURI,
-		MongoDB:  "babelsuite_e2e_" + randHex(),
+		MongoDB:  mongoDBName,
 
 		PlatformSettingsFile: filepath.Join(dir, "configuration.yaml"),
 		ProfilesFile:         filepath.Join(dir, "babelsuite-profiles.yaml"),
@@ -93,6 +96,13 @@ registries:
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = a.Close(shutdownCtx)
+
+		dropCtx, dropCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer dropCancel()
+		if mc, err := mongo.Connect(options.Client().ApplyURI(mongoURI)); err == nil {
+			_ = mc.Database(mongoDBName).Drop(dropCtx)
+			_ = mc.Disconnect(dropCtx)
+		}
 	})
 
 	adminCli := newClient(srv.URL)

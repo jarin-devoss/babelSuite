@@ -81,4 +81,6 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Run tests
         working-directory: backend
-        run: go test -race -p 4 -timeout 10m ./...
+        env:
+          GOGC: "50"
+        run: go test -race -p 2 -timeout 10m ./...
