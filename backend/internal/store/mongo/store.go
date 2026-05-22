@@ -414,6 +414,14 @@ func (s *Store) ListCronJobs(ctx context.Context) ([]cronjobs.CronJob, error) {
 	if err := cur.All(ctx, &jobs); err != nil {
 		return nil, err
 	}
+	for i := range jobs {
+		if jobs[i].Suites == nil {
+			jobs[i].Suites = []cronjobs.SuiteTarget{}
+		}
+		if jobs[i].Email.Recipients == nil {
+			jobs[i].Email.Recipients = []string{}
+		}
+	}
 	return jobs, nil
 }
 

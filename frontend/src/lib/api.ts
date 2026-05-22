@@ -761,15 +761,19 @@ export {
   openSandboxEventStream as streamSandboxEvents,
 } from './stream/events'
 
+export interface CronSuiteTarget {
+  suiteId: string
+  profile: string
+  backendId: string
+}
+
 export interface CronEmailConfig {
   recipients: string[]
   subject: string
-  body: string
 }
 
 export interface CronSlackConfig {
   webhookUrl: string
-  message: string
 }
 
 export interface CronJob {
@@ -777,6 +781,7 @@ export interface CronJob {
   name: string
   schedule: string
   enabled: boolean
+  suites: CronSuiteTarget[]
   email: CronEmailConfig
   slack: CronSlackConfig
   lastRunAt?: string

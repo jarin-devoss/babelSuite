@@ -138,7 +138,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 
 	var cronService *cronjobs.Service
 	if cronStore, ok := primaryStore.(cronjobs.Store); ok {
-		cronService = cronjobs.NewService(cronStore, cronjobs.SMTPConfig(cfg.SMTP))
+		cronService = cronjobs.NewService(cronStore, cronjobs.SMTPConfig(cfg.SMTP), executionService)
 	}
 
 	health := buildHealthService("mongo", primaryStore, cacheLayer, telemetryPipeline,

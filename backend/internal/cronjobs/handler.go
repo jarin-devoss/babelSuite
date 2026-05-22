@@ -74,7 +74,8 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
-	updated, err := h.svc.Update(r.Context(), id, &patch)
+	patch.ID = id
+	updated, err := h.svc.Update(r.Context(), &patch)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			httpserver.WriteError(w, http.StatusNotFound, "Cron job not found.")

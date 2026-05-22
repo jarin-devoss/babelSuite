@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS cron_jobs (
   name        TEXT NOT NULL DEFAULT '',
   schedule    TEXT NOT NULL DEFAULT '',
   enabled     BOOLEAN NOT NULL DEFAULT true,
+  suites      JSONB NOT NULL DEFAULT '[]',
   email       JSONB NOT NULL DEFAULT '{}',
   slack       JSONB NOT NULL DEFAULT '{}',
   last_run_at TIMESTAMPTZ,
@@ -495,7 +496,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 }
 
 func (s *Store) ListCronJobs(ctx context.Context) ([]cronjobs.CronJob, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, name, schedule, enabled, email, slack, last_run_at, next_run_at, last_error, created_at, updated_at FROM cron_jobs ORDER BY created_at`)
+	rows, err := s.pool.Query(ctx, `SELECT id, name, schedule, enabled, suites, email, slack, last_run_at, next_run_at, last_error, created_at, updated_at FROM cron_jobs ORDER BY created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -503,10 +504,11 @@ func (s *Store) ListCronJobs(ctx context.Context) ([]cronjobs.CronJob, error) {
 	var jobs []cronjobs.CronJob
 	for rows.Next() {
 		var j cronjobs.CronJob
-		var emailJSON, slackJSON []byte
-		if err := rows.Scan(&j.ID, &j.Name, &j.Schedule, &j.Enabled, &emailJSON, &slackJSON, &j.LastRunAt, &j.NextRunAt, &j.LastError, &j.CreatedAt, &j.UpdatedAt); err != nil {
+		var suitesJSON, emailJSON, slackJSON []byte
+		if err := rows.Scan(&j.ID, &j.Name, &j.Schedule, &j.Enabled, &suitesJSON, &emailJSON, &slackJSON, &j.LastRunAt, &j.NextRunAt, &j.LastError, &j.CreatedAt, &j.UpdatedAt); err != nil {
 			return nil, err
 		}
+		_ = json.Unmarshal(suitesJSON, &j.Suites)
 		_ = json.Unmarshal(emailJSON, &j.Email)
 		_ = json.Unmarshal(slackJSON, &j.Slack)
 		jobs = append(jobs, j)
@@ -516,36 +518,39 @@ func (s *Store) ListCronJobs(ctx context.Context) ([]cronjobs.CronJob, error) {
 
 func (s *Store) GetCronJob(ctx context.Context, id string) (*cronjobs.CronJob, error) {
 	var j cronjobs.CronJob
-	var emailJSON, slackJSON []byte
-	err := s.pool.QueryRow(ctx, `SELECT id, name, schedule, enabled, email, slack, last_run_at, next_run_at, last_error, created_at, updated_at FROM cron_jobs WHERE id = $1`, id).
-		Scan(&j.ID, &j.Name, &j.Schedule, &j.Enabled, &emailJSON, &slackJSON, &j.LastRunAt, &j.NextRunAt, &j.LastError, &j.CreatedAt, &j.UpdatedAt)
+	var suitesJSON, emailJSON, slackJSON []byte
+	err := s.pool.QueryRow(ctx, `SELECT id, name, schedule, enabled, suites, email, slack, last_run_at, next_run_at, last_error, created_at, updated_at FROM cron_jobs WHERE id = $1`, id).
+		Scan(&j.ID, &j.Name, &j.Schedule, &j.Enabled, &suitesJSON, &emailJSON, &slackJSON, &j.LastRunAt, &j.NextRunAt, &j.LastError, &j.CreatedAt, &j.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, cronjobs.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
+	_ = json.Unmarshal(suitesJSON, &j.Suites)
 	_ = json.Unmarshal(emailJSON, &j.Email)
 	_ = json.Unmarshal(slackJSON, &j.Slack)
 	return &j, nil
 }
 
 func (s *Store) CreateCronJob(ctx context.Context, job *cronjobs.CronJob) error {
+	suitesJSON, _ := json.Marshal(job.Suites)
 	emailJSON, _ := json.Marshal(job.Email)
 	slackJSON, _ := json.Marshal(job.Slack)
 	_, err := s.pool.Exec(ctx,
-		`INSERT INTO cron_jobs (id, name, schedule, enabled, email, slack, last_error, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		job.ID, job.Name, job.Schedule, job.Enabled, emailJSON, slackJSON, job.LastError, job.CreatedAt, job.UpdatedAt,
+		`INSERT INTO cron_jobs (id, name, schedule, enabled, suites, email, slack, last_error, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		job.ID, job.Name, job.Schedule, job.Enabled, suitesJSON, emailJSON, slackJSON, job.LastError, job.CreatedAt, job.UpdatedAt,
 	)
 	return err
 }
 
 func (s *Store) UpdateCronJob(ctx context.Context, job *cronjobs.CronJob) error {
+	suitesJSON, _ := json.Marshal(job.Suites)
 	emailJSON, _ := json.Marshal(job.Email)
 	slackJSON, _ := json.Marshal(job.Slack)
 	res, err := s.pool.Exec(ctx,
-		`UPDATE cron_jobs SET name=$1, schedule=$2, enabled=$3, email=$4, slack=$5, last_run_at=$6, next_run_at=$7, last_error=$8, updated_at=$9 WHERE id=$10`,
-		job.Name, job.Schedule, job.Enabled, emailJSON, slackJSON, job.LastRunAt, job.NextRunAt, job.LastError, job.UpdatedAt, job.ID,
+		`UPDATE cron_jobs SET name=$1, schedule=$2, enabled=$3, suites=$4, email=$5, slack=$6, last_run_at=$7, next_run_at=$8, last_error=$9, updated_at=$10 WHERE id=$11`,
+		job.Name, job.Schedule, job.Enabled, suitesJSON, emailJSON, slackJSON, job.LastRunAt, job.NextRunAt, job.LastError, job.UpdatedAt, job.ID,
 	)
 	if err != nil {
 		return err
