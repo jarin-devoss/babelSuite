@@ -31,16 +31,16 @@ type executionRunner interface {
 
 type Service struct {
 	store      Store
-	smtp       SMTPConfig
+	smtpFn     func() SMTPConfig
 	executions executionRunner
 	runner     *cron.Cron
 	entryIDs   map[string]cron.EntryID
 }
 
-func NewService(store Store, smtp SMTPConfig, executions executionRunner) *Service {
+func NewService(store Store, smtpFn func() SMTPConfig, executions executionRunner) *Service {
 	return &Service{
 		store:      store,
-		smtp:       smtp,
+		smtpFn:     smtpFn,
 		executions: executions,
 		runner:     cron.New(),
 		entryIDs:   make(map[string]cron.EntryID),
@@ -297,19 +297,20 @@ func formatResults(jobName string, results []suiteResult) string {
 }
 
 func (s *Service) sendEmail(job *CronJob, body string) error {
-	if s.smtp.Host == "" {
+	cfg := s.smtpFn()
+	if cfg.Host == "" {
 		return fmt.Errorf("SMTP not configured")
 	}
-	addr := fmt.Sprintf("%s:%d", s.smtp.Host, s.smtp.Port)
-	auth := smtp.PlainAuth("", s.smtp.Username, s.smtp.Password, s.smtp.Host)
+	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
 	msg := fmt.Sprintf(
 		"From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
-		s.smtp.From,
+		cfg.From,
 		strings.Join(job.Email.Recipients, ", "),
 		job.Email.Subject,
 		body,
 	)
-	return smtp.SendMail(addr, auth, s.smtp.From, job.Email.Recipients, []byte(msg))
+	return smtp.SendMail(addr, auth, cfg.From, job.Email.Recipients, []byte(msg))
 }
 
 func (s *Service) sendSlack(job *CronJob, body string) error {

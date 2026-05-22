@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FaAngleRight, FaBoxArchive, FaGear, FaKey, FaServer } from 'react-icons/fa6'
+import { FaAngleRight, FaBoxArchive, FaBell, FaGear, FaKey, FaServer } from 'react-icons/fa6'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, getPlatformSettings, type PlatformSettings } from '../lib/api'
 import AppShell from '../components/AppShell'
@@ -69,6 +69,14 @@ export default function Settings() {
       description: platform
         ? `${platform.secrets.globalOverrides.length} global override${platform.secrets.globalOverrides.length !== 1 ? 's' : ''} — ${platform.secrets.provider === 'none' ? 'no external secrets manager' : platform.secrets.provider}`
         : 'Configure Vault or AWS Secrets Manager and global overrides.',
+    },
+    {
+      path: '/settings/notifications',
+      icon: FaBell,
+      title: 'Notifications',
+      description: platform?.notifications?.smtp?.host
+        ? `SMTP configured — ${platform.notifications.smtp.host}`
+        : 'Configure outbound email for cron job reports.',
     },
   ]
 

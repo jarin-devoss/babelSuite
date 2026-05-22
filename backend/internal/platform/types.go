@@ -20,12 +20,25 @@ type FileStore struct {
 }
 
 type PlatformSettings struct {
-	Mode        string           `json:"mode" yaml:"mode"`
-	Agents      []ExecutionAgent `json:"agents" yaml:"agents"`
-	Registries  []OCIRegistry    `json:"registries" yaml:"registries"`
-	Secrets     SecretsConfig    `json:"secrets" yaml:"secrets"`
-	UpdatedAt   time.Time        `json:"updatedAt" yaml:"updatedAt"`
-	Description string           `json:"description" yaml:"description"`
+	Mode          string              `json:"mode" yaml:"mode"`
+	Agents        []ExecutionAgent    `json:"agents" yaml:"agents"`
+	Registries    []OCIRegistry       `json:"registries" yaml:"registries"`
+	Secrets       SecretsConfig       `json:"secrets" yaml:"secrets"`
+	Notifications NotificationsConfig `json:"notifications" yaml:"notifications"`
+	UpdatedAt     time.Time           `json:"updatedAt" yaml:"updatedAt"`
+	Description   string              `json:"description" yaml:"description"`
+}
+
+type NotificationsConfig struct {
+	SMTP SMTPNotificationsConfig `json:"smtp" yaml:"smtp"`
+}
+
+type SMTPNotificationsConfig struct {
+	Host     string `json:"host" yaml:"host"`
+	Port     int    `json:"port" yaml:"port"`
+	Username string `json:"username" yaml:"username"`
+	Password string `json:"password" yaml:"password"`
+	From     string `json:"from" yaml:"from"`
 }
 
 type ExecutionAgent struct {

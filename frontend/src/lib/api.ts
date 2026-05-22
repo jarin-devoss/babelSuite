@@ -75,12 +75,25 @@ export interface SecretsConfig {
   globalOverrides: GlobalOverride[]
 }
 
+export interface SMTPNotificationsConfig {
+  host: string
+  port: number
+  username: string
+  password: string
+  from: string
+}
+
+export interface NotificationsConfig {
+  smtp: SMTPNotificationsConfig
+}
+
 export interface PlatformSettings {
   mode: string
   description: string
   agents: ExecutionAgent[]
   registries: OCIRegistry[]
   secrets: SecretsConfig
+  notifications: NotificationsConfig
   updatedAt: string
 }
 

@@ -138,7 +138,21 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 
 	var cronService *cronjobs.Service
 	if cronStore, ok := primaryStore.(cronjobs.Store); ok {
-		cronService = cronjobs.NewService(cronStore, cronjobs.SMTPConfig(cfg.SMTP), executionService)
+		smtpFn := func() cronjobs.SMTPConfig {
+			s, err := platformBaseStore.Load()
+			if err != nil || s == nil {
+				return cronjobs.SMTPConfig{}
+			}
+			n := s.Notifications.SMTP
+			return cronjobs.SMTPConfig{
+				Host:     n.Host,
+				Port:     n.Port,
+				Username: n.Username,
+				Password: n.Password,
+				From:     n.From,
+			}
+		}
+		cronService = cronjobs.NewService(cronStore, smtpFn, executionService)
 	}
 
 	health := buildHealthService("mongo", primaryStore, cacheLayer, telemetryPipeline,
