@@ -4,22 +4,49 @@ title: BabelSuite
 
 # BabelSuite
 
-BabelSuite is an open-source control plane for running Starlark-defined suites made of services, tasks, tests, traffic phases, security assessments, mocks, and nested suite composition.
+Your tests should run the same way on every machine, every team, every environment — without a README full of setup steps, without a shared staging environment nobody trusts, and without one engineer who "knows how to run the tests locally."
 
-Each suite describes a topology graph of background services, one-shot tasks, verification tests, traffic steps, security steps, and nested suites. BabelSuite resolves that graph, launches steps against a local, Kubernetes, or remote-agent backend, and streams live events and logs to the UI in real time.
+BabelSuite gives every team a `suite.star` file: a short, readable description of the full environment your tests need — databases, services, mocks, migrations — and the tests themselves. No Docker Compose knowledge required. No custom shell scripts. Just declare what depends on what, and BabelSuite handles the rest.
+
+```python
+load("@babelsuite/runtime",  "service", "task", "test")
+load("@babelsuite/postgres", "pg")
+
+REGIONS = env.get("REGIONS", "us,eu,ap").split(",")
+
+db          = pg()
+migrate     = task.run(file="migrate.py", image="python:3.12", after=[db])
+stripe_mock = service.mock(after=[db])
+api         = service.run(after=[db, migrate, stripe_mock])
+
+# run smoke tests for every region in parallel
+for region in REGIONS:
+    test.run(
+        name="smoke-" + region,
+        file="smoke.py",
+        image="python:3.12",
+        after=[api],
+        env={"REGION": region},
+    )
+```
+
+The suite is the contract. Push it to your OCI registry and any team can pull it, run it against their own backend, and get identical results — on a laptop, in CI, or on Kubernetes. No environment-specific scripts. No "works on my machine."
+
+When a step fails, logs are live in the UI immediately — not buried in CI output after a ten-minute wait.
 
 ## Core Concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Suite** | The runnable package. Contains `suite.star`, profiles, metadata, contracts, mocks, services, tasks, tests, traffic plans, and resources. |
-| **Profile** | Launch-time configuration overlay — selects env vars, modules, and observability settings for a run. |
-| **Execution** | One run of a suite under a selected profile and backend. |
-| **Backend** | Where steps run: `local`, `kubernetes`, or `remote-agent`. |
-| **Catalog** | Registry-backed inventory of discoverable suite packages. |
-| **Environment** | Live runtime inventory of containers, networks, and volumes from active runs. |
-| **Agent** | Remote worker that registers with the control plane, claims work, streams logs, and completes jobs. |
-| **Dependency Manifest** | Suite-level file (`dependencies.yaml`) that maps nested suite aliases to pinned refs, versions, digests, profiles, and inputs. |
+| **Suite** | A runnable package containing `suite.star`, launch profiles, OCI dependencies, service configs, mocks, tests, and traffic plans. |
+| **Profile** | A launch-time overlay that injects env vars, secrets, and module settings without editing the suite itself. |
+| **Execution** | A single run of a suite under a chosen profile and backend. Every execution streams live events and logs. |
+| **Backend** | Where steps run — `local` Docker, `kubernetes`, or a `remote-agent` worker pool. |
+| **Catalog** | The control plane's view of OCI registry contents — suite packages and reusable modules. |
+| **Environment** | The live inventory of containers, networks, and volumes produced by running executions. |
+| **Agent** | A remote worker process that registers with the control plane, claims step work, streams logs, and completes jobs. |
+| **Cron Job** | A scheduled rule that runs one or more suites on a cron expression and delivers a results report via email and Slack. |
+| **Dependency Manifest** | `dependencies.yaml` — maps nested suite aliases to pinned OCI refs, profiles, and input overrides. |
 
 ## Documentation Map
 
@@ -30,69 +57,71 @@ Each suite describes a topology graph of background services, one-shot tasks, ve
 ### System
 
 - [Architecture](architecture.md) — system layers, control plane composition, data flows, storage model
-- [Control Plane Reference](control-plane.md) — middleware, request IDs, tracing, audit, health internals
-- [Configuration](configuration.md) — all `.env` variables, `configuration.yaml`, demo vs workspace mode
-- [Platform Settings](platform.md) — agents, registries, and secrets model
+- [Control Plane](control-plane.md) — middleware, request IDs, tracing, audit, health internals
+- [Configuration](configuration.md) — all environment variables, `configuration.yaml` fields, local defaults
+- [Platform Settings](platform.md) — agents, registries, secrets, notifications
 
 ### Suites and Authoring
 
 - [Suites](suites.md) — suite structure, topology families, nested suites, dependency rules
-- [Suite Authoring Reference](suite-authoring.md) — package layout, recognized folders, naming advice
-- [Dependency Manifests](dependencies.md) — `dependencies.yaml` and `dependencies.lock.yaml` in depth
-- [Runtime Library Reference](runtime-library.md) — built-in Starlark surface: `service`, `task`, `test`, `traffic`, `security`, and `suite`
+- [Suite Authoring](suite-authoring.md) — package layout, recognized folders, naming conventions
+- [Dependency Manifests](dependencies.md) — `dependencies.yaml` and `dependencies.lock.yaml` format
+- [Runtime Library](runtime-library.md) — built-in Starlark surface: `service`, `task`, `test`, `traffic`, `security`, `suite`
+- [Modules](modules.md) — OCI module packages (Kafka, Postgres, Redis, MongoDB, Playwright)
 
 ### Profiles and Mocking
 
 - [Profiles](profiles.md) — profile sources, shape, API records, default selection
-- [Profile Runtime Reference](profile-runtime.md) — workspace vs managed profiles, runtime overlays, dependency profile flow
+- [Profile Runtime](profile-runtime.md) — workspace vs managed profiles, runtime overlays, dependency profile flow
 - [Mocking](mocking.md) — mock endpoints, operation metadata, fallback modes, stateful mocking
 - [Mocking Reference](mocking-reference.md) — complete field reference for surfaces, operations, state, and exchanges
 
 ### Execution and Infrastructure
 
-- [Modules](modules.md) — built-in runtime vs OCI example modules (Kafka, Postgres)
 - [Execution](execution.md) — launch model, backends, step spec, live streams, remote agents
 - [Agents](agents.md) — worker lifecycle, control plane endpoints, worker process endpoints, payloads
 - [Environments](environments.md) — runtime inventory model, SSE updates, cleanup operations
 - [Catalog](catalog.md) — OCI discovery, package fields, favorites
+- [Cron Jobs](cron-jobs.md) — scheduled suite execution, multi-suite targets, email and Slack notifications
 
 ### Interfaces, Examples, and Operations
 
-- [Authentication](auth.md) — local auth, OIDC flow, JWT session model
+- [Authentication](auth.md) — local auth, OIDC SSO, JWT session model
 - [API](api.md) — full HTTP API route reference
-- [CLI](cli.md) — `babelctl` commands and usage examples
+- [CLI](cli.md) — `babelctl` commands and usage
 - [Examples](examples.md) — example suite packages and local registry setup
-- [Development](development.md) — local dev commands, test, sync, seed
-- [Operations](operations.md) — health/readiness probes, telemetry, cache, datastores
+- [Development](development.md) — local dev commands, tests, seed, sync
+- [Operations](operations.md) — health probes, telemetry, cache, datastores
 
 ## Product Surface
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Home dashboard — execution overview |
+| `/` | Home dashboard — execution overview and active runs |
 | `/catalog` | Registry-backed package discovery |
 | `/suites` | Runnable suite explorer |
 | `/profiles` | Suite profile management |
 | `/executions/:executionId` | Live execution detail with event and log streams |
-| `/environments` | Runtime inventory and cleanup |
-| `/settings/*` | Platform configuration (admin only) |
+| `/environments` | Runtime inventory — containers, networks, volumes |
+| `/cron-jobs` | Scheduled suite execution and notification rules |
+| `/settings/*` | Platform configuration — agents, registries, secrets, notifications (admin only) |
 | `/sign-in`, `/sign-up`, `/auth/callback` | Authentication |
 
 ## Repository Layout
 
-```text
+```
 backend/           Go control plane, remote worker, CLI, and all internal services
-frontend/          React application (TypeScript + Vite)
+frontend/          React 19 + TypeScript UI (Vite)
 examples/
-  oci-suites/      Runnable suite packages
-  oci-modules/     Pure Starlark example modules (kafka, postgres)
-proto/             API service definitions
+  oci-suites/      Seven runnable example suite packages
+  oci-modules/     Reusable Starlark modules (Kafka, Postgres, Redis, MongoDB)
+proto/             API service definitions (protobuf)
 demo/              Demo-mode data files
 tools/             Local helper scripts and configuration
 docs/              This documentation (MkDocs Material)
 ```
 
-## Running The Docs Locally
+## Running the Docs Locally
 
 ```bash
 pip install -r docs/requirements.txt

@@ -6,72 +6,106 @@ title: Agents
 
 [Back to index](index.md)
 
-## What Agents Are
+Remote agents are worker processes that execute suite steps outside the control plane. You run one where you want work to happen — on a different host, inside a Kubernetes cluster, or in an isolated network — and register it with the control plane. From that point on, any suite launched with that backend routes its steps to that worker.
 
-Agents are remote workers that can execute suite steps outside the main control-plane process.
+---
 
-They are useful for:
+## How Agents Work
 
-- isolated workloads
-- heavier resource requirements
-- remote execution pools
-- host separation from the control plane
+```
+Agent starts → registers with control plane → sends heartbeats → polls for work
+                                                                       │
+                                                         control plane assigns a step
+                                                                       │
+                                                         agent claims it, runs it,
+                                                         streams logs and state back,
+                                                         then marks it complete
+```
 
-## Worker Lifecycle
+1. **Register** — the agent calls `POST /api/v1/agents/register` with its identity and capabilities.
+2. **Heartbeat** — the agent sends periodic heartbeats so the control plane knows it is alive.
+3. **Claim** — the agent polls `POST /api/v1/agent-control/claims/next`. When a step is waiting, the control plane returns a `StepRequest`.
+4. **Execute** — the agent runs the step and streams log lines and state transitions back continuously.
+5. **Complete** — the agent calls `POST /api/v1/agent-control/jobs/:id/complete` with the final result.
 
-The current remote worker model includes:
+If an agent stops sending heartbeats, the control plane marks it offline. In-progress steps from a disconnected agent are left in their last-known state.
 
-1. registration
-2. heartbeat
-3. claim next job
-4. extend lease
-5. report state
-6. report log lines
-7. complete the job
+---
+
+## Starting a Remote Agent
+
+```bash
+cd backend
+go run ./cmd/agent
+```
+
+The worker listens on port `8091` by default. Set `AGENT_SHARED_SECRET` on both the control plane and the agent to authenticate registrations.
+
+---
 
 ## Control Plane Endpoints
 
-Registration and runtime coordination endpoints include:
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/agents` | List registered agents and their status |
+| `POST` | `/api/v1/agents/register` | Register a new agent |
+| `POST` | `/api/v1/agents/{agentId}/heartbeat` | Refresh the agent's last-seen timestamp |
+| `DELETE` | `/api/v1/agents/{agentId}` | Deregister an agent |
+| `POST` | `/api/v1/agent-control/claims/next` | Claim the next available step |
+| `POST` | `/api/v1/agent-control/jobs/{jobId}/lease` | Extend the step lease while work is in progress |
+| `POST` | `/api/v1/agent-control/jobs/{jobId}/state` | Report a step state transition |
+| `POST` | `/api/v1/agent-control/jobs/{jobId}/logs` | Stream log lines back to the control plane |
+| `POST` | `/api/v1/agent-control/jobs/{jobId}/complete` | Mark step complete with final status |
 
-- `GET /api/v1/agents`
-- `POST /api/v1/agents/register`
-- `POST /api/v1/agents/{agentId}/heartbeat`
-- `DELETE /api/v1/agents/{agentId}`
-- `POST /api/v1/agent-control/claims/next`
-- `POST /api/v1/agent-control/jobs/{jobId}/lease`
-- `POST /api/v1/agent-control/jobs/{jobId}/state`
-- `POST /api/v1/agent-control/jobs/{jobId}/logs`
-- `POST /api/v1/agent-control/jobs/{jobId}/complete`
+---
 
 ## Worker Process Endpoints
 
-The worker process itself exposes:
+The agent exposes its own HTTP API on port `8091`.
 
-- `GET /healthz`
-- `GET /api/v1/agent/info`
-- `POST /api/v1/agent/run`
-- `POST /api/v1/agent/jobs/{jobId}/cancel`
-- `POST /api/v1/agent/jobs/{jobId}/cleanup`
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/healthz` | Worker liveness check |
+| `GET` | `/api/v1/agent/info` | Agent identity and runtime capabilities |
+| `POST` | `/api/v1/agent/run` | Run a step |
+| `POST` | `/api/v1/agent/jobs/{jobId}/cancel` | Cancel an in-progress step |
+| `POST` | `/api/v1/agent/jobs/{jobId}/cleanup` | Clean up resources left by a step |
 
-## Payloads
+---
 
-When the control plane assigns work, the step request includes:
+## Step Request Payload
 
-- execution metadata
-- suite metadata
-- profile and runtime profile
-- env and headers
-- backend identity
-- dependency alias
-- resolved ref and digest
-- step order and node details
+When the control plane assigns a step, the `StepRequest` contains everything the worker needs to execute it independently:
 
-## Backend Integration
+| Field | Description |
+|-------|-------------|
+| Execution and suite identity | Which run this step belongs to |
+| Profile and runtime profile | Environment overlays for this run |
+| Env vars and request headers | Injected into the step container |
+| Backend identity | Which registered backend claimed this step |
+| Dependency alias, ref, digest | Which OCI artifact to pull |
+| Step index and total count | Position in the execution |
+| Node definition | Full step spec — image, command, ports, mounts |
 
-Execution backends can route work to:
+---
 
-- local execution
-- Kubernetes execution
-- remote workers
+## Platform Settings
 
-Remote agents are surfaced in platform settings as `remote-agent` style entries and are also tracked at runtime through the agent registry.
+Agents appear in `configuration.yaml` under the `agents` list. Fields specific to remote agents:
+
+| Field | Description |
+|-------|-------------|
+| `type` | `remote-agent` |
+| `hostUrl` | Base URL of the worker process (e.g. `http://agent-host:8091`) |
+| `tlsCert` / `tlsKey` | TLS credentials for encrypted connections |
+
+!!! note
+    Agents registered at runtime via `POST /api/v1/agents/register` are tracked in memory. Platform settings entries describe the *configured* backend targets — runtime registration is how a worker announces its current availability.
+
+---
+
+## See Also
+
+- [Execution](execution.md) — how the control plane routes work to agents
+- [Platform Settings](platform.md) — full agent configuration field reference
+- [Operations](operations.md) — agent health and readiness checks

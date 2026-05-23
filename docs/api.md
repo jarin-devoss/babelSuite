@@ -103,6 +103,16 @@ The standalone worker process exposes:
 - `POST /api/v1/agent/jobs/{jobId}/cancel`
 - `POST /api/v1/agent/jobs/{jobId}/cleanup`
 
+## Cron Jobs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/cron-jobs` | List all cron jobs |
+| `POST` | `/api/v1/cron-jobs` | Create a cron job |
+| `GET` | `/api/v1/cron-jobs/{id}` | Get a single cron job |
+| `PUT` | `/api/v1/cron-jobs/{id}` | Update a cron job |
+| `DELETE` | `/api/v1/cron-jobs/{id}` | Delete a cron job |
+
 ## Mocks
 
 - `/internal/mock-data/`

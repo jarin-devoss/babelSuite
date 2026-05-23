@@ -29,6 +29,7 @@ graph TB
         Platform["Platform Settings"]
         Sandbox["Environment Inventory"]
         AgentCoord["Agent Coordinator"]
+        CronJobs["Cron Jobs\n(scheduler + notifier)"]
     end
 
     subgraph Backends["Execution Backends"]
@@ -54,6 +55,9 @@ graph TB
     API --> Platform
     API --> Sandbox
     API --> AgentCoord
+    API --> CronJobs
+    CronJobs --> Exec
+    CronJobs --> Platform
 
     Exec --> Local
     Exec --> K8s
