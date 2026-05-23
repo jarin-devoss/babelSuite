@@ -1,7 +1,7 @@
 site_name: BabelSuite
 site_description: Control plane, suite model, execution, CLI, API, and operations documentation for BabelSuite.
-repo_url: https://github.com/babelsuite/babelsuite
-repo_name: babelsuite/babelsuite
+repo_url: https://github.com/jarin-devoss/babelSuite
+repo_name: jarin-devoss/babelSuite
 edit_uri: edit/main/docs/
 
 docs_dir: docs
