@@ -11,7 +11,7 @@
       
       
       
-        <link rel="prev" href="../environments/">
+        <link rel="prev" href="../cron-jobs/">
       
       
         <link rel="next" href="../api/">
@@ -819,6 +819,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -924,29 +945,77 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#supported-login-modes" class="md-nav__link">
+  <a href="#local-authentication" class="md-nav__link">
     <span class="md-ellipsis">
-      Supported Login Modes
+      Local Authentication
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Local Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#local-auth" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
-      Local Auth
+      Environment Variables
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#oidc" class="md-nav__link">
+  <a href="#oidc-single-sign-on" class="md-nav__link">
     <span class="md-ellipsis">
-      OIDC
+      OIDC Single Sign-On
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="OIDC Single Sign-On">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How It Works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment Variables
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -960,18 +1029,36 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#frontend-auth-routes" class="md-nav__link">
+  <a href="#api-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
-      Frontend Auth Routes
+      API Endpoints
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#auth-api-endpoints" class="md-nav__link">
+  <a href="#frontend-routes" class="md-nav__link">
     <span class="md-ellipsis">
-      Auth API Endpoints
+      Frontend Routes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Issues
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
     </span>
   </a>
   
@@ -1122,29 +1209,77 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#supported-login-modes" class="md-nav__link">
+  <a href="#local-authentication" class="md-nav__link">
     <span class="md-ellipsis">
-      Supported Login Modes
+      Local Authentication
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Local Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#local-auth" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
-      Local Auth
+      Environment Variables
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#oidc" class="md-nav__link">
+  <a href="#oidc-single-sign-on" class="md-nav__link">
     <span class="md-ellipsis">
-      OIDC
+      OIDC Single Sign-On
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="OIDC Single Sign-On">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How It Works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment Variables
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1158,18 +1293,36 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#frontend-auth-routes" class="md-nav__link">
+  <a href="#api-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
-      Frontend Auth Routes
+      API Endpoints
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#auth-api-endpoints" class="md-nav__link">
+  <a href="#frontend-routes" class="md-nav__link">
     <span class="md-ellipsis">
-      Auth API Endpoints
+      Frontend Routes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Issues
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
     </span>
   </a>
   
@@ -1195,88 +1348,295 @@
 
 <h1 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
-<h2 id="supported-login-modes">Supported Login Modes<a class="headerlink" href="#supported-login-modes" title="Permanent link">&para;</a></h2>
-<p>BabelSuite currently supports:</p>
-<ul>
-<li>local email and password authentication</li>
-<li>direct OIDC single sign-on</li>
-</ul>
-<p>The frontend reads auth configuration from the backend, so sign-in pages can hide or show local login and SSO options dynamically.</p>
-<h2 id="local-auth">Local Auth<a class="headerlink" href="#local-auth" title="Permanent link">&para;</a></h2>
-<p>The auth handler supports:</p>
-<ul>
-<li>sign up</li>
-<li>sign in</li>
-<li>current session lookup</li>
-</ul>
-<p>The control plane seeds the initial admin account from:</p>
-<ul>
-<li><code>ADMIN_EMAIL</code></li>
-<li><code>ADMIN_PASSWORD</code></li>
-</ul>
-<p>Local auth can be toggled with:</p>
-<ul>
-<li><code>AUTH_PASSWORD_LOGIN_ENABLED</code></li>
-<li><code>AUTH_SIGNUP_ENABLED</code></li>
-</ul>
-<h2 id="oidc">OIDC<a class="headerlink" href="#oidc" title="Permanent link">&para;</a></h2>
-<p>The current OIDC flow is:</p>
-<ul>
-<li>single provider</li>
-<li>direct browser login</li>
-<li>PKCE-enabled</li>
-<li>state cookie protected</li>
-<li>local JWT issued after callback</li>
-<li>group claim mapping for admin elevation</li>
-</ul>
-<p>Important environment variables include:</p>
-<ul>
-<li><code>OIDC_ENABLED</code></li>
-<li><code>OIDC_PROVIDER_ID</code></li>
-<li><code>OIDC_PROVIDER_NAME</code></li>
-<li><code>OIDC_ISSUER_URL</code></li>
-<li><code>OIDC_CLIENT_ID</code></li>
-<li><code>OIDC_CLIENT_SECRET</code></li>
-<li><code>OIDC_REDIRECT_URL</code></li>
-<li><code>OIDC_FRONTEND_CALLBACK_URL</code></li>
-<li><code>OIDC_SCOPES</code></li>
-<li><code>OIDC_PKCE_ENABLED</code></li>
-<li><code>OIDC_EMAIL_CLAIM</code></li>
-<li><code>OIDC_NAME_CLAIM</code></li>
-<li><code>OIDC_GROUPS_CLAIM</code></li>
-<li><code>OIDC_ADMIN_GROUPS</code></li>
-<li><code>AUTH_STATE_SECRET</code></li>
-</ul>
+<p>BabelSuite supports two login modes: local email/password and OIDC single sign-on. Both produce a local JWT — the rest of the application sees the same session either way.</p>
+<hr />
+<h2 id="local-authentication">Local Authentication<a class="headerlink" href="#local-authentication" title="Permanent link">&para;</a></h2>
+<h3 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h3>
+<p>Seed the initial admin account with environment variables:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">ADMIN_EMAIL</span><span class="o">=</span>admin@example.com
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nv">ADMIN_PASSWORD</span><span class="o">=</span>changeme
+</span></code></pre></div>
+<h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ADMIN_EMAIL</code></td>
+<td>—</td>
+<td>Email for the seeded admin account</td>
+</tr>
+<tr>
+<td><code>ADMIN_PASSWORD</code></td>
+<td>—</td>
+<td>Password for the seeded admin account</td>
+</tr>
+<tr>
+<td><code>AUTH_PASSWORD_LOGIN_ENABLED</code></td>
+<td><code>true</code></td>
+<td>Show the password login form</td>
+</tr>
+<tr>
+<td><code>AUTH_SIGNUP_ENABLED</code></td>
+<td><code>true</code></td>
+<td>Allow new users to self-register</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="oidc-single-sign-on">OIDC Single Sign-On<a class="headerlink" href="#oidc-single-sign-on" title="Permanent link">&para;</a></h2>
+<h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<ol>
+<li>User clicks <strong>Sign in with SSO</strong> — the frontend calls <code>GET /api/v1/auth/oidc/login</code>.</li>
+<li>The backend generates a PKCE verifier and a state cookie, then redirects the browser to the provider's authorization endpoint.</li>
+<li>The provider authenticates the user and redirects back to <code>GET /api/v1/auth/oidc/callback</code>.</li>
+<li>The backend verifies the state cookie and exchanges the authorization code for tokens using the PKCE verifier.</li>
+<li>The backend reads identity claims (<code>email</code>, <code>name</code>, and optionally <code>groups</code>) from the ID token.</li>
+<li>If the user belongs to a group listed in <code>OIDC_ADMIN_GROUPS</code>, the session is issued with admin privileges.</li>
+<li>The backend issues a local JWT and redirects the browser to <code>OIDC_FRONTEND_CALLBACK_URL</code> with the token.</li>
+</ol>
+<h3 id="example-configuration">Example Configuration<a class="headerlink" href="#example-configuration" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">OIDC_ENABLED</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nv">OIDC_PROVIDER_ID</span><span class="o">=</span>okta
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nv">OIDC_PROVIDER_NAME</span><span class="o">=</span>Okta
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nv">OIDC_ISSUER_URL</span><span class="o">=</span>https://your-org.okta.com
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">OIDC_CLIENT_ID</span><span class="o">=</span>0oa...
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nv">OIDC_CLIENT_SECRET</span><span class="o">=</span>...
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nv">OIDC_REDIRECT_URL</span><span class="o">=</span>http://localhost:8090/api/v1/auth/oidc/callback
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nv">OIDC_FRONTEND_CALLBACK_URL</span><span class="o">=</span>http://localhost:5173/auth/callback
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nv">OIDC_SCOPES</span><span class="o">=</span>openid<span class="w"> </span>email<span class="w"> </span>profile
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nv">OIDC_PKCE_ENABLED</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nv">OIDC_EMAIL_CLAIM</span><span class="o">=</span>email
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="nv">OIDC_NAME_CLAIM</span><span class="o">=</span>name
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="nv">OIDC_GROUPS_CLAIM</span><span class="o">=</span>groups
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nv">OIDC_ADMIN_GROUPS</span><span class="o">=</span>platform-admins,devops
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="nv">AUTH_STATE_SECRET</span><span class="o">=</span>random-32-char-string
+</span></code></pre></div>
+<h3 id="environment-variables_1">Environment Variables<a class="headerlink" href="#environment-variables_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OIDC_ENABLED</code></td>
+<td><code>false</code></td>
+<td>Enable OIDC login</td>
+</tr>
+<tr>
+<td><code>OIDC_PROVIDER_ID</code></td>
+<td>—</td>
+<td>Internal identifier for the provider</td>
+</tr>
+<tr>
+<td><code>OIDC_PROVIDER_NAME</code></td>
+<td>—</td>
+<td>Display name shown on the sign-in button</td>
+</tr>
+<tr>
+<td><code>OIDC_ISSUER_URL</code></td>
+<td>—</td>
+<td>OIDC discovery URL (without <code>/.well-known/...</code>)</td>
+</tr>
+<tr>
+<td><code>OIDC_CLIENT_ID</code></td>
+<td>—</td>
+<td>Client ID registered with the provider</td>
+</tr>
+<tr>
+<td><code>OIDC_CLIENT_SECRET</code></td>
+<td>—</td>
+<td>Client secret registered with the provider</td>
+</tr>
+<tr>
+<td><code>OIDC_REDIRECT_URL</code></td>
+<td>—</td>
+<td>Backend callback URL — must match the provider</td>
+</tr>
+<tr>
+<td><code>OIDC_FRONTEND_CALLBACK_URL</code></td>
+<td>—</td>
+<td>Frontend route that receives the token after login</td>
+</tr>
+<tr>
+<td><code>OIDC_SCOPES</code></td>
+<td><code>openid email profile</code></td>
+<td>Space-separated scopes to request</td>
+</tr>
+<tr>
+<td><code>OIDC_PKCE_ENABLED</code></td>
+<td><code>true</code></td>
+<td>Use PKCE (recommended)</td>
+</tr>
+<tr>
+<td><code>OIDC_EMAIL_CLAIM</code></td>
+<td><code>email</code></td>
+<td>Token claim for the user's email</td>
+</tr>
+<tr>
+<td><code>OIDC_NAME_CLAIM</code></td>
+<td><code>name</code></td>
+<td>Token claim for the user's display name</td>
+</tr>
+<tr>
+<td><code>OIDC_GROUPS_CLAIM</code></td>
+<td><code>groups</code></td>
+<td>Token claim that lists the user's group memberships</td>
+</tr>
+<tr>
+<td><code>OIDC_ADMIN_GROUPS</code></td>
+<td>—</td>
+<td>Comma-separated list of groups that grant admin access</td>
+</tr>
+<tr>
+<td><code>AUTH_STATE_SECRET</code></td>
+<td>—</td>
+<td>Secret used to sign the OIDC state cookie</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>OIDC_REDIRECT_URL</code> is the backend callback — it must be registered in your identity provider's allowed redirect URIs. <code>OIDC_FRONTEND_CALLBACK_URL</code> is where the browser lands after the backend finishes — it must match the frontend's <code>/auth/callback</code> route.</p>
+</div>
+<hr />
 <h2 id="session-model">Session Model<a class="headerlink" href="#session-model" title="Permanent link">&para;</a></h2>
-<p>After successful local auth or OIDC login, the backend issues a local JWT for the frontend session.</p>
-<p>Protected routes use middleware that:</p>
+<p>After successful login (either mode), the backend issues a signed JWT. All subsequent requests present this token in the <code>Authorization: Bearer</code> header.</p>
+<p>Protected route middleware:</p>
 <ul>
-<li>verifies the token</li>
-<li>populates session context</li>
-<li>supports query-token access where streaming endpoints need it</li>
+<li>Verifies the JWT signature and expiry</li>
+<li>Populates request context with the caller's identity and role</li>
+<li>Accepts the token as a query parameter (<code>?token=...</code>) for SSE streaming endpoints, where headers cannot be set by the browser</li>
 </ul>
-<h2 id="frontend-auth-routes">Frontend Auth Routes<a class="headerlink" href="#frontend-auth-routes" title="Permanent link">&para;</a></h2>
+<hr />
+<h2 id="api-endpoints">API Endpoints<a class="headerlink" href="#api-endpoints" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Auth required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/auth/config</code></td>
+<td>No</td>
+<td>Returns enabled login modes</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/auth/sign-up</code></td>
+<td>No</td>
+<td>Register a new local user</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/auth/sign-in</code></td>
+<td>No</td>
+<td>Sign in with email and password</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/auth/sso/providers</code></td>
+<td>No</td>
+<td>List configured SSO providers</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/auth/oidc/login</code></td>
+<td>No</td>
+<td>Start the OIDC login flow</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/auth/oidc/callback</code></td>
+<td>No</td>
+<td>OIDC provider callback</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/auth/me</code></td>
+<td>Yes</td>
+<td>Return the current session's user record</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="frontend-routes">Frontend Routes<a class="headerlink" href="#frontend-routes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/sign-in</code></td>
+<td>Login page — shows local form and/or SSO button based on config</td>
+</tr>
+<tr>
+<td><code>/sign-up</code></td>
+<td>Registration page (visible when <code>AUTH_SIGNUP_ENABLED=true</code>)</td>
+</tr>
+<tr>
+<td><code>/auth/callback</code></td>
+<td>Receives the token from the OIDC backend redirect</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="common-issues">Common Issues<a class="headerlink" href="#common-issues" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Redirect loop after SSO</td>
+<td><code>OIDC_FRONTEND_CALLBACK_URL</code> points to backend instead of frontend</td>
+<td>Set it to your frontend URL (<code>http://localhost:5173/auth/callback</code>)</td>
+</tr>
+<tr>
+<td><code>state mismatch</code> error</td>
+<td><code>AUTH_STATE_SECRET</code> changed between login start and callback</td>
+<td>Use a stable, persistent secret</td>
+</tr>
+<tr>
+<td>Admin rights not granted after SSO</td>
+<td>Group claim not in token, or claim name wrong</td>
+<td>Check <code>OIDC_GROUPS_CLAIM</code> and <code>OIDC_ADMIN_GROUPS</code> match your provider's token</td>
+</tr>
+<tr>
+<td>Sign-up page hidden</td>
+<td><code>AUTH_SIGNUP_ENABLED=false</code></td>
+<td>Enable it, or create accounts via the admin API</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>/sign-in</code></li>
-<li><code>/sign-up</code></li>
-<li><code>/forgot-password</code></li>
-<li><code>/auth/callback</code></li>
+<li><a href="../configuration/">Configuration</a> — full environment variable reference</li>
+<li><a href="../api/">API</a> — all route definitions</li>
+<li><a href="../platform/">Platform Settings</a> — secrets management</li>
 </ul>
-<h2 id="auth-api-endpoints">Auth API Endpoints<a class="headerlink" href="#auth-api-endpoints" title="Permanent link">&para;</a></h2>
-<p>Public:</p>
-<ul>
-<li><code>GET /api/v1/auth/config</code></li>
-<li><code>POST /api/v1/auth/sign-up</code></li>
-<li><code>POST /api/v1/auth/sign-in</code></li>
-<li><code>GET /api/v1/auth/sso/providers</code></li>
-<li><code>GET /api/v1/auth/oidc/login</code></li>
-<li><code>GET /api/v1/auth/oidc/callback</code></li>
-</ul>
-<p>Protected:</p>
-<ul>
-<li><code>GET /api/v1/auth/me</code></li>
-</ul>
-<p>Legacy short paths under <code>/auth/*</code> are also registered.</p>
 
 
 
@@ -1309,7 +1669,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../environments/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Environments">
+          <a href="../cron-jobs/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Cron Jobs">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1319,7 +1679,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Environments
+                Cron Jobs
               </div>
             </div>
           </a>

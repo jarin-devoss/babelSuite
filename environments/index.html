@@ -14,7 +14,7 @@
         <link rel="prev" href="../agents/">
       
       
-        <link rel="next" href="../auth/">
+        <link rel="next" href="../cron-jobs/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -856,27 +856,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-environments-page-shows" class="md-nav__link">
+  <a href="#what-it-shows" class="md-nav__link">
     <span class="md-ellipsis">
-      What The Environments Page Shows
+      What It Shows
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#frontend-route-and-api" class="md-nav__link">
+  <a href="#zombie-detection" class="md-nav__link">
     <span class="md-ellipsis">
-      Frontend Route And API
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inventory-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      Inventory Model
+      Zombie Detection
     </span>
   </a>
   
@@ -900,10 +891,58 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Endpoints
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frontend-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frontend Route
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1113,27 +1152,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-environments-page-shows" class="md-nav__link">
+  <a href="#what-it-shows" class="md-nav__link">
     <span class="md-ellipsis">
-      What The Environments Page Shows
+      What It Shows
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#frontend-route-and-api" class="md-nav__link">
+  <a href="#zombie-detection" class="md-nav__link">
     <span class="md-ellipsis">
-      Frontend Route And API
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inventory-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      Inventory Model
+      Zombie Detection
     </span>
   </a>
   
@@ -1152,6 +1182,33 @@
   <a href="#cleanup" class="md-nav__link">
     <span class="md-ellipsis">
       Cleanup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Endpoints
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frontend-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frontend Route
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
     </span>
   </a>
   
@@ -1177,73 +1234,153 @@
 
 <h1 id="environments">Environments<a class="headerlink" href="#environments" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
-<h2 id="what-the-environments-page-shows">What The Environments Page Shows<a class="headerlink" href="#what-the-environments-page-shows" title="Permanent link">&para;</a></h2>
-<p>The environments page is the runtime inventory and cleanup view for managed resources.</p>
-<p>It shows:</p>
+<p>The Environments page is the runtime inventory for everything BabelSuite started — containers, networks, and volumes across all active and recent executions. Use it to see what is running and to clean up resources that were not automatically torn down.</p>
+<hr />
+<h2 id="what-it-shows">What It Shows<a class="headerlink" href="#what-it-shows" title="Permanent link">&para;</a></h2>
+<p>Each tracked environment corresponds to one execution run. The page displays:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Suite and profile</td>
+<td>Which suite was run and under which profile</td>
+</tr>
+<tr>
+<td>Owner</td>
+<td>The user who launched the execution</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Current state — running, stopped, zombie</td>
+</tr>
+<tr>
+<td>Started at</td>
+<td>When the environment was created</td>
+</tr>
+<tr>
+<td>Last heartbeat</td>
+<td>When the orchestrator last reported in</td>
+</tr>
+<tr>
+<td>Containers</td>
+<td>All containers started for this run</td>
+</tr>
+<tr>
+<td>Networks</td>
+<td>Docker networks created for isolation</td>
+</tr>
+<tr>
+<td>Volumes</td>
+<td>Volumes mounted or created during the run</td>
+</tr>
+<tr>
+<td>CPU / memory</td>
+<td>Live resource usage (when available)</td>
+</tr>
+<tr>
+<td>Warnings</td>
+<td>Any detected anomalies</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="zombie-detection">Zombie Detection<a class="headerlink" href="#zombie-detection" title="Permanent link">&para;</a></h2>
+<p>An environment is marked as a zombie when:</p>
 <ul>
-<li>tracked environments</li>
-<li>containers</li>
-<li>networks</li>
-<li>volumes</li>
-<li>CPU and memory usage</li>
-<li>zombie detection</li>
-<li>cleanup actions</li>
+<li>The orchestrator process is no longer alive</li>
+<li>But containers, networks, or volumes from the run still exist</li>
 </ul>
-<h2 id="frontend-route-and-api">Frontend Route And API<a class="headerlink" href="#frontend-route-and-api" title="Permanent link">&para;</a></h2>
-<p>The frontend route is:</p>
-<ul>
-<li><code>/environments</code></li>
-</ul>
-<p>The backing API currently still uses the <code>sandboxes</code> path:</p>
-<ul>
-<li><code>GET /api/v1/sandboxes</code></li>
-<li><code>GET /api/v1/sandboxes/events</code></li>
-<li><code>POST /api/v1/sandboxes/reap-all</code></li>
-<li><code>POST /api/v1/sandboxes/{sandboxId}/reap</code></li>
-</ul>
-<h2 id="inventory-model">Inventory Model<a class="headerlink" href="#inventory-model" title="Permanent link">&para;</a></h2>
-<p>An environment snapshot contains:</p>
-<ul>
-<li><code>dockerAvailable</code></li>
-<li><code>updatedAt</code></li>
-<li><code>summary</code></li>
-<li><code>sandboxes</code></li>
-<li><code>warnings</code></li>
-</ul>
-<p>Each tracked environment can include:</p>
-<ul>
-<li><code>sandboxId</code></li>
-<li><code>runId</code></li>
-<li><code>suite</code></li>
-<li><code>owner</code></li>
-<li><code>profile</code></li>
-<li><code>status</code></li>
-<li><code>summary</code></li>
-<li><code>startedAt</code></li>
-<li><code>lastHeartbeatAt</code></li>
-<li><code>orchestratorPid</code></li>
-<li><code>orchestratorState</code></li>
-<li><code>isZombie</code></li>
-<li><code>canReap</code></li>
-<li><code>resourceUsage</code></li>
-<li><code>containers</code></li>
-<li><code>networks</code></li>
-<li><code>volumes</code></li>
-<li><code>warnings</code></li>
-</ul>
+<p>Zombie environments can be reaped individually or all at once.</p>
+<hr />
 <h2 id="live-updates">Live Updates<a class="headerlink" href="#live-updates" title="Permanent link">&para;</a></h2>
-<p>The page can subscribe to a server-sent event stream from:</p>
-<ul>
-<li><code>/api/v1/sandboxes/events</code></li>
-</ul>
-<p>That stream replays the latest snapshot and then publishes changes over time.</p>
+<p>The page subscribes to a server-sent event stream. The stream replays the latest snapshot on connect, then pushes incremental changes as environment state changes.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>GET /api/v1/sandboxes/events
+</span></code></pre></div>
+<hr />
 <h2 id="cleanup">Cleanup<a class="headerlink" href="#cleanup" title="Permanent link">&para;</a></h2>
-<p>Cleanup supports:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reap one</td>
+<td>Stops containers and removes networks and volumes for a single environment</td>
+</tr>
+<tr>
+<td>Reap all</td>
+<td>Cleans up every tracked environment in one operation</td>
+</tr>
+</tbody>
+</table>
+<p>The cleanup response reports how many containers, networks, and volumes were removed.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The backing API uses the path <code>/api/v1/sandboxes</code> — the UI calls it "Environments" but the server-side model retains the original name.</p>
+</div>
+<hr />
+<h2 id="api-endpoints">API Endpoints<a class="headerlink" href="#api-endpoints" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/sandboxes</code></td>
+<td>List all tracked environments</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/sandboxes/events</code></td>
+<td>SSE stream of environment state changes</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/sandboxes/reap-all</code></td>
+<td>Clean up all tracked environments</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/sandboxes/{sandboxId}/reap</code></td>
+<td>Clean up a single environment</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="frontend-route">Frontend Route<a class="headerlink" href="#frontend-route" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/environments</code></td>
+<td>Runtime inventory — containers, networks, volumes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li>one environment at a time</li>
-<li>all tracked environments at once</li>
+<li><a href="../execution/">Execution</a> — how environments are created during a run</li>
+<li><a href="../operations/">Operations</a> — health probes and worker readiness</li>
 </ul>
-<p>The cleanup result reports how many containers, networks, and volumes were removed.</p>
 
 
 
@@ -1293,13 +1430,13 @@
         
         
           
-          <a href="../auth/" class="md-footer__link md-footer__link--next" aria-label="Next: Authentication">
+          <a href="../cron-jobs/" class="md-footer__link md-footer__link--next" aria-label="Next: Cron Jobs">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Authentication
+                Cron Jobs
               </div>
             </div>
             <div class="md-footer__button md-icon">

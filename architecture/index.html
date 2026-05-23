@@ -993,6 +993,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1366,6 +1387,7 @@
         Platform["Platform Settings"]
         Sandbox["Environment Inventory"]
         AgentCoord["Agent Coordinator"]
+        CronJobs["Cron Jobs\n(scheduler + notifier)"]
     end
 
     subgraph Backends["Execution Backends"]
@@ -1391,6 +1413,9 @@
     API --&gt; Platform
     API --&gt; Sandbox
     API --&gt; AgentCoord
+    API --&gt; CronJobs
+    CronJobs --&gt; Exec
+    CronJobs --&gt; Platform
 
     Exec --&gt; Local
     Exec --&gt; K8s

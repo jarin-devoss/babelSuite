@@ -835,18 +835,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-agents-are" class="md-nav__link">
+  <a href="#how-agents-work" class="md-nav__link">
     <span class="md-ellipsis">
-      What Agents Are
+      How Agents Work
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#worker-lifecycle" class="md-nav__link">
+  <a href="#starting-a-remote-agent" class="md-nav__link">
     <span class="md-ellipsis">
-      Worker Lifecycle
+      Starting a Remote Agent
     </span>
   </a>
   
@@ -871,18 +871,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#payloads" class="md-nav__link">
+  <a href="#step-request-payload" class="md-nav__link">
     <span class="md-ellipsis">
-      Payloads
+      Step Request Payload
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#backend-integration" class="md-nav__link">
+  <a href="#platform-settings" class="md-nav__link">
     <span class="md-ellipsis">
-      Backend Integration
+      Platform Settings
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
     </span>
   </a>
   
@@ -909,6 +918,27 @@
   
   <span class="md-ellipsis">
     Environments
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
   </span>
   
 
@@ -1122,18 +1152,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-agents-are" class="md-nav__link">
+  <a href="#how-agents-work" class="md-nav__link">
     <span class="md-ellipsis">
-      What Agents Are
+      How Agents Work
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#worker-lifecycle" class="md-nav__link">
+  <a href="#starting-a-remote-agent" class="md-nav__link">
     <span class="md-ellipsis">
-      Worker Lifecycle
+      Starting a Remote Agent
     </span>
   </a>
   
@@ -1158,18 +1188,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#payloads" class="md-nav__link">
+  <a href="#step-request-payload" class="md-nav__link">
     <span class="md-ellipsis">
-      Payloads
+      Step Request Payload
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#backend-integration" class="md-nav__link">
+  <a href="#platform-settings" class="md-nav__link">
     <span class="md-ellipsis">
-      Backend Integration
+      Platform Settings
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
     </span>
   </a>
   
@@ -1195,68 +1234,205 @@
 
 <h1 id="agents">Agents<a class="headerlink" href="#agents" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
-<h2 id="what-agents-are">What Agents Are<a class="headerlink" href="#what-agents-are" title="Permanent link">&para;</a></h2>
-<p>Agents are remote workers that can execute suite steps outside the main control-plane process.</p>
-<p>They are useful for:</p>
-<ul>
-<li>isolated workloads</li>
-<li>heavier resource requirements</li>
-<li>remote execution pools</li>
-<li>host separation from the control plane</li>
-</ul>
-<h2 id="worker-lifecycle">Worker Lifecycle<a class="headerlink" href="#worker-lifecycle" title="Permanent link">&para;</a></h2>
-<p>The current remote worker model includes:</p>
+<p>Remote agents are worker processes that execute suite steps outside the control plane. You run one where you want work to happen — on a different host, inside a Kubernetes cluster, or in an isolated network — and register it with the control plane. From that point on, any suite launched with that backend routes its steps to that worker.</p>
+<hr />
+<h2 id="how-agents-work">How Agents Work<a class="headerlink" href="#how-agents-work" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Agent starts → registers with control plane → sends heartbeats → polls for work
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                                                                       │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                                                         control plane assigns a step
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                                                                       │
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                                                         agent claims it, runs it,
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                                                         streams logs and state back,
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                                                         then marks it complete
+</span></code></pre></div>
 <ol>
-<li>registration</li>
-<li>heartbeat</li>
-<li>claim next job</li>
-<li>extend lease</li>
-<li>report state</li>
-<li>report log lines</li>
-<li>complete the job</li>
+<li><strong>Register</strong> — the agent calls <code>POST /api/v1/agents/register</code> with its identity and capabilities.</li>
+<li><strong>Heartbeat</strong> — the agent sends periodic heartbeats so the control plane knows it is alive.</li>
+<li><strong>Claim</strong> — the agent polls <code>POST /api/v1/agent-control/claims/next</code>. When a step is waiting, the control plane returns a <code>StepRequest</code>.</li>
+<li><strong>Execute</strong> — the agent runs the step and streams log lines and state transitions back continuously.</li>
+<li><strong>Complete</strong> — the agent calls <code>POST /api/v1/agent-control/jobs/:id/complete</code> with the final result.</li>
 </ol>
+<p>If an agent stops sending heartbeats, the control plane marks it offline. In-progress steps from a disconnected agent are left in their last-known state.</p>
+<hr />
+<h2 id="starting-a-remote-agent">Starting a Remote Agent<a class="headerlink" href="#starting-a-remote-agent" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>backend
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>go<span class="w"> </span>run<span class="w"> </span>./cmd/agent
+</span></code></pre></div>
+<p>The worker listens on port <code>8091</code> by default. Set <code>AGENT_SHARED_SECRET</code> on both the control plane and the agent to authenticate registrations.</p>
+<hr />
 <h2 id="control-plane-endpoints">Control Plane Endpoints<a class="headerlink" href="#control-plane-endpoints" title="Permanent link">&para;</a></h2>
-<p>Registration and runtime coordination endpoints include:</p>
-<ul>
-<li><code>GET /api/v1/agents</code></li>
-<li><code>POST /api/v1/agents/register</code></li>
-<li><code>POST /api/v1/agents/{agentId}/heartbeat</code></li>
-<li><code>DELETE /api/v1/agents/{agentId}</code></li>
-<li><code>POST /api/v1/agent-control/claims/next</code></li>
-<li><code>POST /api/v1/agent-control/jobs/{jobId}/lease</code></li>
-<li><code>POST /api/v1/agent-control/jobs/{jobId}/state</code></li>
-<li><code>POST /api/v1/agent-control/jobs/{jobId}/logs</code></li>
-<li><code>POST /api/v1/agent-control/jobs/{jobId}/complete</code></li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/agents</code></td>
+<td>List registered agents and their status</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agents/register</code></td>
+<td>Register a new agent</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agents/{agentId}/heartbeat</code></td>
+<td>Refresh the agent's last-seen timestamp</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/v1/agents/{agentId}</code></td>
+<td>Deregister an agent</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent-control/claims/next</code></td>
+<td>Claim the next available step</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent-control/jobs/{jobId}/lease</code></td>
+<td>Extend the step lease while work is in progress</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent-control/jobs/{jobId}/state</code></td>
+<td>Report a step state transition</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent-control/jobs/{jobId}/logs</code></td>
+<td>Stream log lines back to the control plane</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent-control/jobs/{jobId}/complete</code></td>
+<td>Mark step complete with final status</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="worker-process-endpoints">Worker Process Endpoints<a class="headerlink" href="#worker-process-endpoints" title="Permanent link">&para;</a></h2>
-<p>The worker process itself exposes:</p>
+<p>The agent exposes its own HTTP API on port <code>8091</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/healthz</code></td>
+<td>Worker liveness check</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/agent/info</code></td>
+<td>Agent identity and runtime capabilities</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent/run</code></td>
+<td>Run a step</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent/jobs/{jobId}/cancel</code></td>
+<td>Cancel an in-progress step</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent/jobs/{jobId}/cleanup</code></td>
+<td>Clean up resources left by a step</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="step-request-payload">Step Request Payload<a class="headerlink" href="#step-request-payload" title="Permanent link">&para;</a></h2>
+<p>When the control plane assigns a step, the <code>StepRequest</code> contains everything the worker needs to execute it independently:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Execution and suite identity</td>
+<td>Which run this step belongs to</td>
+</tr>
+<tr>
+<td>Profile and runtime profile</td>
+<td>Environment overlays for this run</td>
+</tr>
+<tr>
+<td>Env vars and request headers</td>
+<td>Injected into the step container</td>
+</tr>
+<tr>
+<td>Backend identity</td>
+<td>Which registered backend claimed this step</td>
+</tr>
+<tr>
+<td>Dependency alias, ref, digest</td>
+<td>Which OCI artifact to pull</td>
+</tr>
+<tr>
+<td>Step index and total count</td>
+<td>Position in the execution</td>
+</tr>
+<tr>
+<td>Node definition</td>
+<td>Full step spec — image, command, ports, mounts</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="platform-settings">Platform Settings<a class="headerlink" href="#platform-settings" title="Permanent link">&para;</a></h2>
+<p>Agents appear in <code>configuration.yaml</code> under the <code>agents</code> list. Fields specific to remote agents:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td><code>remote-agent</code></td>
+</tr>
+<tr>
+<td><code>hostUrl</code></td>
+<td>Base URL of the worker process (e.g. <code>http://agent-host:8091</code>)</td>
+</tr>
+<tr>
+<td><code>tlsCert</code> / <code>tlsKey</code></td>
+<td>TLS credentials for encrypted connections</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Agents registered at runtime via <code>POST /api/v1/agents/register</code> are tracked in memory. Platform settings entries describe the <em>configured</em> backend targets — runtime registration is how a worker announces its current availability.</p>
+</div>
+<hr />
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>GET /healthz</code></li>
-<li><code>GET /api/v1/agent/info</code></li>
-<li><code>POST /api/v1/agent/run</code></li>
-<li><code>POST /api/v1/agent/jobs/{jobId}/cancel</code></li>
-<li><code>POST /api/v1/agent/jobs/{jobId}/cleanup</code></li>
+<li><a href="../execution/">Execution</a> — how the control plane routes work to agents</li>
+<li><a href="../platform/">Platform Settings</a> — full agent configuration field reference</li>
+<li><a href="../operations/">Operations</a> — agent health and readiness checks</li>
 </ul>
-<h2 id="payloads">Payloads<a class="headerlink" href="#payloads" title="Permanent link">&para;</a></h2>
-<p>When the control plane assigns work, the step request includes:</p>
-<ul>
-<li>execution metadata</li>
-<li>suite metadata</li>
-<li>profile and runtime profile</li>
-<li>env and headers</li>
-<li>backend identity</li>
-<li>dependency alias</li>
-<li>resolved ref and digest</li>
-<li>step order and node details</li>
-</ul>
-<h2 id="backend-integration">Backend Integration<a class="headerlink" href="#backend-integration" title="Permanent link">&para;</a></h2>
-<p>Execution backends can route work to:</p>
-<ul>
-<li>local execution</li>
-<li>Kubernetes execution</li>
-<li>remote workers</li>
-</ul>
-<p>Remote agents are surfaced in platform settings as <code>remote-agent</code> style entries and are also tracked at runtime through the agent registry.</p>
 
 
 

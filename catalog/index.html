@@ -604,15 +604,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-catalog-does" class="md-nav__link">
-    <span class="md-ellipsis">
-      What The Catalog Does
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#how-discovery-works" class="md-nav__link">
     <span class="md-ellipsis">
       How Discovery Works
@@ -640,6 +631,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#catalog-vs-suites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Catalog vs. Suites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Endpoints
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#frontend-route" class="md-nav__link">
     <span class="md-ellipsis">
       Frontend Route
@@ -649,9 +658,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#relationship-to-suites" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
-      Relationship To Suites
+      See Also
     </span>
   </a>
   
@@ -918,6 +927,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1122,15 +1152,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-catalog-does" class="md-nav__link">
-    <span class="md-ellipsis">
-      What The Catalog Does
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#how-discovery-works" class="md-nav__link">
     <span class="md-ellipsis">
       How Discovery Works
@@ -1158,6 +1179,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#catalog-vs-suites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Catalog vs. Suites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Endpoints
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#frontend-route" class="md-nav__link">
     <span class="md-ellipsis">
       Frontend Route
@@ -1167,9 +1206,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#relationship-to-suites" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
-      Relationship To Suites
+      See Also
     </span>
   </a>
   
@@ -1195,72 +1234,213 @@
 
 <h1 id="catalog">Catalog<a class="headerlink" href="#catalog" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
-<h2 id="what-the-catalog-does">What The Catalog Does<a class="headerlink" href="#what-the-catalog-does" title="Permanent link">&para;</a></h2>
-<p>The catalog is the registry-backed discovery surface for packages.</p>
-<p>It combines:</p>
-<ul>
-<li>configured registries from platform settings</li>
-<li>workspace-known suites</li>
-<li>built-in example module metadata</li>
-</ul>
+<p>The catalog is the registry-backed discovery surface. It queries configured OCI registries, builds a searchable package view, and lets users pick a suite to run — all without leaving the UI.</p>
+<hr />
 <h2 id="how-discovery-works">How Discovery Works<a class="headerlink" href="#how-discovery-works" title="Permanent link">&para;</a></h2>
-<p>For each configured registry, the catalog service:</p>
+<p>For each registry configured in <a href="../platform/">Platform Settings</a>, the catalog service:</p>
 <ol>
-<li>calls <code>GET /v2/_catalog</code></li>
-<li>enumerates repositories</li>
-<li>calls <code>GET /v2/&lt;repo&gt;/tags/list</code></li>
-<li>builds a package view from the repository plus any locally known metadata</li>
+<li>Calls <code>GET /v2/_catalog</code> to enumerate repositories.</li>
+<li>Calls <code>GET /v2/&lt;repo&gt;/tags/list</code> on each repository to find available versions.</li>
+<li>Matches discovered repositories against workspace-known suites to enrich results with local metadata.</li>
+<li>Merges built-in example module metadata for demo registries.</li>
 </ol>
-<p>If a discovered repository matches a known workspace suite, the catalog can enrich the registry result with:</p>
-<ul>
-<li>suite title</li>
-<li>owner</li>
-<li>description</li>
-<li>module tags</li>
-<li>pull and fork commands</li>
-<li>inspectability</li>
-</ul>
+<p>The result is a unified package list across all configured registries.</p>
+<hr />
 <h2 id="package-fields">Package Fields<a class="headerlink" href="#package-fields" title="Permanent link">&para;</a></h2>
-<p>A catalog package currently exposes:</p>
-<ul>
-<li><code>id</code></li>
-<li><code>kind</code></li>
-<li><code>title</code></li>
-<li><code>repository</code></li>
-<li><code>owner</code></li>
-<li><code>provider</code></li>
-<li><code>version</code></li>
-<li><code>tags</code></li>
-<li><code>description</code></li>
-<li><code>modules</code></li>
-<li><code>status</code></li>
-<li><code>score</code></li>
-<li><code>pullCommand</code></li>
-<li><code>forkCommand</code></li>
-<li><code>inspectable</code></li>
-<li><code>starred</code></li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Unique package identifier</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>suite</code> or <code>module</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>Human-readable name</td>
+</tr>
+<tr>
+<td><code>repository</code></td>
+<td>OCI repository path</td>
+</tr>
+<tr>
+<td><code>owner</code></td>
+<td>Team or user that owns the package</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>Source registry identifier</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>Latest tag or pinned version</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>Searchable labels</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>Short summary of what the package does</td>
+</tr>
+<tr>
+<td><code>modules</code></td>
+<td>Starlark modules bundled with this package</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>Registry availability status</td>
+</tr>
+<tr>
+<td><code>score</code></td>
+<td>Relevance or popularity rank</td>
+</tr>
+<tr>
+<td><code>pullCommand</code></td>
+<td>Command to pull the OCI artifact</td>
+</tr>
+<tr>
+<td><code>forkCommand</code></td>
+<td>Command to fork the package locally</td>
+</tr>
+<tr>
+<td><code>inspectable</code></td>
+<td>Whether the suite topology can be previewed</td>
+</tr>
+<tr>
+<td><code>starred</code></td>
+<td>Whether the current user has starred this package</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="favorites">Favorites<a class="headerlink" href="#favorites" title="Permanent link">&para;</a></h2>
-<p>The catalog also supports favorites:</p>
-<ul>
-<li><code>GET /api/v1/catalog/favorites</code></li>
-<li><code>POST /api/v1/catalog/favorites/{packageId}</code></li>
-<li><code>DELETE /api/v1/catalog/favorites/{packageId}</code></li>
-</ul>
-<p>These let the frontend mark commonly used packages without changing the registry source itself.</p>
+<p>Any package can be starred. Starred packages appear at the top of the catalog and persist per user.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/catalog/favorites</code></td>
+<td>List starred packages</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/catalog/favorites/{packageId}</code></td>
+<td>Star a package</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/v1/catalog/favorites/{packageId}</code></td>
+<td>Unstar a package</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="catalog-vs-suites">Catalog vs. Suites<a class="headerlink" href="#catalog-vs-suites" title="Permanent link">&para;</a></h2>
+<p>The catalog and the runnable suite inventory are related but distinct:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Catalog</th>
+<th>Suites</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source</td>
+<td>OCI registry</td>
+<td>Workspace + registry</td>
+</tr>
+<tr>
+<td>What it shows</td>
+<td>All advertised packages</td>
+<td>Packages BabelSuite can inspect and run</td>
+</tr>
+<tr>
+<td>Updated by</td>
+<td>Registry sync</td>
+<td>Suite resolution at load time</td>
+</tr>
+</tbody>
+</table>
+<p>A package can appear in the catalog before it has been locally resolved. <code>inspectable: true</code> indicates the control plane can read and render its topology.</p>
+<hr />
+<h2 id="api-endpoints">API Endpoints<a class="headerlink" href="#api-endpoints" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/catalog/packages</code></td>
+<td>List all catalog packages</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/catalog/packages/{packageId}</code></td>
+<td>Get a single package</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/catalog/favorites</code></td>
+<td>List starred packages</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/catalog/favorites/{packageId}</code></td>
+<td>Star a package</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/v1/catalog/favorites/{packageId}</code></td>
+<td>Unstar a package</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="frontend-route">Frontend Route<a class="headerlink" href="#frontend-route" title="Permanent link">&para;</a></h2>
-<p>The main browser is:</p>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/catalog</code></td>
+<td>Registry-backed package discovery and suite browser</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>/catalog</code></li>
+<li><a href="../platform/">Platform Settings</a> — configure registries the catalog queries</li>
+<li><a href="../suites/">Suites</a> — how suite packages are loaded and resolved</li>
+<li><a href="../execution/">Execution</a> — launching a suite from the catalog</li>
 </ul>
-<p>This page is the discovery layer for registry-backed content.</p>
-<h2 id="relationship-to-suites">Relationship To Suites<a class="headerlink" href="#relationship-to-suites" title="Permanent link">&para;</a></h2>
-<p>The catalog and the runnable suite inventory are related, but not identical:</p>
-<ul>
-<li><strong>Catalog</strong> is what registries advertise</li>
-<li><strong>Suites</strong> are what BabelSuite can currently inspect and run locally</li>
-</ul>
-<p>That distinction is why a package can appear in the catalog even when it is not the current workspace source of truth for runnable suite details.</p>
 
 
 

@@ -531,7 +531,7 @@
         <li class="md-nav__item">
   <a href="#running-the-docs-locally" class="md-nav__link">
     <span class="md-ellipsis">
-      Running The Docs Locally
+      Running the Docs Locally
     </span>
   </a>
   
@@ -971,6 +971,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1273,7 +1294,7 @@
         <li class="md-nav__item">
   <a href="#running-the-docs-locally" class="md-nav__link">
     <span class="md-ellipsis">
-      Running The Docs Locally
+      Running the Docs Locally
     </span>
   </a>
   
@@ -1307,8 +1328,30 @@
 
 
 <h1 id="babelsuite">BabelSuite<a class="headerlink" href="#babelsuite" title="Permanent link">&para;</a></h1>
-<p>BabelSuite is an open-source control plane for running Starlark-defined suites made of services, tasks, tests, traffic phases, security assessments, mocks, and nested suite composition.</p>
-<p>Each suite describes a topology graph of background services, one-shot tasks, verification tests, traffic steps, security steps, and nested suites. BabelSuite resolves that graph, launches steps against a local, Kubernetes, or remote-agent backend, and streams live events and logs to the UI in real time.</p>
+<p>Your tests should run the same way on every machine, every team, every environment — without a README full of setup steps, without a shared staging environment nobody trusts, and without one engineer who "knows how to run the tests locally."</p>
+<p>BabelSuite gives every team a <code>suite.star</code> file: a short, readable description of the full environment your tests need — databases, services, mocks, migrations — and the tests themselves. No Docker Compose knowledge required. No custom shell scripts. Just declare what depends on what, and BabelSuite handles the rest.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span>  <span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/postgres&quot;</span><span class="p">,</span> <span class="s2">&quot;pg&quot;</span><span class="p">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">REGIONS</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;REGIONS&quot;</span><span class="p">,</span> <span class="s2">&quot;us,eu,ap&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">db</span>          <span class="o">=</span> <span class="n">pg</span><span class="p">()</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">migrate</span>     <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;migrate.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">stripe_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">api</span>         <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">migrate</span><span class="p">,</span> <span class="n">stripe_mock</span><span class="p">])</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># run smoke tests for every region in parallel</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">REGIONS</span><span class="p">:</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;smoke-&quot;</span> <span class="o">+</span> <span class="n">region</span><span class="p">,</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="n">file</span><span class="o">=</span><span class="s2">&quot;smoke.py&quot;</span><span class="p">,</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>        <span class="n">env</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;REGION&quot;</span><span class="p">:</span> <span class="n">region</span><span class="p">},</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="p">)</span>
+</span></code></pre></div>
+<p>The suite is the contract. Push it to your OCI registry and any team can pull it, run it against their own backend, and get identical results — on a laptop, in CI, or on Kubernetes. No environment-specific scripts. No "works on my machine."</p>
+<p>When a step fails, logs are live in the UI immediately — not buried in CI output after a ten-minute wait.</p>
 <h2 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1320,35 +1363,39 @@
 <tbody>
 <tr>
 <td><strong>Suite</strong></td>
-<td>The runnable package. Contains <code>suite.star</code>, profiles, metadata, contracts, mocks, services, tasks, tests, traffic plans, and resources.</td>
+<td>A runnable package containing <code>suite.star</code>, launch profiles, OCI dependencies, service configs, mocks, tests, and traffic plans.</td>
 </tr>
 <tr>
 <td><strong>Profile</strong></td>
-<td>Launch-time configuration overlay — selects env vars, modules, and observability settings for a run.</td>
+<td>A launch-time overlay that injects env vars, secrets, and module settings without editing the suite itself.</td>
 </tr>
 <tr>
 <td><strong>Execution</strong></td>
-<td>One run of a suite under a selected profile and backend.</td>
+<td>A single run of a suite under a chosen profile and backend. Every execution streams live events and logs.</td>
 </tr>
 <tr>
 <td><strong>Backend</strong></td>
-<td>Where steps run: <code>local</code>, <code>kubernetes</code>, or <code>remote-agent</code>.</td>
+<td>Where steps run — <code>local</code> Docker, <code>kubernetes</code>, or a <code>remote-agent</code> worker pool.</td>
 </tr>
 <tr>
 <td><strong>Catalog</strong></td>
-<td>Registry-backed inventory of discoverable suite packages.</td>
+<td>The control plane's view of OCI registry contents — suite packages and reusable modules.</td>
 </tr>
 <tr>
 <td><strong>Environment</strong></td>
-<td>Live runtime inventory of containers, networks, and volumes from active runs.</td>
+<td>The live inventory of containers, networks, and volumes produced by running executions.</td>
 </tr>
 <tr>
 <td><strong>Agent</strong></td>
-<td>Remote worker that registers with the control plane, claims work, streams logs, and completes jobs.</td>
+<td>A remote worker process that registers with the control plane, claims step work, streams logs, and completes jobs.</td>
+</tr>
+<tr>
+<td><strong>Cron Job</strong></td>
+<td>A scheduled rule that runs one or more suites on a cron expression and delivers a results report via email and Slack.</td>
 </tr>
 <tr>
 <td><strong>Dependency Manifest</strong></td>
-<td>Suite-level file (<code>dependencies.yaml</code>) that maps nested suite aliases to pinned refs, versions, digests, profiles, and inputs.</td>
+<td><code>dependencies.yaml</code> — maps nested suite aliases to pinned OCI refs, profiles, and input overrides.</td>
 </tr>
 </tbody>
 </table>
@@ -1360,40 +1407,41 @@
 <h3 id="system">System<a class="headerlink" href="#system" title="Permanent link">&para;</a></h3>
 <ul>
 <li><a href="architecture/">Architecture</a> — system layers, control plane composition, data flows, storage model</li>
-<li><a href="control-plane/">Control Plane Reference</a> — middleware, request IDs, tracing, audit, health internals</li>
-<li><a href="configuration/">Configuration</a> — all <code>.env</code> variables, <code>configuration.yaml</code>, demo vs workspace mode</li>
-<li><a href="platform/">Platform Settings</a> — agents, registries, and secrets model</li>
+<li><a href="control-plane/">Control Plane</a> — middleware, request IDs, tracing, audit, health internals</li>
+<li><a href="configuration/">Configuration</a> — all environment variables, <code>configuration.yaml</code> fields, local defaults</li>
+<li><a href="platform/">Platform Settings</a> — agents, registries, secrets, notifications</li>
 </ul>
 <h3 id="suites-and-authoring">Suites and Authoring<a class="headerlink" href="#suites-and-authoring" title="Permanent link">&para;</a></h3>
 <ul>
 <li><a href="suites/">Suites</a> — suite structure, topology families, nested suites, dependency rules</li>
-<li><a href="suite-authoring/">Suite Authoring Reference</a> — package layout, recognized folders, naming advice</li>
-<li><a href="dependencies/">Dependency Manifests</a> — <code>dependencies.yaml</code> and <code>dependencies.lock.yaml</code> in depth</li>
-<li><a href="runtime-library/">Runtime Library Reference</a> — built-in Starlark surface: <code>service</code>, <code>task</code>, <code>test</code>, <code>traffic</code>, <code>security</code>, and <code>suite</code></li>
+<li><a href="suite-authoring/">Suite Authoring</a> — package layout, recognized folders, naming conventions</li>
+<li><a href="dependencies/">Dependency Manifests</a> — <code>dependencies.yaml</code> and <code>dependencies.lock.yaml</code> format</li>
+<li><a href="runtime-library/">Runtime Library</a> — built-in Starlark surface: <code>service</code>, <code>task</code>, <code>test</code>, <code>traffic</code>, <code>security</code>, <code>suite</code></li>
+<li><a href="modules/">Modules</a> — OCI module packages (Kafka, Postgres, Redis, MongoDB, Playwright)</li>
 </ul>
 <h3 id="profiles-and-mocking">Profiles and Mocking<a class="headerlink" href="#profiles-and-mocking" title="Permanent link">&para;</a></h3>
 <ul>
 <li><a href="profiles/">Profiles</a> — profile sources, shape, API records, default selection</li>
-<li><a href="profile-runtime/">Profile Runtime Reference</a> — workspace vs managed profiles, runtime overlays, dependency profile flow</li>
+<li><a href="profile-runtime/">Profile Runtime</a> — workspace vs managed profiles, runtime overlays, dependency profile flow</li>
 <li><a href="mocking/">Mocking</a> — mock endpoints, operation metadata, fallback modes, stateful mocking</li>
 <li><a href="mocking-reference/">Mocking Reference</a> — complete field reference for surfaces, operations, state, and exchanges</li>
 </ul>
 <h3 id="execution-and-infrastructure">Execution and Infrastructure<a class="headerlink" href="#execution-and-infrastructure" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="modules/">Modules</a> — built-in runtime vs OCI example modules (Kafka, Postgres)</li>
 <li><a href="execution/">Execution</a> — launch model, backends, step spec, live streams, remote agents</li>
 <li><a href="agents/">Agents</a> — worker lifecycle, control plane endpoints, worker process endpoints, payloads</li>
 <li><a href="environments/">Environments</a> — runtime inventory model, SSE updates, cleanup operations</li>
 <li><a href="catalog/">Catalog</a> — OCI discovery, package fields, favorites</li>
+<li><a href="cron-jobs/">Cron Jobs</a> — scheduled suite execution, multi-suite targets, email and Slack notifications</li>
 </ul>
 <h3 id="interfaces-examples-and-operations">Interfaces, Examples, and Operations<a class="headerlink" href="#interfaces-examples-and-operations" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="auth/">Authentication</a> — local auth, OIDC flow, JWT session model</li>
+<li><a href="auth/">Authentication</a> — local auth, OIDC SSO, JWT session model</li>
 <li><a href="api/">API</a> — full HTTP API route reference</li>
-<li><a href="cli/">CLI</a> — <code>babelctl</code> commands and usage examples</li>
+<li><a href="cli/">CLI</a> — <code>babelctl</code> commands and usage</li>
 <li><a href="examples/">Examples</a> — example suite packages and local registry setup</li>
-<li><a href="development/">Development</a> — local dev commands, test, sync, seed</li>
-<li><a href="operations/">Operations</a> — health/readiness probes, telemetry, cache, datastores</li>
+<li><a href="development/">Development</a> — local dev commands, tests, seed, sync</li>
+<li><a href="operations/">Operations</a> — health probes, telemetry, cache, datastores</li>
 </ul>
 <h2 id="product-surface">Product Surface<a class="headerlink" href="#product-surface" title="Permanent link">&para;</a></h2>
 <table>
@@ -1406,7 +1454,7 @@
 <tbody>
 <tr>
 <td><code>/</code></td>
-<td>Home dashboard — execution overview</td>
+<td>Home dashboard — execution overview and active runs</td>
 </tr>
 <tr>
 <td><code>/catalog</code></td>
@@ -1426,11 +1474,15 @@
 </tr>
 <tr>
 <td><code>/environments</code></td>
-<td>Runtime inventory and cleanup</td>
+<td>Runtime inventory — containers, networks, volumes</td>
+</tr>
+<tr>
+<td><code>/cron-jobs</code></td>
+<td>Scheduled suite execution and notification rules</td>
 </tr>
 <tr>
 <td><code>/settings/*</code></td>
-<td>Platform configuration (admin only)</td>
+<td>Platform configuration — agents, registries, secrets, notifications (admin only)</td>
 </tr>
 <tr>
 <td><code>/sign-in</code>, <code>/sign-up</code>, <code>/auth/callback</code></td>
@@ -1439,19 +1491,19 @@
 </tbody>
 </table>
 <h2 id="repository-layout">Repository Layout<a class="headerlink" href="#repository-layout" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>backend/           Go control plane, remote worker, CLI, and all internal services
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>frontend/          React application (TypeScript + Vite)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>examples/
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  oci-suites/      Runnable suite packages
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  oci-modules/     Pure Starlark example modules (kafka, postgres)
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>proto/             API service definitions
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>demo/              Demo-mode data files
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>tools/             Local helper scripts and configuration
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>docs/              This documentation (MkDocs Material)
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>backend/           Go control plane, remote worker, CLI, and all internal services
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>frontend/          React 19 + TypeScript UI (Vite)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>examples/
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  oci-suites/      Seven runnable example suite packages
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  oci-modules/     Reusable Starlark modules (Kafka, Postgres, Redis, MongoDB)
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>proto/             API service definitions (protobuf)
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>demo/              Demo-mode data files
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>tools/             Local helper scripts and configuration
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>docs/              This documentation (MkDocs Material)
 </span></code></pre></div>
-<h2 id="running-the-docs-locally">Running The Docs Locally<a class="headerlink" href="#running-the-docs-locally" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>docs/requirements.txt
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mkdocs<span class="w"> </span>serve
+<h2 id="running-the-docs-locally">Running the Docs Locally<a class="headerlink" href="#running-the-docs-locally" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>docs/requirements.txt
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mkdocs<span class="w"> </span>serve
 </span></code></pre></div>
 <p>The local site is available at <code>http://127.0.0.1:8000/</code>.</p>
 <h2 id="publishing">Publishing<a class="headerlink" href="#publishing" title="Permanent link">&para;</a></h2>

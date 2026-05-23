@@ -819,6 +819,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1047,6 +1068,15 @@
   <a href="#worker-runtime" class="md-nav__link">
     <span class="md-ellipsis">
       Worker Runtime
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cron-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cron Jobs
     </span>
   </a>
   
@@ -1302,6 +1332,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cron-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cron Jobs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mocks" class="md-nav__link">
     <span class="md-ellipsis">
       Mocks
@@ -1432,6 +1471,43 @@
 <li><code>POST /api/v1/agent/jobs/{jobId}/cancel</code></li>
 <li><code>POST /api/v1/agent/jobs/{jobId}/cleanup</code></li>
 </ul>
+<h2 id="cron-jobs">Cron Jobs<a class="headerlink" href="#cron-jobs" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/cron-jobs</code></td>
+<td>List all cron jobs</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/cron-jobs</code></td>
+<td>Create a cron job</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/cron-jobs/{id}</code></td>
+<td>Get a single cron job</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/v1/cron-jobs/{id}</code></td>
+<td>Update a cron job</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/v1/cron-jobs/{id}</code></td>
+<td>Delete a cron job</td>
+</tr>
+</tbody>
+</table>
 <h2 id="mocks">Mocks<a class="headerlink" href="#mocks" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>/internal/mock-data/</code></li>
