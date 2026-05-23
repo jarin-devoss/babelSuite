@@ -47,6 +47,10 @@ func normalize(settings *PlatformSettings) {
 		settings.Secrets.GlobalOverrides[index].Key = strings.TrimSpace(settings.Secrets.GlobalOverrides[index].Key)
 		settings.Secrets.GlobalOverrides[index].Description = strings.TrimSpace(settings.Secrets.GlobalOverrides[index].Description)
 	}
+
+	settings.Notifications.SMTP.Host = strings.TrimSpace(settings.Notifications.SMTP.Host)
+	settings.Notifications.SMTP.Username = strings.TrimSpace(settings.Notifications.SMTP.Username)
+	settings.Notifications.SMTP.From = strings.TrimSpace(settings.Notifications.SMTP.From)
 }
 
 func validate(settings *PlatformSettings) error {

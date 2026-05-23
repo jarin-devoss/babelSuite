@@ -6,77 +6,84 @@ title: Environments
 
 [Back to index](index.md)
 
-## What The Environments Page Shows
+The Environments page is the runtime inventory for everything BabelSuite started — containers, networks, and volumes across all active and recent executions. Use it to see what is running and to clean up resources that were not automatically torn down.
 
-The environments page is the runtime inventory and cleanup view for managed resources.
+---
 
-It shows:
+## What It Shows
 
-- tracked environments
-- containers
-- networks
-- volumes
-- CPU and memory usage
-- zombie detection
-- cleanup actions
+Each tracked environment corresponds to one execution run. The page displays:
 
-## Frontend Route And API
+| Field | Description |
+|-------|-------------|
+| Suite and profile | Which suite was run and under which profile |
+| Owner | The user who launched the execution |
+| Status | Current state — running, stopped, zombie |
+| Started at | When the environment was created |
+| Last heartbeat | When the orchestrator last reported in |
+| Containers | All containers started for this run |
+| Networks | Docker networks created for isolation |
+| Volumes | Volumes mounted or created during the run |
+| CPU / memory | Live resource usage (when available) |
+| Warnings | Any detected anomalies |
 
-The frontend route is:
+---
 
-- `/environments`
+## Zombie Detection
 
-The backing API currently still uses the `sandboxes` path:
+An environment is marked as a zombie when:
 
-- `GET /api/v1/sandboxes`
-- `GET /api/v1/sandboxes/events`
-- `POST /api/v1/sandboxes/reap-all`
-- `POST /api/v1/sandboxes/{sandboxId}/reap`
+- The orchestrator process is no longer alive
+- But containers, networks, or volumes from the run still exist
 
-## Inventory Model
+Zombie environments can be reaped individually or all at once.
 
-An environment snapshot contains:
-
-- `dockerAvailable`
-- `updatedAt`
-- `summary`
-- `sandboxes`
-- `warnings`
-
-Each tracked environment can include:
-
-- `sandboxId`
-- `runId`
-- `suite`
-- `owner`
-- `profile`
-- `status`
-- `summary`
-- `startedAt`
-- `lastHeartbeatAt`
-- `orchestratorPid`
-- `orchestratorState`
-- `isZombie`
-- `canReap`
-- `resourceUsage`
-- `containers`
-- `networks`
-- `volumes`
-- `warnings`
+---
 
 ## Live Updates
 
-The page can subscribe to a server-sent event stream from:
+The page subscribes to a server-sent event stream. The stream replays the latest snapshot on connect, then pushes incremental changes as environment state changes.
 
-- `/api/v1/sandboxes/events`
+```
+GET /api/v1/sandboxes/events
+```
 
-That stream replays the latest snapshot and then publishes changes over time.
+---
 
 ## Cleanup
 
-Cleanup supports:
+| Action | Description |
+|--------|-------------|
+| Reap one | Stops containers and removes networks and volumes for a single environment |
+| Reap all | Cleans up every tracked environment in one operation |
 
-- one environment at a time
-- all tracked environments at once
+The cleanup response reports how many containers, networks, and volumes were removed.
 
-The cleanup result reports how many containers, networks, and volumes were removed.
+!!! note
+    The backing API uses the path `/api/v1/sandboxes` — the UI calls it "Environments" but the server-side model retains the original name.
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/sandboxes` | List all tracked environments |
+| `GET` | `/api/v1/sandboxes/events` | SSE stream of environment state changes |
+| `POST` | `/api/v1/sandboxes/reap-all` | Clean up all tracked environments |
+| `POST` | `/api/v1/sandboxes/{sandboxId}/reap` | Clean up a single environment |
+
+---
+
+## Frontend Route
+
+| Route | Description |
+|-------|-------------|
+| `/environments` | Runtime inventory — containers, networks, volumes |
+
+---
+
+## See Also
+
+- [Execution](execution.md) — how environments are created during a run
+- [Operations](operations.md) — health probes and worker readiness

@@ -6,99 +6,146 @@ title: Operations
 
 [Back to index](index.md)
 
+This page covers health probes, telemetry, and the cache and datastore configuration needed to run BabelSuite in production.
+
+---
+
 ## Health Endpoints
 
-The control plane exposes:
+The control plane exposes both short and namespaced paths for each probe.
 
-- `GET /healthz`
-- `GET /readyz`
-- `GET /readyz/{subsystem}`
-- `GET /api/v1/system/healthz`
-- `GET /api/v1/system/readyz`
-- `GET /api/v1/system/readyz/{subsystem}`
+| Endpoint | Description |
+|----------|-------------|
+| `GET /healthz` | Process liveness — returns `200 OK` if the server is running |
+| `GET /readyz` | Full readiness report — fails with `503` if any required subsystem is unhealthy |
+| `GET /readyz/{subsystem}` | Check a single subsystem by name |
+| `GET /api/v1/system/healthz` | Same as `/healthz`, namespaced under the API prefix |
+| `GET /api/v1/system/readyz` | Same as `/readyz`, namespaced under the API prefix |
+| `GET /api/v1/system/readyz/{subsystem}` | Single-subsystem check, namespaced |
 
-### Liveness
+### Readiness Subsystems
 
-`/healthz` is the simple process-level check.
+`/readyz` checks each subsystem and returns a JSON report. Required subsystems fail the overall readiness when unhealthy; optional subsystems are reported but do not block.
 
-### Readiness
+| Subsystem | Required | Description |
+|-----------|----------|-------------|
+| `database` | Yes | Primary datastore connectivity |
+| `platform` | Yes | Platform settings file readable |
+| `profiles` | Yes | Profile store accessible |
+| `agents` | No | At least one registered agent (when agent backends are configured) |
+| `suites` | No | At least one launchable suite detected |
+| `cache` | No | Redis connectivity |
+| `telemetry` | No | OTLP exporter reachable |
 
-`/readyz` returns a JSON report covering subsystem checks such as:
-
-- database
-- cache
-- platform settings
-- profiles
-- telemetry
-- agents
-- launchable suites
-
-Required subsystems can make readiness fail with `503 Service Unavailable`.
-
-## Middleware And Request Discipline
-
-The shared HTTP stack adds:
-
-- CORS handling
-- request IDs
-- session context population
-- tracing hooks
-- HTTP metrics
-- audit middleware
-
-This keeps cross-cutting behavior consistent across the API surface.
+---
 
 ## Telemetry
 
-OpenTelemetry can be enabled with the OTLP environment variables in `.env`.
+BabelSuite exports OpenTelemetry traces and metrics from both the control plane and the frontend.
 
-Common settings:
+### Example Configuration
 
-- `OTEL_EXPORTER_OTLP_ENDPOINT`
-- `OTEL_SERVICE_NAME`
-- `OTEL_EXPORTER_OTLP_INSECURE`
-- `OTEL_EXPORTER_OTLP_HEADERS`
-- `OTEL_RESOURCE_ATTRIBUTES`
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+OTEL_SERVICE_NAME=babelsuite-control-plane
+OTEL_EXPORTER_OTLP_INSECURE=true
+OTEL_RESOURCE_ATTRIBUTES=env=production,team=platform
+```
 
-If telemetry is not configured, the readiness report marks that subsystem as disabled instead of hard failing the server.
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP collector endpoint (HTTP or gRPC) |
+| `OTEL_SERVICE_NAME` | `babelsuite` | Service name reported to the collector |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `false` | Skip TLS verification (for local collectors) |
+| `OTEL_EXPORTER_OTLP_HEADERS` | — | Additional headers sent with each OTLP request |
+| `OTEL_RESOURCE_ATTRIBUTES` | — | Comma-separated `key=value` resource attributes |
+
+!!! note
+    If telemetry is not configured, the readiness report marks the `telemetry` subsystem as `disabled` — the server continues to run normally.
+
+---
 
 ## Cache Layer
 
-Redis is optional. When configured, it is used for:
+Redis is optional. When present, it accelerates:
 
-- cached reads
-- favorites and workspace acceleration
-- execution runtime cache
-- platform and profile cache
+- Platform settings and profile reads
+- Execution runtime state
+- Catalog discovery results
+- Coordination fast paths
 
-If Redis is missing, the control plane can still run, but the readiness report will reflect the cache state.
+If Redis is not configured, the control plane falls back to the primary store for all reads. The readiness report reflects the cache state as `disabled` rather than failing.
 
-## Datastores
+### Configuration
 
-The primary datastore can be:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | — | Redis connection string (e.g. `redis://localhost:6379`) |
 
-- MongoDB
-- PostgreSQL
+---
 
-MongoDB is the default local path in the checked-in `.env`.
+## Primary Datastore
 
-## Environment Inventory
+BabelSuite supports two primary store backends. Select with the `DB_DRIVER` environment variable.
 
-The environments page is backed by a runtime inventory service that:
+| Driver | Variable | Description |
+|--------|----------|-------------|
+| `mongo` | `MONGODB_URI` | MongoDB (default for local development) |
+| `postgres` | `DATABASE_URL` | PostgreSQL |
 
-- polls Docker resources
-- tracks orchestrator process liveness
-- identifies zombie environments
-- supports SSE updates
-- allows per-environment or global cleanup
+### MongoDB
+
+```bash
+DB_DRIVER=mongo
+MONGODB_URI=mongodb://localhost:27017/babelsuite
+```
+
+### PostgreSQL
+
+```bash
+DB_DRIVER=postgres
+DATABASE_URL=postgres://user:password@localhost:5432/babelsuite?sslmode=disable
+```
+
+---
+
+## Middleware Stack
+
+Every API request passes through the shared middleware stack in this order:
+
+```
+CORS → Request IDs → Auth Session → OTel Trace → HTTP Metrics → Audit
+```
+
+| Layer | What it does |
+|-------|-------------|
+| CORS | Enforces the `FRONTEND_URL` origin allowlist |
+| Request IDs | Attaches a unique ID to each request for log correlation |
+| Auth Session | Verifies JWT and populates request context |
+| OTel Trace | Starts a span and propagates trace context |
+| HTTP Metrics | Records request duration and status code |
+| Audit | Logs writes and sensitive reads to the audit trail |
+
+---
 
 ## Worker Health
 
-The worker process exposes its own `GET /healthz` endpoint and a small runtime API for:
+The remote agent process exposes its own liveness probe and a small control API for managing in-progress steps.
 
-- info
-- run
-- cancel
-- cleanup
+| Endpoint | Description |
+|----------|-------------|
+| `GET /healthz` | Worker liveness check |
+| `GET /api/v1/agent/info` | Agent identity and runtime capabilities |
+| `POST /api/v1/agent/run` | Start a step |
+| `POST /api/v1/agent/jobs/{jobId}/cancel` | Cancel an in-progress step |
+| `POST /api/v1/agent/jobs/{jobId}/cleanup` | Clean up resources from a completed step |
 
-That lets a control plane or external operator verify worker availability independently.
+---
+
+## See Also
+
+- [Architecture](architecture.md) — system layers and component relationships
+- [Configuration](configuration.md) — all environment variables
+- [Agents](agents.md) — worker process lifecycle and endpoints

@@ -5,6 +5,7 @@ import { getSession } from './lib/api'
 import { useRouteTracking } from './hooks/useRouteTracking'
 import AuthCallback from './pages/AuthCallback'
 import Catalog from './pages/Catalog'
+import CronJobs from './pages/CronJobs'
 import ForgotPassword from './pages/ForgotPassword'
 import Home from './pages/Home'
 import LiveExecution from './pages/LiveExecution'
@@ -16,6 +17,7 @@ import General from './pages/settings/General'
 import Agents from './pages/settings/Agents'
 import Registries from './pages/settings/Registries'
 import Secrets from './pages/settings/Secrets'
+import Notifications from './pages/settings/Notifications'
 import ResetPassword from './pages/ResetPassword'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/Signup'
@@ -63,12 +65,14 @@ export default function App() {
           <Route path='/profiles' element={<Guard><Profiles /></Guard>} />
           <Route path='/sandbox' element={<Guard><Sandbox /></Guard>} />
           <Route path='/environments' element={<Guard><Sandboxes /></Guard>} />
+          <Route path='/cron-jobs' element={<Guard><CronJobs /></Guard>} />
           <Route path='/sandboxes' element={<Navigate to='/environments' replace />} />
           <Route path='/settings' element={<AdminGuard><Settings /></AdminGuard>} />
           <Route path='/settings/general' element={<AdminGuard><General /></AdminGuard>} />
           <Route path='/settings/agents' element={<AdminGuard><Agents /></AdminGuard>} />
           <Route path='/settings/registries' element={<AdminGuard><Registries /></AdminGuard>} />
           <Route path='/settings/secrets' element={<AdminGuard><Secrets /></AdminGuard>} />
+          <Route path='/settings/notifications' element={<AdminGuard><Notifications /></AdminGuard>} />
           <Route path='/auth/callback' element={<AuthCallback />} />
           <Route path='/sign-in' element={<GuestOnly><SignIn /></GuestOnly>} />
           <Route path='/sign-up' element={<GuestOnly><SignUp /></GuestOnly>} />

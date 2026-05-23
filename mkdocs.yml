@@ -27,6 +27,7 @@ nav:
     - Execution: execution.md
     - Agents: agents.md
     - Environments: environments.md
+    - Cron Jobs: cron-jobs.md
   - Interfaces:
     - Authentication: auth.md
     - API: api.md

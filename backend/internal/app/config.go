@@ -2,6 +2,15 @@ package app
 
 import "time"
 
+// SMTPConfig holds optional SMTP settings for cron job email notifications.
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	From     string
+}
+
 // Config holds all configuration needed to start the application.
 // Zero values are valid where noted; the New function applies defaults.
 type Config struct {
@@ -32,6 +41,7 @@ type Config struct {
 
 	Redis    *RedisConfig
 	CacheTTL CacheTTLConfig
+	SMTP     SMTPConfig
 }
 
 type RedisConfig struct {

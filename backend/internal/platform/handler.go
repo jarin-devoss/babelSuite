@@ -33,7 +33,9 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, http.StatusInternalServerError, "Could not load platform settings.")
 		return
 	}
-	httpserver.WriteJSON(w, http.StatusOK, settings)
+	out := *settings
+	out.Notifications.SMTP.Password = ""
+	httpserver.WriteJSON(w, http.StatusOK, out)
 }
 
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +43,14 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
 		httpserver.WriteError(w, http.StatusBadRequest, "Invalid platform settings payload.")
 		return
+	}
+
+	// Preserve existing SMTP password when client sends an empty string (never echoed back).
+	if settings.Notifications.SMTP.Password == "" {
+		existing, err := h.store.Load()
+		if err == nil && existing != nil {
+			settings.Notifications.SMTP.Password = existing.Notifications.SMTP.Password
+		}
 	}
 
 	normalize(&settings)
@@ -53,7 +63,9 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, http.StatusInternalServerError, "Could not save platform settings.")
 		return
 	}
-	httpserver.WriteJSON(w, http.StatusOK, settings)
+	out := settings
+	out.Notifications.SMTP.Password = ""
+	httpserver.WriteJSON(w, http.StatusOK, out)
 }
 
 func (h *Handler) syncRegistry(w http.ResponseWriter, r *http.Request) {
@@ -89,5 +101,6 @@ func redactSettings(s *PlatformSettings) *PlatformSettings {
 		reg.Secret = ""
 		out.Registries[i] = reg
 	}
+	out.Notifications.SMTP.Password = ""
 	return &out
 }

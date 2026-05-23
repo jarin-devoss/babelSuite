@@ -75,12 +75,25 @@ export interface SecretsConfig {
   globalOverrides: GlobalOverride[]
 }
 
+export interface SMTPNotificationsConfig {
+  host: string
+  port: number
+  username: string
+  password: string
+  from: string
+}
+
+export interface NotificationsConfig {
+  smtp: SMTPNotificationsConfig
+}
+
 export interface PlatformSettings {
   mode: string
   description: string
   agents: ExecutionAgent[]
   registries: OCIRegistry[]
   secrets: SecretsConfig
+  notifications: NotificationsConfig
   updatedAt: string
 }
 
@@ -569,20 +582,10 @@ export interface AuthConfig {
   providers: SSOProvider[]
 }
 
-export const fallbackSSOProviders: SSOProvider[] = [
-  {
-    providerId: 'oidc',
-    name: 'Single Sign-On',
-    buttonLabel: 'Continue with Single Sign-On',
-    enabled: false,
-    hint: 'Configure the backend OIDC settings to enable single sign-on.',
-  },
-]
-
 export const fallbackAuthConfig: AuthConfig = {
   passwordAuthEnabled: true,
   signUpEnabled: true,
-  providers: fallbackSSOProviders,
+  providers: [],
 }
 
 export async function signIn(payload: { email: string; password: string }) {
@@ -770,3 +773,61 @@ export {
   openExecutionLogStream as streamExecutionLogs,
   openSandboxEventStream as streamSandboxEvents,
 } from './stream/events'
+
+export interface CronSuiteTarget {
+  suiteId: string
+  profile: string
+  backendId: string
+}
+
+export interface CronEmailConfig {
+  recipients: string[]
+  subject: string
+}
+
+export interface CronSlackConfig {
+  webhookUrl: string
+}
+
+export interface CronJob {
+  id: string
+  name: string
+  schedule: string
+  enabled: boolean
+  suites: CronSuiteTarget[]
+  email: CronEmailConfig
+  slack: CronSlackConfig
+  lastRunAt?: string
+  nextRunAt?: string
+  lastError: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function listCronJobs() {
+  return request<CronJob[]>('/api/v1/cron-jobs')
+}
+
+export async function getCronJob(id: string) {
+  return request<CronJob>(`/api/v1/cron-jobs/${encodeURIComponent(id)}`)
+}
+
+export async function createCronJob(payload: Omit<CronJob, 'id' | 'lastRunAt' | 'nextRunAt' | 'lastError' | 'createdAt' | 'updatedAt'>) {
+  return request<CronJob>('/api/v1/cron-jobs', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateCronJob(id: string, payload: Omit<CronJob, 'id' | 'lastRunAt' | 'nextRunAt' | 'lastError' | 'createdAt' | 'updatedAt'>) {
+  return request<CronJob>(`/api/v1/cron-jobs/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteCronJob(id: string) {
+  return request<void>(`/api/v1/cron-jobs/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}

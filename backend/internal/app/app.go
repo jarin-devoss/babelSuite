@@ -11,6 +11,7 @@ import (
 	"github.com/babelsuite/babelsuite/internal/auth"
 	"github.com/babelsuite/babelsuite/internal/cachehub"
 	"github.com/babelsuite/babelsuite/internal/catalog"
+	"github.com/babelsuite/babelsuite/internal/cronjobs"
 	"github.com/babelsuite/babelsuite/internal/engine"
 	enginewatchers "github.com/babelsuite/babelsuite/internal/engine/watchers"
 	"github.com/babelsuite/babelsuite/internal/environments"
@@ -34,6 +35,7 @@ type App struct {
 	primaryStore       store.Store
 	executionService   *execution.Service
 	environmentService *environments.Service
+	cronService        *cronjobs.Service
 	stopBackground     context.CancelFunc
 }
 
@@ -134,6 +136,25 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 
 	environmentService := environments.NewService()
 
+	var cronService *cronjobs.Service
+	if cronStore, ok := primaryStore.(cronjobs.Store); ok {
+		smtpFn := func() cronjobs.SMTPConfig {
+			s, err := platformBaseStore.Load()
+			if err != nil || s == nil {
+				return cronjobs.SMTPConfig{}
+			}
+			n := s.Notifications.SMTP
+			return cronjobs.SMTPConfig{
+				Host:     n.Host,
+				Port:     n.Port,
+				Username: n.Username,
+				Password: n.Password,
+				From:     n.From,
+			}
+		}
+		cronService = cronjobs.NewService(cronStore, smtpFn, executionService)
+	}
+
 	health := buildHealthService("mongo", primaryStore, cacheLayer, telemetryPipeline,
 		platformBaseStore, profileBaseStore, agentRegistry, executionService)
 
@@ -149,6 +170,9 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	execution.NewHandler(executionService, engineStore, jwtSvc).Register(mux)
 	platform.NewHandler(platformStore, jwtSvc).Register(mux)
 	environments.NewHandler(environmentService, jwtSvc).Register(mux)
+	if cronService != nil {
+		cronjobs.NewHandler(cronService, jwtSvc).Register(mux)
+	}
 	mux.Handle("POST /api/v1/telemetry/traces", auth.RequireSession(jwtSvc, auth.VerifyOptions{})(telemetry.NewTraceProxyHandler()))
 	mux.Handle("POST /api/v1/telemetry/metrics", auth.RequireSession(jwtSvc, auth.VerifyOptions{})(telemetry.NewMetricsProxyHandler()))
 
@@ -160,6 +184,12 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	bgCtx, stopBackground := context.WithCancel(context.Background())
 	go agentRegistry.Start(bgCtx)
 	go catalog.NewRefresher(catalogReader, cfg.CacheTTL.catalogOr(45*time.Second)/2).Start(bgCtx)
+	if cronService != nil {
+		if err := cronService.Start(bgCtx); err != nil {
+			stopBackground()
+			return nil, fmt.Errorf("cron: %w", err)
+		}
+	}
 
 	return &App{
 		handler:            buildHandler(cfg.FrontendURL, jwtSvc, proxyTrust, mux, cachedStore),
@@ -168,6 +198,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		primaryStore:       primaryStore,
 		executionService:   executionService,
 		environmentService: environmentService,
+		cronService:        cronService,
 		stopBackground:     stopBackground,
 	}, nil
 }
@@ -182,6 +213,9 @@ func (a *App) Close(ctx context.Context) error {
 		a.stopBackground()
 	}
 	var combined error
+	if a.cronService != nil {
+		a.cronService.Stop()
+	}
 	if a.environmentService != nil {
 		a.environmentService.Close()
 	}

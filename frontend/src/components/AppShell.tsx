@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   FaArrowLeft,
   FaArrowRight,
+  FaBell,
   FaBook,
   FaBoxesStacked,
   FaDocker,
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/catalog', label: 'Catalog', icon: FaBook, matchPrefixes: ['/catalog'] },
   { to: '/profiles', label: 'Profiles', icon: FaFolderTree, matchPrefixes: ['/profiles'] },
   { to: '/environments', label: 'Environments', icon: FaDocker, matchPrefixes: ['/environments', '/sandboxes'] },
+  { to: '/cron-jobs', label: 'Cron Jobs', icon: FaBell, matchPrefixes: ['/cron-jobs'] },
   { to: '/settings', label: 'Settings', icon: FaGear, matchPrefixes: ['/settings'], adminOnly: true },
 ]
 
