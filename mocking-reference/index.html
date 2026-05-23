@@ -883,6 +883,48 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#response-body-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Response Body Annotations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Response Body Annotations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gen-generate-a-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      @gen — generate a value
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolve-read-a-value-from-request-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      @resolve — read a value from request context
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compose-build-a-string-from-mixed-static-and-generated-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      @compose — build a string from mixed static and generated parts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-guidance" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Guidance
@@ -1278,6 +1320,48 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#response-body-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Response Body Annotations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Response Body Annotations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gen-generate-a-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      @gen — generate a value
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolve-read-a-value-from-request-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      @resolve — read a value from request context
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compose-build-a-string-from-mixed-static-and-generated-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      @compose — build a string from mixed static and generated parts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-guidance" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Guidance
@@ -1438,6 +1522,159 @@
 <li>runtime URLs are generated</li>
 <li>schema-backed mock references are normalized</li>
 </ul>
+<h2 id="response-body-annotations">Response Body Annotations<a class="headerlink" href="#response-body-annotations" title="Permanent link">&para;</a></h2>
+<p>CUE exchange files support three annotations that make response bodies dynamic at serve time. Instead of returning the same hardcoded ID or timestamp on every request, the mock engine generates a fresh value each time.</p>
+<hr />
+<h3 id="gen-generate-a-value"><code>@gen</code> — generate a value<a class="headerlink" href="#gen-generate-a-value" title="Permanent link">&para;</a></h3>
+<p>Attach <code>@gen</code> to any <code>string</code> field to have the mock engine produce a value at serve time.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>body: {
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  returnId: string @gen(kind=&quot;int&quot;, prefix=&quot;ret_&quot;, min=1001, max=9999)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  traceId:  string @gen(kind=&quot;uuid&quot;)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  servedAt: string @gen(kind=&quot;timestamp&quot;)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>}
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td>What to generate — <code>uuid</code>, <code>timestamp</code>, <code>int</code>, or <code>string</code></td>
+</tr>
+<tr>
+<td><code>prefix</code></td>
+<td>String prepended to the generated value (e.g. <code>"ret_"</code> → <code>"ret_4821"</code>)</td>
+</tr>
+<tr>
+<td><code>min</code></td>
+<td>Minimum value for <code>kind="int"</code></td>
+</tr>
+<tr>
+<td><code>max</code></td>
+<td>Maximum value for <code>kind="int"</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Supported kinds:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Output example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uuid</code></td>
+<td><code>"a3f1c2d4-..."</code></td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>"2026-05-23T08:14:00Z"</code></td>
+</tr>
+<tr>
+<td><code>int</code></td>
+<td><code>"4821"</code> (with optional <code>prefix</code>, <code>min</code>, <code>max</code>)</td>
+</tr>
+<tr>
+<td><code>string</code></td>
+<td>Random alphanumeric string</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example — REST response with generated IDs:</strong></p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>responseSchema: {
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  status: &quot;201&quot;
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  mediaType: &quot;application/json&quot;
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  body: {
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    status:    &quot;approved&quot;
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    returnId:  string @gen(kind=&quot;int&quot;, prefix=&quot;ret_&quot;, min=1001, max=9999)
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    traceId:   string @gen(kind=&quot;uuid&quot;)
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    servedAt:  string @gen(kind=&quot;timestamp&quot;)
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  }
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>}
+</span></code></pre></div>
+<hr />
+<h3 id="resolve-read-a-value-from-request-context"><code>@resolve</code> — read a value from request context<a class="headerlink" href="#resolve-read-a-value-from-request-context" title="Permanent link">&para;</a></h3>
+<p>Attach <code>@resolve</code> to pull a value from the incoming request or from in-memory mock state at serve time.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>body: {
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  previousAttempts: string @resolve(path=&quot;state.count&quot;)
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  profile:          string @resolve(path=&quot;request.headers.x-suite-profile&quot;, fallback=&quot;local.yaml&quot;)
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>}
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path</code></td>
+<td>Dot-separated path into <code>request</code> or <code>state</code></td>
+</tr>
+<tr>
+<td><code>fallback</code></td>
+<td>Value to use when the path resolves to nothing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Supported path roots:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Root</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request.headers.&lt;name&gt;</code></td>
+<td>Value of an incoming request header</td>
+</tr>
+<tr>
+<td><code>request.body.&lt;field&gt;</code></td>
+<td>Field from the request body</td>
+</tr>
+<tr>
+<td><code>state.&lt;key&gt;</code></td>
+<td>Value from the operation's in-memory state store</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="compose-build-a-string-from-mixed-static-and-generated-parts"><code>@compose</code> — build a string from mixed static and generated parts<a class="headerlink" href="#compose-build-a-string-from-mixed-static-and-generated-parts" title="Permanent link">&para;</a></h3>
+<p>Use <code>@compose</code> when the response body is a single string (e.g. XML, plain text) that needs generated values embedded at specific positions.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>body: string @compose(
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  &quot;&lt;Response&gt;&lt;Id&gt;&quot;,
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  gen(kind=&quot;int&quot;, prefix=&quot;clm_&quot;, min=1001, max=9999),
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  &quot;&lt;/Id&gt;&lt;TraceId&gt;&quot;,
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  gen(kind=&quot;uuid&quot;),
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  &quot;&lt;/TraceId&gt;&lt;ServedAt&gt;&quot;,
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  gen(kind=&quot;timestamp&quot;),
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  &quot;&lt;/ServedAt&gt;&lt;/Response&gt;&quot;
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>)
+</span></code></pre></div>
+<p>Each argument is either a literal string or a <code>gen(...)</code> / <code>resolve(...)</code> call. The mock engine concatenates them left to right.</p>
+<p><strong>Example — SOAP response with dynamic claim ID and timestamp:</strong></p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>responseSchema: {
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  status: &quot;200&quot;
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  mediaType: &quot;text/xml; charset=utf-8&quot;
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  body: string @compose(
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    &quot;&lt;?xml version=\&quot;1.0\&quot;?&gt;&lt;Envelope&gt;&lt;Body&gt;&lt;SubmitClaimResponse&gt;&quot;,
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    &quot;&lt;ClaimId&gt;clm_&quot;, gen(kind=&quot;int&quot;, min=1001, max=9999), &quot;&lt;/ClaimId&gt;&quot;,
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    &quot;&lt;TraceId&gt;&quot;,     gen(kind=&quot;uuid&quot;),                    &quot;&lt;/TraceId&gt;&quot;,
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    &quot;&lt;ServedAt&gt;&quot;,    gen(kind=&quot;timestamp&quot;),               &quot;&lt;/ServedAt&gt;&quot;,
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    &quot;&lt;/SubmitClaimResponse&gt;&lt;/Body&gt;&lt;/Envelope&gt;&quot;
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  )
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>}
+</span></code></pre></div>
+<hr />
 <h2 id="authoring-guidance">Authoring Guidance<a class="headerlink" href="#authoring-guidance" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Keep contracts in <code>api/</code> and mock artifacts in <code>mock/</code>.</li>
