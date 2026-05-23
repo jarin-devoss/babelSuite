@@ -37,11 +37,14 @@ export default function Notifications() {
     return () => { cancelled = true }
   }, [])
 
-  const patchSMTP = (field: string, value: string | number) => {
+  const patchSMTP = <K extends keyof PlatformSettings['notifications']['smtp']>(
+    field: K,
+    value: PlatformSettings['notifications']['smtp'][K],
+  ) => {
     setDraft((current) => {
       if (!current) return current
       const next = structuredClone(current)
-      ;(next.notifications.smtp as Record<string, unknown>)[field] = value
+      next.notifications.smtp[field] = value
       return next
     })
   }
