@@ -89,6 +89,47 @@ When the control plane assigns a step, the `StepRequest` contains everything the
 
 ---
 
+## Kubernetes Backend
+
+When `type: kubernetes` is set in platform settings, the control plane dispatches each step as an isolated Kubernetes pod in `targetNamespace`.
+
+### How it works
+
+1. A pod is created with the step image. Environment variables, headers, and OCI pull secrets are injected at pod creation time.
+2. Container logs are streamed live with `follow: true` — output appears in real time rather than after the pod exits.
+3. The control plane watches the **step container** status directly. This correctly detects completion even when artifact sidecars keep the pod running after the main container exits.
+4. The container exit code is captured and evaluated against any `expect:` assertions defined in the step.
+5. Artifact collection uses an `emptyDir` volume shared between the step container and a `busybox` sidecar. After the step container exits, artifacts are read through the pod exec API before the pod is deleted.
+6. When the step completes the pod is deleted immediately. Cleanup is also triggered on cancellation.
+
+### Configuration
+
+```yaml
+agents:
+  - agentId: k8s-prod
+    name: Production cluster
+    type: kubernetes
+    enabled: true
+    kubeconfigPath: /etc/babelsuite/kubeconfig   # omit to use in-cluster config
+    targetNamespace: babelsuite-jobs
+    serviceAccountToken: ""                       # leave empty for kubeconfig auth
+    apisixSidecar:
+      image: apache/apisix:3.9.0-debian
+      listenPort: 9080
+      adminPort: 9180
+```
+
+| Field | Description |
+|-------|-------------|
+| `kubeconfigPath` | Absolute path to a kubeconfig file. Omit when running the control plane inside the target cluster — the in-cluster service account is used automatically. |
+| `targetNamespace` | Namespace where step pods are created. The service account must have `create`/`get`/`watch`/`delete` pod permissions in this namespace. |
+| `serviceAccountToken` | Explicit token for service-account auth. Leave empty when using kubeconfig or in-cluster config. |
+
+!!! note
+    The Kubernetes backend does not fall back to a simulation when the cluster is unreachable. A missing client or missing step image returns a real error so failures are visible in the execution log.
+
+---
+
 ## Platform Settings
 
 Agents appear in `configuration.yaml` under the `agents` list. Fields specific to remote agents:
