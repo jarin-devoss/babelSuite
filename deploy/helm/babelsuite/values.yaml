@@ -60,6 +60,10 @@ autoscaling:
   maxReplicas: 5
   targetCPUUtilizationPercentage: 80
 
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1     # minAvailable or maxUnavailable (not both)
+
 livenessProbe:
   httpGet:
     path: /healthz
