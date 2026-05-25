@@ -48,7 +48,7 @@ func TestRunnerDispatchesSystemVersionCommand(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("expected exit 0, got %d", status)
 	}
-	if got := stdout.String(); got != "babelctl dev\n" {
+	if got := stdout.String(); got != "babelctl "+Version+"\n" {
 		t.Fatalf("unexpected version output %q", got)
 	}
 	if stderr.Len() != 0 {

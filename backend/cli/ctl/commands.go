@@ -145,7 +145,7 @@ func (r *Runner) commandGroups() []rootCommandGroup {
 					usage:       "version",
 					description: "Print the CLI version label",
 					run: func(_ context.Context, r *Runner, _ support.GlobalOptions, _ []string) int {
-						_, _ = r.stdout.Write([]byte("babelctl dev\n"))
+						_, _ = r.stdout.Write([]byte("babelctl " + Version + "\n"))
 						return 0
 					},
 				},
