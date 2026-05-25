@@ -82,7 +82,7 @@ func executeSecurityStep(ctx context.Context, step StepSpec, emit func(logstream
 	}
 
 	if !canUseAPISIXSecurity(step) {
-		return nil
+		return executeNativeSecurityStep(ctx, step, emit)
 	}
 
 	gatewayURL := strings.TrimSuffix(strings.TrimSpace(step.GatewayURL), "/")
