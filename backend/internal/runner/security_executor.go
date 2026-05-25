@@ -15,6 +15,8 @@ import (
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
+var scannerHTTPClient = &http.Client{Timeout: 10 * time.Minute}
+
 // scannerConfig is the JSON payload sent to the attack-scanner Lua plugin.
 type scannerConfig struct {
 	Target         string         `json:"target"`
@@ -151,7 +153,7 @@ func triggerScanner(ctx context.Context, gatewayURL string, cfgJSON []byte) (*sc
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := (&http.Client{}).Do(req)
+	resp, err := scannerHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
