@@ -167,13 +167,18 @@ func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		}
 	}
 
+	emit(line(step, "info", fmt.Sprintf("[%s] Loaded native traffic plan %s against %s.", step.Node.Name, step.Load.PlanPath, step.Load.Target)))
+
+	if step.Load.Variant == "traffic.scalability" {
+		return runScalabilityModel(ctx, step, emit)
+	}
+
 	stats := &loadStats{
 		StartedAt:     time.Now(),
 		ThroughputByS: make(map[int]int),
 		Samplers:      make(map[string]*loadSamplerStats),
 		Stages:        make(map[int]*loadStageStats),
 	}
-	emit(line(step, "info", fmt.Sprintf("[%s] Loaded native traffic plan %s against %s.", step.Node.Name, step.Load.PlanPath, step.Load.Target)))
 
 	if useSyntheticLoadTarget(step.Load.Target) {
 		emit(line(step, "info", fmt.Sprintf("[%s] Target %s resolves as a suite-local symbolic service; using bounded synthetic traffic.", step.Node.Name, step.Load.Target)))
@@ -231,6 +236,45 @@ func useSyntheticLoadTarget(target string) bool {
 		return false
 	}
 	return !strings.Contains(host, ".")
+}
+
+func runScalabilityModel(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
+	selector := rand.New(rand.NewSource(time.Now().UnixNano()))
+	var lastPassingUsers int
+
+	for stageIndex, stage := range step.Load.Stages {
+		probeStats := &loadStats{
+			StartedAt:     time.Now(),
+			ThroughputByS: make(map[int]int),
+			Samplers:      make(map[string]*loadSamplerStats),
+			Stages:        make(map[int]*loadStageStats),
+		}
+
+		probeStats.beginStage(0, stage, time.Now())
+		emit(line(step, "info", fmt.Sprintf("[%s] Scalability probe %d: users=%d spawn_rate=%.1f duration=%s.", step.Node.Name, stageIndex+1, stage.Users, stage.SpawnRate, stage.Duration)))
+
+		if err := runSyntheticStage(ctx, step, 0, stage, selector, probeStats); err != nil {
+			return err
+		}
+		probeStats.endStage(0, time.Now())
+
+		probeSummary := probeStats.summary()
+		emit(line(step, "info", fmt.Sprintf("[%s] Probe %d result: users=%d requests=%d failures=%d error_rate=%.4f avg=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, stageIndex+1, stage.Users, probeSummary.Requests, probeSummary.Failures, probeSummary.ErrorRate, probeSummary.Latency.AvgMillis, probeSummary.Latency.P95Millis, probeSummary.Latency.P99Millis)))
+
+		if err := evaluateLoadThresholds(step, probeStats); err != nil {
+			emit(line(step, "warn", fmt.Sprintf("[%s] Breaking point found at %d users: %v.", step.Node.Name, stage.Users, err)))
+			if lastPassingUsers > 0 {
+				emit(line(step, "info", fmt.Sprintf("[%s] Max sustainable load: %d users (last passing probe before breaking point).", step.Node.Name, lastPassingUsers)))
+			} else {
+				emit(line(step, "warn", fmt.Sprintf("[%s] No passing probes recorded; system cannot sustain load at any tested level.", step.Node.Name)))
+			}
+			return nil
+		}
+		lastPassingUsers = stage.Users
+	}
+
+	emit(line(step, "info", fmt.Sprintf("[%s] All %d scalability probes passed. Max sustainable load: %d users.", step.Node.Name, len(step.Load.Stages), lastPassingUsers)))
+	return nil
 }
 
 func runSyntheticLoadModel(ctx context.Context, step StepSpec, emit func(logstream.Line), stats *loadStats) error {

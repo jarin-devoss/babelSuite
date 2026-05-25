@@ -157,7 +157,7 @@ Recommended meanings:
 - `traffic.stress`: push beyond normal operating range
 - `traffic.spike`: sudden step up in user count
 - `traffic.soak`: long-running endurance pressure
-- `traffic.scalability`: multi-agent or multi-backend expansion checks
+- `traffic.scalability`: breaking-point detection — probes successive user-count stages and reports the maximum sustainable load
 - `traffic.step`: increase traffic in discrete blocks
 - `traffic.wave`: oscillating high/low cycles
 - `traffic.staged`: several named phases with different targets
@@ -212,7 +212,7 @@ Native threshold metrics currently supported:
 Current limit:
 
 - the native executor currently supports HTTP `traffic.get(...)` and `traffic.post(...)` tasks only
-- `traffic.scalability` still requires a distributed executor and is rejected by the native runner
+- `traffic.scalability` runs each user-count stage as an isolated probe; the loop stops on the first threshold violation and reports the last passing user count as the maximum sustainable load — if all probes pass, the highest count is reported
 - strict safety caps keep the control plane from self-harming with oversized traffic plans
 
 ### `security`
