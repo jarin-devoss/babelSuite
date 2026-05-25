@@ -35,6 +35,7 @@ nav:
   - Examples: examples.md
   - Development: development.md
   - Operations: operations.md
+  - Troubleshooting: troubleshooting.md
 
 theme:
   name: material
