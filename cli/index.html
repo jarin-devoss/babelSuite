@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cli" class="md-skip">
+        <a href="#cli-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -325,6 +325,23 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../troubleshooting/" class="md-tabs__link">
+        
+  
+    
+  
+  Troubleshooting
 
       </a>
     </li>
@@ -987,64 +1004,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#binary" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Binary
+      Installation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-groups" class="md-nav__link">
+  <a href="#global-options" class="md-nav__link">
     <span class="md-ellipsis">
-      Command Groups
+      Global Options
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Command Groups">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#session-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Session Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Session Commands">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#session" class="md-nav__link">
+  <a href="#login" class="md-nav__link">
     <span class="md-ellipsis">
-      Session
+      login
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#suites" class="md-nav__link">
+  <a href="#logout" class="md-nav__link">
     <span class="md-ellipsis">
-      Suites
+      logout
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#executions" class="md-nav__link">
+  <a href="#whoami" class="md-nav__link">
     <span class="md-ellipsis">
-      Executions
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#environments" class="md-nav__link">
-    <span class="md-ellipsis">
-      Environments
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#system" class="md-nav__link">
-    <span class="md-ellipsis">
-      System
+      whoami
     </span>
   </a>
   
@@ -1056,27 +1064,222 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#current-root-usage" class="md-nav__link">
+  <a href="#suite-commands" class="md-nav__link">
     <span class="md-ellipsis">
-      Current Root Usage
+      Suite Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Suite Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catalog-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      catalog list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#catalog-inspect-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      catalog inspect &lt;package&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-name-destination" class="md-nav__link">
+    <span class="md-ellipsis">
+      create &lt;name&gt; [destination]
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      suites list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-get-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      suites get &lt;suite&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-inspect-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      suites inspect &lt;suite&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#profiles-list-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      profiles list &lt;suite&gt;
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Execution Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runs-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      runs list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runs-get-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      runs get &lt;id&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-suiteref-profile-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      run &lt;suite|ref&gt; [--profile &lt;file&gt;]
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fork-suiteref-destination" class="md-nav__link">
+    <span class="md-ellipsis">
+      fork &lt;suite|ref&gt; [destination]
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environments-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      environments list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environments-reap-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      environments reap &lt;id&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environments-reap-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      environments reap-all
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      System Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#version" class="md-nav__link">
+    <span class="md-ellipsis">
+      version
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Config File
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#ci-automation" class="md-nav__link">
     <span class="md-ellipsis">
-      Examples
+      CI / Automation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#scaffold-command" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
-      Scaffold Command
+      See Also
     </span>
   </a>
   
@@ -1158,6 +1361,26 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1185,64 +1408,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#binary" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Binary
+      Installation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-groups" class="md-nav__link">
+  <a href="#global-options" class="md-nav__link">
     <span class="md-ellipsis">
-      Command Groups
+      Global Options
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Command Groups">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#session-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Session Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Session Commands">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#session" class="md-nav__link">
+  <a href="#login" class="md-nav__link">
     <span class="md-ellipsis">
-      Session
+      login
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#suites" class="md-nav__link">
+  <a href="#logout" class="md-nav__link">
     <span class="md-ellipsis">
-      Suites
+      logout
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#executions" class="md-nav__link">
+  <a href="#whoami" class="md-nav__link">
     <span class="md-ellipsis">
-      Executions
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#environments" class="md-nav__link">
-    <span class="md-ellipsis">
-      Environments
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#system" class="md-nav__link">
-    <span class="md-ellipsis">
-      System
+      whoami
     </span>
   </a>
   
@@ -1254,27 +1468,222 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#current-root-usage" class="md-nav__link">
+  <a href="#suite-commands" class="md-nav__link">
     <span class="md-ellipsis">
-      Current Root Usage
+      Suite Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Suite Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catalog-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      catalog list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#catalog-inspect-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      catalog inspect &lt;package&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-name-destination" class="md-nav__link">
+    <span class="md-ellipsis">
+      create &lt;name&gt; [destination]
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      suites list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-get-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      suites get &lt;suite&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-inspect-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      suites inspect &lt;suite&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#profiles-list-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      profiles list &lt;suite&gt;
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Execution Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runs-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      runs list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runs-get-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      runs get &lt;id&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-suiteref-profile-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      run &lt;suite|ref&gt; [--profile &lt;file&gt;]
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fork-suiteref-destination" class="md-nav__link">
+    <span class="md-ellipsis">
+      fork &lt;suite|ref&gt; [destination]
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environments-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      environments list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environments-reap-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      environments reap &lt;id&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environments-reap-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      environments reap-all
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      System Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#version" class="md-nav__link">
+    <span class="md-ellipsis">
+      version
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Config File
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#ci-automation" class="md-nav__link">
     <span class="md-ellipsis">
-      Examples
+      CI / Automation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#scaffold-command" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
-      Scaffold Command
+      See Also
     </span>
   </a>
   
@@ -1298,65 +1707,202 @@
   
 
 
-<h1 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h1>
+<h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
-<h2 id="binary">Binary<a class="headerlink" href="#binary" title="Permanent link">&para;</a></h2>
-<p>The CLI entrypoint is:</p>
-<ul>
-<li><code>backend/cmd/ctl</code></li>
-</ul>
-<p>It builds and runs the <code>babelctl</code> command.</p>
-<h2 id="command-groups">Command Groups<a class="headerlink" href="#command-groups" title="Permanent link">&para;</a></h2>
-<p>The root command registry currently exposes these groups.</p>
-<h3 id="session">Session<a class="headerlink" href="#session" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>login</code></li>
-<li><code>logout</code></li>
-<li><code>whoami</code></li>
-</ul>
-<h3 id="suites">Suites<a class="headerlink" href="#suites" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>catalog</code></li>
-<li><code>create</code></li>
-<li><code>suites</code></li>
-<li><code>profiles</code></li>
-</ul>
-<h3 id="executions">Executions<a class="headerlink" href="#executions" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>runs</code></li>
-<li><code>run</code></li>
-<li><code>fork</code></li>
-</ul>
-<h3 id="environments">Environments<a class="headerlink" href="#environments" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>environments</code></li>
-<li>alias: <code>envs</code></li>
-</ul>
-<h3 id="system">System<a class="headerlink" href="#system" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>version</code></li>
-</ul>
-<h2 id="current-root-usage">Current Root Usage<a class="headerlink" href="#current-root-usage" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>catalog list | inspect &lt;package&gt;</code></li>
-<li><code>create &lt;name&gt; [destination]</code></li>
-<li><code>suites list | get &lt;suite&gt; | inspect &lt;suite&gt;</code></li>
-<li><code>profiles list &lt;suite&gt;</code></li>
-<li><code>runs list | get &lt;id&gt;</code></li>
-<li><code>run &lt;suite|repository[:tag]&gt; [--profile &lt;profile.yaml&gt;]</code></li>
-<li><code>fork &lt;suite|repository[:tag]&gt; [destination]</code></li>
-<li><code>environments list | reap &lt;id&gt; | reap-all</code></li>
-<li><code>version</code></li>
-</ul>
-<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">babelctl</span> <span class="n">login</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">babelctl</span> <span class="n">suites</span> <span class="n">list</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">babelctl</span> <span class="n">profiles</span> <span class="n">list</span> <span class="n">payment-suite</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">babelctl</span> <span class="n">run</span> <span class="n">localhost</span><span class="p">:</span><span class="n">5000</span><span class="p">/</span><span class="n">core-platform</span><span class="p">/</span><span class="n">payment-suite</span><span class="p">:</span><span class="n">workspace</span> <span class="p">-</span><span class="n">-profile</span> <span class="n">local</span><span class="p">.</span><span class="n">yaml</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">babelctl</span> <span class="n">environments</span> <span class="n">list</span>
+<p><code>babelctl</code> is the BabelSuite command-line tool. It connects to a running control plane, persists a local session, and lets you manage suites, executions, and environments from a terminal or CI pipeline.</p>
+<hr />
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<p>Build from source:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>babelctl<span class="w"> </span>./backend/cmd/ctl
 </span></code></pre></div>
-<h2 id="scaffold-command">Scaffold Command<a class="headerlink" href="#scaffold-command" title="Permanent link">&para;</a></h2>
-<p><code>create</code> is the suite template generator. It creates a starter suite layout on disk so users can begin with a valid package shape rather than building everything manually.</p>
+<p>Release builds inject the version string at link time:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>go<span class="w"> </span>build<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>-ldflags<span class="w"> </span><span class="s2">&quot;-X github.com/babelsuite/babelsuite/cli/ctl.Version=v1.2.3&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>-o<span class="w"> </span>babelctl<span class="w"> </span>./backend/cmd/ctl
+</span></code></pre></div>
+<hr />
+<h2 id="global-options">Global Options<a class="headerlink" href="#global-options" title="Permanent link">&para;</a></h2>
+<p>These flags are accepted before any command:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--server &lt;url&gt;</code></td>
+<td><code>http://localhost:8090</code></td>
+<td>Control-plane URL</td>
+</tr>
+<tr>
+<td><code>--output text\|json</code></td>
+<td><code>text</code></td>
+<td>Output format</td>
+</tr>
+<tr>
+<td><code>--config &lt;path&gt;</code></td>
+<td><code>~/.babelsuite/config.yaml</code></td>
+<td>Local config file</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="session-commands">Session Commands<a class="headerlink" href="#session-commands" title="Permanent link">&para;</a></h2>
+<h3 id="login"><code>login</code><a class="headerlink" href="#login" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>babelctl<span class="w"> </span>login
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>babelctl<span class="w"> </span>--server<span class="w"> </span>https://babelsuite.example.com<span class="w"> </span>login
+</span></code></pre></div>
+<p>Prompts for email and password, obtains a JWT, and persists it to the local config file. Subsequent commands use this token automatically.</p>
+<h3 id="logout"><code>logout</code><a class="headerlink" href="#logout" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>babelctl<span class="w"> </span><span class="nb">logout</span>
+</span></code></pre></div>
+<p>Removes the saved session token from the local config file.</p>
+<h3 id="whoami"><code>whoami</code><a class="headerlink" href="#whoami" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>babelctl<span class="w"> </span>whoami
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>whoami
+</span></code></pre></div>
+<p>Prints the currently authenticated user (email, workspace ID, admin flag).</p>
+<hr />
+<h2 id="suite-commands">Suite Commands<a class="headerlink" href="#suite-commands" title="Permanent link">&para;</a></h2>
+<h3 id="catalog-list"><code>catalog list</code><a class="headerlink" href="#catalog-list" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>babelctl<span class="w"> </span>catalog<span class="w"> </span>list
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>catalog<span class="w"> </span>list
+</span></code></pre></div>
+<p>Lists all packages discovered from configured OCI registries.</p>
+<h3 id="catalog-inspect-package"><code>catalog inspect &lt;package&gt;</code><a class="headerlink" href="#catalog-inspect-package" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>babelctl<span class="w"> </span>catalog<span class="w"> </span>inspect<span class="w"> </span>payment-suite
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>babelctl<span class="w"> </span>catalog<span class="w"> </span>inspect<span class="w"> </span>localhost:5000/qa/storefront-lab:v1.3.0
+</span></code></pre></div>
+<p>Prints the full package metadata, suite topology, and available profiles.</p>
+<h3 id="create-name-destination"><code>create &lt;name&gt; [destination]</code><a class="headerlink" href="#create-name-destination" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>babelctl<span class="w"> </span>create<span class="w"> </span>my-suite
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>babelctl<span class="w"> </span>create<span class="w"> </span>payment-flow<span class="w"> </span>./suites/payment-flow
+</span></code></pre></div>
+<p>Scaffolds a starter suite layout on disk. Creates <code>suite.star</code>, <code>README.md</code>, and a <code>mocks/</code> directory. Use <code>--force</code> to overwrite an existing destination.</p>
+<h3 id="suites-list"><code>suites list</code><a class="headerlink" href="#suites-list" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>babelctl<span class="w"> </span>suites<span class="w"> </span>list
+</span></code></pre></div>
+<p>Lists all suites registered in the workspace.</p>
+<h3 id="suites-get-suite"><code>suites get &lt;suite&gt;</code><a class="headerlink" href="#suites-get-suite" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>babelctl<span class="w"> </span>suites<span class="w"> </span>get<span class="w"> </span>payment-suite
+</span></code></pre></div>
+<p>Prints suite metadata and launch configuration.</p>
+<h3 id="suites-inspect-suite"><code>suites inspect &lt;suite&gt;</code><a class="headerlink" href="#suites-inspect-suite" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>babelctl<span class="w"> </span>suites<span class="w"> </span>inspect<span class="w"> </span>payment-suite
+</span></code></pre></div>
+<p>Prints the full Starlark topology resolved from the suite source.</p>
+<h3 id="profiles-list-suite"><code>profiles list &lt;suite&gt;</code><a class="headerlink" href="#profiles-list-suite" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>babelctl<span class="w"> </span>profiles<span class="w"> </span>list<span class="w"> </span>payment-suite
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>profiles<span class="w"> </span>list<span class="w"> </span>payment-suite
+</span></code></pre></div>
+<p>Lists the launch profiles available for a suite. Profiles override environment variables and execution parameters at launch time.</p>
+<hr />
+<h2 id="execution-commands">Execution Commands<a class="headerlink" href="#execution-commands" title="Permanent link">&para;</a></h2>
+<h3 id="runs-list"><code>runs list</code><a class="headerlink" href="#runs-list" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>babelctl<span class="w"> </span>runs<span class="w"> </span>list
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>runs<span class="w"> </span>list
+</span></code></pre></div>
+<p>Lists recent executions with status, suite name, start time, and duration.</p>
+<h3 id="runs-get-id"><code>runs get &lt;id&gt;</code><a class="headerlink" href="#runs-get-id" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>babelctl<span class="w"> </span>runs<span class="w"> </span>get<span class="w"> </span>run-abc123
+</span></code></pre></div>
+<p>Prints full execution details including per-step status, duration, and any evaluation results.</p>
+<h3 id="run-suiteref-profile-file"><code>run &lt;suite|ref&gt; [--profile &lt;file&gt;]</code><a class="headerlink" href="#run-suiteref-profile-file" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>babelctl<span class="w"> </span>run<span class="w"> </span>payment-suite
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>babelctl<span class="w"> </span>run<span class="w"> </span>localhost:5000/qa/payment-suite:v2.0<span class="w"> </span>--profile<span class="w"> </span>./local.yaml
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>run<span class="w"> </span>payment-suite
+</span></code></pre></div>
+<p>Creates a new execution. Optionally supply a profile YAML to override environment variables and step parameters.</p>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile &lt;path&gt;</code></td>
+<td>Path to a YAML profile file</td>
+</tr>
+<tr>
+<td><code>--backend &lt;id&gt;</code></td>
+<td>Override the execution backend</td>
+</tr>
+<tr>
+<td><code>--watch</code></td>
+<td>Stream live logs until the execution completes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fork-suiteref-destination"><code>fork &lt;suite|ref&gt; [destination]</code><a class="headerlink" href="#fork-suiteref-destination" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>babelctl<span class="w"> </span>fork<span class="w"> </span>payment-suite
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>babelctl<span class="w"> </span>fork<span class="w"> </span>localhost:5000/qa/payment-suite:v2.0<span class="w"> </span>./local-payment
+</span></code></pre></div>
+<p>Downloads a suite's source files to a local directory so you can inspect or modify the Starlark topology. Useful for debugging or contributing changes back.</p>
+<hr />
+<h2 id="environment-commands">Environment Commands<a class="headerlink" href="#environment-commands" title="Permanent link">&para;</a></h2>
+<h3 id="environments-list"><code>environments list</code><a class="headerlink" href="#environments-list" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>babelctl<span class="w"> </span>environments<span class="w"> </span>list
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>babelctl<span class="w"> </span>envs<span class="w"> </span>list
+</span></code></pre></div>
+<p>Lists all managed sandbox environments with their status and age.</p>
+<h3 id="environments-reap-id"><code>environments reap &lt;id&gt;</code><a class="headerlink" href="#environments-reap-id" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>babelctl<span class="w"> </span>environments<span class="w"> </span>reap<span class="w"> </span>env-abc123
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>babelctl<span class="w"> </span>envs<span class="w"> </span>reap<span class="w"> </span>env-abc123
+</span></code></pre></div>
+<p>Forcibly terminates and removes a specific environment.</p>
+<h3 id="environments-reap-all"><code>environments reap-all</code><a class="headerlink" href="#environments-reap-all" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>babelctl<span class="w"> </span>envs<span class="w"> </span>reap-all
+</span></code></pre></div>
+<p>Terminates and removes all managed environments. Use with care in shared workspaces.</p>
+<hr />
+<h2 id="system-commands">System Commands<a class="headerlink" href="#system-commands" title="Permanent link">&para;</a></h2>
+<h3 id="version"><code>version</code><a class="headerlink" href="#version" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>babelctl<span class="w"> </span>version
+</span></code></pre></div>
+<p>Prints the CLI version label (e.g. <code>babelctl v1.2.3</code>).</p>
+<hr />
+<h2 id="config-file">Config File<a class="headerlink" href="#config-file" title="Permanent link">&para;</a></h2>
+<p>The local config file stores the server URL and session token. Default location:</p>
+<ul>
+<li>Linux/macOS: <code>~/.babelsuite/config.yaml</code></li>
+<li>Windows: <code>%USERPROFILE%\.babelsuite\config.yaml</code></li>
+</ul>
+<p>Override with <code>--config &lt;path&gt;</code> or <code>BABELSUITE_CONFIG</code> environment variable.</p>
+<p>Example:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">server</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://babelsuite.example.com</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eyJhbGciOiJIUzI1NiJ9...</span>
+</span></code></pre></div>
+<hr />
+<h2 id="ci-automation">CI / Automation<a class="headerlink" href="#ci-automation" title="Permanent link">&para;</a></h2>
+<p>Use <code>--output json</code> to integrate with scripts:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Get the latest execution ID</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nv">RUN_ID</span><span class="o">=</span><span class="k">$(</span>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>runs<span class="w"> </span>list<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.[0].id&#39;</span><span class="k">)</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Trigger a run and capture the ID</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="nv">RUN_ID</span><span class="o">=</span><span class="k">$(</span>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>run<span class="w"> </span>payment-suite<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.id&#39;</span><span class="k">)</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="c1"># Check status</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>babelctl<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>runs<span class="w"> </span>get<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RUN_ID</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.status&#39;</span>
+</span></code></pre></div>
+<p>Use <code>BABELSUITE_SERVER</code> and <code>BABELSUITE_TOKEN</code> environment variables to avoid storing credentials in shell history:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">BABELSUITE_SERVER</span><span class="o">=</span>https://babelsuite.example.com
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">BABELSUITE_TOKEN</span><span class="o">=</span>eyJhbGciOiJIUzI1NiJ9...
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>babelctl<span class="w"> </span>runs<span class="w"> </span>list
+</span></code></pre></div>
+<hr />
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../getting-started/">Getting Started</a> — first-time setup</li>
+<li><a href="../suite-authoring/">Suite Authoring</a> — writing Starlark suites</li>
+<li><a href="../profiles/">Profiles</a> — launch-time environment overrides</li>
+<li><a href="../api/">API</a> — REST API reference</li>
+</ul>
 
 
 
