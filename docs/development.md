@@ -47,13 +47,43 @@ pip install -r docs/requirements.txt
 mkdocs serve
 ```
 
-## Useful Backend Commands
+## Testing
 
-Run tests:
+Run all backend tests:
 
 ```powershell
 go test ./...
 ```
+
+Run with the race detector (recommended before submitting changes):
+
+```powershell
+go test -race ./...
+```
+
+Run a single package:
+
+```powershell
+go test ./internal/cronjobs/...
+```
+
+### Test coverage
+
+The backend has unit tests in the packages below. All tests are table-driven and use `t.Parallel()`.
+
+| Package | What is tested |
+|---------|----------------|
+| `internal/cachehub` | Key composition, scope stamps, disabled-hub no-ops, unreachable-address errors |
+| `internal/cronjobs` | CRUD lifecycle, scheduler start/stop, suite execution dispatch, Slack and email notifications, result formatting |
+| `internal/logstream` | Subscribe, snapshot, live fan-out to multiple subscribers, context cancellation, race-free concurrent appends |
+| `internal/eventstream` | Subscribe, length tracking, since-filtering, live fan-out, context cancellation |
+| `internal/runner` | Step expectation evaluation — exit code, log presence/absence, multi-rule combinations |
+| `internal/httpserver` | CSRF middleware — cookie issuance, token validation, Bearer exemption |
+| `internal/runner` (native security) | All six native OWASP check variants via httptest.NewServer |
+
+When adding a new package, follow the same pattern: table-driven cases in `*_test.go`, fakes inline in the test file, no network or database access.
+
+## Useful Backend Commands
 
 Sync example content:
 
