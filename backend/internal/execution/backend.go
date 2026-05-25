@@ -121,6 +121,7 @@ func (s *Service) configuredBackends() []backendBinding {
 			backend = runner.NewKubernetes(runner.KubernetesConfig{
 				BackendConfig: runner.BackendConfig{ID: option.ID, Label: option.Label, Kind: kind},
 				Namespace:     agentConfig.TargetNamespace,
+				Kubeconfig:    agentConfig.KubeconfigPath,
 			})
 		case "remote":
 			backend = runner.NewRemote(runner.RemoteConfig{
