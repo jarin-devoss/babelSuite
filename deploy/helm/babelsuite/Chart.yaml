@@ -1,0 +1,16 @@
+apiVersion: v2
+name: babelsuite
+description: Declarative integration testing platform — OCI-packaged suites, live execution engine, built-in mocking and traffic testing
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - testing
+  - integration-testing
+  - oci
+  - automation
+home: https://github.com/babelsuite/babelsuite
+sources:
+  - https://github.com/babelsuite/babelsuite
+maintainers:
+  - name: babelsuite

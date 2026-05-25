@@ -1,0 +1,58 @@
+BabelSuite {{ .Chart.AppVersion }} has been deployed.
+
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+
+────────────────────────────────────────────────────────────
+ Verify the deployment
+────────────────────────────────────────────────────────────
+
+  kubectl get pods --namespace {{ .Release.Namespace }} \
+    -l "app.kubernetes.io/name={{ include "babelsuite.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+Wait until STATUS is Running:
+
+  kubectl rollout status deployment/{{ include "babelsuite.fullname" . }} \
+    --namespace {{ .Release.Namespace }}
+
+────────────────────────────────────────────────────────────
+ Access the control plane
+────────────────────────────────────────────────────────────
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/
+{{- end }}
+{{- else if eq .Values.service.type "LoadBalancer" }}
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be assigned.
+
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} \
+    {{ include "babelsuite.fullname" . }} \
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+
+{{- else }}
+
+  Port-forward to reach the UI locally:
+
+  kubectl port-forward --namespace {{ .Release.Namespace }} \
+    svc/{{ include "babelsuite.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+
+  Then open: http://127.0.0.1:{{ .Values.service.port }}
+
+{{- end }}
+
+────────────────────────────────────────────────────────────
+ Health checks
+────────────────────────────────────────────────────────────
+
+  curl http://127.0.0.1:{{ .Values.service.port }}/healthz
+  curl http://127.0.0.1:{{ .Values.service.port }}/readyz | jq .
+
+────────────────────────────────────────────────────────────
+ CLI quick-start
+────────────────────────────────────────────────────────────
+
+  babelctl --server http://127.0.0.1:{{ .Values.service.port }} login
+  babelctl catalog list
