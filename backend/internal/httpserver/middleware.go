@@ -2,6 +2,9 @@ package httpserver
 
 import (
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -306,6 +309,77 @@ func BodyLimitMiddleware(limit int64) Middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// CSRFCookieName is the name of the cookie that carries the CSRF token.
+const CSRFCookieName = "csrf_token"
+
+// CSRFHeaderName is the request header the client must echo back.
+const CSRFHeaderName = "X-CSRF-Token"
+
+// CSRFMiddleware issues a per-session CSRF token as a SameSite=Strict cookie
+// and validates it on every state-mutating request (POST, PUT, PATCH, DELETE).
+//
+// Requests that supply a valid Authorization: Bearer header are exempt because
+// custom headers cannot be set by cross-origin HTML forms or img/script tags,
+// making Bearer-authenticated endpoints inherently CSRF-safe.
+func CSRFMiddleware() Middleware {
+	return func(next http.Handler) http.Handler {
+		if next == nil {
+			next = http.NotFoundHandler()
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if bearerTokenPresent(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			switch r.Method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+				ensureCSRFCookie(w, r)
+				next.ServeHTTP(w, r)
+			default:
+				cookie, err := r.Cookie(CSRFCookieName)
+				if err != nil || strings.TrimSpace(cookie.Value) == "" {
+					http.Error(w, `{"error":"CSRF token missing."}`, http.StatusForbidden)
+					return
+				}
+				if r.Header.Get(CSRFHeaderName) != cookie.Value {
+					http.Error(w, `{"error":"CSRF token invalid."}`, http.StatusForbidden)
+					return
+				}
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
+}
+
+func bearerTokenPresent(r *http.Request) bool {
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	return strings.HasPrefix(auth, "Bearer ") && len(auth) > len("Bearer ")
+}
+
+func ensureCSRFCookie(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(CSRFCookieName); err == nil && strings.TrimSpace(c.Value) != "" {
+		return
+	}
+	token := generateCSRFToken()
+	http.SetCookie(w, &http.Cookie{
+		Name:     CSRFCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: false,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   r.TLS != nil,
+	})
+}
+
+func generateCSRFToken() string {
+	b := make([]byte, 32)
+	if _, err := cryptorand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 func shouldAuditRequest(r *http.Request) bool {
