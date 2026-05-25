@@ -62,17 +62,33 @@ type StepSpec struct {
 	GatewayURLs []string
 }
 
+// Executor is the minimal interface required to run a single step.
 type Executor interface {
 	Run(ctx context.Context, step StepSpec, emit func(logstream.Line)) error
 }
 
+// Backend is the contract every execution backend must satisfy.
+// Local (Docker), Kubernetes, and Remote all implement this interface,
+// enabling the execution layer to select and invoke them uniformly without
+// depending on concrete types.
 type Backend interface {
 	Executor
+	// ID returns the unique identifier for this backend instance.
 	ID() string
+	// Label returns a human-readable display name shown in the UI and logs.
 	Label() string
+	// Kind returns the backend type string ("local", "kubernetes", "remote").
 	Kind() string
+	// IsAvailable reports whether the backend is reachable and ready to accept work.
 	IsAvailable(ctx context.Context) bool
 }
+
+// Compile-time assertions that all backend implementations satisfy the Backend interface.
+var (
+	_ Backend = (*Local)(nil)
+	_ Backend = (*Kubernetes)(nil)
+	_ Backend = (*Remote)(nil)
+)
 
 type BackendConfig struct {
 	ID         string
