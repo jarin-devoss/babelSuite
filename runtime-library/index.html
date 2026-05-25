@@ -1608,7 +1608,7 @@
 <li><code>traffic.stress</code>: push beyond normal operating range</li>
 <li><code>traffic.spike</code>: sudden step up in user count</li>
 <li><code>traffic.soak</code>: long-running endurance pressure</li>
-<li><code>traffic.scalability</code>: multi-agent or multi-backend expansion checks</li>
+<li><code>traffic.scalability</code>: breaking-point detection — probes successive user-count stages and reports the maximum sustainable load</li>
 <li><code>traffic.step</code>: increase traffic in discrete blocks</li>
 <li><code>traffic.wave</code>: oscillating high/low cycles</li>
 <li><code>traffic.staged</code>: several named phases with different targets</li>
@@ -1662,7 +1662,7 @@
 <p>Current limit:</p>
 <ul>
 <li>the native executor currently supports HTTP <code>traffic.get(...)</code> and <code>traffic.post(...)</code> tasks only</li>
-<li><code>traffic.scalability</code> still requires a distributed executor and is rejected by the native runner</li>
+<li><code>traffic.scalability</code> runs each user-count stage as an isolated probe; the loop stops on the first threshold violation and reports the last passing user count as the maximum sustainable load — if all probes pass, the highest count is reported</li>
 <li>strict safety caps keep the control plane from self-harming with oversized traffic plans</li>
 </ul>
 <h3 id="security"><code>security</code><a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
