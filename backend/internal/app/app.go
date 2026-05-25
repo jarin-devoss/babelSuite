@@ -269,6 +269,7 @@ func buildHandler(frontendURL string, jwt *auth.JWTService, trust *httpserver.Pr
 		httpserver.RecoveryMiddleware(),
 		httpserver.SecurityHeadersMiddleware(trust),
 		corsMiddleware(frontendURL),
+		httpserver.CSRFMiddleware(),
 		httpserver.BodyLimitMiddleware(10*1024*1024),
 		httpserver.RequestIDMiddleware(),
 		auth.PopulateSession(jwt, auth.VerifyOptions{}),

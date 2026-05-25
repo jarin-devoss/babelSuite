@@ -116,17 +116,86 @@ DATABASE_URL=postgres://user:password@localhost:5432/babelsuite?sslmode=disable
 Every API request passes through the shared middleware stack in this order:
 
 ```
-CORS → Request IDs → Auth Session → OTel Trace → HTTP Metrics → Audit
+CORS → CSRF → Request IDs → Auth Session → OTel Trace → HTTP Metrics → Audit
 ```
 
 | Layer | What it does |
 |-------|-------------|
 | CORS | Enforces the `FRONTEND_URL` origin allowlist |
+| CSRF | Double-submit cookie check on state-mutating requests (see below) |
 | Request IDs | Attaches a unique ID to each request for log correlation |
 | Auth Session | Verifies JWT and populates request context |
 | OTel Trace | Starts a span and propagates trace context |
 | HTTP Metrics | Records request duration and status code |
 | Audit | Logs writes and sensitive reads to the audit trail |
+
+---
+
+## CSRF Protection
+
+BabelSuite uses a **double-submit cookie** strategy. On every `GET` response the server issues a random `csrf_token` cookie (SameSite=Strict). Browsers must echo the cookie value back as an `X-CSRF-Token` request header on all state-mutating methods (`POST`, `PUT`, `PATCH`, `DELETE`).
+
+**Exemption:** requests that supply a valid `Authorization: Bearer <token>` header skip the CSRF check. Custom request headers cannot be set by cross-origin HTML forms or embedded resources, so Bearer-authenticated API calls are inherently CSRF-safe.
+
+### Frontend integration
+
+```js
+// Read the token once after login (it is already set by the first GET response)
+function getCsrfToken() {
+  return document.cookie
+    .split('; ')
+    .find(row => row.startsWith('csrf_token='))
+    ?.split('=')[1] ?? '';
+}
+
+// Attach it to every mutating fetch
+fetch('/api/v1/executions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': getCsrfToken(),
+  },
+  body: JSON.stringify(payload),
+});
+```
+
+### API clients
+
+CLI and programmatic clients authenticate with `Authorization: Bearer <token>` and are fully exempt from the CSRF check — no extra configuration is required.
+
+---
+
+## TLS / HTTPS
+
+BabelSuite does not terminate TLS itself; TLS should be handled by a reverse proxy or load balancer in front of the control plane.
+
+### Recommended nginx configuration
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name babelsuite.example.com;
+
+    ssl_certificate     /etc/ssl/certs/babelsuite.crt;
+    ssl_certificate_key /etc/ssl/private/babelsuite.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8090;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Set `TRUSTED_PROXIES=127.0.0.1` so BabelSuite reads the real client IP and proto from the forwarded headers, which also enables the HSTS response header and marks the CSRF cookie as `Secure`.
+
+### mTLS between control plane and agents
+
+Set the `AGENT_SHARED_SECRET` environment variable on both the control plane and each agent. Requests without a valid shared-secret header are rejected before any processing. For full mTLS, place each component behind a service mesh (e.g. Istio, Linkerd) that handles certificate rotation automatically.
 
 ---
 

@@ -43,6 +43,88 @@ func TestHandleStoresRoutePatternInContext(t *testing.T) {
 	}
 }
 
+func TestCSRFMiddlewareIssuesCookieOnGet(t *testing.T) {
+	handler := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), CSRFMiddleware())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/suites", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var found bool
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == CSRFCookieName && c.Value != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected CSRF cookie to be set on GET response")
+	}
+}
+
+func TestCSRFMiddlewareBlocksMutationWithoutToken(t *testing.T) {
+	handler := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), CSRFMiddleware())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/suites", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 without CSRF token, got %d", rec.Code)
+	}
+}
+
+func TestCSRFMiddlewareAllowsMutationWithValidToken(t *testing.T) {
+	const token = "abc123validtoken"
+	handler := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), CSRFMiddleware())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/suites", nil)
+	req.AddCookie(&http.Cookie{Name: CSRFCookieName, Value: token})
+	req.Header.Set(CSRFHeaderName, token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with valid CSRF token, got %d", rec.Code)
+	}
+}
+
+func TestCSRFMiddlewareBlocksMismatchedToken(t *testing.T) {
+	handler := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), CSRFMiddleware())
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/suites/123", nil)
+	req.AddCookie(&http.Cookie{Name: CSRFCookieName, Value: "cookie-token"})
+	req.Header.Set(CSRFHeaderName, "different-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 on token mismatch, got %d", rec.Code)
+	}
+}
+
+func TestCSRFMiddlewareExemptsBearer(t *testing.T) {
+	handler := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), CSRFMiddleware())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions", nil)
+	req.Header.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.test.sig")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected Bearer-authenticated POST to pass CSRF check, got %d", rec.Code)
+	}
+}
+
 func TestMiddlewarePreservesFlusherSupport(t *testing.T) {
 	handler := Chain(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
