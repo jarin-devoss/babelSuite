@@ -1,0 +1,136 @@
+## BabelSuite Helm chart — default values
+## Override with --set or a custom values.yaml file.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/babelsuite/babelsuite
+  pullPolicy: IfNotPresent
+  tag: ""  # Defaults to .Chart.AppVersion
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: [ALL]
+
+service:
+  type: ClusterIP
+  port: 8090
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: babelsuite.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+## ── Required secrets ────────────────────────────────────────────────────────
+## These must be provided. Use existingSecret to reference a pre-created Secret.
+secrets:
+  ## Name of an existing Secret whose keys map 1-to-1 with the env vars below.
+  ## Leave empty to let the chart create a Secret from the values below (not
+  ## recommended for production — use external secret management instead).
+  existingSecret: ""
+  jwtSecret: ""       # JWT_SECRET — required; use a 32+ char random string
+  adminEmail: ""      # ADMIN_EMAIL — seeded on first start
+  adminPassword: ""   # ADMIN_PASSWORD — seeded on first start
+  agentSharedSecret: ""
+  mockSharedSecret: ""
+
+## ── Database ────────────────────────────────────────────────────────────────
+mongodb:
+  enabled: true
+  uri: ""  # MONGODB_URI — overrides the bundled MongoDB address when set
+  database: babelsuite
+
+## ── Redis (optional) ────────────────────────────────────────────────────────
+redis:
+  enabled: false
+  addr: ""      # REDIS_ADDR — host:port
+  password: ""
+  db: 0
+  prefix: babelsuite
+
+## ── Application config ──────────────────────────────────────────────────────
+config:
+  frontendURL: ""           # FRONTEND_URL — e.g. https://babelsuite.example.com
+  publicAPIURL: ""          # PUBLIC_API_URL — defaults to frontendURL + /api
+  port: "8090"
+  passwordAuthEnabled: "true"
+  signUpEnabled: "true"
+  platformSettingsFile: /config/configuration.yaml
+  profilesFile: /config/babelsuite-profiles.yaml
+  agentRuntimeFile: /config/babelsuite-agents.yaml
+  trustedProxies: ""        # TRUSTED_PROXIES — comma-separated CIDRs
+
+## ── Telemetry (OpenTelemetry) ────────────────────────────────────────────────
+telemetry:
+  enabled: false
+  endpoint: ""              # OTEL_EXPORTER_OTLP_ENDPOINT
+  serviceName: babelsuite
+  insecure: "false"
+  resourceAttributes: ""    # OTEL_RESOURCE_ATTRIBUTES
+
+## ── Platform configuration volume ───────────────────────────────────────────
+## Mount a ConfigMap or Secret as /config so the server can read
+## configuration.yaml, profiles, and agent-runtime files.
+configMount:
+  enabled: false
+  configMapName: ""   # name of a ConfigMap containing configuration files
+  secretName: ""      # or a Secret (takes precedence over configMapName)

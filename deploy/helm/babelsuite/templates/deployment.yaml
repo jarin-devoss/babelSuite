@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "babelsuite.fullname" . }}
+  labels:
+    {{- include "babelsuite.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "babelsuite.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "babelsuite.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "babelsuite.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.port | default "8090" }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: PORT
+              value: {{ .Values.config.port | default "8090" | quote }}
+            - name: FRONTEND_URL
+              value: {{ .Values.config.frontendURL | quote }}
+            - name: PUBLIC_API_URL
+              value: {{ .Values.config.publicAPIURL | quote }}
+            - name: AUTH_PASSWORD_LOGIN_ENABLED
+              value: {{ .Values.config.passwordAuthEnabled | default "true" | quote }}
+            - name: AUTH_SIGNUP_ENABLED
+              value: {{ .Values.config.signUpEnabled | default "true" | quote }}
+            - name: PLATFORM_SETTINGS_FILE
+              value: {{ .Values.config.platformSettingsFile | quote }}
+            - name: PROFILES_FILE
+              value: {{ .Values.config.profilesFile | quote }}
+            - name: AGENT_RUNTIME_FILE
+              value: {{ .Values.config.agentRuntimeFile | quote }}
+            {{- if .Values.config.trustedProxies }}
+            - name: TRUSTED_PROXIES
+              value: {{ .Values.config.trustedProxies | quote }}
+            {{- end }}
+            {{- if .Values.mongodb.uri }}
+            - name: MONGO_URI
+              value: {{ .Values.mongodb.uri | quote }}
+            - name: MONGO_DB
+              value: {{ .Values.mongodb.database | default "babelsuite" | quote }}
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_ADDR
+              value: {{ required "redis.addr is required when redis.enabled=true" .Values.redis.addr | quote }}
+            - name: REDIS_PASSWORD
+              value: {{ .Values.redis.password | quote }}
+            - name: REDIS_DB
+              value: {{ .Values.redis.db | default 0 | quote }}
+            - name: REDIS_PREFIX
+              value: {{ .Values.redis.prefix | default "babelsuite" | quote }}
+            {{- end }}
+            {{- if .Values.telemetry.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ required "telemetry.endpoint is required when telemetry.enabled=true" .Values.telemetry.endpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.telemetry.serviceName | default "babelsuite" | quote }}
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: {{ .Values.telemetry.insecure | default "false" | quote }}
+            {{- if .Values.telemetry.resourceAttributes }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ .Values.telemetry.resourceAttributes | quote }}
+            {{- end }}
+            {{- end }}
+            ## Secrets injected from Secret resource
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "babelsuite.secretName" . }}
+                  key: JWT_SECRET
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "babelsuite.secretName" . }}
+                  key: ADMIN_EMAIL
+                  optional: true
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "babelsuite.secretName" . }}
+                  key: ADMIN_PASSWORD
+                  optional: true
+            - name: AGENT_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "babelsuite.secretName" . }}
+                  key: AGENT_SHARED_SECRET
+                  optional: true
+            - name: MOCK_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "babelsuite.secretName" . }}
+                  key: MOCK_SHARED_SECRET
+                  optional: true
+          {{- if .Values.configMount.enabled }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          {{- end }}
+      {{- if .Values.configMount.enabled }}
+      volumes:
+        - name: config
+          {{- if .Values.configMount.secretName }}
+          secret:
+            secretName: {{ .Values.configMount.secretName }}
+          {{- else }}
+          configMap:
+            name: {{ required "configMount.configMapName is required when configMount.enabled=true and no secretName is set" .Values.configMount.configMapName }}
+          {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
