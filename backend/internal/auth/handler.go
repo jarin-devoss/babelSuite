@@ -98,6 +98,7 @@ type Handler struct {
 	oidc           *OIDCService
 	pending        *pendingTokenStore
 	trustedProxies []*net.IPNet
+	lockout        *accountLockout
 }
 
 type signUpRequest struct {
@@ -140,6 +141,7 @@ func NewHandler(st store.Store, jwt *JWTService, config Config) *Handler {
 		config:  config,
 		oidc:    NewOIDCService(config.OIDC),
 		pending: newPendingTokenStore(),
+		lockout: newAccountLockout(),
 	}
 	for _, cidr := range config.TrustedProxyCIDRs {
 		if _, network, err := net.ParseCIDR(cidr); err == nil {
@@ -298,10 +300,16 @@ func (h *Handler) signIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.lockout.locked(req.Email) {
+		writeError(w, http.StatusTooManyRequests, "Account temporarily locked due to too many failed sign-in attempts. Please try again later.")
+		return
+	}
+
 	user, err := h.store.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(req.Password))
+			h.lockout.record(req.Email)
 			writeError(w, http.StatusUnauthorized, "Incorrect email or password.")
 			return
 		}
@@ -310,9 +318,11 @@ func (h *Handler) signIn(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PassHash), []byte(req.Password)); err != nil {
 		span.SetStatus(codes.Error, "invalid credentials")
+		h.lockout.record(req.Email)
 		writeError(w, http.StatusUnauthorized, "Incorrect email or password.")
 		return
 	}
+	h.lockout.reset(req.Email)
 
 	workspace, err := h.store.GetWorkspaceByID(r.Context(), user.WorkspaceID)
 	if err != nil {
