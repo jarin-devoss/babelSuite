@@ -1,0 +1,95 @@
+name: Helm CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "deploy/helm/**"
+      - ".github/workflows/helm-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "deploy/helm/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: Lint chart (default values)
+        run: helm lint deploy/helm/babelsuite
+
+      - name: Lint chart (ingress enabled)
+        run: |
+          helm lint deploy/helm/babelsuite \
+            --set ingress.enabled=true \
+            --set ingress.hosts[0].host=babelsuite.example.com \
+            --set ingress.hosts[0].paths[0].path=/ \
+            --set ingress.hosts[0].paths[0].pathType=Prefix
+
+      - name: Lint chart (autoscaling enabled)
+        run: |
+          helm lint deploy/helm/babelsuite \
+            --set autoscaling.enabled=true \
+            --set replicaCount=2
+
+      - name: Template render smoke-test
+        run: |
+          helm template babelsuite deploy/helm/babelsuite \
+            --set secrets.jwtSecret=test-secret-value \
+            --set config.frontendURL=http://localhost:3000 \
+            | kubectl apply --dry-run=client -f - || true
+
+  template:
+    name: Template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: Render with existingSecret
+        run: |
+          helm template babelsuite deploy/helm/babelsuite \
+            --set secrets.existingSecret=my-secret \
+            > /dev/null
+
+      - name: Render with telemetry enabled
+        run: |
+          helm template babelsuite deploy/helm/babelsuite \
+            --set telemetry.enabled=true \
+            --set telemetry.endpoint=http://otel-collector:4318 \
+            > /dev/null
+
+      - name: Render with PDB enabled
+        run: |
+          helm template babelsuite deploy/helm/babelsuite \
+            --set podDisruptionBudget.enabled=true \
+            --set replicaCount=2 \
+            > /dev/null
+
+      - name: Render with configMount enabled
+        run: |
+          helm template babelsuite deploy/helm/babelsuite \
+            --set configMount.enabled=true \
+            --set configMount.configMapName=babelsuite-config \
+            > /dev/null
