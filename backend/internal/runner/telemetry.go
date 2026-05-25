@@ -33,13 +33,13 @@ func newRunnerSignals() *runnerSignals {
 
 var runnerMetrics = newRunnerSignals()
 
-func startStepSpan(ctx context.Context, step StepSpec) (context.Context, trace.Span) {
+func startStepSpan(ctx context.Context, step StepSpec, backend string) (context.Context, trace.Span) {
 	attrs := []attribute.KeyValue{
 		attribute.String("runner.execution_id", step.ExecutionID),
 		attribute.String("runner.suite_id", step.SuiteID),
 		attribute.String("runner.node_id", step.Node.ID),
 		attribute.String("runner.node_kind", step.Node.Kind),
-		attribute.String("runner.backend", "local"),
+		attribute.String("runner.backend", backend),
 	}
 	spanCtx, span := runnerMetrics.tracer.Start(ctx, "runner.run",
 		trace.WithSpanKind(trace.SpanKindInternal),

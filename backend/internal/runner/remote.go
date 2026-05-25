@@ -54,7 +54,7 @@ func (r *Remote) IsAvailable(ctx context.Context) bool {
 }
 
 func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Line)) (err error) {
-	spanCtx, span := startStepSpan(ctx, step)
+	spanCtx, span := startStepSpan(ctx, step, "remote")
 	defer func() { finishStepSpan(spanCtx, span, step, err) }()
 	ctx = spanCtx
 
