@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -106,6 +108,12 @@ registries:
 	})
 
 	adminCli := newClient(srv.URL)
+
+	// Seed the CSRF cookie by making a safe GET request before the first POST.
+	if warmup, err := adminCli.http.Get(srv.URL + "/healthz"); err == nil {
+		warmup.Body.Close()
+	}
+
 	var tokenBody struct {
 		Token string `json:"token"`
 	}
@@ -160,7 +168,8 @@ type client struct {
 }
 
 func newClient(base string) *client {
-	return &client{base: base, http: &http.Client{}}
+	jar, _ := cookiejar.New(nil)
+	return &client{base: base, http: &http.Client{Jar: jar}}
 }
 
 func (c *client) withToken(token string) *client {
@@ -193,6 +202,19 @@ func (c *client) do(method, path string, body any) (*http.Response, error) {
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	// For mutating requests without a Bearer token, echo the CSRF cookie as a header.
+	if c.token == "" && method != http.MethodGet && method != http.MethodHead && method != http.MethodOptions {
+		if c.http.Jar != nil {
+			if u, err := url.Parse(c.base); err == nil {
+				for _, cookie := range c.http.Jar.Cookies(u) {
+					if cookie.Name == "csrf_token" {
+						req.Header.Set("X-CSRF-Token", cookie.Value)
+						break
+					}
+				}
+			}
+		}
 	}
 	return c.http.Do(req)
 }
