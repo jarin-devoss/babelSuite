@@ -54,7 +54,7 @@ jobs:
           helm template babelsuite deploy/helm/babelsuite \
             --set secrets.jwtSecret=test-secret-value \
             --set config.frontendURL=http://localhost:3000 \
-            | kubectl apply --dry-run=client -f - || true
+            > /dev/null
 
   template:
     name: Template
