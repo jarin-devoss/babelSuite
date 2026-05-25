@@ -897,6 +897,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#kubernetes-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kubernetes Backend
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kubernetes Backend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How it works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#platform-settings" class="md-nav__link">
     <span class="md-ellipsis">
       Platform Settings
@@ -1234,6 +1267,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#kubernetes-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kubernetes Backend
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kubernetes Backend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How it works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#platform-settings" class="md-nav__link">
     <span class="md-ellipsis">
       Platform Settings
@@ -1434,6 +1500,58 @@
 </tr>
 </tbody>
 </table>
+<hr />
+<h2 id="kubernetes-backend">Kubernetes Backend<a class="headerlink" href="#kubernetes-backend" title="Permanent link">&para;</a></h2>
+<p>When <code>type: kubernetes</code> is set in platform settings, the control plane dispatches each step as an isolated Kubernetes pod in <code>targetNamespace</code>.</p>
+<h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<ol>
+<li>A pod is created with the step image. Environment variables, headers, and OCI pull secrets are injected at pod creation time.</li>
+<li>Container logs are streamed live with <code>follow: true</code> — output appears in real time rather than after the pod exits.</li>
+<li>The control plane watches the <strong>step container</strong> status directly. This correctly detects completion even when artifact sidecars keep the pod running after the main container exits.</li>
+<li>The container exit code is captured and evaluated against any <code>expect:</code> assertions defined in the step.</li>
+<li>Artifact collection uses an <code>emptyDir</code> volume shared between the step container and a <code>busybox</code> sidecar. After the step container exits, artifacts are read through the pod exec API before the pod is deleted.</li>
+<li>When the step completes the pod is deleted immediately. Cleanup is also triggered on cancellation.</li>
+</ol>
+<h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">agents</span><span class="p">:</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">agentId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">k8s-prod</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Production cluster</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kubernetes</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nt">kubeconfigPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/babelsuite/kubeconfig</span><span class="w">   </span><span class="c1"># omit to use in-cluster config</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">targetNamespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">babelsuite-jobs</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">serviceAccountToken</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="w">                       </span><span class="c1"># leave empty for kubeconfig auth</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">apisixSidecar</span><span class="p">:</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apache/apisix:3.9.0-debian</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="nt">listenPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">9080</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">adminPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">9180</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kubeconfigPath</code></td>
+<td>Absolute path to a kubeconfig file. Omit when running the control plane inside the target cluster — the in-cluster service account is used automatically.</td>
+</tr>
+<tr>
+<td><code>targetNamespace</code></td>
+<td>Namespace where step pods are created. The service account must have <code>create</code>/<code>get</code>/<code>watch</code>/<code>delete</code> pod permissions in this namespace.</td>
+</tr>
+<tr>
+<td><code>serviceAccountToken</code></td>
+<td>Explicit token for service-account auth. Leave empty when using kubeconfig or in-cluster config.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The Kubernetes backend does not fall back to a simulation when the cluster is unreachable. A missing client or missing step image returns a real error so failures are visible in the execution log.</p>
+</div>
 <hr />
 <h2 id="platform-settings">Platform Settings<a class="headerlink" href="#platform-settings" title="Permanent link">&para;</a></h2>
 <p>Agents appear in <code>configuration.yaml</code> under the <code>agents</code> list. Fields specific to remote agents:</p>
