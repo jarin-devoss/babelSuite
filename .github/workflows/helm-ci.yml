@@ -76,6 +76,7 @@ jobs:
       - name: Render with telemetry enabled
         run: |
           helm template babelsuite deploy/helm/babelsuite \
+            --set secrets.jwtSecret=test-secret-value \
             --set telemetry.enabled=true \
             --set telemetry.endpoint=http://otel-collector:4318 \
             > /dev/null
@@ -83,6 +84,7 @@ jobs:
       - name: Render with PDB enabled
         run: |
           helm template babelsuite deploy/helm/babelsuite \
+            --set secrets.jwtSecret=test-secret-value \
             --set podDisruptionBudget.enabled=true \
             --set replicaCount=2 \
             > /dev/null
@@ -90,6 +92,7 @@ jobs:
       - name: Render with configMount enabled
         run: |
           helm template babelsuite deploy/helm/babelsuite \
+            --set secrets.jwtSecret=test-secret-value \
             --set configMount.enabled=true \
             --set configMount.configMapName=babelsuite-config \
             > /dev/null
