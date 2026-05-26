@@ -164,7 +164,7 @@ func (s *Service) resolve(ctx context.Context, suite *suites.Definition, surface
 func (s *Service) resolveInner(ctx context.Context, suite *suites.Definition, surface suites.APISurface, operation suites.APIOperation, pathParams map[string]string, request *http.Request, adapter string) (*Result, error) {
 	requestBody, bodyJSON, bodyObject, err := readRequestBody(request)
 	if err != nil {
-		return withOperationMetadata(errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString("Could not read request body."))), operation, adapter), nil //nolint:nilerr // read error becomes a 400 response; no server-level error to propagate
+		return withOperationMetadata(errorResult(http.StatusBadRequest, "application/json", `{"error":"Could not read request body."}`), operation, adapter), nil //nolint:nilerr // read error becomes a 400 response; no server-level error to propagate
 	}
 
 	snapshot := requestSnapshot{
@@ -248,7 +248,7 @@ func (s *Service) resolveInner(ctx context.Context, suite *suites.Definition, su
 func (s *Service) resolveFallback(ctx context.Context, suite suites.Definition, surface suites.APISurface, operation suites.APIOperation, snapshot requestSnapshot, state map[string]string, request *http.Request, schemaExamples []schemaBackedExample) (*Result, error) {
 	fallback := operation.MockMetadata.Fallback
 	if fallback == nil {
-		return errorResult(http.StatusNotFound, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString("No matching mock exchange was found."))), nil
+		return errorResult(http.StatusNotFound, "application/json", `{"error":"No matching mock exchange was found."}`), nil
 	}
 
 	switch strings.ToLower(strings.TrimSpace(fallback.Mode)) {
@@ -302,7 +302,7 @@ func (s *Service) resolveFallback(ctx context.Context, suite suites.Definition, 
 		}, nil
 	}
 
-	return errorResult(http.StatusNotFound, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString("Fallback example was not found."))), nil
+	return errorResult(http.StatusNotFound, "application/json", `{"error":"Fallback example was not found."}`), nil
 }
 
 func proxyFallback(ctx context.Context, original *http.Request, fallback *suites.MockFallback, dispatcher, resolverURL, runtimeURL string) (*Result, error) {
@@ -311,7 +311,7 @@ func proxyFallback(ctx context.Context, original *http.Request, fallback *suites
 		return errorResult(http.StatusBadGateway, "application/json", `{"error":"Fallback proxy URL is not configured."}`), nil
 	}
 	if err := validateProxyTarget(target); err != nil {
-		return errorResult(http.StatusBadGateway, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString(err.Error()))), nil
+		return errorResult(http.StatusBadGateway, "application/json", jsonErrorBody(err.Error())), nil
 	}
 
 	body, _, _, err := readRequestBody(original)
@@ -326,7 +326,7 @@ func proxyFallback(ctx context.Context, original *http.Request, fallback *suites
 	req.Header = original.Header.Clone()
 	response, err := proxyHTTPClient.Do(req)
 	if err != nil {
-		return errorResult(http.StatusBadGateway, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString(err.Error()))), nil
+		return errorResult(http.StatusBadGateway, "application/json", jsonErrorBody(err.Error())), nil
 	}
 	defer response.Body.Close()
 

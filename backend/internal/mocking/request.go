@@ -44,7 +44,7 @@ func validateConstraints(constraints []suites.ParameterConstraint, snapshot requ
 	for _, constraint := range constraints {
 		value := requestValueAt(constraint.Source, constraint.Name, snapshot)
 		if constraint.Required && strings.TrimSpace(value) == "" {
-			return errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString(fmt.Sprintf("Missing required %s parameter %q.", constraint.Source, constraint.Name))))
+			return errorResult(http.StatusBadRequest, "application/json", jsonErrorBody(fmt.Sprintf("Missing required %s parameter %q.", constraint.Source, constraint.Name)))
 		}
 		if strings.TrimSpace(value) == "" || strings.TrimSpace(constraint.Pattern) == "" {
 			continue
@@ -54,7 +54,7 @@ func validateConstraints(constraints []suites.ParameterConstraint, snapshot requ
 			continue
 		}
 		if !expression.MatchString(value) {
-			return errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString(fmt.Sprintf("%s parameter %q failed validation.", strings.ToUpper(constraint.Source[:1])+strings.ToLower(constraint.Source[1:]), constraint.Name))))
+			return errorResult(http.StatusBadRequest, "application/json", jsonErrorBody(fmt.Sprintf("%s parameter %q failed validation.", strings.ToUpper(constraint.Source[:1])+strings.ToLower(constraint.Source[1:]), constraint.Name)))
 		}
 	}
 	return nil
@@ -289,9 +289,9 @@ func withOperationMetadata(result *Result, operation suites.APIOperation, adapte
 	return result
 }
 
-func escapeJSONString(input string) string {
-	body, _ := json.Marshal(input)
-	return strings.Trim(string(body), `"`)
+func jsonErrorBody(msg string) string {
+	b, _ := json.Marshal(map[string]string{"error": msg})
+	return string(b)
 }
 
 func sortedKeys(input map[string]string) []string {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/mail"
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/agent"
@@ -113,6 +114,9 @@ func (s *Store) GetUserByID(ctx context.Context, id string) (*domain.User, error
 }
 
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	if _, err := mail.ParseAddress(email); err != nil {
+		return nil, store.ErrNotFound
+	}
 	var user domain.User
 	err := s.users.FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	return &user, wrap(err)

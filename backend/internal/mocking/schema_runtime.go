@@ -85,10 +85,10 @@ func matchSchemaExample(examples []schemaBackedExample, snapshot requestSnapshot
 
 func validateSchemaRequest(requestSchema schemaRequestSpec, snapshot requestSnapshot) *Result {
 	if message := validateSchemaValue(requestSchema.Headers, snapshot.Headers, "request headers"); message != "" {
-		return errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString(message)))
+		return errorResult(http.StatusBadRequest, "application/json", jsonErrorBody(message))
 	}
 	if message := validateSchemaValue(requestSchema.Body, snapshot.BodyJSON, "request body"); message != "" {
-		return errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString(message)))
+		return errorResult(http.StatusBadRequest, "application/json", jsonErrorBody(message))
 	}
 	return nil
 }
