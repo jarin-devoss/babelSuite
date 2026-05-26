@@ -11,7 +11,10 @@ import (
 )
 
 func Run(ctx context.Context, rt *support.Runtime, opts support.GlobalOptions, args []string) int {
-	if len(args) == 0 || args[0] == "list" {
+	if len(args) == 0 {
+		return RunList(ctx, rt, opts, nil)
+	}
+	if args[0] == "list" {
 		return RunList(ctx, rt, opts, args[1:])
 	}
 	switch args[0] {
