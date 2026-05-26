@@ -23,9 +23,11 @@ import (
 const pendingTokenTTL = 90 * time.Second
 
 type pendingEntry struct {
-	token     string
-	expiresAt time.Time
-	createdAt time.Time
+	token            string
+	expiresAt        time.Time
+	createdAt        time.Time
+	refreshToken     string
+	refreshExpiresAt time.Time
 }
 
 type pendingTokenStore struct {
@@ -37,7 +39,7 @@ func newPendingTokenStore() *pendingTokenStore {
 	return &pendingTokenStore{entries: make(map[string]pendingEntry)}
 }
 
-func (p *pendingTokenStore) store(token string, expiresAt time.Time) (string, error) {
+func (p *pendingTokenStore) store(token string, expiresAt time.Time, refreshToken string, refreshExpiresAt time.Time) (string, error) {
 	code, err := randomURLToken(32)
 	if err != nil {
 		return "", err
@@ -50,7 +52,13 @@ func (p *pendingTokenStore) store(token string, expiresAt time.Time) (string, er
 			delete(p.entries, k)
 		}
 	}
-	p.entries[code] = pendingEntry{token: token, expiresAt: expiresAt, createdAt: now}
+	p.entries[code] = pendingEntry{
+		token:            token,
+		expiresAt:        expiresAt,
+		createdAt:        now,
+		refreshToken:     refreshToken,
+		refreshExpiresAt: refreshExpiresAt,
+	}
 	return code, nil
 }
 
@@ -112,6 +120,10 @@ type signInRequest struct {
 	Password string `json:"password"`
 }
 
+type refreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
 type forgotPasswordRequest struct {
 	Email string `json:"email"`
 }
@@ -128,10 +140,12 @@ type authConfigResponse struct {
 }
 
 type authResponse struct {
-	Token     string            `json:"token"`
-	User      *domain.User      `json:"user"`
-	Workspace *domain.Workspace `json:"workspace"`
-	ExpiresAt time.Time         `json:"expiresAt"`
+	Token              string            `json:"token"`
+	User               *domain.User      `json:"user"`
+	Workspace          *domain.Workspace `json:"workspace"`
+	ExpiresAt          time.Time         `json:"expiresAt"`
+	RefreshToken       string            `json:"refreshToken,omitempty"`
+	RefreshExpiresAt   time.Time         `json:"refreshExpiresAt,omitempty"`
 }
 
 func NewHandler(st store.Store, jwt *JWTService, config Config) *Handler {
@@ -165,6 +179,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/auth/oidc/login", h.oidcLogin)
 	mux.HandleFunc("GET /api/v1/auth/oidc/callback", h.oidcCallback)
 	mux.Handle("GET /api/v1/auth/oidc/exchange", signInLimit(http.HandlerFunc(h.oidcTokenExchange)))
+	mux.Handle("POST /api/v1/auth/refresh", signInLimit(http.HandlerFunc(h.refreshToken)))
 	mux.Handle("POST /api/v1/auth/forgot-password", resetLimit(http.HandlerFunc(h.forgotPassword)))
 	mux.Handle("POST /api/v1/auth/reset-password", resetLimit(http.HandlerFunc(h.resetPassword)))
 
@@ -264,13 +279,20 @@ func (h *Handler) signUp(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Could not create your session right now.")
 		return
 	}
+	refresh, refreshExpiresAt, err := h.jwt.SignRefresh(user.UserID, user.WorkspaceID, user.IsAdmin, "password")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Could not create your session right now.")
+		return
+	}
 
 	success = true
 	writeJSON(w, http.StatusCreated, authResponse{
-		Token:     token,
-		User:      user,
-		Workspace: workspace,
-		ExpiresAt: expiresAt,
+		Token:            token,
+		User:             user,
+		Workspace:        workspace,
+		ExpiresAt:        expiresAt,
+		RefreshToken:     refresh,
+		RefreshExpiresAt: refreshExpiresAt,
 	})
 }
 
@@ -335,13 +357,20 @@ func (h *Handler) signIn(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Could not create your session right now.")
 		return
 	}
+	refresh, refreshExpiresAt, err := h.jwt.SignRefresh(user.UserID, user.WorkspaceID, user.IsAdmin, "password")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Could not create your session right now.")
+		return
+	}
 
 	success = true
 	writeJSON(w, http.StatusOK, authResponse{
-		Token:     token,
-		User:      user,
-		Workspace: workspace,
-		ExpiresAt: expiresAt,
+		Token:            token,
+		User:             user,
+		Workspace:        workspace,
+		ExpiresAt:        expiresAt,
+		RefreshToken:     refresh,
+		RefreshExpiresAt: refreshExpiresAt,
 	})
 }
 
@@ -352,12 +381,13 @@ func (h *Handler) oidcLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	returnURL := sanitizeReturnURL(h.config.FrontendURL, r.URL.Query().Get("return_url"))
-	redirectURL, stateCookie, err := h.oidc.BeginLogin(r.Context(), returnURL, h.requestIsSecure(r))
+	redirectURL, stateCookie, err := h.oidc.BeginLogin(r.Context(), returnURL)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "Could not start single sign-on right now.")
 		return
 	}
 
+	stateCookie.Secure = h.requestIsSecure(r)
 	http.SetCookie(w, stateCookie)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
@@ -368,7 +398,9 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, h.oidc.ClearStateCookie(h.requestIsSecure(r)))
+	clearCookie := h.oidc.ClearStateCookie()
+	clearCookie.Secure = true
+	http.SetCookie(w, clearCookie)
 
 	if description := strings.TrimSpace(r.URL.Query().Get("error_description")); description != "" {
 		h.redirectOIDCError(w, r, http.StatusUnauthorized, description)
@@ -410,7 +442,13 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exchangeCode, err := h.pending.store(token, expiresAt)
+	refresh, refreshExpiresAt, err := h.jwt.SignRefresh(user.UserID, workspace.WorkspaceID, isAdmin, h.config.OIDC.NormalizedProviderID())
+	if err != nil {
+		h.redirectOIDCError(w, r, http.StatusInternalServerError, "Could not create your session right now.")
+		return
+	}
+
+	exchangeCode, err := h.pending.store(token, expiresAt, refresh, refreshExpiresAt)
 	if err != nil {
 		h.redirectOIDCError(w, r, http.StatusInternalServerError, "Could not create your session right now.")
 		return
@@ -450,10 +488,12 @@ func (h *Handler) oidcTokenExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, authResponse{
-		Token:     entry.token,
-		User:      user,
-		Workspace: workspace,
-		ExpiresAt: entry.expiresAt,
+		Token:            entry.token,
+		User:             user,
+		Workspace:        workspace,
+		ExpiresAt:        entry.expiresAt,
+		RefreshToken:     entry.refreshToken,
+		RefreshExpiresAt: entry.refreshExpiresAt,
 	})
 }
 
@@ -690,6 +730,69 @@ func statusToRedirect(status int) int {
 		return http.StatusFound
 	}
 	return status
+}
+
+func (h *Handler) refreshToken(w http.ResponseWriter, r *http.Request) {
+	var req refreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+	req.RefreshToken = strings.TrimSpace(req.RefreshToken)
+	if req.RefreshToken == "" {
+		writeError(w, http.StatusBadRequest, "Refresh token is required.")
+		return
+	}
+
+	claims, err := h.jwt.VerifyRefresh(req.RefreshToken)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Refresh token is invalid or has expired.")
+		return
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Refresh token is invalid or has expired.")
+		return
+	}
+	workspaceID, err := uuid.Parse(claims.WorkspaceID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Refresh token is invalid or has expired.")
+		return
+	}
+
+	user, err := h.store.GetUserByID(r.Context(), userID.String())
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Account not found.")
+		return
+	}
+	workspace, err := h.store.GetWorkspaceByID(r.Context(), workspaceID.String())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Could not load your workspace.")
+		return
+	}
+
+	h.jwt.Revoke(req.RefreshToken)
+
+	token, expiresAt, err := h.jwt.Sign(user.UserID, user.WorkspaceID, user.IsAdmin, claims.Groups, claims.Provider)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Could not create your session right now.")
+		return
+	}
+	newRefresh, refreshExpiresAt, err := h.jwt.SignRefresh(user.UserID, user.WorkspaceID, user.IsAdmin, claims.Provider)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Could not create your session right now.")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, authResponse{
+		Token:            token,
+		User:             user,
+		Workspace:        workspace,
+		ExpiresAt:        expiresAt,
+		RefreshToken:     newRefresh,
+		RefreshExpiresAt: refreshExpiresAt,
+	})
 }
 
 func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {

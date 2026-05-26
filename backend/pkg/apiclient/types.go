@@ -20,10 +20,12 @@ type Workspace struct {
 }
 
 type AuthResponse struct {
-	Token     string    `json:"token"`
-	User      User      `json:"user"`
-	Workspace Workspace `json:"workspace"`
-	ExpiresAt time.Time `json:"expiresAt"`
+	Token            string    `json:"token"`
+	User             User      `json:"user"`
+	Workspace        Workspace `json:"workspace"`
+	ExpiresAt        time.Time `json:"expiresAt"`
+	RefreshToken     string    `json:"refreshToken,omitempty"`
+	RefreshExpiresAt time.Time `json:"refreshExpiresAt,omitempty"`
 }
 
 type CatalogPackage struct {
