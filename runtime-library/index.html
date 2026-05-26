@@ -1943,14 +1943,16 @@
 <ul>
 <li>export rules are parsed into topology metadata</li>
 <li>export rules flow into execution step payloads</li>
-<li>the local runner registers and reports the rules in step logs</li>
-<li><code>format="junit"</code> exports are summarized into pass/fail counts in the live execution view</li>
-<li><code>format="cobertura"</code> exports are recognized now, and coverage summaries appear once report content is collected</li>
+<li>the local (Docker) runner bind-mounts a host directory into every container at <code>$BABELSUITE_ARTIFACTS_DIR</code>; files written there are harvested after the container exits</li>
+<li>glob patterns in <code>path=</code> (e.g. <code>"coverage/*.xml"</code>) are expanded on the host mount — the first lexically-ordered match is collected</li>
+<li>the Kubernetes runner copies files from the artifact sidecar volume using the busybox helper after the step container exits</li>
+<li><code>format="junit"</code> exports are summarized into pass/fail counts in the live execution view; real XML from the container is parsed when present, synthetic otherwise</li>
+<li><code>format="cobertura"</code> exports are parsed and line/branch coverage summaries are shown when real content is collected</li>
+<li><code>format="ctrf"</code> (Common Test Results Format) exports are parsed and test summary counts are shown</li>
 </ul>
 <p>Current limit:</p>
 <ul>
-<li>this is still not a full artifact collector yet, so raw files from real workloads are not harvested today</li>
-<li>JUnit summaries are synthesized from the step result until a real collector is attached</li>
+<li>when a glob matches multiple files only the first (lexical order) is collected; structured formats such as JUnit cannot yet merge across multiple XML files in one pass</li>
 </ul>
 <h2 id="evaluation-controls">Evaluation Controls<a class="headerlink" href="#evaluation-controls" title="Permanent link">&para;</a></h2>
 <p><code>task.run(...)</code>, <code>test.run(...)</code>, and other runnable nodes can declare explicit success/failure expectations:</p>
