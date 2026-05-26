@@ -6,7 +6,24 @@ run:
 linters:
   default: none
   enable:
-    - govet
-    - ineffassign
-    - misspell
-    - unconvert
+    - bodyclose     # HTTP response bodies must be closed
+    - govet         # go vet checks
+    - ineffassign   # assignments whose value is never used
+    - misspell      # common spelling mistakes in comments and strings
+    - nilerr        # return nil when err is nil instead of err
+    - revive        # general Go style
+    - staticcheck   # static analysis — SA family catches real bugs
+    - unconvert     # unnecessary type conversions
+
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: unexported-return
+          disabled: true
+    staticcheck:
+      checks:
+        - "SA*"   # real correctness issues only, not style

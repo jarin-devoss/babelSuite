@@ -21,17 +21,11 @@ func (s *Service) discover(ctx context.Context) (*catalogIndex, error) {
 	packages := make([]Package, 0, len(knownPackages.byFullName))
 	byID := make(map[string]Package)
 	seenRepositories := make(map[string]struct{})
-	failures := make([]string, 0)
-	successes := 0
-
 	for _, registry := range settings.Registries {
 		discovered, err := s.discoverRegistry(ctx, registry)
 		if err != nil {
-			failures = append(failures, fmt.Sprintf("%s: %v", strutil.FirstNonEmpty(registry.Name, registry.RegistryID, registry.RegistryURL), err))
 			continue
 		}
-
-		successes++
 		for _, repo := range discovered {
 			key := normalizeRepository(repo.fullName)
 			if _, exists := seenRepositories[key]; exists {

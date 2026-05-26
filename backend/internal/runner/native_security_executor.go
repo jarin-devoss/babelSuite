@@ -81,7 +81,7 @@ func runNativeProbe(ctx context.Context, step StepSpec, target string, emit func
 			Label: "probe.unreachable", Method: "GET", Path: "/",
 			Severity: "high", Detail: err.Error(),
 		})
-		return result, nil
+		return result, nil //nolint:nilerr // network failure is a finding, not a fatal executor error
 	}
 	resp.Body.Close()
 	emit(line(step, "info", fmt.Sprintf("[%s] Probe: status=%d latency=%s.", step.Node.Name, resp.StatusCode, latency.Round(time.Millisecond))))
