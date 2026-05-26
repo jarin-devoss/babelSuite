@@ -23,9 +23,11 @@ import (
 const pendingTokenTTL = 90 * time.Second
 
 type pendingEntry struct {
-	token     string
-	expiresAt time.Time
-	createdAt time.Time
+	token            string
+	expiresAt        time.Time
+	createdAt        time.Time
+	refreshToken     string
+	refreshExpiresAt time.Time
 }
 
 type pendingTokenStore struct {
@@ -37,7 +39,7 @@ func newPendingTokenStore() *pendingTokenStore {
 	return &pendingTokenStore{entries: make(map[string]pendingEntry)}
 }
 
-func (p *pendingTokenStore) store(token string, expiresAt time.Time) (string, error) {
+func (p *pendingTokenStore) store(token string, expiresAt time.Time, refreshToken string, refreshExpiresAt time.Time) (string, error) {
 	code, err := randomURLToken(32)
 	if err != nil {
 		return "", err
@@ -50,7 +52,13 @@ func (p *pendingTokenStore) store(token string, expiresAt time.Time) (string, er
 			delete(p.entries, k)
 		}
 	}
-	p.entries[code] = pendingEntry{token: token, expiresAt: expiresAt, createdAt: now}
+	p.entries[code] = pendingEntry{
+		token:            token,
+		expiresAt:        expiresAt,
+		createdAt:        now,
+		refreshToken:     refreshToken,
+		refreshExpiresAt: refreshExpiresAt,
+	}
 	return code, nil
 }
 
@@ -431,7 +439,13 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exchangeCode, err := h.pending.store(token, expiresAt)
+	refresh, refreshExpiresAt, err := h.jwt.SignRefresh(user.UserID, workspace.WorkspaceID, isAdmin, h.config.OIDC.NormalizedProviderID())
+	if err != nil {
+		h.redirectOIDCError(w, r, http.StatusInternalServerError, "Could not create your session right now.")
+		return
+	}
+
+	exchangeCode, err := h.pending.store(token, expiresAt, refresh, refreshExpiresAt)
 	if err != nil {
 		h.redirectOIDCError(w, r, http.StatusInternalServerError, "Could not create your session right now.")
 		return
@@ -471,10 +485,12 @@ func (h *Handler) oidcTokenExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, authResponse{
-		Token:     entry.token,
-		User:      user,
-		Workspace: workspace,
-		ExpiresAt: entry.expiresAt,
+		Token:            entry.token,
+		User:             user,
+		Workspace:        workspace,
+		ExpiresAt:        entry.expiresAt,
+		RefreshToken:     entry.refreshToken,
+		RefreshExpiresAt: entry.refreshExpiresAt,
 	})
 }
 
