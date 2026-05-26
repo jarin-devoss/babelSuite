@@ -52,6 +52,7 @@ When a step fails, logs are live in the UI immediately — not buried in CI outp
 
 ### Start Here
 
+- [Philosophy](philosophy.md) — the design approach: one file, no setup scripts, zero extra containers
 - [Getting Started](getting-started.md) — prerequisites, local dev flow, first things to try
 
 ### System
@@ -112,8 +113,9 @@ When a step fails, logs are live in the UI immediately — not buried in CI outp
 ```
 backend/           Go control plane, remote worker, CLI, and all internal services
 frontend/          React 19 + TypeScript UI (Vite)
+helm/              Production Helm chart (helm/babelsuite/)
 examples/
-  oci-suites/      Seven runnable example suite packages
+  oci-suites/      Runnable example suite packages
   oci-modules/     Reusable Starlark modules (Kafka, Postgres, Redis, MongoDB)
 proto/             API service definitions (protobuf)
 demo/              Demo-mode data files

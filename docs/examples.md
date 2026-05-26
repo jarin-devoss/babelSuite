@@ -8,31 +8,27 @@ title: Examples
 
 ## Example Suites
 
-The repository currently includes these workspace suites under `examples/oci-suites/`:
+The repository includes these workspace suites under [`examples/oci-suites/`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites):
 
-- `composite-readiness`
-- `fleet-control-room`
-- `identity-broker`
-- `kafka-topic-lifecycle`
-- `payment-suite`
-- `returns-control-plane`
-- `soap-claims-hub`
-- `storefront-browser-lab`
-
-These examples cover different kinds of suite composition:
-
-- browser-driven flows
-- async and event-driven topologies
-- mock-heavy API suites
-- nested suite composition
-- policy and fixture-driven tests
+| Suite | Description |
+|-------|-------------|
+| [`composite-readiness`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/composite-readiness) | Nested suite composition with shared readiness gates |
+| [`fleet-control-room`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/fleet-control-room) | Event-driven topology with multiple async workers |
+| [`identity-broker`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/identity-broker) | Auth and SSO flows with mock identity provider |
+| [`kafka-topic-lifecycle`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/kafka-topic-lifecycle) | Kafka broker, topic creation, and consumer group tests |
+| [`payment-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite) | Mock-heavy payment API with traffic and security probes |
+| [`returns-control-plane`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/returns-control-plane) | Policy and fixture-driven returns and refund flows |
+| [`soap-claims-hub`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/soap-claims-hub) | SOAP/XML API mocking with CUE-driven mock exchanges |
+| [`storefront-browser-lab`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab) | Browser-driven Playwright tests across device and browser matrix |
 
 ## Example Modules
 
-The example module folders under `examples/oci-modules/` are:
+The example module folders under [`examples/oci-modules/`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules):
 
-- `kafka`
-- `postgres`
+| Module | Description |
+|--------|-------------|
+| [`kafka`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/kafka) | Kafka broker cluster and topic admin helpers |
+| [`postgres`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/postgres) | Postgres cluster and query execution helpers |
 
 These are pure Starlark module examples built on top of the built-in runtime primitives.
 
