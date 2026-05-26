@@ -5,6 +5,7 @@ import (
 
 	"github.com/babelsuite/babelsuite/cli/ctl/authcmd"
 	"github.com/babelsuite/babelsuite/cli/ctl/catalogcmd"
+	"github.com/babelsuite/babelsuite/cli/ctl/configcmd"
 	"github.com/babelsuite/babelsuite/cli/ctl/createcmd"
 	"github.com/babelsuite/babelsuite/cli/ctl/envcmd"
 	"github.com/babelsuite/babelsuite/cli/ctl/internal/support"
@@ -140,6 +141,14 @@ func (r *Runner) commandGroups() []rootCommandGroup {
 		{
 			title: "System",
 			commands: []rootCommand{
+				{
+					name:        "config",
+					usage:       "config [show] | set <key> <value> | get <key>",
+					description: "View or update local CLI configuration (server URL, token)",
+					run: func(ctx context.Context, r *Runner, opts support.GlobalOptions, args []string) int {
+						return configcmd.Run(ctx, r.runtime(), opts, args)
+					},
+				},
 				{
 					name:        "version",
 					usage:       "version",
