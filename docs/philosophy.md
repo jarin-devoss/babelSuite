@@ -67,28 +67,18 @@ Profiles carry the environment-specific overrides (endpoints, credentials, featu
 
 Every major CI, testing, and mocking tool eventually grows the same plugin problem — and it always looks the same: the file that describes what you need is separate from the step that makes it available.
 
-**Jenkins** is the most familiar case. A `Jenkinsfile` references pipeline steps that assume plugins are already installed on the server — a credentials plugin, a Kubernetes plugin, a test reporter. The plugins live on the Jenkins controller, not in the repository. Clone the project onto a fresh Jenkins instance and nothing works. You have to reverse-engineer which plugins the `Jenkinsfile` depends on, install them through the UI or a `plugins.txt` file maintained separately from the pipeline itself, and then pray the versions are compatible with each other. The pipeline and its dependencies are in two completely different places.
+**Jenkins** pipelines reference plugins that live on the controller, not in the repository. **pytest** plugins are declared in `pyproject.toml` but still require a separate `pip install`. **WireMock** extensions are JARs that have to be on the classpath before the server starts. In all three cases, the config says what you need and something else is responsible for making it available. That gap is where "works on my machine" lives.
 
-**pytest** has the same gap at the test level. A project declares `pytest-cov`, `pytest-asyncio`, and `pytest-httpx` in `pyproject.toml`, but declaring them does nothing — you still have to `pip install` them as a separate step before pytest will find them. Clone the repo, run `pytest`, and it exits immediately with `ModuleNotFoundError` until you figure out which plugins the test suite actually needs and install them by hand. The config file says what you need; something else entirely has to make it available.
-
-**WireMock** has the same problem at the mock level. Custom response transformers, fault injectors, and extension matchers are JAR files that have to be placed on the classpath before the server starts. The `mappings/` config files can reference a transformer by name, but WireMock has no mechanism to fetch it — the JAR has to already be there through some out-of-band process. A stub configuration that works in one environment silently does nothing in another because the extension was never installed.
-
-The common thread across all three: **the config file says what you need, and something else entirely is responsible for making it available**. That gap is where things go wrong. It is where "works on my machine" lives.
-
-BabelSuite closes that gap with a single line at the top of your suite file:
+BabelSuite closes it:
 
 ```python
 load("@babelsuite/kafka",    "kafka", "create_topic")
 load("@babelsuite/postgres", "pg",    "connect")
 ```
 
-There is no separate install step. The workspace loader resolves the import against your configured registries, pulls the OCI artifact, and makes the exported symbols available as part of running the suite — not before it. The module is declared where it is used, and the declaration is the installation.
+The declaration is the installation. The workspace loader resolves the import, pulls the OCI artifact, and makes the symbols available as part of running the suite — not before it. No separate step, no per-machine state to drift.
 
-Because modules are OCI artifacts, they carry the same portability guarantees as the suite itself. A suite that loads `@babelsuite/kafka` runs identically on a laptop, in CI, and on Kubernetes — the module is pulled from the registry the same way in all three environments. There is no per-machine plugin state to drift, no version to reconcile separately from the suite that uses it.
-
-Compatibility is also simpler. A module is Starlark code that returns topology nodes. It runs in the same interpreter that runs the suite. There is no plugin API to stay in sync with, no host version requirement, no binary that has to match the platform. If the `load()` resolves and the function exists, it works.
-
-Writing your own module is two files: a `module.star` that exports helpers and a `module.yaml` with OCI metadata. Push it to any registry your platform has access to and any suite in the workspace can load it immediately. No plugin SDK, no extension point registration, no approval process. A module is just a function someone else wrote that returns a node.
+Writing a module is equally straightforward — it is Starlark code that returns topology nodes, packaged as an OCI artifact. There is no plugin SDK to implement, no host version to target, no binary to compile. If you can write a suite, you can write a module. The same simplicity that makes modules easy to use makes them easy to build.
 
 ## The Graph Is the Documentation
 
