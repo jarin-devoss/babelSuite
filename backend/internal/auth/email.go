@@ -7,6 +7,7 @@ import (
 )
 
 func sendPasswordResetEmail(cfg SMTPConfig, toEmail, resetLink string) error {
+	toEmail = strings.NewReplacer("\r", "", "\n", "").Replace(toEmail)
 	port := cfg.Port
 	if port == 0 {
 		port = 587

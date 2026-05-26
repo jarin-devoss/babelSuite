@@ -402,12 +402,8 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	clearCookie.Secure = true
 	http.SetCookie(w, clearCookie)
 
-	if description := strings.TrimSpace(r.URL.Query().Get("error_description")); description != "" {
-		h.redirectOIDCError(w, r, http.StatusUnauthorized, description)
-		return
-	}
-	if errCode := strings.TrimSpace(r.URL.Query().Get("error")); errCode != "" {
-		h.redirectOIDCError(w, r, http.StatusUnauthorized, "Single sign-on failed: "+errCode)
+	if strings.TrimSpace(r.URL.Query().Get("error_description")) != "" || strings.TrimSpace(r.URL.Query().Get("error")) != "" {
+		h.redirectOIDCError(w, r, http.StatusUnauthorized, "Single sign-on failed.")
 		return
 	}
 

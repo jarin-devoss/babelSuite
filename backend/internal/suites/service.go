@@ -199,6 +199,9 @@ func isValidSuiteID(id string) bool {
 }
 
 func persistSuiteToDisk(id, suiteStar string) error {
+	if id == "" || strings.ContainsAny(id, "/\\") || strings.Contains(id, "..") {
+		return fmt.Errorf("invalid suite id")
+	}
 	dir := filepath.Join(examplefs.ResolveRoot(), "oci-suites", id)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
