@@ -215,12 +215,12 @@ The remote agent process exposes its own liveness probe and a small control API 
 
 ## Kubernetes Deployment (Helm)
 
-A production-grade Helm chart is included at `deploy/helm/babelsuite/`.
+A production-grade Helm chart is included at `helm/babelsuite/`.
 
 ### Quick install
 
 ```bash
-helm install babelsuite ./deploy/helm/babelsuite \
+helm install babelsuite ./helm/babelsuite \
   --namespace babelsuite --create-namespace \
   --set secrets.jwtSecret="$(openssl rand -hex 32)" \
   --set secrets.adminEmail="admin@example.com" \
@@ -245,7 +245,7 @@ kubectl create secret generic babelsuite-secrets \
   --from-literal=ADMIN_PASSWORD=changeme \
   -n babelsuite
 
-helm install babelsuite ./deploy/helm/babelsuite \
+helm install babelsuite ./helm/babelsuite \
   --namespace babelsuite \
   --set secrets.existingSecret=babelsuite-secrets \
   --set config.frontendURL=https://babelsuite.example.com \

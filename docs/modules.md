@@ -35,18 +35,18 @@ The workspace loader resolves the `@babelsuite/kafka` path against your configur
 | Module path | Package | Status |
 |-------------|---------|--------|
 | `@babelsuite/runtime` | built-in | Always available — core topology primitives |
-| `@babelsuite/kafka` | `examples/oci-modules/kafka` | Available |
-| `@babelsuite/postgres` | `examples/oci-modules/postgres` | Available |
-| `@babelsuite/redis` | `examples/oci-modules/redis` | Available |
-| `@babelsuite/mongodb` | `examples/oci-modules/mongodb` | Available |
-| `@babelsuite/playwright` | `examples/oci-modules/playwright` | Available |
+| `@babelsuite/kafka` | [`examples/oci-modules/kafka`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/kafka) | Available |
+| `@babelsuite/postgres` | [`examples/oci-modules/postgres`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/postgres) | Available |
+| `@babelsuite/redis` | [`examples/oci-modules/redis`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/redis) | Available |
+| `@babelsuite/mongodb` | [`examples/oci-modules/mongodb`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/mongodb) | Available |
+| `@babelsuite/playwright` | [`examples/oci-modules/playwright`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/playwright) | Available |
 
 ---
 
 ## Kafka Module
 
 **Import path:** `@babelsuite/kafka`  
-**Source:** `examples/oci-modules/kafka`
+**Source:** [`examples/oci-modules/kafka`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/kafka)
 
 The Kafka module starts a broker cluster as a topology node and exposes admin helpers for managing topics and consumer group offsets. It wraps the infrastructure concerns so your suite file stays focused on what topics it needs, not how to spin up Kafka.
 
@@ -93,7 +93,7 @@ The worker only starts once both topics exist. BabelSuite runs `kafka()`, then t
 ## Postgres Module
 
 **Import path:** `@babelsuite/postgres`  
-**Source:** `examples/oci-modules/postgres`
+**Source:** [`examples/oci-modules/postgres`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/postgres)
 
 The Postgres module starts a cluster node and exposes query helpers that run against it. You use it when a suite needs a real database rather than a mock — migrations, seed data, and tests can all call the same helpers without duplicating connection logic.
 
@@ -147,7 +147,7 @@ The app only starts after the seed data is in place. The `pg()` → `connect()` 
 ## Redis Module
 
 **Import path:** `@babelsuite/redis`  
-**Source:** `examples/oci-modules/redis`
+**Source:** [`examples/oci-modules/redis`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/redis)
 
 The Redis module starts a cache node and exposes key management helpers. Use it for feature flags, session tokens, rate-limit counters, or any workload that needs a seeded in-memory store before the application starts.
 
@@ -199,7 +199,7 @@ app = service.run(env={"REDIS_URL": cache["url"]}, after=[seed])
 ## MongoDB Module
 
 **Import path:** `@babelsuite/mongodb`  
-**Source:** `examples/oci-modules/mongodb`
+**Source:** [`examples/oci-modules/mongodb`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/mongodb)
 
 The MongoDB module starts a cluster node and exposes collection and document helpers. Use it for suites that need a real document store — schema creation, index building, seed data, and migration scripts all run as topology nodes wired with `after=[]`.
 
@@ -249,7 +249,7 @@ app = service.run(env={"MONGO_URI": db["uri"]}, after=[seed])
 ## Playwright Module
 
 **Import path:** `@babelsuite/playwright`  
-**Source:** `examples/oci-modules/playwright`
+**Source:** [`examples/oci-modules/playwright`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/playwright)
 
 The Playwright module runs browser tests, accessibility audits, and visual regression checks as topology nodes. Each helper spawns test runs across a configurable matrix of browsers and devices and returns a list of nodes — one per combination — that you wire into the rest of the graph with `after=[]`.
 
