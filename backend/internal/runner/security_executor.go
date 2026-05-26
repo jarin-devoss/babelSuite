@@ -84,7 +84,7 @@ func executeSecurityStep(ctx context.Context, step StepSpec, emit func(logstream
 	}
 
 	if !canUseAPISIXSecurity(step) {
-		return executeNativeSecurityStep(ctx, step, emit)
+		return fmt.Errorf("security step %q requires an APISIX sidecar — add a service.mock node before this step in the topology", step.Node.Name)
 	}
 
 	gatewayURL := strings.TrimSuffix(strings.TrimSpace(step.GatewayURL), "/")
