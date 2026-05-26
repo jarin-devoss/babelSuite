@@ -343,14 +343,16 @@ Current behavior:
 
 - export rules are parsed into topology metadata
 - export rules flow into execution step payloads
-- the local runner registers and reports the rules in step logs
-- `format="junit"` exports are summarized into pass/fail counts in the live execution view
-- `format="cobertura"` exports are recognized now, and coverage summaries appear once report content is collected
+- the local (Docker) runner bind-mounts a host directory into every container at `$BABELSUITE_ARTIFACTS_DIR`; files written there are harvested after the container exits
+- glob patterns in `path=` (e.g. `"coverage/*.xml"`) are expanded on the host mount — the first lexically-ordered match is collected
+- the Kubernetes runner copies files from the artifact sidecar volume using the busybox helper after the step container exits
+- `format="junit"` exports are summarized into pass/fail counts in the live execution view; real XML from the container is parsed when present, synthetic otherwise
+- `format="cobertura"` exports are parsed and line/branch coverage summaries are shown when real content is collected
+- `format="ctrf"` (Common Test Results Format) exports are parsed and test summary counts are shown
 
 Current limit:
 
-- this is still not a full artifact collector yet, so raw files from real workloads are not harvested today
-- JUnit summaries are synthesized from the step result until a real collector is attached
+- when a glob matches multiple files only the first (lexical order) is collected; structured formats such as JUnit cannot yet merge across multiple XML files in one pass
 
 ## Evaluation Controls
 

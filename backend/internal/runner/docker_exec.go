@@ -252,9 +252,15 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 
 // readArtifactFromMount reads an artifact file from the host-side mount directory.
 // The export path is cleaned and verified to stay within the mount root to
-// prevent any path traversal from a malicious or misconfigured container.
+// prevent any path traversal. Glob patterns (*, ?, [) are expanded; the
+// first matching file's content is returned.
 func readArtifactFromMount(mountDir, exportPath string) ([]byte, error) {
-	cleaned := path.Clean("/" + strings.TrimSpace(exportPath))
+	exportPath = strings.TrimSpace(exportPath)
+	if strings.ContainsAny(exportPath, "*?[") {
+		return readArtifactGlob(mountDir, exportPath)
+	}
+
+	cleaned := path.Clean("/" + exportPath)
 	hostPath := filepath.Join(mountDir, filepath.FromSlash(cleaned))
 
 	// Reject any path that escapes the mount directory.
@@ -263,6 +269,35 @@ func readArtifactFromMount(mountDir, exportPath string) ([]byte, error) {
 	}
 
 	f, err := os.Open(hostPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return io.ReadAll(io.LimitReader(f, maxArtifactBytes))
+}
+
+// readArtifactGlob expands a glob export path within the mount directory and
+// returns the content of the first matching file. All matches are verified to
+// remain within mountDir before any file is opened.
+func readArtifactGlob(mountDir, exportPath string) ([]byte, error) {
+	pattern := filepath.Join(mountDir, filepath.FromSlash(path.Clean("/"+exportPath)))
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("artifact glob %q: %w", exportPath, err)
+	}
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("artifact glob %q: no matching files in mount", exportPath)
+	}
+
+	prefix := mountDir + string(filepath.Separator)
+	for _, m := range matches {
+		if !strings.HasPrefix(m+string(filepath.Separator), prefix) {
+			return nil, fmt.Errorf("artifact glob match %q escapes mount directory", m)
+		}
+	}
+
+	f, err := os.Open(matches[0])
 	if err != nil {
 		return nil, err
 	}
