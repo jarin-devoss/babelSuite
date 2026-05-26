@@ -153,12 +153,7 @@ func (j *JWTService) Verify(tokenStr string) (*Claims, error) {
 }
 
 func (j *JWTService) Revoke(tokenStr string) {
-	expiry := time.Now().UTC().Add(TokenTTL)
-	if parsed, _, err := new(jwt.Parser).ParseUnverified(tokenStr, &Claims{}); err == nil {
-		if c, ok := parsed.Claims.(*Claims); ok && c.ExpiresAt != nil {
-			expiry = c.ExpiresAt.Time
-		}
-	}
+	expiry := time.Now().UTC().Add(RefreshTokenTTL)
 	h := hashToken(tokenStr)
 
 	j.mu.Lock()
