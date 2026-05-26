@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="../operations/">
+        <link rel="prev" href="../troubleshooting/">
       
       
-        <link rel="next" href="../adr/">
+        <link rel="next" href="adr-001-apisix-sidecar/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Troubleshooting - BabelSuite</title>
+        <title>Architecture Decision Records - BabelSuite</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#troubleshooting" class="md-skip">
+        <a href="#architecture-decision-records" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Troubleshooting
+              Architecture Decision Records
             
           </span>
         </div>
@@ -349,11 +349,9 @@
         
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../troubleshooting/" class="md-tabs__link">
         
   
     
@@ -368,11 +366,13 @@
         
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../adr/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   Architecture Decision Records
@@ -1093,6 +1093,71 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Architecture Decision Records
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture Decision Records
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
     
   
   
@@ -1105,221 +1170,7 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Troubleshooting
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  <span class="md-ellipsis">
-    Troubleshooting
-  </span>
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#control-plane-wont-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      Control Plane Won't Start
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Control Plane Won't Start">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#jwt_secret-must-be-set-to-a-secure-random-value" class="md-nav__link">
-    <span class="md-ellipsis">
-      JWT_SECRET must be set to a secure random value
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#platform-settings-on-startup" class="md-nav__link">
-    <span class="md-ellipsis">
-      platform settings: ... on startup
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mongodb-connection-refused" class="md-nav__link">
-    <span class="md-ellipsis">
-      MongoDB connection refused
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#readiness-probe-failing-readyz-returns-503" class="md-nav__link">
-    <span class="md-ellipsis">
-      Readiness Probe Failing (/readyz returns 503)
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#execution-stuck-in-pending" class="md-nav__link">
-    <span class="md-ellipsis">
-      Execution Stuck in pending
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-fails-immediately-with-context-canceled" class="md-nav__link">
-    <span class="md-ellipsis">
-      Step Fails Immediately With context canceled
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mock-service-not-receiving-traffic" class="md-nav__link">
-    <span class="md-ellipsis">
-      Mock Service Not Receiving Traffic
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-error-no-saved-session" class="md-nav__link">
-    <span class="md-ellipsis">
-      CLI: error: no saved session
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-error-connection-refused" class="md-nav__link">
-    <span class="md-ellipsis">
-      CLI: error: connection refused
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-error-unauthorized" class="md-nav__link">
-    <span class="md-ellipsis">
-      CLI: error: unauthorized
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#otel-traces-missing" class="md-nav__link">
-    <span class="md-ellipsis">
-      OTel / Traces Missing
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      See Also
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
-        
-          
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
-            
-  
-  <span class="md-ellipsis">
-    Architecture Decision Records
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
-            <span class="md-nav__icon md-icon"></span>
-            Architecture Decision Records
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../adr/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1328,6 +1179,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -1340,7 +1192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr/adr-001-apisix-sidecar/" class="md-nav__link">
+      <a href="adr-001-apisix-sidecar/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1361,7 +1213,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr/adr-002-starlark-dsl/" class="md-nav__link">
+      <a href="adr-002-starlark-dsl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1382,7 +1234,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr/adr-003-cue-mock-schemas/" class="md-nav__link">
+      <a href="adr-003-cue-mock-schemas/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1403,7 +1255,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr/adr-004-oci-packaging/" class="md-nav__link">
+      <a href="adr-004-oci-packaging/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1444,137 +1296,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#control-plane-wont-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      Control Plane Won't Start
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Control Plane Won't Start">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#jwt_secret-must-be-set-to-a-secure-random-value" class="md-nav__link">
-    <span class="md-ellipsis">
-      JWT_SECRET must be set to a secure random value
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#platform-settings-on-startup" class="md-nav__link">
-    <span class="md-ellipsis">
-      platform settings: ... on startup
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mongodb-connection-refused" class="md-nav__link">
-    <span class="md-ellipsis">
-      MongoDB connection refused
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#readiness-probe-failing-readyz-returns-503" class="md-nav__link">
-    <span class="md-ellipsis">
-      Readiness Probe Failing (/readyz returns 503)
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#execution-stuck-in-pending" class="md-nav__link">
-    <span class="md-ellipsis">
-      Execution Stuck in pending
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-fails-immediately-with-context-canceled" class="md-nav__link">
-    <span class="md-ellipsis">
-      Step Fails Immediately With context canceled
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mock-service-not-receiving-traffic" class="md-nav__link">
-    <span class="md-ellipsis">
-      Mock Service Not Receiving Traffic
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-error-no-saved-session" class="md-nav__link">
-    <span class="md-ellipsis">
-      CLI: error: no saved session
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-error-connection-refused" class="md-nav__link">
-    <span class="md-ellipsis">
-      CLI: error: connection refused
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-error-unauthorized" class="md-nav__link">
-    <span class="md-ellipsis">
-      CLI: error: unauthorized
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#otel-traces-missing" class="md-nav__link">
-    <span class="md-ellipsis">
-      OTel / Traces Missing
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      See Also
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1591,103 +1312,39 @@
   
 
 
-<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
-<p><a href="../">Back to index</a></p>
-<hr />
-<h2 id="control-plane-wont-start">Control Plane Won't Start<a class="headerlink" href="#control-plane-wont-start" title="Permanent link">&para;</a></h2>
-<h3 id="jwt_secret-must-be-set-to-a-secure-random-value"><code>JWT_SECRET must be set to a secure random value</code><a class="headerlink" href="#jwt_secret-must-be-set-to-a-secure-random-value" title="Permanent link">&para;</a></h3>
-<p>The server requires a non-empty, non-default <code>JWT_SECRET</code>. Generate one and set it:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JWT_SECRET</span><span class="o">=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="k">)</span>
-</span></code></pre></div>
-<h3 id="platform-settings-on-startup"><code>platform settings: ...</code> on startup<a class="headerlink" href="#platform-settings-on-startup" title="Permanent link">&para;</a></h3>
-<p>The control plane cannot read <code>configuration.yaml</code> at the configured path. Check:</p>
-<ol>
-<li>The file exists at the path set by <code>PLATFORM_SETTINGS_FILE</code> (default: <code>configuration.yaml</code> in the working directory).</li>
-<li>The process has read permission.</li>
-<li>The YAML is valid — run <code>cat configuration.yaml | python3 -c "import sys,yaml; yaml.safe_load(sys.stdin)"</code> to validate.</li>
-</ol>
-<h3 id="mongodb-connection-refused">MongoDB connection refused<a class="headerlink" href="#mongodb-connection-refused" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>store: server selection error: server 127.0.0.1:27017 ... connection refused
-</span></code></pre></div>
-<p>MongoDB is not running or <code>MONGO_URI</code> is wrong. Check:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mongosh<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MONGO_URI</span><span class="s2">&quot;</span><span class="w"> </span>--eval<span class="w"> </span><span class="s2">&quot;db.adminCommand({ping:1})&quot;</span>
-</span></code></pre></div>
-<hr />
-<h2 id="readiness-probe-failing-readyz-returns-503">Readiness Probe Failing (<code>/readyz</code> returns 503)<a class="headerlink" href="#readiness-probe-failing-readyz-returns-503" title="Permanent link">&para;</a></h2>
-<p>Check which subsystem is unhealthy:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8090/readyz<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
-</span></code></pre></div>
+<h1 id="architecture-decision-records">Architecture Decision Records<a class="headerlink" href="#architecture-decision-records" title="Permanent link">&para;</a></h1>
+<p>This directory contains the architectural decisions made for BabelSuite and the reasoning behind them.</p>
 <table>
 <thead>
 <tr>
-<th>Subsystem</th>
-<th>Common cause</th>
+<th>ADR</th>
+<th>Title</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>database</code></td>
-<td>MongoDB/Postgres unreachable</td>
+<td><a href="adr-001-apisix-sidecar/">ADR-001</a></td>
+<td>APISIX sidecar for security and traffic</td>
+<td>Accepted</td>
 </tr>
 <tr>
-<td><code>platform</code></td>
-<td><code>configuration.yaml</code> missing or unreadable</td>
+<td><a href="adr-002-starlark-dsl/">ADR-002</a></td>
+<td>Starlark as the topology DSL</td>
+<td>Accepted</td>
 </tr>
 <tr>
-<td><code>profiles</code></td>
-<td><code>babelsuite-profiles.yaml</code> unreadable</td>
+<td><a href="adr-003-cue-mock-schemas/">ADR-003</a></td>
+<td>CUE schemas for mock exchange definitions</td>
+<td>Accepted</td>
 </tr>
 <tr>
-<td><code>agents</code></td>
-<td>No agents registered (optional — only required when agent backends are configured)</td>
+<td><a href="adr-004-oci-packaging/">ADR-004</a></td>
+<td>OCI artifacts as the suite and module distribution format</td>
+<td>Accepted</td>
 </tr>
 </tbody>
 </table>
-<hr />
-<h2 id="execution-stuck-in-pending">Execution Stuck in <code>pending</code><a class="headerlink" href="#execution-stuck-in-pending" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>No available backend</strong> — check that at least one backend is healthy: <code>curl /readyz/agents</code>.</li>
-<li><strong>Agent not heartbeating</strong> — the agent process may have crashed. Check agent logs and restart it.</li>
-<li><strong>Suite not found in catalog</strong> — the OCI registry may be unreachable. Check <code>curl /readyz/suites</code>.</li>
-</ol>
-<hr />
-<h2 id="step-fails-immediately-with-context-canceled">Step Fails Immediately With <code>context canceled</code><a class="headerlink" href="#step-fails-immediately-with-context-canceled" title="Permanent link">&para;</a></h2>
-<p>The execution was cancelled (e.g. by a <code>reap</code> call or a timeout). Check:</p>
-<ol>
-<li>Whether a suite-level timeout (<code>timeout:</code> field) is set too aggressively.</li>
-<li>Whether the step has a dependency that failed, causing the execution engine to cancel downstream steps.</li>
-</ol>
-<hr />
-<h2 id="mock-service-not-receiving-traffic">Mock Service Not Receiving Traffic<a class="headerlink" href="#mock-service-not-receiving-traffic" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Confirm the mock node started: check the execution log for <code>[mock-name] Mock server listening on ...</code>.</li>
-<li>Confirm the step's <code>target:</code> field uses the symbolic service name, not <code>localhost</code>.</li>
-<li>Check that the APISIX sidecar started successfully if the suite uses an API gateway.</li>
-</ol>
-<hr />
-<h2 id="cli-error-no-saved-session">CLI: <code>error: no saved session</code><a class="headerlink" href="#cli-error-no-saved-session" title="Permanent link">&para;</a></h2>
-<p>Run <code>babelctl login</code> first. If you've set <code>--server</code> but not logged in, the token won't exist.</p>
-<h2 id="cli-error-connection-refused">CLI: <code>error: connection refused</code><a class="headerlink" href="#cli-error-connection-refused" title="Permanent link">&para;</a></h2>
-<p>The <code>--server</code> URL is wrong or the control plane isn't running. Verify:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl<span class="w"> </span>http://localhost:8090/healthz
-</span></code></pre></div>
-<h2 id="cli-error-unauthorized">CLI: <code>error: unauthorized</code><a class="headerlink" href="#cli-error-unauthorized" title="Permanent link">&para;</a></h2>
-<p>The session token has expired. Run <code>babelctl login</code> again to refresh it.</p>
-<hr />
-<h2 id="otel-traces-missing">OTel / Traces Missing<a class="headerlink" href="#otel-traces-missing" title="Permanent link">&para;</a></h2>
-<p>If traces aren't appearing in your collector:</p>
-<ol>
-<li>Check <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> is set and the collector is reachable.</li>
-<li>Verify <code>/readyz/telemetry</code> — if it returns <code>disabled</code>, no endpoint is configured.</li>
-<li>For self-signed TLS: set <code>OTEL_EXPORTER_OTLP_INSECURE=true</code> or mount the CA bundle.</li>
-</ol>
-<hr />
-<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../operations/">Operations</a> — health endpoints, middleware, TLS setup</li>
-<li><a href="../configuration/">Configuration</a> — all environment variables</li>
-<li><a href="../agents/">Agents</a> — worker process lifecycle</li>
-</ul>
 
 
 
@@ -1720,7 +1377,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../operations/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Operations">
+          <a href="../troubleshooting/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Troubleshooting">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1730,20 +1387,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Operations
+                Troubleshooting
               </div>
             </div>
           </a>
         
         
           
-          <a href="../adr/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+          <a href="adr-001-apisix-sidecar/" class="md-footer__link md-footer__link--next" aria-label="Next: ADR-001 APISIX Sidecar">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Overview
+                ADR-001 APISIX Sidecar
               </div>
             </div>
             <div class="md-footer__button md-icon">
