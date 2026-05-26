@@ -123,6 +123,21 @@ config:
   agentRuntimeFile: /config/babelsuite-agents.yaml
   trustedProxies: ""        # TRUSTED_PROXIES — comma-separated CIDRs
 
+## ── Prometheus metrics ──────────────────────────────────────────────────────
+## Exposes /metrics on a dedicated port (default 9090).
+## Set metrics.enabled=true to enable the metrics HTTP server.
+metrics:
+  enabled: false
+  port: 9090                  # METRICS_ADDR — listens on :<port>
+  serviceMonitor:
+    enabled: false            # Deploy a Prometheus Operator ServiceMonitor
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalLabels: {}
+  prometheusRule:
+    enabled: false            # Deploy a Prometheus Operator PrometheusRule
+    additionalLabels: {}
+
 ## ── Telemetry (OpenTelemetry) ────────────────────────────────────────────────
 telemetry:
   enabled: false

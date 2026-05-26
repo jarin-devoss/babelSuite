@@ -14,6 +14,8 @@ import (
 
 	"github.com/babelsuite/babelsuite/internal/envloader"
 	"github.com/babelsuite/babelsuite/internal/telemetry"
+	sdkresource "go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 func main() {
@@ -25,6 +27,18 @@ func main() {
 	}
 
 	telemetry.InitDefaultLogger(telemetry.NewLogger(nil))
+
+	if telemetry.PrometheusEnabled() {
+		res, _ := sdkresource.New(context.Background(),
+			sdkresource.WithTelemetrySDK(),
+			sdkresource.WithAttributes(semconv.ServiceNameKey.String("babelsuite-backend")),
+		)
+		if stopMetrics, err := telemetry.StartPrometheusMetrics(context.Background(), res); err != nil {
+			log.Printf("metrics: %v", err)
+		} else {
+			defer stopMetrics()
+		}
+	}
 
 	addr := envOr("PORT", "8090")
 	if !strings.Contains(addr, ":") {

@@ -1,0 +1,46 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "babelsuite.fullname" . }}
+  labels:
+    {{- include "babelsuite.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: babelsuite.rules
+      rules:
+        - alert: BabelSuiteDown
+          expr: up{job="{{ include "babelsuite.fullname" . }}"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "BabelSuite control plane is unreachable"
+            description: "The babelsuite-backend metrics endpoint has been unreachable for more than 2 minutes."
+        - alert: BabelSuiteHighErrorRate
+          expr: |
+            rate(http_server_request_duration_seconds_count{job="{{ include "babelsuite.fullname" . }}", http_response_status_code=~"5.."}[5m])
+            /
+            rate(http_server_request_duration_seconds_count{job="{{ include "babelsuite.fullname" . }}"}[5m])
+            > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "BabelSuite HTTP 5xx error rate above 5%"
+            description: "More than 5% of requests are returning server errors."
+        - alert: BabelSuiteHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              rate(http_server_request_duration_seconds_bucket{job="{{ include "babelsuite.fullname" . }}"}[5m])
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "BabelSuite p95 latency exceeds 2s"
+            description: "95th percentile request latency is above 2 seconds for the past 5 minutes."
+{{- end }}

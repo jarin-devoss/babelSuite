@@ -41,6 +41,11 @@ spec:
             - name: http
               containerPort: {{ .Values.config.port | default "8090" }}
               protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port | default 9090 }}
+              protocol: TCP
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
@@ -83,6 +88,12 @@ spec:
               value: {{ .Values.redis.db | default 0 | quote }}
             - name: REDIS_PREFIX
               value: {{ .Values.redis.prefix | default "babelsuite" | quote }}
+            {{- end }}
+            {{- if .Values.metrics.enabled }}
+            - name: METRICS_ENABLED
+              value: "true"
+            - name: METRICS_ADDR
+              value: {{ printf ":%v" (.Values.metrics.port | default 9090) | quote }}
             {{- end }}
             {{- if .Values.telemetry.enabled }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
