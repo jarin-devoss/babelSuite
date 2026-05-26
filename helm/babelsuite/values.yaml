@@ -146,6 +146,16 @@ telemetry:
   insecure: "false"
   resourceAttributes: ""    # OTEL_RESOURCE_ATTRIBUTES
 
+## ── Grafana dashboard ───────────────────────────────────────────────────────
+## When enabled, deploys a ConfigMap containing a Grafana dashboard JSON.
+## The grafana_dashboard: "1" label lets the Grafana sidecar discover it
+## automatically when using the grafana/grafana Helm chart with sidecar.dashboards.enabled=true.
+grafana:
+  dashboard:
+    enabled: false
+    namespace: ""             # deploy into a specific namespace (e.g. monitoring)
+    additionalLabels: {}
+
 ## ── Platform configuration volume ───────────────────────────────────────────
 ## Mount a ConfigMap or Secret as /config so the server can read
 ## configuration.yaml, profiles, and agent-runtime files.

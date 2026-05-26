@@ -1,0 +1,113 @@
+{{- if .Values.grafana.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "babelsuite.fullname" . }}-grafana-dashboard
+  labels:
+    {{- include "babelsuite.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+    {{- with .Values.grafana.dashboard.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.grafana.dashboard.namespace }}
+  namespace: {{ . }}
+  {{- end }}
+data:
+  babelsuite.json: |-
+    {
+      "title": "BabelSuite",
+      "uid": "babelsuite-overview",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Request Rate",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"{{ include "babelsuite.fullname" . }}\"}[5m]))",
+              "legendFormat": "req/s"
+            }
+          ],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Error Rate",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"{{ include "babelsuite.fullname" . }}\", http_response_status_code=~\"5..\"}[5m]))",
+              "legendFormat": "err/s"
+            }
+          ],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.1}] } } }
+        },
+        {
+          "id": 3,
+          "type": "gauge",
+          "title": "p95 Latency (s)",
+          "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"{{ include "babelsuite.fullname" . }}\"}[5m])))",
+              "legendFormat": "p95"
+            }
+          ],
+          "fieldConfig": { "defaults": { "max": 5, "thresholds": { "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 2}] } } }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Uptime",
+          "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "up{job=\"{{ include "babelsuite.fullname" . }}\"}",
+              "legendFormat": ""
+            }
+          ],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+          "fieldConfig": { "defaults": { "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}] } }
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "HTTP Request Rate by Status Class",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{job=\"{{ include "babelsuite.fullname" . }}\"}[5m]))",
+              "legendFormat": "{{ "{{http_response_status_code}}" }}"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Latency Percentiles",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"{{ include "babelsuite.fullname" . }}\"}[5m])))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"{{ include "babelsuite.fullname" . }}\"}[5m])))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"{{ include "babelsuite.fullname" . }}\"}[5m])))",
+              "legendFormat": "p99"
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}
