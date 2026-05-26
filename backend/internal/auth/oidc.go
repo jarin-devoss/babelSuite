@@ -90,7 +90,7 @@ func (s *OIDCService) Provider(baseURL string) SSOProvider {
 	return provider
 }
 
-func (s *OIDCService) BeginLogin(ctx context.Context, returnURL string, secureCookie bool) (string, *http.Cookie, error) {
+func (s *OIDCService) BeginLogin(ctx context.Context, returnURL string) (string, *http.Cookie, error) {
 	if !s.Enabled() {
 		return "", nil, errOIDCDisabled
 	}
@@ -100,7 +100,7 @@ func (s *OIDCService) BeginLogin(ctx context.Context, returnURL string, secureCo
 		return "", nil, err
 	}
 
-	state, cookie, err := s.newStateCookie(returnURL, secureCookie)
+	state, cookie, err := s.newStateCookie(returnURL)
 	if err != nil {
 		return "", nil, err
 	}
@@ -170,7 +170,7 @@ func (s *OIDCService) Exchange(ctx context.Context, requestState string, code st
 	return identity, state.ReturnURL, nil
 }
 
-func (s *OIDCService) ClearStateCookie(secureCookie bool) *http.Cookie {
+func (s *OIDCService) ClearStateCookie() *http.Cookie {
 	return &http.Cookie{
 		Name:     s.config.NormalizedStateCookieName(),
 		Value:    "",
@@ -178,7 +178,6 @@ func (s *OIDCService) ClearStateCookie(secureCookie bool) *http.Cookie {
 		HttpOnly: true,
 		MaxAge:   -1,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   secureCookie,
 	}
 }
 
@@ -285,7 +284,7 @@ func (s *OIDCService) identityFromClaims(claims map[string]any) oidcIdentity {
 	return identity
 }
 
-func (s *OIDCService) newStateCookie(returnURL string, secureCookie bool) (*oidcState, *http.Cookie, error) {
+func (s *OIDCService) newStateCookie(returnURL string) (*oidcState, *http.Cookie, error) {
 	stateValue, err := randomURLToken(32)
 	if err != nil {
 		return nil, nil, err
@@ -313,7 +312,6 @@ func (s *OIDCService) newStateCookie(returnURL string, secureCookie bool) (*oidc
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   secureCookie,
 		Expires:  state.ExpiresAt,
 		MaxAge:   int(oidcStateTTL.Seconds()),
 	}

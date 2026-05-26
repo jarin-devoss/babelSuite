@@ -381,12 +381,13 @@ func (h *Handler) oidcLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	returnURL := sanitizeReturnURL(h.config.FrontendURL, r.URL.Query().Get("return_url"))
-	redirectURL, stateCookie, err := h.oidc.BeginLogin(r.Context(), returnURL, h.requestIsSecure(r))
+	redirectURL, stateCookie, err := h.oidc.BeginLogin(r.Context(), returnURL)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "Could not start single sign-on right now.")
 		return
 	}
 
+	stateCookie.Secure = h.requestIsSecure(r)
 	http.SetCookie(w, stateCookie)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
@@ -397,7 +398,9 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, h.oidc.ClearStateCookie(h.requestIsSecure(r)))
+	clearCookie := h.oidc.ClearStateCookie()
+	clearCookie.Secure = h.requestIsSecure(r)
+	http.SetCookie(w, clearCookie)
 
 	if description := strings.TrimSpace(r.URL.Query().Get("error_description")); description != "" {
 		h.redirectOIDCError(w, r, http.StatusUnauthorized, description)
