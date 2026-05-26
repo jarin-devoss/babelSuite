@@ -34,7 +34,7 @@ func readRequestBody(request *http.Request) (string, any, map[string]any, error)
 
 	var parsed any
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return trimmed, trimmed, nil, nil
+		return trimmed, trimmed, nil, nil //nolint:nilerr // invalid JSON treated as raw body with no parsed form
 	}
 	object, _ := parsed.(map[string]any)
 	return trimmed, parsed, object, nil

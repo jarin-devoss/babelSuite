@@ -164,7 +164,7 @@ func (s *Service) resolve(ctx context.Context, suite *suites.Definition, surface
 func (s *Service) resolveInner(ctx context.Context, suite *suites.Definition, surface suites.APISurface, operation suites.APIOperation, pathParams map[string]string, request *http.Request, adapter string) (*Result, error) {
 	requestBody, bodyJSON, bodyObject, err := readRequestBody(request)
 	if err != nil {
-		return withOperationMetadata(errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString("Could not read request body."))), operation, adapter), nil
+		return withOperationMetadata(errorResult(http.StatusBadRequest, "application/json", fmt.Sprintf(`{"error":"%s"}`, escapeJSONString("Could not read request body."))), operation, adapter), nil //nolint:nilerr // read error becomes a 400 response; no server-level error to propagate
 	}
 
 	snapshot := requestSnapshot{

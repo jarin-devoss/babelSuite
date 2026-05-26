@@ -119,7 +119,7 @@ func parseMatchConditionsValue(value cue.Value) ([]suites.MatchCondition, error)
 
 	list, err := value.List()
 	if err != nil {
-		return nil, nil
+		return nil, nil //nolint:nilerr // CUE parse failure treated as empty list
 	}
 
 	output := make([]suites.MatchCondition, 0)
@@ -211,7 +211,7 @@ func parseSchemaFieldValue(value cue.Value, headersRequired bool) (any, error) {
 	case kind&cue.ListKind != 0:
 		list, err := value.List()
 		if err != nil {
-			return map[string]any{"type": "array"}, nil
+			return map[string]any{"type": "array"}, nil //nolint:nilerr // CUE list error falls back to untyped array schema
 		}
 		schema := map[string]any{"type": "array"}
 		if list.Next() {

@@ -8,11 +8,22 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/babelsuite/babelsuite/internal/strutil"
 	"github.com/babelsuite/babelsuite/internal/suites"
 	"github.com/google/uuid"
 )
+
+// capitalize returns s with the first Unicode letter uppercased.
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
+}
 
 func loadSchemaExamples(suite suites.Definition, operation suites.APIOperation) []schemaBackedExample {
 	content, ok := sourceFileContent(suite.SourceFiles, operation.MockPath)
@@ -92,12 +103,12 @@ func validateSchemaValue(schema any, value any, location string) string {
 	switch schemaType {
 	case "null":
 		if value != nil {
-			return fmt.Sprintf("%s must be empty.", strings.Title(location))
+			return fmt.Sprintf("%s must be empty.", capitalize(location))
 		}
 	case "object":
 		object, ok := toMapAny(value)
 		if !ok {
-			return fmt.Sprintf("%s must be an object.", strings.Title(location))
+			return fmt.Sprintf("%s must be an object.", capitalize(location))
 		}
 		required := schemaStringList(node["required"])
 		properties, _ := node["properties"].(map[string]any)
@@ -122,7 +133,7 @@ func validateSchemaValue(schema any, value any, location string) string {
 			if value == nil {
 				return ""
 			}
-			return fmt.Sprintf("%s must be an array.", strings.Title(location))
+			return fmt.Sprintf("%s must be an array.", capitalize(location))
 		}
 		itemSchema, _ := node["items"]
 		for index, item := range items {
@@ -135,28 +146,28 @@ func validateSchemaValue(schema any, value any, location string) string {
 			return ""
 		}
 		if _, ok := value.(string); !ok {
-			return fmt.Sprintf("%s must be a string.", strings.Title(location))
+			return fmt.Sprintf("%s must be a string.", capitalize(location))
 		}
 	case "integer":
 		if value == nil {
 			return ""
 		}
 		if !isIntegerValue(value) {
-			return fmt.Sprintf("%s must be an integer.", strings.Title(location))
+			return fmt.Sprintf("%s must be an integer.", capitalize(location))
 		}
 	case "number":
 		if value == nil {
 			return ""
 		}
 		if !isNumericValue(value) {
-			return fmt.Sprintf("%s must be a number.", strings.Title(location))
+			return fmt.Sprintf("%s must be a number.", capitalize(location))
 		}
 	case "boolean":
 		if value == nil {
 			return ""
 		}
 		if _, ok := value.(bool); !ok {
-			return fmt.Sprintf("%s must be a boolean.", strings.Title(location))
+			return fmt.Sprintf("%s must be a boolean.", capitalize(location))
 		}
 	}
 

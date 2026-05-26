@@ -220,11 +220,11 @@ func loadWorkspaceFolders(base string) []FolderEntry {
 		folderRoot := filepath.Join(base, entry.Name())
 		_ = filepath.WalkDir(folderRoot, func(path string, d os.DirEntry, walkErr error) error {
 			if walkErr != nil || d.IsDir() {
-				return nil
+				return nil //nolint:nilerr // returning nil in WalkDir callback skips the entry and continues walking
 			}
 			relative, err := filepath.Rel(folderRoot, path)
 			if err != nil {
-				return nil
+				return nil //nolint:nilerr // skip unresolvable paths and continue walking
 			}
 			files = append(files, filepath.ToSlash(relative))
 			return nil
