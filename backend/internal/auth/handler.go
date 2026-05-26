@@ -399,7 +399,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clearCookie := h.oidc.ClearStateCookie()
-	clearCookie.Secure = h.requestIsSecure(r)
+	clearCookie.Secure = true
 	http.SetCookie(w, clearCookie)
 
 	if description := strings.TrimSpace(r.URL.Query().Get("error_description")); description != "" {
@@ -750,12 +750,23 @@ func (h *Handler) refreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.GetUserByID(r.Context(), claims.UserID)
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Refresh token is invalid or has expired.")
+		return
+	}
+	workspaceID, err := uuid.Parse(claims.WorkspaceID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Refresh token is invalid or has expired.")
+		return
+	}
+
+	user, err := h.store.GetUserByID(r.Context(), userID.String())
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "Account not found.")
 		return
 	}
-	workspace, err := h.store.GetWorkspaceByID(r.Context(), claims.WorkspaceID)
+	workspace, err := h.store.GetWorkspaceByID(r.Context(), workspaceID.String())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Could not load your workspace.")
 		return
