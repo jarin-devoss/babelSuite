@@ -1,54 +1,69 @@
 package runner
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
-func TestWorkspaceVolumeNameFormat(t *testing.T) {
+func TestExecutionWorkspaceDirFormat(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		executionID string
-		want        string
+		wantSuffix  string
 	}{
-		{"abc123", "babel-ws-abc123"},
-		{"ABC-123", "babel-ws-abc-123"},
-		{"exec_id_with_underscores", "babel-ws-exec-id-with-underscores"},
-		{"UPPER", "babel-ws-upper"},
-		{"a!b@c#d", "babel-ws-a-b-c-d"},
+		{"abc123", "babel-workspace/abc123"},
+		{"ABC-123", "babel-workspace/abc-123"},
+		{"UPPER", "babel-workspace/upper"},
+		{"a!b@c#d", "babel-workspace/a-b-c-d"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.executionID, func(t *testing.T) {
 			t.Parallel()
-			got := workspaceVolumeName(tc.executionID)
-			if got != tc.want {
-				t.Fatalf("workspaceVolumeName(%q) = %q, want %q", tc.executionID, got, tc.want)
+			got := ExecutionWorkspaceDir(tc.executionID)
+			if !strings.HasSuffix(filepath.ToSlash(got), tc.wantSuffix) {
+				t.Fatalf("ExecutionWorkspaceDir(%q) = %q, want suffix %q", tc.executionID, got, tc.wantSuffix)
 			}
 		})
 	}
 }
 
-func TestWorkspaceVolumeNameTruncation(t *testing.T) {
+func TestExecutionWorkspaceDirUnderTempDir(t *testing.T) {
 	t.Parallel()
-	long := "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
-	got := workspaceVolumeName(long)
-	sanitized := sanitizeID(long)
-	want := "babel-ws-" + sanitized
-	if got != want {
-		t.Fatalf("workspaceVolumeName(long) = %q, want %q", got, want)
+	got := ExecutionWorkspaceDir("some-exec")
+	if !strings.HasPrefix(got, os.TempDir()) {
+		t.Fatalf("expected workspace dir under TempDir, got %q", got)
 	}
 }
 
-func TestWorkspaceVolumeNameDistinctPerExecution(t *testing.T) {
+func TestExecutionWorkspaceDirDistinctPerExecution(t *testing.T) {
 	t.Parallel()
-	a := workspaceVolumeName("exec-aaa")
-	b := workspaceVolumeName("exec-bbb")
+	a := ExecutionWorkspaceDir("exec-aaa")
+	b := ExecutionWorkspaceDir("exec-bbb")
 	if a == b {
-		t.Fatalf("expected distinct volume names for different executions, both got %q", a)
+		t.Fatalf("expected distinct dirs for different executions, both got %q", a)
 	}
 }
 
-func TestWorkspaceVolumeNameStableForSameExecution(t *testing.T) {
+func TestExecutionWorkspaceDirStableForSameExecution(t *testing.T) {
 	t.Parallel()
 	id := "execution-xyz-999"
-	if workspaceVolumeName(id) != workspaceVolumeName(id) {
-		t.Fatal("expected same volume name for same execution ID")
+	first := ExecutionWorkspaceDir(id)
+	second := ExecutionWorkspaceDir(id)
+	if first != second {
+		t.Fatalf("ExecutionWorkspaceDir(%q) returned different values: %q and %q", id, first, second)
+	}
+}
+
+func TestExecutionWorkspaceDirCreatable(t *testing.T) {
+	t.Parallel()
+	dir := ExecutionWorkspaceDir("test-create-exec")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("expected dir to exist after MkdirAll: %v", err)
 	}
 }
