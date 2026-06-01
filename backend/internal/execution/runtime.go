@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -174,7 +173,6 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 	}
 
 	executionID := "run-" + uuid.NewString()[:8]
-	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700)
 	startedAt := time.Now().UTC()
 	state := &executionState{
 		record: ExecutionRecord{

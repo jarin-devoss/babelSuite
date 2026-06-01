@@ -14,12 +14,14 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/babelsuite/babelsuite/internal/logstream"
 )
 
 const (
+	containerArtifactsMount = "/babelsuite-artifacts"
 	containerWorkspaceMount = "/babelsuite/workspace"
 	maxArtifactBytes        = 10 * 1024 * 1024  // 10 MB per artifact file
 	containerMemoryLimit    = 512 * 1024 * 1024 // 512 MB per step container
@@ -96,12 +98,24 @@ func pingDocker(ctx context.Context) bool {
 	return true
 }
 
-// ExecutionWorkspaceDir returns the host path of the shared workspace
-// directory for a given execution. Every container in the execution mounts
-// this directory at containerWorkspaceMount so steps can exchange files
-// without artifact export configuration.
-func ExecutionWorkspaceDir(executionID string) string {
-	return filepath.Join(os.TempDir(), "babel-workspace", sanitizeID(executionID))
+func workspaceVolumeName(executionID string) string {
+	return "babel-ws-" + sanitizeID(executionID)
+}
+
+func ensureWorkspaceVolume(ctx context.Context, cli *client.Client, executionID string) (string, error) {
+	name := workspaceVolumeName(executionID)
+	_, err := cli.VolumeCreate(ctx, volume.CreateOptions{
+		Name:   name,
+		Driver: "local",
+		Labels: map[string]string{
+			"babelsuite.managed":   "true",
+			"babelsuite.execution": executionID,
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("workspace volume create failed: %w", err)
+	}
+	return name, nil
 }
 
 func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
@@ -118,9 +132,15 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		return fmt.Errorf("no image configured for step %q", step.Node.Name)
 	}
 
-	workspaceDir := ExecutionWorkspaceDir(step.ExecutionID)
-	if err := os.MkdirAll(workspaceDir, 0700); err != nil {
-		return fmt.Errorf("workspace dir create failed: %w", err)
+	// Prepare host-side artifact directory before container creation so the
+	// bind mount is ready when the container starts.
+	hostArtifactDir := ""
+	if step.OnArtifact != nil && len(step.ArtifactExports) > 0 {
+		dir := filepath.Join(os.TempDir(), "babel-artifacts", sanitizeID(step.ExecutionID), sanitizeID(step.Node.ID))
+		if err := os.MkdirAll(dir, 0700); err == nil {
+			hostArtifactDir = dir
+			defer os.RemoveAll(hostArtifactDir)
+		}
 	}
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Pulling image %s.", step.Node.Name, img)))
@@ -134,11 +154,23 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 	pullOut.Close()
 
-	env := make([]string, 0, len(step.Env)+1)
+	workspaceVolume := ""
+	if step.ExecutionID != "" {
+		if name, err := ensureWorkspaceVolume(ctx, cli, step.ExecutionID); err == nil {
+			workspaceVolume = name
+		}
+	}
+
+	env := make([]string, 0, len(step.Env)+2)
 	for k, v := range step.Env {
 		env = append(env, k+"="+v)
 	}
-	env = append(env, "BABELSUITE_WORKSPACE_DIR="+containerWorkspaceMount)
+	if hostArtifactDir != "" {
+		env = append(env, "BABELSUITE_ARTIFACTS_DIR="+containerArtifactsMount)
+	}
+	if workspaceVolume != "" {
+		env = append(env, "BABELSUITE_WORKSPACE_DIR="+containerWorkspaceMount)
+	}
 
 	containerName := fmt.Sprintf("babel-%s-%s", sanitizeID(step.ExecutionID), sanitizeID(step.Node.ID))
 	cfg := &container.Config{
@@ -159,7 +191,16 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 			Memory:    containerMemoryLimit,
 			PidsLimit: &pidsLimit,
 		},
-		Binds: []string{workspaceDir + ":" + containerWorkspaceMount + ":rw"},
+	}
+	binds := make([]string, 0, 2)
+	if hostArtifactDir != "" {
+		binds = append(binds, hostArtifactDir+":"+containerArtifactsMount+":rw")
+	}
+	if workspaceVolume != "" {
+		binds = append(binds, workspaceVolume+":"+containerWorkspaceMount+":rw")
+	}
+	if len(binds) > 0 {
+		hostCfg.Binds = binds
 	}
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Creating container %s.", step.Node.Name, containerName)))
@@ -224,7 +265,7 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		}
 	}
 
-	if step.OnArtifact != nil && len(step.ArtifactExports) > 0 {
+	if hostArtifactDir != "" {
 		exitStatus := "success"
 		if containerRunErr != nil {
 			exitStatus = "failure"
@@ -233,7 +274,7 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 			if !artifactTriggerMatchesStatus(export.On, exitStatus) {
 				continue
 			}
-			content, err := readArtifactFromMount(workspaceDir, export.Path)
+			content, err := readArtifactFromMount(hostArtifactDir, export.Path)
 			if err == nil && len(content) > 0 {
 				step.OnArtifact(export.Path, content)
 			}
