@@ -2,9 +2,11 @@ package execution
 
 import (
 	"context"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/babelsuite/babelsuite/internal/runner"
 	"github.com/babelsuite/babelsuite/internal/suites"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -222,6 +224,7 @@ func (s *Service) finishStepObservation(ctx context.Context, span trace.Span, st
 
 func (s *Service) finishExecutionObservation(executionID string, err error) {
 	defer s.queue.PruneGroup(executionID)
+	defer os.RemoveAll(runner.ExecutionWorkspaceDir(executionID))
 
 	if s.signals == nil {
 		return
