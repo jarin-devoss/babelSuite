@@ -74,6 +74,19 @@ Each topology node becomes a step spec that carries:
 - step index and total step count
 - full node definition
 
+## Execution Workspace
+
+Every execution gets a shared Docker volume that is mounted into every container in that run at a fixed path. The volume is created before the first step starts and removed when the execution environment is reaped.
+
+Inside each container two paths are available:
+
+| Path | Purpose |
+|------|---------|
+| `$BABELSUITE_WORKSPACE_DIR` | Shared volume — readable and writable by every step in the same execution |
+| `$BABELSUITE_ARTIFACTS_DIR` | Per-step mount — files written here are harvested and stored by BabelSuite after the step exits |
+
+The workspace volume is isolated per execution. Two concurrent runs never share a volume. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.
+
 ## Live Streams
 
 Executions expose two SSE endpoints:

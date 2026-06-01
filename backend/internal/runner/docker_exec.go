@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/babelsuite/babelsuite/internal/logstream"
@@ -21,6 +22,7 @@ import (
 
 const (
 	containerArtifactsMount = "/babelsuite-artifacts"
+	containerWorkspaceMount = "/babelsuite/workspace"
 	maxArtifactBytes        = 10 * 1024 * 1024  // 10 MB per artifact file
 	containerMemoryLimit    = 512 * 1024 * 1024 // 512 MB per step container
 	containerPidsLimit      = int64(256)
@@ -96,6 +98,26 @@ func pingDocker(ctx context.Context) bool {
 	return true
 }
 
+func workspaceVolumeName(executionID string) string {
+	return "babel-ws-" + sanitizeID(executionID)
+}
+
+func ensureWorkspaceVolume(ctx context.Context, cli *client.Client, executionID string) (string, error) {
+	name := workspaceVolumeName(executionID)
+	_, err := cli.VolumeCreate(ctx, volume.CreateOptions{
+		Name:   name,
+		Driver: "local",
+		Labels: map[string]string{
+			"babelsuite.managed":   "true",
+			"babelsuite.execution": executionID,
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("workspace volume create failed: %w", err)
+	}
+	return name, nil
+}
+
 func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -132,12 +154,22 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 	pullOut.Close()
 
-	env := make([]string, 0, len(step.Env)+1)
+	workspaceVolume := ""
+	if step.ExecutionID != "" {
+		if name, err := ensureWorkspaceVolume(ctx, cli, step.ExecutionID); err == nil {
+			workspaceVolume = name
+		}
+	}
+
+	env := make([]string, 0, len(step.Env)+2)
 	for k, v := range step.Env {
 		env = append(env, k+"="+v)
 	}
 	if hostArtifactDir != "" {
 		env = append(env, "BABELSUITE_ARTIFACTS_DIR="+containerArtifactsMount)
+	}
+	if workspaceVolume != "" {
+		env = append(env, "BABELSUITE_WORKSPACE_DIR="+containerWorkspaceMount)
 	}
 
 	containerName := fmt.Sprintf("babel-%s-%s", sanitizeID(step.ExecutionID), sanitizeID(step.Node.ID))
@@ -160,8 +192,15 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 			PidsLimit: &pidsLimit,
 		},
 	}
+	binds := make([]string, 0, 2)
 	if hostArtifactDir != "" {
-		hostCfg.Binds = []string{hostArtifactDir + ":" + containerArtifactsMount + ":rw"}
+		binds = append(binds, hostArtifactDir+":"+containerArtifactsMount+":rw")
+	}
+	if workspaceVolume != "" {
+		binds = append(binds, workspaceVolume+":"+containerWorkspaceMount+":rw")
+	}
+	if len(binds) > 0 {
+		hostCfg.Binds = binds
 	}
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Creating container %s.", step.Node.Name, containerName)))
