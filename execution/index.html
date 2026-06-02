@@ -904,6 +904,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#execution-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Workspace
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#live-streams" class="md-nav__link">
     <span class="md-ellipsis">
       Live Streams
@@ -1289,6 +1298,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#execution-workspace" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Workspace
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#live-streams" class="md-nav__link">
     <span class="md-ellipsis">
       Live Streams
@@ -1437,6 +1455,28 @@
 <li>step index and total step count</li>
 <li>full node definition</li>
 </ul>
+<h2 id="execution-workspace">Execution Workspace<a class="headerlink" href="#execution-workspace" title="Permanent link">&para;</a></h2>
+<p>Every execution gets a shared Docker volume that is mounted into every container in that run at a fixed path. The volume is created before the first step starts and removed when the execution environment is reaped.</p>
+<p>Inside each container two paths are available:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$BABELSUITE_WORKSPACE_DIR</code></td>
+<td>Shared volume — readable and writable by every step in the same execution</td>
+</tr>
+<tr>
+<td><code>$BABELSUITE_ARTIFACTS_DIR</code></td>
+<td>Per-step mount — files written here are harvested and stored by BabelSuite after the step exits</td>
+</tr>
+</tbody>
+</table>
+<p>The workspace volume is isolated per execution. Two concurrent runs never share a volume. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.</p>
 <h2 id="live-streams">Live Streams<a class="headerlink" href="#live-streams" title="Permanent link">&para;</a></h2>
 <p>Executions expose two SSE endpoints:</p>
 <table>
