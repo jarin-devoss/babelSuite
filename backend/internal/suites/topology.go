@@ -44,6 +44,7 @@ type rawTopologyNode struct {
 	FloodRate         float64
 	FloodDuration     float64
 	FloodThrottle     bool
+	Message           string
 	DependsOn         []string
 	ResetMocks        []string
 	OnFailure         []string
@@ -226,6 +227,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			Name:              raw.Name,
 			Kind:              raw.Kind,
 			Variant:           raw.Variant,
+			Message:           raw.Message,
 			DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
 			ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),
 			OnFailure:         expandImportedDependencies(raw.OnFailure, imports),
@@ -755,6 +757,8 @@ func topologyKind(call string) (string, bool) {
 	case "security.probe", "security.fuzz", "security.auth", "security.flood",
 		"security.headers", "security.verbs", "security.graphql", "security.cors":
 		return "security", true
+	case "log.info", "log.warn", "log.error", "log.debug":
+		return "log", true
 	default:
 		return "", false
 	}

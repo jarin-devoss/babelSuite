@@ -481,3 +481,78 @@ func mustWriteFile(t *testing.T, path string, content string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+func TestResolveTopologyParsesLogNodes(t *testing.T) {
+	t.Parallel()
+
+	suite := Definition{
+		ID:    "log-suite",
+		Title: "Log Suite",
+		SuiteStar: strings.Join([]string{
+			`db     = service.run()`,
+			`notice = log.info("database ready", after=[db])`,
+			`smoker = test.run(file="smoke.py", image="python:3.12", after=[notice])`,
+		}, "\n"),
+	}
+
+	topology, err := ResolveTopology(suite, []Definition{suite})
+	if err != nil {
+		t.Fatalf("resolve topology: %v", err)
+	}
+	if len(topology) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(topology))
+	}
+
+	notice := topology[1]
+	if notice.Kind != "log" {
+		t.Fatalf("expected kind=log, got %q", notice.Kind)
+	}
+	if notice.Variant != "log.info" {
+		t.Fatalf("expected variant=log.info, got %q", notice.Variant)
+	}
+	if notice.Message != "database ready" {
+		t.Fatalf("expected message=%q, got %q", "database ready", notice.Message)
+	}
+}
+
+func TestResolveTopologyParsesLogNodeVariants(t *testing.T) {
+	t.Parallel()
+
+	suite := Definition{
+		ID:    "log-variants-suite",
+		Title: "Log Variants Suite",
+		SuiteStar: strings.Join([]string{
+			`a = log.info("info message")`,
+			`b = log.warn("warn message", after=[a])`,
+			`c = log.error("error message", after=[b])`,
+			`d = log.debug("debug message", after=[c])`,
+		}, "\n"),
+	}
+
+	topology, err := ResolveTopology(suite, []Definition{suite})
+	if err != nil {
+		t.Fatalf("resolve topology: %v", err)
+	}
+	if len(topology) != 4 {
+		t.Fatalf("expected 4 nodes, got %d", len(topology))
+	}
+
+	cases := []struct{ variant, message string }{
+		{"log.info", "info message"},
+		{"log.warn", "warn message"},
+		{"log.error", "error message"},
+		{"log.debug", "debug message"},
+	}
+	for i, tc := range cases {
+		node := topology[i]
+		if node.Kind != "log" {
+			t.Fatalf("node %d: expected kind=log, got %q", i, node.Kind)
+		}
+		if node.Variant != tc.variant {
+			t.Fatalf("node %d: expected variant=%q, got %q", i, tc.variant, node.Variant)
+		}
+		if node.Message != tc.message {
+			t.Fatalf("node %d: expected message=%q, got %q", i, tc.message, node.Message)
+		}
+	}
+}

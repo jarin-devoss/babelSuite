@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "test", "suite", "task")
+load("@babelsuite/runtime", "test", "suite", "task", "log")
 load("@babelsuite/postgres", "pg", "connect")
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -120,6 +120,10 @@ if len(unknown_suites) > 0 and STRICT_MODE:
     )
 
 # ── composite health summary ──────────────────────────────────────────────────
+log.info(
+    str(len(SUITES_TO_CHECK)) + " suites checked across " + str(len(REGIONS)) + " regions — running summary",
+    after=readiness_nodes,
+)
 test.run(
     name="composite-health-summary",
     file="composite_summary.py",

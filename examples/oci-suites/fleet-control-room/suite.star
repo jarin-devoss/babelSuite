@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 load("@babelsuite/redis",   "redis")
 
@@ -80,8 +80,12 @@ for region in REGIONS:
         )
 
 # ── control room — aggregates all regions ─────────────────────────────────────
-control_room = service.run(
+fleet_ready = log.info(
+    str(len(REGIONS)) + " regions online — dispatchers and planners healthy",
     after=planners,
+)
+control_room = service.run(
+    after=[fleet_ready],
     env={"REGIONS": ",".join(REGIONS), "VEHICLE_CLASSES": ",".join(VEHICLE_CLASSES)},
 )
 

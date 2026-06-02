@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "suite")
+load("@babelsuite/runtime", "service", "task", "test", "suite", "log")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
@@ -97,8 +97,12 @@ else:
     api_extra = []
 
 # ── notification API ──────────────────────────────────────────────────────────
+channels_ready = log.info(
+    str(len(CHANNELS)) + " channel mocks up — starting notification API",
+    after=all_mocks + [seed_templates],
+)
 notification_api = service.run(
-    after=[conn, cache] + all_mocks + api_extra + [seed_templates] + upstream_suites,
+    after=[conn, cache, channels_ready] + api_extra + upstream_suites,
     env={
         "ENABLED_CHANNELS":  ",".join(CHANNELS),
         "ENABLED_LOCALES":   ",".join(LOCALES),

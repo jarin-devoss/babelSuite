@@ -119,6 +119,7 @@ smoke    = test.run(file="go/smoke_test.go", image="golang:1.24", after=[baselin
 | `test` | `test.run` |
 | `traffic` | `traffic.smoke`, `traffic.baseline`, `traffic.stress`, `traffic.spike`, `traffic.soak`, `traffic.scalability`, `traffic.step`, `traffic.wave`, `traffic.staged`, `traffic.constant_throughput`, `traffic.constant_pacing`, `traffic.open_model` |
 | `security` | `security.probe`, `security.fuzz`, `security.auth`, `security.flood`, `security.headers`, `security.verbs`, `security.graphql`, `security.cors` |
+| `log` | `log.info`, `log.warn`, `log.error`, `log.debug` |
 | `suite` | `suite.run` |
 
 The only retained legacy bridge is `mock.serve`, which still maps to `service.mock` while older suites are being migrated.

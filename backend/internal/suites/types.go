@@ -26,6 +26,7 @@ const (
 	NodeKindTest     = "test"
 	NodeKindSuite    = "suite"
 	NodeKindSecurity = "security"
+	NodeKindLog      = "log"
 
 	VariantServiceMock     = "service.mock"
 	VariantServicePrism    = "service.prism"
@@ -73,6 +74,7 @@ type TopologyNode struct {
 	Variant           string            `json:"variant,omitempty"`
 	Load              *LoadSpec         `json:"traffic,omitempty"`
 	Security          *SecuritySpec     `json:"security,omitempty"`
+	Message           string            `json:"message,omitempty"`
 	DependsOn         []string          `json:"dependsOn"`
 	ResetMocks        []string          `json:"resetMocks,omitempty"`
 	OnFailure         []string          `json:"onFailure,omitempty"`

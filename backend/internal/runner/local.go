@@ -67,6 +67,21 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Registered %d artifact export rules for this step.", step.Node.Name, len(step.ArtifactExports))))
 	}
 
+	if step.Node.Kind == "log" {
+		msg := strings.TrimSpace(step.Node.Message)
+		if msg == "" {
+			msg = step.Node.Name
+		}
+		level := logLevelFromVariant(step.Node.Variant)
+		emitLine(logstream.Line{
+			Source: step.Node.ID,
+			Level:  level,
+			Kind:   "user",
+			Text:   msg,
+		})
+		return nil
+	}
+
 	if step.Node.Kind == "traffic" && step.Load != nil {
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Resolving %s assets from traffic/ before the run begins.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Applying the %s profile budgets for users, pacing, and latency thresholds.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
@@ -201,6 +216,19 @@ func probeMessage(step StepSpec) string {
 		return fmt.Sprintf("[%s] Test checks completed without violating suite assertions.", step.Node.Name)
 	default:
 		return fmt.Sprintf("[%s] Health probe passed and downstream dependencies may proceed.", step.Node.Name)
+	}
+}
+
+func logLevelFromVariant(variant string) string {
+	switch variant {
+	case "log.warn":
+		return "warn"
+	case "log.error":
+		return "error"
+	case "log.debug":
+		return "debug"
+	default:
+		return "info"
 	}
 }
 

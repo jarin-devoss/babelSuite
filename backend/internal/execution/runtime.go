@@ -365,6 +365,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 			Name:      node.Name,
 			Kind:      node.Kind,
 			Variant:   node.Variant,
+			Message:   node.Message,
 			DependsOn: append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {
