@@ -56,6 +56,11 @@ func renderScriptSource(suite suites.Definition, path string) string {
 			"",
 			fmt.Sprintf("echo \"bootstrapping %s for %s\"", base, suite.Title),
 			fmt.Sprintf("echo \"resolved modules: %s\"", strings.Join(suite.Modules, ", ")),
+			"",
+			"# Write outputs downstream steps can read via $BABELSUITE_WORKSPACE_DIR.",
+			`if [[ -n "${BABELSUITE_WORKSPACE_DIR:-}" ]]; then`,
+			fmt.Sprintf("  echo '{\"suite\":\"%s\",\"status\":\"ready\"}' > \"${BABELSUITE_WORKSPACE_DIR}/%s.json\"", suite.ID, strings.TrimSuffix(base, filepath.Ext(base))),
+			"fi",
 		}, "\n") + "\n"
 	case "python":
 		return strings.Join([]string{

@@ -220,6 +220,33 @@ Avoid generic names such as `step1`, `thing`, `main`, or `node`.
 | `profiles/*.yaml` | Launch profile list |
 | `load("...")` in `suite.star` | Contracts / module references |
 
+## Sharing Data Between Steps
+
+Every step container in an execution has two injected paths:
+
+| Variable | Scope | Use for |
+|----------|-------|---------|
+| `BABELSUITE_WORKSPACE_DIR` | Shared across all steps in the same execution | Passing files from one step to the next |
+| `BABELSUITE_ARTIFACTS_DIR` | Per step only — harvested after the step exits | Exporting reports, coverage, and logs to the UI |
+
+Writing to `$BABELSUITE_WORKSPACE_DIR` in a `task.run` step makes those files available to any downstream step in the same execution without any `.export()` configuration:
+
+```python
+seed = task.run(
+    file  = "seed.sh",         # writes $BABELSUITE_WORKSPACE_DIR/seed.json
+    image = "bash:5.2",
+    after = [db],
+)
+
+verify = test.run(
+    file  = "verify.py",       # reads $BABELSUITE_WORKSPACE_DIR/seed.json
+    image = "python:3.12",
+    after = [seed],
+)
+```
+
+Use `BABELSUITE_ARTIFACTS_DIR` with `.export()` when you want BabelSuite to store and display the file in the execution UI (JUnit reports, coverage, crash dumps). Use `BABELSUITE_WORKSPACE_DIR` when you only need the next step to consume it.
+
 ## Authoring Tips
 
 - keep `suite.star` focused on orchestration instead of large inline data blobs
@@ -229,3 +256,4 @@ Avoid generic names such as `step1`, `thing`, `main`, or `node`.
 - keep large static assets under `resources/`
 - use profiles for launch-time differences instead of duplicating whole suites
 - use `suite.run(ref="...")` for reusing entire subsystems; use modules for smaller building blocks
+- use `BABELSUITE_WORKSPACE_DIR` to pass files between steps; use `BABELSUITE_ARTIFACTS_DIR` with `.export()` to surface files in the UI
