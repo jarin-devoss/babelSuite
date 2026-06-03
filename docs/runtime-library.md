@@ -60,6 +60,19 @@ api = service.run(after=[db])
 
 Use `service.run` for first-party background dependencies such as databases, APIs, caches, and workers.
 
+When `image=` is provided, `service.run` starts a real Docker container and runs it **detached** — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends.
+
+```python
+cache = service.run(image="redis:7-alpine", after=[db])
+worker = service.run(
+    image="myapp:latest",
+    commands=["./worker --queue jobs"],
+    after=[cache],
+)
+```
+
+`commands=` is available as an inline alternative to a separate `file=` script — the commands are encoded into a `BABELSUITE_SCRIPT` environment variable and executed inside the container via `/bin/sh -e`. See the [CI_SCRIPT injection](#ci_script-injection) section below.
+
 `service(...)` is intentionally rejected. Use one of the explicit `service.*` forms.
 
 ### `service.mock`
@@ -90,12 +103,24 @@ Short-lived jobs: setup, seeding, migrations, and one-off operations.
 
 ```python
 migrate = task.run(file="migrate.py", image="python:3.12", after=[db])
-seed    = task.run(file="seed.sh", image="bash:5.2", after=[migrate])
+seed    = task.run(file="seed.sh",    image="bash:5.2",    after=[migrate])
+```
+
+Use `file=` to reference a script bundled in the suite artifact, or `commands=` for inline shell commands:
+
+```python
+build = task.run(
+    image="node:22-alpine",
+    commands=["npm ci", "npm run build"],
+    after=[db],
+)
 ```
 
 `task(...)` is intentionally rejected. Use `task.run(...)`.
 
 `task.run` resolves `file=` relative to `tasks/`, so `file="seed.sh"` means `./tasks/seed.sh`.
+
+Both `file=` and `commands=` execute via the [CI_SCRIPT injection](#ci_script-injection) mechanism — see that section for interpreter inference and environment details.
 
 ### `test`
 
@@ -109,9 +134,21 @@ Verification, smoke checks, browser assertions, and pass/fail validation.
 smoke = test.run(file="go/smoke_test.go", image="golang:1.24", after=[api])
 ```
 
+Use `file=` to reference a test script from the suite artifact, or `commands=` for inline assertions:
+
+```python
+ping = test.run(
+    image="curlimages/curl:8",
+    commands=["curl -sf http://api:8080/health"],
+    after=[api],
+)
+```
+
 `test(...)` is intentionally rejected. Use `test.run(...)`.
 
 `test.run` resolves `file=` relative to `tests/`, so `file="go/smoke_test.go"` means `./tests/go/smoke_test.go`.
+
+Both `file=` and `commands=` execute via the [CI_SCRIPT injection](#ci_script-injection) mechanism — see that section for interpreter inference and environment details.
 
 ### `traffic`
 
@@ -328,6 +365,10 @@ infra_ready = log.info(
 )
 ```
 
+#### Live terminal rendering
+
+`log.*` nodes render inline in the live execution terminal as the graph runs — no container pull, no queue wait. Template placeholders are resolved at the moment the node executes, so `{{ healthy }}` and `{{ total }}` reflect real-time graph state.
+
 `log(...)` bare is rejected. Use one of the explicit `log.*` forms.
 
 ### `suite`
@@ -356,7 +397,9 @@ The parser extracts these topology fields from recognized statements:
 | `name="..."` or `id="..."` or `name_or_id="..."` | optional identity override |
 | `after=[db, api]` | dependency edges |
 | `on_failure=[smoke]` | failure-trigger ordering edge |
-| `file="..."` | task/test asset path |
+| `image="..."` | container image for `task.run`, `test.run`, and `service.run` |
+| `file="..."` | task/test asset path (alternative to `commands=`) |
+| `commands=["...", "..."]` | inline shell commands (alternative to `file=`) |
 | `plan="..."` | traffic plan file (optional — omit to use the native synthetic baseline) |
 | `target="..."` | native traffic target |
 | `rps=<float>` or `arrival_rate=<float>` | request rate override for `traffic.*` nodes |
@@ -441,9 +484,54 @@ Current behavior:
 - `reset_mocks=[billing_mock]` clears persisted mock state before a `test.run(...)` step starts
 - once a hard failure happens, unrelated branches are skipped while activated failure-path branches continue
 
-Current limit:
+Current behavior:
 
-- the local and orchestrated runners still use BabelSuite's current simulated task/test execution path, so log assertions match the step log stream rather than a full streamed process stdout/stderr capture
+- exit-code and log assertions apply to any step that runs in a container (`file=` or `commands=` steps)
+- `log.*` node output is included in the step log stream for `expect_logs` / `fail_on_logs` matching
+
+## CI_SCRIPT Injection
+
+`task.run`, `test.run`, and `service.run` steps that specify `file=` or `commands=` execute inside a Docker container via an injected script.
+
+### How it works
+
+1. **Script assembly** — the runner builds a POSIX shell script from `commands=` entries, or writes the `file=` content to the shared execution workspace and prepends the appropriate interpreter call.
+2. **Encoding** — the script is base64-encoded and injected as `BABELSUITE_SCRIPT` into the container environment.
+3. **Execution** — the container entrypoint is overridden to:
+   ```
+   /bin/sh -c "echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e"
+   ```
+4. **Exit code** — the shell exits with the script's exit code, which the runner records as the step result.
+
+### Interpreter inference for `file=`
+
+The interpreter is inferred from the file extension when `file=` is used:
+
+| Extension | Interpreter |
+|-----------|-------------|
+| `.sh`, `.bash` | `/bin/sh` |
+| `.py` | `python` |
+| `.js` | `node` |
+| `.rb` | `ruby` |
+| `.ts` | `ts-node` |
+| other | `/bin/sh` (treated as shell script) |
+
+### Environment variables available inside the container
+
+| Variable | Value |
+|----------|-------|
+| `BABELSUITE_SCRIPT` | base64-encoded script (consumed automatically by the entrypoint) |
+| `BABELSUITE_WORKSPACE` | path to the shared execution workspace bind-mounted into the container |
+| `BABELSUITE_ARTIFACTS_DIR` | path to the artifacts directory; files written here are harvested after exit |
+
+### Detached services
+
+`service.run(image="...")` runs the container detached:
+
+- The container is started and the runner waits up to 500 ms for an immediate crash.
+- If the container is still running, the node is marked **healthy** and downstream nodes proceed.
+- Stdout/stderr are streamed to the execution log for the lifetime of the execution.
+- The container is stopped and removed when the execution context is cancelled (execution end or failure).
 
 ## Authoring Rules
 
@@ -453,8 +541,9 @@ Current limit:
 - use `after=[db, api]` to declare ordering; omitting it means the node has no dependencies
 - use `on_failure=[primary]` for rollback or contingency branches
 - quoted `after=["db"]` still parses, but identifier references are the preferred style
-- `task.run(file="...")` resolves from `tasks/`
-- `test.run(file="...")` resolves from `tests/`
+- `task.run(file="...")` resolves from `tasks/`; `task.run(commands=[...])` is the inline alternative — both require `image=`
+- `test.run(file="...")` resolves from `tests/`; `test.run(commands=[...])` is the inline alternative — both require `image=`
+- `service.run(image="...")` starts a detached container; `commands=` is accepted here too
 - `traffic.*(plan="...")` resolves from `traffic/` — only applies when `plan=` is specified
 - `ref=` is required for `suite.run`; the parser errors if it is missing
 - duplicate `after` entries are deduplicated automatically
