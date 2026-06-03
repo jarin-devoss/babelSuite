@@ -11,7 +11,7 @@ import (
 )
 
 func TestServiceExposesSuiteScopedLaunchProfiles(t *testing.T) {
-	service := NewService(suites.NewService(), NewMemoryStore())
+	service := NewService(suites.NewWorkspaceService(), NewMemoryStore())
 
 	paymentSuite, err := service.Get("payment-suite")
 	if err != nil {
@@ -29,7 +29,7 @@ func TestServiceExposesSuiteScopedLaunchProfiles(t *testing.T) {
 }
 
 func TestServiceCreatesProfileAndSetsDefault(t *testing.T) {
-	service := NewService(suites.NewService(), NewMemoryStore())
+	service := NewService(suites.NewWorkspaceService(), NewMemoryStore())
 
 	created, err := service.CreateProfile("payment-suite", UpsertRequest{
 		Name:        "Holiday Freeze",
@@ -60,7 +60,7 @@ func TestServiceCreatesProfileAndSetsDefault(t *testing.T) {
 }
 
 func TestServiceExtractsSecretRefsFromManagedProfileYAML(t *testing.T) {
-	service := NewService(suites.NewService(), NewMemoryStore())
+	service := NewService(suites.NewWorkspaceService(), NewMemoryStore())
 
 	created, err := service.CreateProfile("payment-suite", UpsertRequest{
 		Name:        "Direct YAML",
@@ -91,7 +91,7 @@ env:
 }
 
 func TestServicePreventsDeletingBaseProfile(t *testing.T) {
-	service := NewService(suites.NewService(), NewMemoryStore())
+	service := NewService(suites.NewWorkspaceService(), NewMemoryStore())
 
 	_, err := service.DeleteProfile("payment-suite", "base")
 	if err == nil {
@@ -103,7 +103,7 @@ func TestServiceLoadsWorkspaceProfilesWhenDemoDisabled(t *testing.T) {
 	t.Setenv(demofs.EnableEnvVar, "false")
 	configureProfilesExamplesRoot(t)
 
-	service := NewService(suites.NewService(), NewMemoryStore())
+	service := NewService(suites.NewWorkspaceService(), NewMemoryStore())
 	paymentSuite, err := service.Get("payment-suite")
 	if err != nil {
 		t.Fatalf("get payment suite: %v", err)

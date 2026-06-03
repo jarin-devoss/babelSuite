@@ -189,7 +189,7 @@ services:
 }
 
 func TestRunNodeInjectsPaymentSuiteStagingProfileRuntimeIntoBackend(t *testing.T) {
-	profileService := profiles.NewService(suites.NewService(), profiles.NewMemoryStore())
+	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
 	service := NewService(profileService)
 	defer service.Close()
 
@@ -299,7 +299,7 @@ func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T)
 	}))
 	defer vaultServer.Close()
 
-	profileService := profiles.NewService(suites.NewService(), profiles.NewMemoryStore())
+	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
 	service := NewServiceWithPlatform(profileService, stubPlatformSource{
 		settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{
@@ -399,7 +399,7 @@ func TestResolveExecutionRuntimeOverlaySkipsWorkspaceVaultRefsWhenPlatformDefaul
 	t.Setenv(demofs.EnableEnvVar, "false")
 	configureExecutionExamplesRoot(t)
 
-	profileService := profiles.NewService(suites.NewService(), profiles.NewMemoryStore())
+	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
 	settings := platform.DefaultSettings()
 	settings.Secrets.Provider = "none"
 	service := NewServiceWithPlatform(profileService, stubPlatformSource{settings: &settings})

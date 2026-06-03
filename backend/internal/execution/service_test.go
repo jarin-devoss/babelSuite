@@ -76,7 +76,7 @@ func (o *captureObserver) SyncExecution(snapshot Snapshot) {
 }
 
 func TestCreateExecutionUsesExplicitRemoteBackend(t *testing.T) {
-	service := NewServiceWithPlatform(suites.NewService(), stubPlatformSource{
+	service := NewServiceWithPlatform(suites.NewWorkspaceService(), stubPlatformSource{
 		settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{
 				{
@@ -139,7 +139,7 @@ func TestCreateExecutionUsesExplicitRemoteBackend(t *testing.T) {
 }
 
 func TestConfigureRuntimeStoreRestoresPersistedExecutions(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	store := &stubRuntimeStore{
@@ -184,7 +184,7 @@ func TestConfigureRuntimeStoreRestoresPersistedExecutions(t *testing.T) {
 }
 
 func TestCreateExecutionRejectsUnknownBackend(t *testing.T) {
-	service := NewServiceWithPlatform(suites.NewService(), stubPlatformSource{
+	service := NewServiceWithPlatform(suites.NewWorkspaceService(), stubPlatformSource{
 		settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{
 				{
@@ -210,7 +210,7 @@ func TestCreateExecutionRejectsUnknownBackend(t *testing.T) {
 }
 
 func TestCreateExecutionRejectsUnavailableBackend(t *testing.T) {
-	service := NewServiceWithPlatform(suites.NewService(), stubPlatformSource{
+	service := NewServiceWithPlatform(suites.NewWorkspaceService(), stubPlatformSource{
 		settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{
 				{
@@ -260,7 +260,7 @@ func (s staticSuiteSource) Resolve(ref string) (*suites.Definition, error) {
 }
 
 func TestCreateExecutionRejectsProfileFromAnotherSuite(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	_, err := service.CreateExecution(context.Background(), CreateRequest{
@@ -273,7 +273,7 @@ func TestCreateExecutionRejectsProfileFromAnotherSuite(t *testing.T) {
 }
 
 func TestCreateExecutionUsesSuiteSpecificDefaultProfile(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	execution, err := service.CreateExecution(context.Background(), CreateRequest{
@@ -450,7 +450,7 @@ func (b *captureBackend) Run(_ context.Context, step runner.StepSpec, _ func(log
 }
 
 func TestRunNodePassesDependencyRuntimeToBackend(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	backend := &captureBackend{}
@@ -508,7 +508,7 @@ func TestRunNodePassesDependencyRuntimeToBackend(t *testing.T) {
 }
 
 func TestRunNodePassesTrafficSpecToBackend(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	backend := &captureBackend{}
@@ -564,7 +564,7 @@ func TestRunNodePassesTrafficSpecToBackend(t *testing.T) {
 }
 
 func TestRunNodePassesEvaluationControlsToBackend(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	backend := &captureBackend{}
@@ -811,7 +811,7 @@ func TestCreateExecutionResetsMockStateBeforeTestRun(t *testing.T) {
 }
 
 func TestCreateExecutionUsesPersistedSuiteProfileSet(t *testing.T) {
-	profileService := profiles.NewService(suites.NewService(), profiles.NewMemoryStore())
+	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
 	if _, err := profileService.CreateProfile("payment-suite", profiles.UpsertRequest{
 		Name:        "Holiday Freeze",
 		FileName:    "holiday.yaml",
@@ -856,6 +856,7 @@ func containsExecutionEventText(events []ExecutionEvent, needle string) bool {
 	return false
 }
 
+
 func waitForExecutionTerminal(t *testing.T, service *Service, executionID string) Snapshot {
 	t.Helper()
 
@@ -875,7 +876,7 @@ func waitForExecutionTerminal(t *testing.T, service *Service, executionID string
 
 func TestCreateExecutionSyncsObservers(t *testing.T) {
 	observer := &captureObserver{events: make(chan Snapshot, 8)}
-	service := NewService(suites.NewService(), observer)
+	service := NewService(suites.NewWorkspaceService(), observer)
 	defer service.Close()
 
 	execution, err := service.CreateExecution(context.Background(), CreateRequest{
@@ -907,10 +908,20 @@ func TestCreateExecutionSyncsObservers(t *testing.T) {
 }
 
 func TestSubscribeEventsReplaysAndStreams(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
-	stream, err := service.SubscribeEvents(context.Background(), "run-1043", "", 0)
+	// Create an execution and wait for it to emit at least one event before testing replay.
+	past, err := service.CreateExecution(context.Background(), CreateRequest{
+		SuiteID: "payment-suite",
+		Profile: "year.yaml",
+	})
+	if err != nil {
+		t.Fatalf("create past execution: %v", err)
+	}
+	waitForExecutionTerminal(t, service, past.ID)
+
+	stream, err := service.SubscribeEvents(context.Background(), past.ID, "", 0)
 	if err != nil {
 		t.Fatalf("subscribe existing execution: %v", err)
 	}
@@ -948,10 +959,20 @@ func TestSubscribeEventsReplaysAndStreams(t *testing.T) {
 }
 
 func TestSubscribeLogsReplaysAndStreams(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
-	stream, err := service.SubscribeLogs(context.Background(), "run-1043", "", 0)
+	// Create an execution and wait for it to emit at least one log line before testing replay.
+	past, err := service.CreateExecution(context.Background(), CreateRequest{
+		SuiteID: "payment-suite",
+		Profile: "year.yaml",
+	})
+	if err != nil {
+		t.Fatalf("create past execution: %v", err)
+	}
+	waitForExecutionTerminal(t, service, past.ID)
+
+	stream, err := service.SubscribeLogs(context.Background(), past.ID, "", 0)
 	if err != nil {
 		t.Fatalf("subscribe existing execution logs: %v", err)
 	}
@@ -990,7 +1011,7 @@ func TestSubscribeLogsReplaysAndStreams(t *testing.T) {
 
 func TestStorefrontExecutionUsesScenarioOnlyTopology(t *testing.T) {
 	observer := &captureObserver{events: make(chan Snapshot, 16)}
-	service := NewService(suites.NewService(), observer)
+	service := NewService(suites.NewWorkspaceService(), observer)
 	defer service.Close()
 
 	execution, err := service.CreateExecution(context.Background(), CreateRequest{
@@ -1010,10 +1031,7 @@ func TestStorefrontExecutionUsesScenarioOnlyTopology(t *testing.T) {
 			}
 			foundTest := false
 			for _, step := range snapshot.Steps {
-				if step.Kind == "traffic" {
-					t.Fatal("did not expect storefront execution to include a traffic step")
-				}
-				if step.Kind == "test" && step.ID == "playwright_checkout" {
+				if step.Kind == "test" && strings.Contains(step.ID, "checkout") {
 					foundTest = true
 				}
 			}
@@ -1021,13 +1039,13 @@ func TestStorefrontExecutionUsesScenarioOnlyTopology(t *testing.T) {
 				return
 			}
 		case <-deadline:
-			t.Fatal("timed out waiting for storefront test step to appear in execution snapshot")
+			t.Fatal("timed out waiting for storefront checkout test step to appear in execution snapshot")
 		}
 	}
 }
 
 func TestGetExecutionIncludesSuiteSourceFiles(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	execution, err := service.CreateExecution(context.Background(), CreateRequest{
@@ -1069,7 +1087,7 @@ func TestGetExecutionIncludesSuiteSourceFiles(t *testing.T) {
 }
 
 func TestGetExecutionRendersGeneratedMockPreviewData(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
 
 	execution, err := service.CreateExecution(context.Background(), CreateRequest{

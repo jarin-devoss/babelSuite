@@ -8,7 +8,7 @@ import (
 )
 
 func TestRenderMockSourceUsesDeclarativeGenerationRules(t *testing.T) {
-	service := suites.NewService()
+	service := suites.NewWorkspaceService()
 	suite, err := service.Get("returns-control-plane")
 	if err != nil {
 		t.Fatalf("get suite: %v", err)
@@ -25,7 +25,7 @@ func TestRenderMockSourceUsesDeclarativeGenerationRules(t *testing.T) {
 }
 
 func TestRenderMockSourceUsesDeclarativeResolveRules(t *testing.T) {
-	service := suites.NewService()
+	service := suites.NewWorkspaceService()
 	suite, err := service.Get("returns-control-plane")
 	if err != nil {
 		t.Fatalf("get suite: %v", err)
@@ -42,7 +42,7 @@ func TestRenderMockSourceUsesDeclarativeResolveRules(t *testing.T) {
 }
 
 func TestRenderMockSourceUsesDeclarativeComposeRulesForSOAP(t *testing.T) {
-	service := suites.NewService()
+	service := suites.NewWorkspaceService()
 	suite, err := service.Get("soap-claims-hub")
 	if err != nil {
 		t.Fatalf("get suite: %v", err)

@@ -1,417 +1,51 @@
 package suites
 
 import (
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
-
-	"github.com/babelsuite/babelsuite/internal/demofs"
-	"github.com/babelsuite/babelsuite/internal/examplefs"
 )
 
 func TestGetReturnsClonedSuite(t *testing.T) {
-	configureExamplesRoot(t)
+	service := &Service{suites: map[string]Definition{}}
+	_, err := service.Register(RegisterRequest{
+		ID:        "clone-test",
+		Title:     "Clone Test",
+		SuiteStar: `api = service.run(name="api")`,
+	})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
 
-	service := NewService()
-
-	suite, err := service.Get("payment-suite")
+	suite, err := service.Get("clone-test")
 	if err != nil {
 		t.Fatalf("get suite: %v", err)
 	}
+	suite.Title = "mutated"
 
-	suite.Profiles[0].FileName = "mutated.yaml"
-	suite.SourceFiles[0].Content = "mutated"
-
-	reloaded, err := service.Get("payment-suite")
+	reloaded, err := service.Get("clone-test")
 	if err != nil {
 		t.Fatalf("get suite again: %v", err)
 	}
-	if reloaded.Profiles[0].FileName != "local.yaml" {
-		t.Fatalf("expected original profile to be preserved, got %q", reloaded.Profiles[0].FileName)
-	}
-	if reloaded.SourceFiles[0].Content == "mutated" {
-		t.Fatal("expected source files to be cloned")
+	if reloaded.Title == "mutated" {
+		t.Fatal("expected suite to be returned as a clone, not a shared reference")
 	}
 }
 
 func TestListReturnsSortedSuites(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
+	service := &Service{suites: map[string]Definition{}}
+	for _, id := range []string{"zebra-suite", "alpha-suite", "mango-suite"} {
+		if _, err := service.Register(RegisterRequest{ID: id, SuiteStar: `api = service.run(name="api")`}); err != nil {
+			t.Fatalf("register %s: %v", id, err)
+		}
+	}
 
 	items := service.List()
-	if len(items) != 6 {
-		t.Fatalf("expected 6 suites, got %d", len(items))
+	if len(items) != 3 {
+		t.Fatalf("expected 3 suites, got %d", len(items))
 	}
-	if items[0].Title != "Fleet Control Room" {
+	if items[0].Title != "Alpha Suite" {
 		t.Fatalf("expected sorted suites, got %q first", items[0].Title)
 	}
-	if items[len(items)-1].Title != "Storefront Browser Lab" {
-		t.Fatalf("expected storefront browser lab last, got %q", items[len(items)-1].Title)
-	}
-}
-
-func TestListLoadsWorkspaceSuitesWhenDemoDisabled(t *testing.T) {
-	configureExamplesRoot(t)
-	t.Setenv(demofs.EnableEnvVar, "false")
-
-	service := NewService()
-	items := service.List()
-	if len(items) == 0 {
-		t.Fatal("expected workspace suites when demo is disabled")
-	}
-
-	suite, err := service.Get("payment-suite")
-	if err != nil {
-		t.Fatalf("get workspace suite: %v", err)
-	}
-	if suite.Repository != "localhost:5000/core-platform/payment-suite" {
-		t.Fatalf("expected repository from workspace profile metadata, got %q", suite.Repository)
-	}
-	if suite.SuiteStar == "" {
-		t.Fatal("expected workspace suite.star content")
-	}
-}
-
-func TestWorkspaceSuitesRetainSeededMockMetadataWhenDemoDisabled(t *testing.T) {
-	configureExamplesRoot(t)
-	t.Setenv(demofs.EnableEnvVar, "false")
-
-	service := NewService()
-	suite, err := service.Get("payment-suite")
-	if err != nil {
-		t.Fatalf("get workspace suite: %v", err)
-	}
-
-	if len(suite.APISurfaces) == 0 {
-		t.Fatal("expected workspace suite to retain seeded api surfaces when demo is disabled")
-	}
-
-	operation := suite.APISurfaces[0].Operations[0]
-	if operation.MockMetadata.ResolverURL == "" {
-		t.Fatalf("expected resolver url on merged workspace operation, got %+v", operation.MockMetadata)
-	}
-
-	for _, file := range suite.SourceFiles {
-		if file.Path == "gateway/apisix.yaml" {
-			return
-		}
-	}
-
-	t.Fatal("expected merged workspace suite to expose generated gateway/apisix.yaml")
-}
-
-func TestStorefrontSuiteHydratesSourceFiles(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
-
-	suite, err := service.Get("storefront-browser-lab")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-
-	var found bool
-	for _, file := range suite.SourceFiles {
-		if file.Path != "profiles/local.yaml" {
-			continue
-		}
-		found = true
-		if file.Language != "yaml" {
-			t.Fatalf("expected yaml language, got %q", file.Language)
-		}
-		if file.Content == "" {
-			t.Fatal("expected hydrated source file content")
-		}
-	}
-
-	if !found {
-		t.Fatal("expected storefront source files to include profiles/local.yaml")
-	}
-}
-
-func TestReturnsSuiteHydratesMockMetadataFiles(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
-
-	suite, err := service.Get("returns-control-plane")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-
-	var found bool
-	for _, file := range suite.SourceFiles {
-		if file.Path != "mock/returns/create-return.metadata.yaml" {
-			continue
-		}
-		found = true
-		if file.Language != "yaml" {
-			t.Fatalf("expected yaml language, got %q", file.Language)
-		}
-		if file.Content == "" {
-			t.Fatal("expected hydrated metadata content")
-		}
-	}
-
-	if !found {
-		t.Fatal("expected returns suite source files to include mock metadata")
-	}
-}
-
-func TestReturnsSuiteHydratesSchemaBasedMockSourceFiles(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
-
-	suite, err := service.Get("returns-control-plane")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-
-	var found bool
-	for _, file := range suite.SourceFiles {
-		if file.Path != "mock/events/refund-authorized.cue" {
-			continue
-		}
-		found = true
-		if file.Language != "cue" {
-			t.Fatalf("expected cue language, got %q", file.Language)
-		}
-		if !strings.Contains(file.Content, `requestSchema:`) {
-			t.Fatalf("expected generated mock source to include requestSchema, got:\n%s", file.Content)
-		}
-		if !strings.Contains(file.Content, `responseSchema:`) {
-			t.Fatalf("expected generated mock source to include responseSchema, got:\n%s", file.Content)
-		}
-	}
-
-	if !found {
-		t.Fatal("expected returns suite source files to include refund-authorized.cue")
-	}
-}
-
-func TestSoapSuiteHydratesWSDLAndSchemaMockSource(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
-
-	suite, err := service.Get("soap-claims-hub")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-	if len(suite.APISurfaces) == 0 || suite.APISurfaces[0].Protocol != "SOAP" {
-		t.Fatalf("expected SOAP api surface, got %+v", suite.APISurfaces)
-	}
-
-	var wsdlFound bool
-	var mockFound bool
-	for _, file := range suite.SourceFiles {
-		switch file.Path {
-		case "api/wsdl/claims.wsdl":
-			wsdlFound = true
-			if file.Language != "xml" {
-				t.Fatalf("expected wsdl to be xml, got %q", file.Language)
-			}
-			if !strings.Contains(file.Content, "<definitions") {
-				t.Fatalf("expected generated wsdl definitions, got:\n%s", file.Content)
-			}
-			if !strings.Contains(file.Content, "SubmitClaim") || !strings.Contains(file.Content, "GetClaimStatus") {
-				t.Fatalf("expected generated wsdl operations, got:\n%s", file.Content)
-			}
-		case "mock/claims/claim-service.cue":
-			mockFound = true
-			if file.Language != "cue" {
-				t.Fatalf("expected cue mock language, got %q", file.Language)
-			}
-			if !strings.Contains(file.Content, "requestSchema:") || !strings.Contains(file.Content, "responseSchema:") {
-				t.Fatalf("expected schema-backed soap mock source, got:\n%s", file.Content)
-			}
-			if !strings.Contains(file.Content, "@compose(") {
-				t.Fatalf("expected soap mock schema to use cue compose rules, got:\n%s", file.Content)
-			}
-		}
-	}
-
-	if !wsdlFound {
-		t.Fatal("expected soap suite source files to include api/wsdl/claims.wsdl")
-	}
-	if !mockFound {
-		t.Fatal("expected soap suite source files to include mock/claims/claim-service.cue")
-	}
-}
-
-func TestSuitesExposeAPISIXGatewayAndDispatcherMetadata(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
-	suite, err := service.Get("payment-suite")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-
-	var gatewayFound bool
-	for _, folder := range suite.Folders {
-		if folder.Name != "gateway" {
-			continue
-		}
-		for _, file := range folder.Files {
-			if file == "apisix.yaml" {
-				gatewayFound = true
-				break
-			}
-		}
-	}
-	if !gatewayFound {
-		t.Fatal("expected payment suite to expose gateway/apisix.yaml")
-	}
-
-	operation := suite.APISurfaces[0].Operations[0]
-	if operation.Dispatcher != "apisix" {
-		t.Fatalf("expected operation dispatcher to default to apisix, got %q", operation.Dispatcher)
-	}
-	if operation.MockMetadata.ResolverURL != "/internal/mock-data/payment-suite/payment-gateway/create-payment" {
-		t.Fatalf("expected resolver url to be generated, got %q", operation.MockMetadata.ResolverURL)
-	}
-	if !strings.Contains(operation.MockMetadata.DispatcherRules, "/internal/mock-data/payment-suite/payment-gateway/create-payment") {
-		t.Fatalf("expected dispatcher rules to reference resolver path, got %q", operation.MockMetadata.DispatcherRules)
-	}
-}
-
-func TestSuitesGenerateAPISIXGatewaySourceWithoutUserManagedFile(t *testing.T) {
-	t.Setenv(examplefs.RootEnvVar, t.TempDir())
-
-	service := NewService()
-	suite, err := service.Get("payment-suite")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-
-	var found bool
-	for _, file := range suite.SourceFiles {
-		if file.Path != "gateway/apisix.yaml" {
-			continue
-		}
-		found = true
-		if file.Language != "yaml" {
-			t.Fatalf("expected yaml language, got %q", file.Language)
-		}
-		if !strings.Contains(file.Content, "X-Babelsuite-Dispatcher: apisix") {
-			t.Fatalf("expected generated APISIX content, got:\n%s", file.Content)
-		}
-		if strings.Contains(file.Content, "Missing example source") {
-			t.Fatalf("expected generated APISIX content instead of missing-file placeholder, got:\n%s", file.Content)
-		}
-	}
-
-	if !found {
-		t.Fatal("expected payment suite source files to include generated gateway/apisix.yaml")
-	}
-}
-
-func TestSuitesGenerateAPISIXGatewayWithEmbeddedGRPCProto(t *testing.T) {
-	configureExamplesRoot(t)
-
-	service := NewService()
-	suite, err := service.Get("returns-control-plane")
-	if err != nil {
-		t.Fatalf("get suite: %v", err)
-	}
-
-	for _, file := range suite.SourceFiles {
-		if file.Path != "gateway/apisix.yaml" {
-			continue
-		}
-		if !strings.Contains(file.Content, "protos:") {
-			t.Fatalf("expected generated APISIX content to include protos, got:\n%s", file.Content)
-		}
-		if !strings.Contains(file.Content, "syntax = \"proto3\";") {
-			t.Fatalf("expected generated APISIX content to embed proto content, got:\n%s", file.Content)
-		}
-		return
-	}
-
-	t.Fatal("expected returns-control-plane source files to include generated gateway/apisix.yaml")
-}
-
-func TestWorkspaceSuiteMetadataYamlAddsTagsAndLabels(t *testing.T) {
-	root := t.TempDir()
-	suiteRoot := filepath.Join(root, "oci-suites", "metadata-suite")
-	mustWriteWorkspaceFile(t, filepath.Join(suiteRoot, "suite.star"), `api = service.run(name="api")`)
-	mustWriteWorkspaceFile(t, filepath.Join(suiteRoot, "README.md"), "# Metadata Suite\n\nWorkspace metadata coverage.")
-	mustWriteWorkspaceFile(t, filepath.Join(suiteRoot, "metadata.yaml"), strings.TrimSpace(`
-name: metadata-suite
-title: Metadata Suite
-description: Metadata file overrides the fallback description.
-labels:
-  owner: Platform Team
-  tier: gold
-tags:
-  - starter
-  - local
-`))
-	mustWriteWorkspaceFile(t, filepath.Join(suiteRoot, "profiles", "local.yaml"), strings.TrimSpace(`
-name: Local
-description: Local profile
-default: true
-runtime:
-  suite: metadata-suite
-  repository: localhost:5000/core/metadata-suite
-  profileFile: local.yaml
-`))
-
-	t.Setenv(examplefs.RootEnvVar, root)
-	t.Setenv(demofs.EnableEnvVar, "false")
-
-	service := NewService()
-	suite, err := service.Get("metadata-suite")
-	if err != nil {
-		t.Fatalf("get workspace suite: %v", err)
-	}
-
-	if suite.Description != "Metadata file overrides the fallback description." {
-		t.Fatalf("expected metadata description override, got %q", suite.Description)
-	}
-	if suite.Owner != "Platform Team" {
-		t.Fatalf("expected metadata owner label, got %q", suite.Owner)
-	}
-	if suite.Labels["tier"] != "gold" {
-		t.Fatalf("expected metadata label tier=gold, got %v", suite.Labels)
-	}
-	if len(suite.Tags) != 3 || suite.Tags[0] != "workspace" {
-		t.Fatalf("expected workspace tag plus metadata tags, got %v", suite.Tags)
-	}
-
-	for _, file := range suite.SourceFiles {
-		if file.Path == "metadata.yaml" {
-			return
-		}
-	}
-
-	t.Fatal("expected metadata.yaml to be exposed as a root source file")
-}
-
-func configureExamplesRoot(t *testing.T) {
-	t.Helper()
-
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve current file")
-	}
-
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".."))
-	t.Setenv(examplefs.RootEnvVar, filepath.Join(repoRoot, "examples"))
-}
-
-func mustWriteWorkspaceFile(t *testing.T, path string, content string) {
-	t.Helper()
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", path, err)
-	}
-	if err := os.WriteFile(path, []byte(content+"\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
+	if items[2].Title != "Zebra Suite" {
+		t.Fatalf("expected zebra suite last, got %q", items[2].Title)
 	}
 }

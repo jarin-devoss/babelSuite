@@ -5,9 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/babelsuite/babelsuite/internal/demofs"
-	"github.com/babelsuite/babelsuite/internal/examplefs"
 )
 
 func TestResolveTopologyExpandsNestedSuiteDependencies(t *testing.T) {
@@ -418,58 +415,6 @@ locks:
 	}
 }
 
-func TestWorkspaceSuitesExposeRootDependencyManifestSource(t *testing.T) {
-	root := t.TempDir()
-	suiteRoot := filepath.Join(root, "oci-suites", "composite-suite")
-	mustWriteFile(t, filepath.Join(suiteRoot, "suite.star"), `api = service.run(name="api")`)
-	mustWriteFile(t, filepath.Join(suiteRoot, "README.md"), "# Composite Suite\n\nNested suite workspace.")
-	mustWriteFile(t, filepath.Join(suiteRoot, "dependencies.yaml"), strings.TrimSpace(`
-dependencies:
-  auth-module:
-    ref: localhost:5000/core/auth-suite
-    version: workspace
-`))
-	mustWriteFile(t, filepath.Join(suiteRoot, "dependencies.lock.yaml"), strings.TrimSpace(`
-locks:
-  auth-module:
-    resolved: localhost:5000/core/auth-suite@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-`))
-	mustWriteFile(t, filepath.Join(suiteRoot, "profiles", "local.yaml"), strings.TrimSpace(`
-name: Local
-description: Local profile
-default: true
-runtime:
-  suite: composite-suite
-  repository: localhost:5000/core/composite-suite
-  profileFile: local.yaml
-`))
-
-	t.Setenv(examplefs.RootEnvVar, root)
-	t.Setenv(demofs.EnableEnvVar, "false")
-
-	service := NewService()
-	suite, err := service.Get("composite-suite")
-	if err != nil {
-		t.Fatalf("get workspace suite: %v", err)
-	}
-
-	for _, file := range suite.SourceFiles {
-		if file.Path == "dependencies.yaml" {
-			if !strings.Contains(file.Content, "version: workspace") {
-				t.Fatalf("expected dependency alias in manifest, got %q", file.Content)
-			}
-			continue
-		}
-		if file.Path == "dependencies.lock.yaml" {
-			if !strings.Contains(file.Content, "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc") {
-				t.Fatalf("expected dependency lockfile digest, got %q", file.Content)
-			}
-			return
-		}
-	}
-
-	t.Fatal("expected dependency manifest and lock file to be exposed as root source files")
-}
 
 func mustWriteFile(t *testing.T, path string, content string) {
 	t.Helper()

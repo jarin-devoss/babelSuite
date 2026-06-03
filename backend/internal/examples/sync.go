@@ -21,7 +21,7 @@ func RenderWorkspaceFiles() []RenderedFile {
 	files := make([]RenderedFile, 0)
 	examplesRoot := examplefs.ResolveRoot()
 
-	service := suites.NewService()
+	service := suites.NewWorkspaceService()
 	for _, suite := range service.List() {
 		base := joinPath("oci-suites", suite.ID)
 		readmePath := joinPath(base, "README.md")

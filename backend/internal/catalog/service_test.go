@@ -26,7 +26,7 @@ func TestListPackagesUsesConfiguredRegistryContents(t *testing.T) {
 	})
 	defer server.Close()
 
-	service := NewService(suites.NewService(), stubSettingsStore{
+	service := NewService(suites.NewWorkspaceService(), stubSettingsStore{
 		settings: &platform.PlatformSettings{
 			Registries: []platform.OCIRegistry{
 				{
@@ -90,7 +90,7 @@ func TestGetPackageReturnsRegistryBackedSuite(t *testing.T) {
 	})
 	defer server.Close()
 
-	service := NewService(suites.NewService(), stubSettingsStore{
+	service := NewService(suites.NewWorkspaceService(), stubSettingsStore{
 		settings: &platform.PlatformSettings{
 			Registries: []platform.OCIRegistry{
 				{
