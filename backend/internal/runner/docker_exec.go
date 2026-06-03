@@ -282,16 +282,18 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		return nil
 	}
 
-	logCtx, logCancel := context.WithCancel(ctx)
-	defer logCancel()
-	logStream, err := cli.ContainerLogs(logCtx, created.ID, container.LogsOptions{
+	var logWg sync.WaitGroup
+	defer logWg.Wait()
+	logStream, err := cli.ContainerLogs(ctx, created.ID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
 		Timestamps: false,
 	})
 	if err == nil {
+		logWg.Add(1)
 		go func() {
+			defer logWg.Done()
 			defer logStream.Close()
 			pr, pw := io.Pipe()
 			go func() {
