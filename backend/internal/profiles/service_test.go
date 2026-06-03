@@ -81,6 +81,7 @@ env:
 	record := findProfileRecordByFileName(created, "direct-yaml.yaml")
 	if record == nil {
 		t.Fatal("expected direct-yaml.yaml to be returned")
+		return
 	}
 	if len(record.SecretRefs) != 1 {
 		t.Fatalf("expected 1 secret ref extracted from yaml, got %d", len(record.SecretRefs))
@@ -122,6 +123,7 @@ func TestServiceLoadsWorkspaceProfilesWhenDemoDisabled(t *testing.T) {
 	staging := findProfileRecordByFileName(profilesPayload, "staging.yaml")
 	if staging == nil {
 		t.Fatal("expected staging.yaml in workspace-backed profiles")
+		return
 	}
 	if len(staging.SecretRefs) != 1 {
 		t.Fatalf("expected 1 inline secret ref in staging.yaml, got %d", len(staging.SecretRefs))

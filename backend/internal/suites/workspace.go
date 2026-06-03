@@ -448,8 +448,8 @@ func loadWorkspaceAPISurfaces(base string) []APISurface {
 	}
 
 	var ops []rawOp
-	_ = filepath.WalkDir(filepath.Join(base, "mock"), func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".metadata.yaml") {
+	_ = filepath.WalkDir(filepath.Join(base, "mock"), func(path string, d os.DirEntry, _ error) error {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".metadata.yaml") {
 			return nil
 		}
 		data, _ := os.ReadFile(path)
@@ -506,8 +506,8 @@ func loadWorkspaceAPISurfaces(base string) []APISurface {
 	// Read OpenAPI specs to get HTTP method and path template for each operationId.
 	type opDetail struct{ method, path string }
 	apiMap := make(map[string]opDetail)
-	_ = filepath.WalkDir(filepath.Join(base, "api"), func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+	_ = filepath.WalkDir(filepath.Join(base, "api"), func(path string, d os.DirEntry, _ error) error {
+		if d.IsDir() {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(d.Name()))
