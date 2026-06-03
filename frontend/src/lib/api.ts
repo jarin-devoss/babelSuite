@@ -543,7 +543,7 @@ export interface ExecutionLogLine {
   source: string
   timestamp: string
   level: 'info' | 'warn' | 'error'
-  kind: 'system' | 'output' | 'metric'
+  kind: 'system' | 'output' | 'metric' | 'user'
   text: string
 }
 

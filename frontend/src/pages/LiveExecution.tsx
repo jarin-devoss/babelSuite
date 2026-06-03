@@ -573,6 +573,7 @@ function LogLine({
   index: number
 }) {
   const isOutput = line.kind === 'output'
+  const isUser = line.kind === 'user'
   const prefix = `[${line.source}]`
   const text = showPrefix && line.text.startsWith(prefix)
     ? line.text.slice(prefix.length).trimStart()
@@ -582,12 +583,13 @@ function LogLine({
     <div className={[
       'exec-log-line',
       `exec-log-line--${line.level}`,
-      isOutput ? 'exec-log-line--output' : 'exec-log-line--system',
+      isOutput ? 'exec-log-line--output' : isUser ? 'exec-log-line--user' : 'exec-log-line--system',
       showPrefix ? 'exec-log-line--multi' : '',
     ].filter(Boolean).join(' ')}>
       <span className='exec-log-line__num'>{index}</span>
-      {!isOutput && <span className='exec-log-line__time'>{line.timestamp}</span>}
-      {isOutput && <span className='exec-log-line__stream'>stdout</span>}
+      {isOutput && <span className='exec-log-line__badge exec-log-line__badge--stdout'>stdout</span>}
+      {isUser && <span className={`exec-log-line__badge exec-log-line__badge--${line.level}`}>{line.level}</span>}
+      {!isOutput && !isUser && <span className='exec-log-line__time'>{line.timestamp}</span>}
       {showPrefix && <span className='exec-log-line__src'>[{line.source}]</span>}
       <code className='exec-log-line__text'>{text}</code>
     </div>

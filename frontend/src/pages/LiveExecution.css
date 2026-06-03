@@ -470,6 +470,43 @@
 .exec-log-line--warn .exec-log-line__text  { color: #f4c030; }
 .exec-log-line--error .exec-log-line__text { color: #e87982; }
 
+/* ── User log lines (log.info / log.warn / log.error / log.debug) ── */
+
+.exec-log-line--user {
+  background: rgba(99, 179, 237, 0.04);
+  border-left: 2px solid #2a5f7a;
+}
+.exec-log-line--user .exec-log-line__text { color: #b8d8ed; font-weight: 500; }
+.exec-log-line--user.exec-log-line--warn  { border-left-color: #7a6010; background: rgba(244,192,48,0.04); }
+.exec-log-line--user.exec-log-line--warn  .exec-log-line__text { color: #f4c030; }
+.exec-log-line--user.exec-log-line--error { border-left-color: #7a2a30; background: rgba(232,121,130,0.05); }
+.exec-log-line--user.exec-log-line--error .exec-log-line__text { color: #e87982; }
+.exec-log-line--user.exec-log-line--debug .exec-log-line__text { color: #7a9aaa; }
+
+/* ── Level / stream badge ───────────────────────────────── */
+
+.exec-log-line__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.exec-log-line__badge--stdout { background: rgba(255,255,255,0.07); color: #4a7a92; }
+.exec-log-line__badge--info   { background: rgba(99,179,237,0.12);  color: #5bafd4; }
+.exec-log-line__badge--warn   { background: rgba(244,192,48,0.15);  color: #c8940a; }
+.exec-log-line__badge--error  { background: rgba(232,121,130,0.15); color: #e06068; }
+.exec-log-line__badge--debug  { background: rgba(255,255,255,0.05); color: #4a6a7a; }
+
 /* ── Traffic metrics panel ──────────────────────────────── */
 
 .exec-metrics-panel {
