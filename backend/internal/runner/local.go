@@ -146,10 +146,10 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 }
 
 func stepRequiresContainer(step StepSpec) bool {
-	hasScript := len(step.Node.Commands) > 0 || step.Node.File != ""
+	hasScript := len(step.Node.Commands) > 0 || step.Node.FileContent != ""
 	switch step.Node.Kind {
 	case "task", "test":
-		return step.Node.Image != "" || hasScript
+		return hasScript
 	case "service":
 		return step.Node.Image != ""
 	}
