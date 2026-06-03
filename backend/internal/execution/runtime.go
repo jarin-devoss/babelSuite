@@ -348,6 +348,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		DependencyAlias:  node.DependencyAlias,
 		StepIndex:        node.Order,
 		TotalSteps:       len(suite.Topology),
+		HealthySteps:     s.countHealthySteps(executionID),
 		LeaseTTL:         8 * time.Second,
 		Load:             suitesCloneLoadSpec(node.Load),
 		Evaluation:       cloneNodeEvaluation(node.Evaluation),
@@ -496,6 +497,22 @@ func (s *Service) appendEvent(executionID string, event ExecutionEvent) {
 	s.syncObservers(executionID)
 }
 
+func (s *Service) countHealthySteps(executionID string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item := s.executions[executionID]
+	if item == nil {
+		return 0
+	}
+	count := 0
+	for _, status := range item.stepStatus {
+		if status == stepStatusHealthy {
+			count++
+		}
+	}
+	return count
+}
+
 func (s *Service) nextTimestamp(executionID string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -550,6 +567,7 @@ func (s *Service) appendRunnerLog(executionID, source string, line logstream.Lin
 		Source:    strutil.FirstNonEmpty(line.Source, source),
 		Timestamp: timestamp,
 		Level:     strutil.FirstNonEmpty(line.Level, "info"),
+		Kind:      line.Kind,
 		Text:      line.Text,
 	})
 	s.schedulePersist()

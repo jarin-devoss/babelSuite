@@ -4,11 +4,39 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
 )
+
+var logTemplateVar = regexp.MustCompile(`\{\{\s*([\w.]+)\s*\}\}`)
+
+func expandLogMessage(msg string, step StepSpec) string {
+	return logTemplateVar.ReplaceAllStringFunc(msg, func(match string) string {
+		key := strings.TrimSpace(match[2 : len(match)-2])
+		switch key {
+		case "suite":
+			return step.SuiteTitle
+		case "profile":
+			return step.Profile
+		case "total":
+			return strconv.Itoa(step.TotalSteps)
+		case "healthy":
+			return strconv.Itoa(step.HealthySteps)
+		default:
+			if strings.HasPrefix(key, "env.") {
+				if val, ok := step.Env[key[4:]]; ok {
+					return val
+				}
+				return ""
+			}
+			return match
+		}
+	})
+}
 
 type Local struct {
 	config BackendConfig
@@ -55,6 +83,20 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		emit(entry)
 	}
 
+	if step.Node.Kind == "log" {
+		msg := strings.TrimSpace(step.Node.Message)
+		if msg == "" {
+			msg = step.Node.Name
+		}
+		emitLine(logstream.Line{
+			Source: step.Node.ID,
+			Level:  logLevelFromVariant(step.Node.Variant),
+			Kind:   "user",
+			Text:   expandLogMessage(msg, step),
+		})
+		return nil
+	}
+
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner claimed the step on the host worker.", step.Node.Name)))
 	emitLine(line(step, "info", bootMessage(step)))
 	if len(step.Env) > 0 {
@@ -65,21 +107,6 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	}
 	if len(step.ArtifactExports) > 0 {
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Registered %d artifact export rules for this step.", step.Node.Name, len(step.ArtifactExports))))
-	}
-
-	if step.Node.Kind == "log" {
-		msg := strings.TrimSpace(step.Node.Message)
-		if msg == "" {
-			msg = step.Node.Name
-		}
-		level := logLevelFromVariant(step.Node.Variant)
-		emitLine(logstream.Line{
-			Source: step.Node.ID,
-			Level:  level,
-			Kind:   "user",
-			Text:   msg,
-		})
-		return nil
 	}
 
 	if step.Node.Kind == "traffic" && step.Load != nil {
