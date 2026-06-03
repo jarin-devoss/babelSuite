@@ -146,18 +146,14 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 }
 
 func stepRequiresContainer(step StepSpec) bool {
-	img := step.Node.Image
-	if img == "" {
-		img = resolveStepImage(step)
-	}
-	if img == "" {
-		return false
-	}
+	hasScript := len(step.Node.Commands) > 0 || step.Node.File != ""
 	switch step.Node.Kind {
-	case "task", "test", "traffic", "service":
-		return true
+	case "task", "test":
+		return step.Node.Image != "" || hasScript
+	case "service":
+		return step.Node.Image != ""
 	}
-	return len(step.Node.Commands) > 0 || step.Node.File != ""
+	return false
 }
 
 func line(step StepSpec, level, text string) logstream.Line {
