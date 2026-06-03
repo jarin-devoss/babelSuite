@@ -133,6 +133,9 @@ func streamContainerLogs(ctx context.Context, cli *client.Client, containerID st
 // buildStepScript returns a POSIX shell script that runs the node's commands
 // or file. Returns empty string when neither is configured.
 func buildStepScript(step StepSpec) string {
+	if step.Node.FileContent == "" && len(step.Node.Commands) == 0 {
+		return ""
+	}
 	var sb strings.Builder
 	sb.WriteString("set -e\n")
 	sb.WriteString("cd " + containerWorkspaceMount + "\n")
