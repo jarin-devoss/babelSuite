@@ -9,11 +9,11 @@ ENABLE_DB_PROBE   = env.get("ENABLE_DB_PROBE", "true") == "true"
 REGIONS           = env.get("REGIONS", "eu,us").split(",")
 
 SUITE_REGISTRY_REFS = {
-    "payment-suite":          "localhost:5000/core-platform/payment-suite:stable",
-    "identity-broker":        "localhost:5000/core-platform/identity-broker:stable",
-    "returns-control-plane":  "localhost:5000/core-platform/returns-control-plane:stable",
-    "notification-hub":       "localhost:5000/core-platform/notification-hub:stable",
-    "fleet-control-room":     "localhost:5000/core-platform/fleet-control-room:stable",
+    "payment-suite":          "localhost:5000/core-platform/payment-suite",
+    "identity-broker":        "localhost:5000/security/identity-broker",
+    "returns-control-plane":  "localhost:5000/qa/returns-control-plane",
+    "notification-hub":       "localhost:5000/platform/notification-hub",
+    "fleet-control-room":     "localhost:5000/platform/fleet-control-room",
 }
 
 SUITE_HEALTH_ENDPOINTS = {
@@ -41,8 +41,7 @@ for suite_name in SUITES_TO_CHECK:
         unknown_suites.append(suite_name)
         continue
 
-    ref = SUITE_REGISTRY_REFS[suite_name]
-    s   = suite.run(name=suite_name, ref=ref, after=db_deps)
+    s   = suite.run(name=suite_name, ref=suite_name, after=db_deps)
     suite_nodes.append(s)
 
 # ── pre-flight connectivity checks ────────────────────────────────────────────

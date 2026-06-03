@@ -9,8 +9,8 @@ REFUND_POLICIES   = env.get("REFUND_POLICIES", "standard,expedited").split(",")
 ENABLE_FRAUD_GATE = env.get("ENABLE_FRAUD_GATE", "true") == "true"
 ENABLE_SOAK       = env.get("ENABLE_SOAK", "false") == "true"
 
-PAYMENT_SUITE_REF        = env.get("PAYMENT_SUITE_REF",        "localhost:5000/core-platform/payment-suite:stable")
-NOTIFICATION_HUB_REF     = env.get("NOTIFICATION_HUB_REF",     "localhost:5000/core-platform/notification-hub:stable")
+PAYMENT_SUITE_REF        = env.get("PAYMENT_SUITE_REF",        "payment-suite")
+NOTIFICATION_HUB_REF     = env.get("NOTIFICATION_HUB_REF",     "notification-hub")
 ENABLE_REFUND_NOTIFY     = env.get("ENABLE_REFUND_NOTIFY",      "true") == "true"
 
 REGION_LIMITS = {

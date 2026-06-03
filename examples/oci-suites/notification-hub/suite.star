@@ -11,8 +11,8 @@ RETRY_POLICY      = env.get("RETRY_POLICY",      "exponential")  # linear | expo
 ENABLE_PAYMENT_NOTIFICATIONS = env.get("ENABLE_PAYMENT_NOTIFICATIONS", "true") == "true"
 
 # suites this topology depends on
-IDENTITY_BROKER_REF = env.get("IDENTITY_BROKER_REF", "localhost:5000/core-platform/identity-broker:stable")
-PAYMENT_SUITE_REF   = env.get("PAYMENT_SUITE_REF",   "localhost:5000/core-platform/payment-suite:stable")
+IDENTITY_BROKER_REF = env.get("IDENTITY_BROKER_REF", "identity-broker")
+PAYMENT_SUITE_REF   = env.get("PAYMENT_SUITE_REF",   "payment-suite")
 
 CHANNEL_CONFIGS = {
     "email":   {"partitions": 6,  "mock_def": "mock/email",   "image": "node:22"},

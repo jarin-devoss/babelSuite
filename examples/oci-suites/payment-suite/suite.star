@@ -36,9 +36,9 @@ seed_merchants = insert(
 # ── per-currency topic bootstrap ─────────────────────────────────────────────
 topic_nodes = []
 for currency in CURRENCY_MARKETS:
-    charge_topic  = create_topic("charges-"  + currency, partitions=6, after=[broker])
-    refund_topic  = create_topic("refunds-"  + currency, partitions=3, after=[broker])
-    dlq_topic     = create_topic("dlq-"      + currency, partitions=1, after=[broker])
+    charge_topic  = create_topic("charges-"  + currency, name="charges-"  + currency, partitions=6, after=[broker])
+    refund_topic  = create_topic("refunds-"  + currency, name="refunds-"  + currency, partitions=3, after=[broker])
+    dlq_topic     = create_topic("dlq-"      + currency, name="dlq-"      + currency, partitions=1, after=[broker])
     topic_nodes  += [charge_topic, refund_topic, dlq_topic]
 
 # ── payment gateway ──────────────────────────────────────────────────────────
