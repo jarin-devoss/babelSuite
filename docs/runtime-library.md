@@ -309,6 +309,25 @@ def pg(name="db", ...):
     return {"service": cluster, "ready": ready, "name": name}
 ```
 
+#### Template placeholders
+
+Messages support `{{ ... }}` placeholders that are resolved at runtime from live execution state:
+
+| Placeholder | Resolves to |
+|---|---|
+| `{{ suite }}` | Suite title (e.g. `Payment Suite`) |
+| `{{ profile }}` | Active profile file name (e.g. `staging.yaml`) |
+| `{{ total }}` | Total number of nodes in the topology |
+| `{{ healthy }}` | Number of healthy nodes at the moment the log node runs |
+| `{{ env.NAME }}` | Value of environment variable `NAME` from the active profile |
+
+```python
+infra_ready = log.info(
+    "{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy, FRAUD_STRATEGY={{ env.FRAUD_STRATEGY }}",
+    after=[db, broker, stripe_mock],
+)
+```
+
 `log(...)` bare is rejected. Use one of the explicit `log.*` forms.
 
 ### `suite`
