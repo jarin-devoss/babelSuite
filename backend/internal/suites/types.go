@@ -39,6 +39,7 @@ type ProfileOption struct {
 	Label       string `json:"label"`
 	Description string `json:"description"`
 	Default     bool   `json:"default"`
+	Content     string `json:"-"`
 }
 
 type FolderEntry struct {

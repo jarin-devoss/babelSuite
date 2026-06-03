@@ -11,6 +11,37 @@ import (
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
+// RenderExchangePreviews populates Exchanges for each operation whose MockPath
+// points to a CUE source file in suite.SourceFiles, then renders previews via
+// PreviewExchange. Call this before buildExecutionSuite when Exchanges are empty
+// (e.g. workspace-loaded suites where demo data is not available).
+func RenderExchangePreviews(suite suites.Definition, surfaces []suites.APISurface) []suites.APISurface {
+	result := make([]suites.APISurface, len(surfaces))
+	for si, surface := range surfaces {
+		result[si] = surface
+		ops := make([]suites.APIOperation, len(surface.Operations))
+		for oi, op := range surface.Operations {
+			ops[oi] = op
+			if len(op.Exchanges) > 0 || strings.TrimSpace(op.MockPath) == "" {
+				continue
+			}
+			examples := loadSchemaExamples(suite, op)
+			if len(examples) == 0 {
+				continue
+			}
+			exchanges := make([]suites.ExchangeExample, 0, len(examples))
+			for _, ex := range examples {
+				stub := suites.ExchangeExample{Name: ex.Name, SourceArtifact: op.MockPath}
+				rendered := PreviewExchange(suite, surface, op, stub)
+				exchanges = append(exchanges, rendered)
+			}
+			ops[oi].Exchanges = exchanges
+		}
+		result[si].Operations = ops
+	}
+	return result
+}
+
 func PreviewExchange(suite suites.Definition, surface suites.APISurface, operation suites.APIOperation, exchange suites.ExchangeExample) suites.ExchangeExample {
 	preview := exchange
 	preview.When = append([]suites.MatchCondition{}, exchange.When...)

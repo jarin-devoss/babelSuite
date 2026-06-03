@@ -53,6 +53,13 @@ func (n *starlarkNode) Type() string          { return "babelsuite.Node" }
 func (n *starlarkNode) Freeze()               {}
 func (n *starlarkNode) Truth() starlark.Bool  { return starlark.True }
 func (n *starlarkNode) Hash() (uint32, error) { return 0, fmt.Errorf("node is not hashable") }
+func (n *starlarkNode) AttrNames() []string   { return []string{"name"} }
+func (n *starlarkNode) Attr(attr string) (starlark.Value, error) {
+	if attr == "name" {
+		return starlark.String(n.name), nil
+	}
+	return nil, nil
+}
 
 type starlarkRegistry struct {
 	mu    sync.Mutex

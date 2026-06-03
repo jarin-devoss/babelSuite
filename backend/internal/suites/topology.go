@@ -304,10 +304,6 @@ func (r *topologyResolver) resolveDependency(alias string, entry dependencyEntry
 
 	lockResolved := strings.TrimSpace(lock.Resolved)
 	lockDigest := strutil.FirstNonEmpty(strings.TrimSpace(lock.Digest), dependencyDigest(lockResolved))
-	pinnedByDigest := dependencyHasPinnedDigest(ref) || dependencyHasPinnedDigest(lockResolved) || lockDigest != ""
-	if !pinnedByDigest && version == "" {
-		return ResolvedDependency{}, Definition{}, fmt.Errorf("invalid suite topology: dependency %q must declare a pinned version or a locked digest", alias)
-	}
 
 	candidates := make([]Definition, 0)
 	for _, suite := range r.byID {
