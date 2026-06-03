@@ -92,7 +92,8 @@ func loadWorkspaceSuite(root, suiteID string) (Definition, bool) {
 		Profiles:    profiles,
 		Folders:     loadWorkspaceFolders(base),
 		SeedSources: rootSources,
-		Contracts:   loadWorkspaceContracts(string(suiteStarBytes)),
+		Contracts:   extractLoadContracts(string(suiteStarBytes)),
+		APISurfaces: loadWorkspaceAPISurfaces(base),
 	}
 
 	return definition, true
@@ -267,7 +268,7 @@ func loadWorkspaceRootSourceFiles(base string) []SourceFile {
 		}
 		files = append(files, SourceFile{
 			Path:     name,
-			Language: detectSourceLanguage(name),
+			Language: DetectSourceLanguage(name),
 			Content:  string(content),
 		})
 	}
@@ -387,23 +388,6 @@ func ownerFromRepository(repository string) string {
 	return humanizeIdentifier(parts[len(parts)-2])
 }
 
-func humanizeIdentifier(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "Workspace"
-	}
-	parts := strings.FieldsFunc(value, func(r rune) bool {
-		return r == '-' || r == '_' || r == '/' || r == '.'
-	})
-	for index := range parts {
-		if parts[index] == "" {
-			continue
-		}
-		parts[index] = strings.ToUpper(parts[index][:1]) + strings.ToLower(parts[index][1:])
-	}
-	return strings.Join(parts, " ")
-}
-
 func isYAMLFile(name string) bool {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(name)))
 	return ext == ".yaml" || ext == ".yml"
@@ -455,4 +439,152 @@ func mergeWorkspaceTags(tags []string) []string {
 	}
 	sort.Strings(merged[1:])
 	return merged
+}
+
+func loadWorkspaceAPISurfaces(base string) []APISurface {
+	type rawOp struct {
+		surfaceID string
+		op        APIOperation
+	}
+
+	var ops []rawOp
+	_ = filepath.WalkDir(filepath.Join(base, "mock"), func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".metadata.yaml") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		var doc struct {
+			Metadata struct {
+				OperationID    string `yaml:"operationId"`
+				SourceArtifact string `yaml:"sourceArtifact"`
+			} `yaml:"metadata"`
+			Spec struct {
+				Adapter              string                `yaml:"adapter"`
+				DelayMillis          int                   `yaml:"delayMillis"`
+				ResolverURL          string                `yaml:"resolverUrl"`
+				RuntimeURL           string                `yaml:"runtimeUrl"`
+				ParameterConstraints []ParameterConstraint `yaml:"parameterConstraints"`
+				Fallback             *MockFallback         `yaml:"fallback"`
+				State                *MockState            `yaml:"state"`
+			} `yaml:"spec"`
+		}
+		if yaml.Unmarshal(data, &doc) != nil {
+			return nil
+		}
+		opID := strings.TrimSpace(doc.Metadata.OperationID)
+		resolverURL := strings.TrimSpace(doc.Spec.ResolverURL)
+		if opID == "" || resolverURL == "" {
+			return nil
+		}
+		parts := strings.Split(strings.Trim(resolverURL, "/"), "/")
+		if len(parts) < 5 {
+			return nil
+		}
+		rel, _ := filepath.Rel(base, path)
+		ops = append(ops, rawOp{
+			surfaceID: parts[3],
+			op: APIOperation{
+				ID:       opID,
+				MockPath: filepath.ToSlash(strings.TrimSpace(doc.Metadata.SourceArtifact)),
+				MockMetadata: MockOperationMetadata{
+					Adapter:              strings.ToLower(strings.TrimSpace(doc.Spec.Adapter)),
+					DelayMillis:          doc.Spec.DelayMillis,
+					ResolverURL:          resolverURL,
+					RuntimeURL:           strings.TrimSpace(doc.Spec.RuntimeURL),
+					ParameterConstraints: doc.Spec.ParameterConstraints,
+					Fallback:             doc.Spec.Fallback,
+					State:                doc.Spec.State,
+					MetadataPath:         filepath.ToSlash(rel),
+				},
+			},
+		})
+		return nil
+	})
+
+	if len(ops) == 0 {
+		return nil
+	}
+
+	// Read OpenAPI specs to get HTTP method and path template for each operationId.
+	type opDetail struct{ method, path string }
+	apiMap := make(map[string]opDetail)
+	_ = filepath.WalkDir(filepath.Join(base, "api"), func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(d.Name()))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		var spec struct {
+			Paths map[string]map[string]struct {
+				OperationID string `yaml:"operationId"`
+				Summary     string `yaml:"summary"`
+			} `yaml:"paths"`
+		}
+		if yaml.Unmarshal(data, &spec) != nil {
+			return nil
+		}
+		for apiPath, methods := range spec.Paths {
+			for httpMethod, op := range methods {
+				key := workspaceNormKey(op.OperationID)
+				if key == "" {
+					continue
+				}
+				apiMap[key] = opDetail{method: strings.ToUpper(httpMethod), path: apiPath}
+			}
+		}
+		return nil
+	})
+
+	// Apply method + path from OpenAPI, fallback to deriving from runtimeUrl.
+	for i := range ops {
+		detail := apiMap[workspaceNormKey(ops[i].op.ID)]
+		if detail.method != "" {
+			ops[i].op.Method = detail.method
+			ops[i].op.Name = detail.path
+		} else {
+			// Derive path from runtimeUrl suffix (after surfaceID segment).
+			ru := strings.TrimSpace(ops[i].op.MockMetadata.RuntimeURL)
+			if idx := strings.Index(ru, "?"); idx >= 0 {
+				ru = ru[:idx]
+			}
+			parts := strings.SplitN(ru, "/", 6)
+			if len(parts) >= 6 {
+				ops[i].op.Name = "/" + parts[5]
+			}
+			// Default to POST for REST when method unknown.
+			if strings.EqualFold(ops[i].op.MockMetadata.Adapter, "rest") {
+				ops[i].op.Method = "POST"
+			}
+		}
+	}
+
+	type surfaceGroup struct{ ops []APIOperation }
+	groups := make(map[string]*surfaceGroup)
+	var order []string
+	for _, o := range ops {
+		if _, ok := groups[o.surfaceID]; !ok {
+			groups[o.surfaceID] = &surfaceGroup{}
+			order = append(order, o.surfaceID)
+		}
+		groups[o.surfaceID].ops = append(groups[o.surfaceID].ops, o.op)
+	}
+
+	result := make([]APISurface, 0, len(order))
+	for _, sid := range order {
+		result = append(result, APISurface{ID: sid, Operations: groups[sid].ops})
+	}
+	return result
+}
+
+func workspaceNormKey(id string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(id)), "-", ""), "_", "")
 }

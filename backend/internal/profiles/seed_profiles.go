@@ -1,44 +1,33 @@
 package profiles
 
 import (
-	"os"
 	"strings"
 	"time"
 
-	"github.com/babelsuite/babelsuite/internal/demofs"
-	"github.com/babelsuite/babelsuite/internal/examplefs"
 	"github.com/babelsuite/babelsuite/internal/strutil"
 	"github.com/babelsuite/babelsuite/internal/suites"
+	"gopkg.in/yaml.v3"
 )
 
+// seedSuiteProfiles builds the initial profile records for a suite from the
+// profiles already parsed out of its OCI layer (definition.Profiles) using
+// the raw YAML content stored in definition.SourceFiles.
 func seedSuiteProfiles(definition suites.Definition) []Record {
-	if !demofs.Enabled() {
-		return workspaceSuiteProfiles(definition)
-	}
-
-	document, err := loadSeedProfilesDocument()
-	if err != nil || document.Suites == nil {
-		return nil
-	}
-
-	records := document.Suites[strings.TrimSpace(definition.ID)].Profiles
-	return cloneRecords(records)
-}
-
-func workspaceSuiteProfiles(definition suites.Definition) []Record {
 	records := make([]Record, 0, len(definition.Profiles))
 	for _, profile := range definition.Profiles {
-		content := readWorkspaceProfileYAML(definition.ID, profile.FileName)
+		content := profileYAMLFromSourceFiles(definition.SourceFiles, profile.FileName)
+		scope := scopeFromFileName(profile.FileName)
 		records = append(records, Record{
 			ID:          profileIDFromFileName(profile.FileName),
 			Name:        strutil.FirstNonEmpty(strings.TrimSpace(profile.Label), labelFromFileName(profile.FileName)),
 			FileName:    profile.FileName,
 			Description: strings.TrimSpace(profile.Description),
-			Scope:       scopeFromFileName(profile.FileName),
+			Scope:       scope,
 			YAML:        content,
 			SecretRefs:  ExtractSecretRefsFromYAML(content),
+			ExtendsID:   extendsIDFromYAML(content),
 			Default:     profile.Default,
-			Launchable:  true,
+			Launchable:  scope != "Base",
 			UpdatedAt:   time.Now().UTC(),
 		})
 	}
@@ -46,28 +35,22 @@ func workspaceSuiteProfiles(definition suites.Definition) []Record {
 	return records
 }
 
-func loadSeedProfilesDocument() (Document, error) {
-	var document Document
-
-	manifest, err := demofs.LoadManifest()
-	if err != nil {
-		return document, err
+func extendsIDFromYAML(content string) string {
+	var doc struct {
+		ExtendsID string `yaml:"extendsId"`
 	}
-
-	document, err = demofs.LoadJSON[Document](manifest.ProfilesFile)
-	if err != nil {
-		return Document{}, err
-	}
-
-	normalizeDocument(&document)
-	return document, nil
-}
-
-func readWorkspaceProfileYAML(suiteID, fileName string) string {
-	path := examplefs.SuiteFilePath(suiteID, "profiles/"+strings.TrimSpace(fileName))
-	data, err := os.ReadFile(path)
-	if err != nil {
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(data))
+	return strings.TrimSpace(doc.ExtendsID)
+}
+
+func profileYAMLFromSourceFiles(sourceFiles []suites.SourceFile, fileName string) string {
+	target := "profiles/" + strings.TrimSpace(fileName)
+	for _, file := range sourceFiles {
+		if file.Path == target {
+			return file.Content
+		}
+	}
+	return ""
 }

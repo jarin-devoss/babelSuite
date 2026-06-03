@@ -6,6 +6,19 @@ import (
 	"strings"
 )
 
+// HydrateDefinition runs the full normalisation + source-file build pipeline
+// on a Definition whose SeedSources and Folders are already populated (e.g.
+// after pulling content from an OCI registry layer).
+func HydrateDefinition(def Definition) (Definition, error) {
+	def = normalizeDefinition(def)
+	def.SourceFiles = buildSourceFiles(def, nil)
+	if err := ValidateDefinition(def); err != nil {
+		return def, err
+	}
+	def.SeedSources = cloneSourceFiles(def.SourceFiles)
+	return def, nil
+}
+
 func hydrateSuites(input map[string]Definition) map[string]Definition {
 	output := make(map[string]Definition, len(input))
 	for id, suite := range input {
@@ -18,6 +31,10 @@ func hydrateSuites(input map[string]Definition) map[string]Definition {
 		output[id] = suite
 	}
 	return output
+}
+
+func NormalizeDefinition(suite Definition) Definition {
+	return normalizeDefinition(suite)
 }
 
 func normalizeDefinition(suite Definition) Definition {

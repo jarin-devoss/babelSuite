@@ -121,7 +121,7 @@ registries:
       region: ""
       allowLocalNetwork: true
       syncStatus: Indexed
-      lastSyncedAt: 2026-05-16T20:33:19.3314353Z
+      lastSyncedAt: 2026-06-02T09:20:24.8299269Z
 secrets:
     provider: vault
     vaultAddress: https://vault.internal.company.com
@@ -141,5 +141,12 @@ secrets:
             -----END CERTIFICATE-----
           description: Root certificate injected into suite containers for internal TLS trust.
           sensitive: true
-updatedAt: 2026-05-16T20:33:19.3314353Z
+notifications:
+    smtp:
+        host: ""
+        port: 0
+        username: ""
+        password: ""
+        from: ""
+updatedAt: 2026-06-02T09:20:24.8299269Z
 description: Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials.

@@ -37,7 +37,7 @@ func buildSourceFiles(suite Definition, loader sourceFileLoader) []SourceFile {
 
 		files = append(files, SourceFile{
 			Path:     path,
-			Language: detectSourceLanguage(path),
+			Language: DetectSourceLanguage(path),
 			Content:  content,
 		})
 	}
@@ -102,7 +102,7 @@ func missingSourceContent(suite Definition, path string) string {
 	)
 }
 
-func detectSourceLanguage(path string) string {
+func DetectSourceLanguage(path string) string {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".yaml", ".yml":
 		return "yaml"
