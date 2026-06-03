@@ -452,10 +452,7 @@ func loadWorkspaceAPISurfaces(base string) []APISurface {
 		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".metadata.yaml") {
 			return nil
 		}
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
+		data, _ := os.ReadFile(path)
 		var doc struct {
 			Metadata struct {
 				OperationID    string `yaml:"operationId"`
@@ -471,9 +468,7 @@ func loadWorkspaceAPISurfaces(base string) []APISurface {
 				State                *MockState            `yaml:"state"`
 			} `yaml:"spec"`
 		}
-		if parseErr := yaml.Unmarshal(data, &doc); parseErr != nil {
-			return nil
-		}
+		_ = yaml.Unmarshal(data, &doc)
 		opID := strings.TrimSpace(doc.Metadata.OperationID)
 		resolverURL := strings.TrimSpace(doc.Spec.ResolverURL)
 		if opID == "" || resolverURL == "" {
@@ -519,19 +514,14 @@ func loadWorkspaceAPISurfaces(base string) []APISurface {
 		if ext != ".yaml" && ext != ".yml" {
 			return nil
 		}
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
+		data, _ := os.ReadFile(path)
 		var spec struct {
 			Paths map[string]map[string]struct {
 				OperationID string `yaml:"operationId"`
 				Summary     string `yaml:"summary"`
 			} `yaml:"paths"`
 		}
-		if parseErr := yaml.Unmarshal(data, &spec); parseErr != nil {
-			return nil
-		}
+		_ = yaml.Unmarshal(data, &spec)
 		for apiPath, methods := range spec.Paths {
 			for httpMethod, op := range methods {
 				key := workspaceNormKey(op.OperationID)
