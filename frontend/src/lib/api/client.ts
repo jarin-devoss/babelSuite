@@ -83,7 +83,8 @@ export function handleUnauthenticated() {
 }
 
 export function buildStreamUrl(path: string, params: QueryParams = {}) {
-  const url = new URL(`${API_BASE}${path}`)
+  const base = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
+  const url = new URL(path, base)
   appendQueryParams(url.searchParams, params)
   return url
 }
@@ -178,7 +179,17 @@ function buildRequestHeaders(init: RequestInit, sessionToken: string | undefined
     headers.set('Content-Type', 'application/json')
   }
 
+  const csrfToken = readCSRFCookie()
+  if (csrfToken && !headers.has('X-CSRF-Token')) {
+    headers.set('X-CSRF-Token', csrfToken)
+  }
+
   return headers
+}
+
+function readCSRFCookie(): string {
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : ''
 }
 
 function shouldUseJsonContentType(body: BodyInit) {
