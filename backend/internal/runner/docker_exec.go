@@ -3,6 +3,7 @@ package runner
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -104,6 +105,61 @@ func pingDocker(ctx context.Context) bool {
 }
 
 
+func streamContainerLogs(ctx context.Context, cli *client.Client, containerID string, step StepSpec, emit func(logstream.Line)) {
+	logStream, err := cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: false,
+	})
+	if err != nil {
+		return
+	}
+	defer logStream.Close()
+	pr, pw := io.Pipe()
+	go func() {
+		stdcopy.StdCopy(pw, pw, logStream)
+		pw.Close()
+	}()
+	scanner := bufio.NewScanner(pr)
+	for scanner.Scan() {
+		text := strings.TrimRight(scanner.Text(), "\r\n")
+		if text != "" {
+			emit(containerLine(step, text))
+		}
+	}
+}
+
+// buildStepScript returns a POSIX shell script that runs the node's commands
+// or file. Returns empty string when neither is configured.
+func buildStepScript(step StepSpec) string {
+	var sb strings.Builder
+	sb.WriteString("set -e\n")
+	sb.WriteString("cd " + containerWorkspaceMount + "\n")
+
+	if step.Node.FileContent != "" {
+		ext := strings.ToLower(filepath.Ext(step.Node.File))
+		interpreter := map[string]string{
+			".py": "python", ".sh": "/bin/sh", ".bash": "bash",
+			".js": "node", ".rb": "ruby", ".ts": "npx ts-node",
+		}[ext]
+		if interpreter == "" {
+			interpreter = "/bin/sh"
+		}
+		sb.WriteString(interpreter + " " + containerWorkspaceMount + "/" + step.Node.File + "\n")
+	}
+	for _, cmd := range step.Node.Commands {
+		sb.WriteString(cmd + "\n")
+	}
+	return sb.String()
+}
+
+// isDetachedService reports whether the step should run as a background
+// container (started then left running while downstream steps proceed).
+func isDetachedService(step StepSpec) bool {
+	return step.Node.Kind == "service" && (step.Node.Image != "" || resolveStepImage(step) != "")
+}
+
 func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -121,6 +177,15 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	workspaceDir := ExecutionWorkspaceDir(step.ExecutionID)
 	if err := os.MkdirAll(workspaceDir, 0700); err != nil {
 		return fmt.Errorf("workspace dir unavailable: %w", err)
+	}
+
+	// Write file content to workspace before container starts so it is
+	// available at the mounted path inside the container.
+	if step.Node.FileContent != "" {
+		hostPath := filepath.Join(workspaceDir, filepath.FromSlash(step.Node.File))
+		if mkErr := os.MkdirAll(filepath.Dir(hostPath), 0755); mkErr == nil {
+			_ = os.WriteFile(hostPath, []byte(step.Node.FileContent), 0644)
+		}
 	}
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Pulling image %s.", step.Node.Name, img)))
@@ -150,6 +215,15 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 			"babelsuite.kind":      step.Node.Kind,
 		},
 	}
+
+	// Inject commands or file as a base64-encoded script executed by the
+	// container's shell, overriding the default image entrypoint.
+	if script := buildStepScript(step); script != "" {
+		encoded := base64.StdEncoding.EncodeToString([]byte(script))
+		cfg.Env = append(cfg.Env, "BABELSUITE_SCRIPT="+encoded)
+		cfg.Entrypoint = []string{"/bin/sh", "-c", "echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e"}
+	}
+
 	pidsLimit := containerPidsLimit
 	hostCfg := &container.HostConfig{
 		AutoRemove:  false,
@@ -167,16 +241,46 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	if err != nil {
 		return fmt.Errorf("container create failed: %w", err)
 	}
-	defer func() {
-		rmCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		cli.ContainerRemove(rmCtx, created.ID, container.RemoveOptions{Force: true})
-	}()
+
+	// Service containers run for the lifetime of the execution context.
+	// Don't defer removal here — a background goroutine handles cleanup.
+	if !isDetachedService(step) {
+		defer func() {
+			rmCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			cli.ContainerRemove(rmCtx, created.ID, container.RemoveOptions{Force: true})
+		}()
+	}
 
 	if err := cli.ContainerStart(ctx, created.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("container start failed: %w", err)
 	}
 	emit(line(step, "info", fmt.Sprintf("[%s] Container started.", step.Node.Name)))
+
+	// For detached services: stream logs in the background, watch for early
+	// exit (crash), and clean up when the step context is cancelled.
+	if isDetachedService(step) {
+		go streamContainerLogs(context.Background(), cli, created.ID, step, emit)
+		go func() {
+			waitCh, _ := cli.ContainerWait(context.Background(), created.ID, container.WaitConditionNotRunning)
+			select {
+			case <-ctx.Done():
+			case <-waitCh:
+			}
+			stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			cli.ContainerStop(stopCtx, created.ID, container.StopOptions{})
+			cli.ContainerRemove(context.Background(), created.ID, container.RemoveOptions{Force: true})
+		}()
+		// Brief window to detect an immediate crash.
+		crashCh, _ := cli.ContainerWait(ctx, created.ID, container.WaitConditionNotRunning)
+		select {
+		case result := <-crashCh:
+			return fmt.Errorf("service exited immediately with code %d", result.StatusCode)
+		case <-time.After(500 * time.Millisecond):
+		}
+		return nil
+	}
 
 	logCtx, logCancel := context.WithCancel(ctx)
 	defer logCancel()

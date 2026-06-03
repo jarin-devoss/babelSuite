@@ -104,6 +104,7 @@ func cloneExecutionTopology(input []suites.TopologyNode) []suites.TopologyNode {
 	for index, node := range input {
 		output[index] = node
 		output[index].DependsOn = append([]string{}, node.DependsOn...)
+		output[index].Commands = append([]string{}, node.Commands...)
 		output[index].ResetMocks = append([]string{}, node.ResetMocks...)
 		output[index].OnFailure = append([]string{}, node.OnFailure...)
 		output[index].ContinueOnFailure = node.ContinueOnFailure
