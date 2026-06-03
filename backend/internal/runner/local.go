@@ -157,7 +157,7 @@ func stepRequiresContainer(step StepSpec) bool {
 	case "task", "test", "traffic", "service":
 		return true
 	}
-	return false
+	return len(step.Node.Commands) > 0 || step.Node.File != ""
 }
 
 func line(step StepSpec, level, text string) logstream.Line {
