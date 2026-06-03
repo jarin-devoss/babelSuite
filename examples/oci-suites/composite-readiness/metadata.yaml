@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: composite-readiness
+  title: Composite Readiness
+spec:
+  repository: localhost:5000/composite/composite-readiness
+  owner: Platform Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Minimal workspace suite that imports another suite as a pinned OCI dependency, then runs a single Go smoke test to confirm end-to-end readiness.

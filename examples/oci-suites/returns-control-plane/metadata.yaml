@@ -1,0 +1,13 @@
+kind: OCIExampleSuite
+metadata:
+  id: returns-control-plane
+  title: Returns Control Plane
+spec:
+  repository: localhost:5000/qa/returns-control-plane
+  owner: QA Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - v0.9.2
+    - latest
+  description: Reverse-logistics suite demonstrating BabelSuite's richer mock runtime with split metadata, response templating, state machines, fallback modes, and multi-protocol mock surfaces.

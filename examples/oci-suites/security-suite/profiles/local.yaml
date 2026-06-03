@@ -1,0 +1,7 @@
+name: Default
+description: Standard security scan profile — runs all eight attack modes against the mock API surface.
+default: true
+runtime:
+  suite: security-suite
+  repository: localhost:5000/security/security-suite
+  profileFile: local.yaml

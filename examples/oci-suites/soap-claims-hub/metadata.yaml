@@ -1,0 +1,13 @@
+kind: OCIExampleSuite
+metadata:
+  id: soap-claims-hub
+  title: SOAP Claims Hub
+spec:
+  repository: localhost:5000/enterprise-integration/soap-claims-hub
+  owner: Enterprise Integration
+  version: v0.9.0
+  tags:
+    - v0.9.0
+    - v0.8.3
+    - latest
+  description: Legacy claims sandbox with a schema-driven SOAP mock, XML envelope rendering, and APISIX-fronted dispatch into the BabelSuite mock engine.

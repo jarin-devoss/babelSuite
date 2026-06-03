@@ -1,0 +1,13 @@
+kind: OCIExampleSuite
+metadata:
+  id: storefront-browser-lab
+  title: Storefront Browser Lab
+spec:
+  repository: localhost:5000/qa/storefront-browser-lab
+  owner: QA Engineering
+  version: v1.3.0
+  tags:
+    - v1.3.0
+    - v1.2.5
+    - latest
+  description: Browser-first commerce environment with Kafka event streams, mocked catalog and order APIs, and Playwright end-to-end checkout journeys.

@@ -1,8 +1,19 @@
 dependencies:
-  payments-module:
+  payment-suite:
     ref: localhost:5000/core-platform/payment-suite
-    version: workspace
     profile: local.yaml
     inputs:
       PAYMENT_LEDGER_MODE: readiness
       STRIPE_BASE_URL: http://stripe-mock:8080
+  identity-broker:
+    ref: localhost:5000/security/identity-broker
+    profile: local.yaml
+  returns-control-plane:
+    ref: localhost:5000/qa/returns-control-plane
+    profile: local.yaml
+  notification-hub:
+    ref: localhost:5000/platform/notification-hub
+    profile: local.yaml
+  fleet-control-room:
+    ref: localhost:5000/platform/fleet-control-room
+    profile: local.yaml

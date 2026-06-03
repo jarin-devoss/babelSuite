@@ -1,0 +1,13 @@
+kind: OCIExampleSuite
+metadata:
+  id: fleet-control-room
+  title: Fleet Control Room
+spec:
+  repository: localhost:5000/platform/fleet-control-room
+  owner: Platform Engineering
+  version: v1.8.0
+  tags:
+    - v1.8.0
+    - v1.7.5
+    - latest
+  description: End-to-end vehicle orchestration environment with Redis, gRPC contracts, and a telemetry mock for simulating route spikes and GPS fault injection.

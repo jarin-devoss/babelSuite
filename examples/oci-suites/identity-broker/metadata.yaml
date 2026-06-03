@@ -1,0 +1,13 @@
+kind: OCIExampleSuite
+metadata:
+  id: identity-broker
+  title: Identity Broker
+spec:
+  repository: localhost:5000/security/identity-broker
+  owner: Security Engineering
+  version: v3.0.2
+  tags:
+    - v3.0.2
+    - v3.0.1
+    - latest
+  description: OIDC and SAML integration sandbox with deterministic login failures, certificate rotation paths, and secret injection for session storage.

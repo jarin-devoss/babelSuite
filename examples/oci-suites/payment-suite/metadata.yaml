@@ -1,0 +1,14 @@
+kind: OCIExampleSuite
+metadata:
+  id: payment-suite
+  title: Payment Suite
+spec:
+  repository: localhost:5000/core-platform/payment-suite
+  owner: Core Platform
+  version: v2.4.1
+  tags:
+    - v2.4.1
+    - v2.4.0
+    - v2.3.8
+    - latest
+  description: Bank-grade reference environment covering a full payment flow with Postgres, Kafka, a Stripe mock, fraud detection, baseline traffic, and smoke tests.
