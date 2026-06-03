@@ -25,22 +25,29 @@ type suiteSettingsReader interface {
 	Load() (*platform.PlatformSettings, error)
 }
 
-type catalogSuiteReader struct {
-	catalog  catalog.Reader
-	settings suiteSettingsReader
-	client   *http.Client
-	mu       sync.RWMutex
-	cache    map[string]*suites.Definition
-	ready    chan struct{}
+type suiteWorkspaceReader interface {
+	List() []suites.Definition
+	Get(id string) (*suites.Definition, error)
 }
 
-func newCatalogSuiteReader(cat catalog.Reader, settings suiteSettingsReader) *catalogSuiteReader {
+type catalogSuiteReader struct {
+	catalog   catalog.Reader
+	settings  suiteSettingsReader
+	workspace suiteWorkspaceReader
+	client    *http.Client
+	mu        sync.RWMutex
+	cache     map[string]*suites.Definition
+	ready     chan struct{}
+}
+
+func newCatalogSuiteReader(cat catalog.Reader, settings suiteSettingsReader, workspace suiteWorkspaceReader) *catalogSuiteReader {
 	r := &catalogSuiteReader{
-		catalog:  cat,
-		settings: settings,
-		client:   &http.Client{Timeout: 15 * time.Second},
-		cache:    make(map[string]*suites.Definition),
-		ready:    make(chan struct{}),
+		catalog:   cat,
+		settings:  settings,
+		workspace: workspace,
+		client:    &http.Client{Timeout: 15 * time.Second},
+		cache:     make(map[string]*suites.Definition),
+		ready:     make(chan struct{}),
 	}
 	go func() {
 		r.warmCache()
@@ -422,6 +429,9 @@ func toPascalCase(s string) string {
 
 func (r *catalogSuiteReader) List() []suites.Definition {
 	packages, err := r.catalog.ListPackages(context.Background())
+	if err != nil && r.workspace != nil {
+		return r.workspace.List()
+	}
 	if err != nil {
 		return nil
 	}
@@ -477,10 +487,24 @@ func (r *catalogSuiteReader) List() []suites.Definition {
 	}
 	result = filled
 
-	catalog := r.cachedCatalog()
+	cat := r.cachedCatalog()
 	for i := range result {
-		result[i] = suites.ResolveDefinitionTopology(result[i], catalog)
+		result[i] = suites.ResolveDefinitionTopology(result[i], cat)
 	}
+
+	// Include workspace suites that are not in the catalog (e.g. registered via API).
+	if r.workspace != nil {
+		catalogIDs := make(map[string]struct{}, len(result))
+		for _, d := range result {
+			catalogIDs[d.ID] = struct{}{}
+		}
+		for _, d := range r.workspace.List() {
+			if _, exists := catalogIDs[d.ID]; !exists {
+				result = append(result, d)
+			}
+		}
+	}
+
 	return result
 }
 
@@ -497,6 +521,9 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 
 	pkg, err := r.catalog.GetPackage(context.Background(), id)
 	if err != nil {
+		if r.workspace != nil {
+			return r.workspace.Get(id)
+		}
 		return nil, suites.ErrNotFound
 	}
 

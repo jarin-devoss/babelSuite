@@ -107,9 +107,9 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		cfg.CacheTTL.catalogOr(45*time.Second),
 	)
 
-	// catalogBacked pulls suite content from OCI layers, enriched with demo
-	// metadata (APISurfaces etc.) from suiteService when demo mode is on.
-	catalogBacked := newCatalogSuiteReader(catalogReader, platformStore)
+	// catalogBacked pulls suite content from OCI layers; falls back to the
+	// workspace service for suites registered directly (e.g. via the API).
+	catalogBacked := newCatalogSuiteReader(catalogReader, platformStore, suiteService)
 
 	mockingService := mocking.NewService(catalogBacked)
 
