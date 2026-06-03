@@ -38,6 +38,7 @@ type starlarkNode struct {
 	floodThrottle   bool
 	rps             float64
 	arrivalRate     float64
+	message         string
 	after           []*starlarkNode
 	resetMocks      []*starlarkNode
 	onFailure       []*starlarkNode
@@ -52,6 +53,13 @@ func (n *starlarkNode) Type() string          { return "babelsuite.Node" }
 func (n *starlarkNode) Freeze()               {}
 func (n *starlarkNode) Truth() starlark.Bool  { return starlark.True }
 func (n *starlarkNode) Hash() (uint32, error) { return 0, fmt.Errorf("node is not hashable") }
+func (n *starlarkNode) AttrNames() []string   { return []string{"name"} }
+func (n *starlarkNode) Attr(attr string) (starlark.Value, error) {
+	if attr == "name" {
+		return starlark.String(n.name), nil
+	}
+	return nil, nil
+}
 
 type starlarkRegistry struct {
 	mu    sync.Mutex
@@ -127,6 +135,7 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 		"traffic":  runtimeModule["traffic"],
 		"suite":    runtimeModule["suite"],
 		"security": runtimeModule["security"],
+		"log":      runtimeModule["log"],
 		"env":      frozenEmptyDict(),
 	}, nil
 }
@@ -198,6 +207,15 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 			"cors":    buildNodeFunc(reg, "security.cors"),
 		},
 	}
+	log := &starlarkNamespace{
+		reg: reg,
+		methods: map[string]starlarkBuilderFunc{
+			"info":  buildNodeFunc(reg, "log.info"),
+			"warn":  buildNodeFunc(reg, "log.warn"),
+			"error": buildNodeFunc(reg, "log.error"),
+			"debug": buildNodeFunc(reg, "log.debug"),
+		},
+	}
 
 	return starlark.StringDict{
 		"service":  service,
@@ -206,6 +224,7 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 		"traffic":  traffic,
 		"suite":    suite,
 		"security": security,
+		"log":      log,
 	}, nil
 }
 
@@ -249,6 +268,12 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 			variant: variant,
 		}
 
+		if len(args) > 0 {
+			if s, ok := starlark.AsString(args[0]); ok {
+				node.message = strings.TrimSpace(s)
+			}
+		}
+
 		var expectExit *int
 		var expectLogs []string
 		var failOnLogs []string
@@ -265,6 +290,13 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 				}
 				node.name = strings.TrimSpace(s)
 				node.explicitName = true
+
+			case "message":
+				s, ok := starlark.AsString(val)
+				if !ok {
+					return nil, fmt.Errorf("%s: message must be a string", variant)
+				}
+				node.message = strings.TrimSpace(s)
 
 			case "image":
 				s, ok := starlark.AsString(val)
@@ -594,6 +626,7 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			FloodRate:         node.floodRate,
 			FloodDuration:     node.floodDuration,
 			FloodThrottle:     node.floodThrottle,
+			Message:           node.message,
 			Arguments:         buildStarlarkArguments(node),
 			ContinueOnFailure: node.continueOnFail,
 			Evaluation:        node.evaluation,

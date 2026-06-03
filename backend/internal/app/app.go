@@ -101,16 +101,17 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	var platformStore platform.Store = platformBaseStore
 	platformStore = platform.WithRedis(platformStore, cacheLayer, cfg.CacheTTL.platformOr(2*time.Minute))
 
-	mockingService := mocking.NewService(suiteService)
 	catalogReader := catalog.WithRedis(
 		catalog.NewService(suiteService, platformStore),
 		cacheLayer,
 		cfg.CacheTTL.catalogOr(45*time.Second),
 	)
 
-	// catalogBacked lists suites from the OCI registry so all pages agree on
-	// which suites exist. Get/Resolve prefer the workspace reader (suite.star).
-	catalogBacked := &catalogSuiteReader{catalog: catalogReader, workspace: suiteService}
+	// catalogBacked pulls suite content from OCI layers; falls back to the
+	// workspace service for suites registered directly (e.g. via the API).
+	catalogBacked := newCatalogSuiteReader(catalogReader, platformStore, suiteService)
+
+	mockingService := mocking.NewService(catalogBacked)
 
 	profileBaseStore := profiles.NewFileStore(cfg.ProfilesFile)
 	var profileStore profiles.Store = profileBaseStore
@@ -165,7 +166,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	engine.NewHandler(engineStore, jwtSvc).Register(mux)
 	agent.RegisterGateway(mux, agentRegistry, assignmentCoordinator, cfg.AgentSharedSecret)
 	profiles.NewHandler(profileService, jwtSvc).Register(mux)
-	suites.NewHandler(suiteService, jwtSvc).Register(mux)
+	suites.NewHandler(newCatalogSuiteHandler(catalogBacked, suiteService), jwtSvc).Register(mux)
 	mocking.NewHandler(mockingService, cfg.MockSharedSecret).Register(mux)
 	execution.NewHandler(executionService, engineStore, jwtSvc).Register(mux)
 	platform.NewHandler(platformStore, jwtSvc).Register(mux)

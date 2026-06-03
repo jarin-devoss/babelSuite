@@ -1,0 +1,7 @@
+dependencies:
+  identity-broker:
+    ref: localhost:5000/security/identity-broker
+    profile: local.yaml
+  payment-suite:
+    ref: localhost:5000/core-platform/payment-suite
+    profile: local.yaml

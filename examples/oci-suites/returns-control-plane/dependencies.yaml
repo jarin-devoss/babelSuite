@@ -1,0 +1,7 @@
+dependencies:
+  payment-suite:
+    ref: localhost:5000/core-platform/payment-suite
+    profile: local.yaml
+  notification-hub:
+    ref: localhost:5000/platform/notification-hub
+    profile: local.yaml

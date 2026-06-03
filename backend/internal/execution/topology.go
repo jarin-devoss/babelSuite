@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/suites"
@@ -364,6 +365,12 @@ func buildStartMessage(node topologyNode, suite *suites.Definition, profile stri
 		return fmt.Sprintf("[%s] Starting the traffic harness from traffic/ with the %s profile and collecting throughput thresholds.", node.Name, profile)
 	case suites.NodeKindTest:
 		return fmt.Sprintf("[%s] Executing verification assets from tests/ with the %s profile.", node.Name, profile)
+	case suites.NodeKindLog:
+		msg := strings.TrimSpace(node.Message)
+		if msg == "" {
+			msg = node.Name
+		}
+		return fmt.Sprintf("[%s] %s", node.Name, msg)
 	default:
 		return fmt.Sprintf("[%s] Starting workload and waiting for health checks from the parsed suite.star topology.", node.Name)
 	}
@@ -384,6 +391,12 @@ func buildHealthyMessage(node topologyNode, suite *suites.Definition, profile st
 		return fmt.Sprintf("[%s] Traffic phase completed. Threshold budgets and synthetic-user ramps stayed within the %s profile.", node.Name, profile)
 	case suites.NodeKindTest:
 		return fmt.Sprintf("[%s] Test phase passed. Contract assertions and payload policies remained green.", node.Name)
+	case suites.NodeKindLog:
+		msg := strings.TrimSpace(node.Message)
+		if msg == "" {
+			msg = node.Name
+		}
+		return fmt.Sprintf("[%s] %s", node.Name, msg)
 	default:
 		return fmt.Sprintf("[%s] Health check passed. Service is ready for downstream services, traffic phases, and tests.", node.Name)
 	}

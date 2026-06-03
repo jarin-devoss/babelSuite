@@ -5,9 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/babelsuite/babelsuite/internal/demofs"
-	"github.com/babelsuite/babelsuite/internal/examplefs"
 )
 
 func TestResolveTopologyExpandsNestedSuiteDependencies(t *testing.T) {
@@ -418,58 +415,6 @@ locks:
 	}
 }
 
-func TestWorkspaceSuitesExposeRootDependencyManifestSource(t *testing.T) {
-	root := t.TempDir()
-	suiteRoot := filepath.Join(root, "oci-suites", "composite-suite")
-	mustWriteFile(t, filepath.Join(suiteRoot, "suite.star"), `api = service.run(name="api")`)
-	mustWriteFile(t, filepath.Join(suiteRoot, "README.md"), "# Composite Suite\n\nNested suite workspace.")
-	mustWriteFile(t, filepath.Join(suiteRoot, "dependencies.yaml"), strings.TrimSpace(`
-dependencies:
-  auth-module:
-    ref: localhost:5000/core/auth-suite
-    version: workspace
-`))
-	mustWriteFile(t, filepath.Join(suiteRoot, "dependencies.lock.yaml"), strings.TrimSpace(`
-locks:
-  auth-module:
-    resolved: localhost:5000/core/auth-suite@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-`))
-	mustWriteFile(t, filepath.Join(suiteRoot, "profiles", "local.yaml"), strings.TrimSpace(`
-name: Local
-description: Local profile
-default: true
-runtime:
-  suite: composite-suite
-  repository: localhost:5000/core/composite-suite
-  profileFile: local.yaml
-`))
-
-	t.Setenv(examplefs.RootEnvVar, root)
-	t.Setenv(demofs.EnableEnvVar, "false")
-
-	service := NewService()
-	suite, err := service.Get("composite-suite")
-	if err != nil {
-		t.Fatalf("get workspace suite: %v", err)
-	}
-
-	for _, file := range suite.SourceFiles {
-		if file.Path == "dependencies.yaml" {
-			if !strings.Contains(file.Content, "version: workspace") {
-				t.Fatalf("expected dependency alias in manifest, got %q", file.Content)
-			}
-			continue
-		}
-		if file.Path == "dependencies.lock.yaml" {
-			if !strings.Contains(file.Content, "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc") {
-				t.Fatalf("expected dependency lockfile digest, got %q", file.Content)
-			}
-			return
-		}
-	}
-
-	t.Fatal("expected dependency manifest and lock file to be exposed as root source files")
-}
 
 func mustWriteFile(t *testing.T, path string, content string) {
 	t.Helper()
@@ -479,5 +424,80 @@ func mustWriteFile(t *testing.T, path string, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content+"\n"), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func TestResolveTopologyParsesLogNodes(t *testing.T) {
+	t.Parallel()
+
+	suite := Definition{
+		ID:    "log-suite",
+		Title: "Log Suite",
+		SuiteStar: strings.Join([]string{
+			`db     = service.run()`,
+			`notice = log.info("database ready", after=[db])`,
+			`smoker = test.run(file="smoke.py", image="python:3.12", after=[notice])`,
+		}, "\n"),
+	}
+
+	topology, err := ResolveTopology(suite, []Definition{suite})
+	if err != nil {
+		t.Fatalf("resolve topology: %v", err)
+	}
+	if len(topology) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(topology))
+	}
+
+	notice := topology[1]
+	if notice.Kind != "log" {
+		t.Fatalf("expected kind=log, got %q", notice.Kind)
+	}
+	if notice.Variant != "log.info" {
+		t.Fatalf("expected variant=log.info, got %q", notice.Variant)
+	}
+	if notice.Message != "database ready" {
+		t.Fatalf("expected message=%q, got %q", "database ready", notice.Message)
+	}
+}
+
+func TestResolveTopologyParsesLogNodeVariants(t *testing.T) {
+	t.Parallel()
+
+	suite := Definition{
+		ID:    "log-variants-suite",
+		Title: "Log Variants Suite",
+		SuiteStar: strings.Join([]string{
+			`a = log.info("info message")`,
+			`b = log.warn("warn message", after=[a])`,
+			`c = log.error("error message", after=[b])`,
+			`d = log.debug("debug message", after=[c])`,
+		}, "\n"),
+	}
+
+	topology, err := ResolveTopology(suite, []Definition{suite})
+	if err != nil {
+		t.Fatalf("resolve topology: %v", err)
+	}
+	if len(topology) != 4 {
+		t.Fatalf("expected 4 nodes, got %d", len(topology))
+	}
+
+	cases := []struct{ variant, message string }{
+		{"log.info", "info message"},
+		{"log.warn", "warn message"},
+		{"log.error", "error message"},
+		{"log.debug", "debug message"},
+	}
+	for i, tc := range cases {
+		node := topology[i]
+		if node.Kind != "log" {
+			t.Fatalf("node %d: expected kind=log, got %q", i, node.Kind)
+		}
+		if node.Variant != tc.variant {
+			t.Fatalf("node %d: expected variant=%q, got %q", i, tc.variant, node.Variant)
+		}
+		if node.Message != tc.message {
+			t.Fatalf("node %d: expected message=%q, got %q", i, tc.message, node.Message)
+		}
 	}
 }

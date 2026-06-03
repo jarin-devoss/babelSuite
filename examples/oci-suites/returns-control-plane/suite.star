@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite", "log")
 load("@babelsuite/kafka",    "kafka", "create_topic")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
@@ -9,8 +9,8 @@ REFUND_POLICIES   = env.get("REFUND_POLICIES", "standard,expedited").split(",")
 ENABLE_FRAUD_GATE = env.get("ENABLE_FRAUD_GATE", "true") == "true"
 ENABLE_SOAK       = env.get("ENABLE_SOAK", "false") == "true"
 
-PAYMENT_SUITE_REF        = env.get("PAYMENT_SUITE_REF",        "localhost:5000/core-platform/payment-suite:stable")
-NOTIFICATION_HUB_REF     = env.get("NOTIFICATION_HUB_REF",     "localhost:5000/core-platform/notification-hub:stable")
+PAYMENT_SUITE_REF        = env.get("PAYMENT_SUITE_REF",        "payment-suite")
+NOTIFICATION_HUB_REF     = env.get("NOTIFICATION_HUB_REF",     "notification-hub")
 ENABLE_REFUND_NOTIFY     = env.get("ENABLE_REFUND_NOTIFY",      "true") == "true"
 
 REGION_LIMITS = {
@@ -78,8 +78,12 @@ for region in REGIONS:
 all_topics = [t for topics in region_topics.values() for t in topics]
 
 # ── returns API ───────────────────────────────────────────────────────────────
+topics_ready = log.info(
+    "region topics ready — " + str(len(all_topics)) + " partitions across " + str(len(REGIONS)) + " regions",
+    after=all_topics,
+)
 returns_api = service.run(
-    after=api_deps + [payment_suite] + notify_deps,
+    after=api_deps + [payment_suite, topics_ready] + notify_deps,
     env={
         "ENABLED_REGIONS":   ",".join(REGIONS),
         "FRAUD_GATE_ENABLED": str(ENABLE_FRAUD_GATE).lower(),

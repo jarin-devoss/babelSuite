@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -53,8 +53,9 @@ else:
     mfa_deps = []
 
 # ── broker API ───────────────────────────────────────────────────────────────
+providers_ready = log.info("provider mocks up — seeded " + str(REALM_COUNT) + " realms", after=list(provider_mocks.values()) + [seed_realms])
 broker_api = service.run(
-    after=list(provider_mocks.values()) + mfa_deps + [seed_realms],
+    after=[providers_ready] + mfa_deps,
     env={"ENABLED_PROVIDERS": ",".join(PROVIDERS), "MFA_ENABLED": str(ENABLE_MFA).lower()},
 )
 

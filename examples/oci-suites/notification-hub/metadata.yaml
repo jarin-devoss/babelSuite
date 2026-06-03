@@ -1,0 +1,13 @@
+kind: OCIExampleSuite
+metadata:
+  id: notification-hub
+  title: Notification Hub
+spec:
+  repository: localhost:5000/platform/notification-hub
+  owner: Platform Engineering
+  version: v1.1.0
+  tags:
+    - v1.1.0
+    - v1.0.0
+    - latest
+  description: Redis-backed notification service with Postgres, a mock email provider, database migrations, template seeding, and a background dispatcher worker.

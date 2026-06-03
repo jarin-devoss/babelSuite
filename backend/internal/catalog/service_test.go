@@ -26,7 +26,7 @@ func TestListPackagesUsesConfiguredRegistryContents(t *testing.T) {
 	})
 	defer server.Close()
 
-	service := NewService(suites.NewService(), stubSettingsStore{
+	service := NewService(suites.NewWorkspaceService(), stubSettingsStore{
 		settings: &platform.PlatformSettings{
 			Registries: []platform.OCIRegistry{
 				{
@@ -52,6 +52,7 @@ func TestListPackagesUsesConfiguredRegistryContents(t *testing.T) {
 	payment := findPackage(items, "payment-suite")
 	if payment == nil {
 		t.Fatal("expected payment-suite from registry")
+		return
 	}
 	if payment.Repository != server.Listener.Addr().String()+"/core-platform/payment-suite" {
 		t.Fatalf("expected payment repository to use registry host, got %q", payment.Repository)
@@ -71,6 +72,7 @@ func TestListPackagesUsesConfiguredRegistryContents(t *testing.T) {
 	generic := findPackage(items, packageID(server.Listener.Addr().String()+"/qa/unmanaged-browser-suite", "suite"))
 	if generic == nil {
 		t.Fatal("expected unmanaged registry package to appear in catalog")
+		return
 	}
 	if !generic.Inspectable {
 		t.Fatal("expected unmanaged registry suite to expose the inspect action")
@@ -90,7 +92,7 @@ func TestGetPackageReturnsRegistryBackedSuite(t *testing.T) {
 	})
 	defer server.Close()
 
-	service := NewService(suites.NewService(), stubSettingsStore{
+	service := NewService(suites.NewWorkspaceService(), stubSettingsStore{
 		settings: &platform.PlatformSettings{
 			Registries: []platform.OCIRegistry{
 				{

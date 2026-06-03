@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
@@ -36,13 +36,14 @@ seed_merchants = insert(
 # ── per-currency topic bootstrap ─────────────────────────────────────────────
 topic_nodes = []
 for currency in CURRENCY_MARKETS:
-    charge_topic  = create_topic("charges-"  + currency, partitions=6, after=[broker])
-    refund_topic  = create_topic("refunds-"  + currency, partitions=3, after=[broker])
-    dlq_topic     = create_topic("dlq-"      + currency, partitions=1, after=[broker])
+    charge_topic  = create_topic("charges-"  + currency, name="charges-"  + currency, partitions=6, after=[broker])
+    refund_topic  = create_topic("refunds-"  + currency, name="refunds-"  + currency, partitions=3, after=[broker])
+    dlq_topic     = create_topic("dlq-"      + currency, name="dlq-"      + currency, partitions=1, after=[broker])
     topic_nodes  += [charge_topic, refund_topic, dlq_topic]
 
 # ── payment gateway ──────────────────────────────────────────────────────────
-payment_gateway = service.run(after=[conn, stripe_mock, migrations, seed_merchants])
+infra_ready = log.info("infrastructure ready — db migrated, topics bootstrapped, stripe mock up", after=topic_nodes + [seed_merchants, stripe_mock])
+payment_gateway = service.run(after=[infra_ready])
 
 # ── fraud workers (one per replica) ─────────────────────────────────────────
 fraud_workers = []
@@ -56,6 +57,7 @@ for i in range(REPLICA_COUNT):
 
 # ── canary gateway (optional) ────────────────────────────────────────────────
 if ENABLE_CANARY:
+    log.warn("canary gateway enabled — traffic will be split between stable and canary", after=fraud_workers)
     canary_gateway = service.run(
         name="payment-gateway-canary",
         after=[conn, stripe_mock, migrations],

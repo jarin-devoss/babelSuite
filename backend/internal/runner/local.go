@@ -4,11 +4,39 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
 )
+
+var logTemplateVar = regexp.MustCompile(`\{\{\s*([\w.]+)\s*\}\}`)
+
+func expandLogMessage(msg string, step StepSpec) string {
+	return logTemplateVar.ReplaceAllStringFunc(msg, func(match string) string {
+		key := strings.TrimSpace(match[2 : len(match)-2])
+		switch key {
+		case "suite":
+			return step.SuiteTitle
+		case "profile":
+			return step.Profile
+		case "total":
+			return strconv.Itoa(step.TotalSteps)
+		case "healthy":
+			return strconv.Itoa(step.HealthySteps)
+		default:
+			if strings.HasPrefix(key, "env.") {
+				if val, ok := step.Env[key[4:]]; ok {
+					return val
+				}
+				return ""
+			}
+			return match
+		}
+	})
+}
 
 type Local struct {
 	config BackendConfig
@@ -53,6 +81,20 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 			capturedLogs = append(capturedLogs, text)
 		}
 		emit(entry)
+	}
+
+	if step.Node.Kind == "log" {
+		msg := strings.TrimSpace(step.Node.Message)
+		if msg == "" {
+			msg = step.Node.Name
+		}
+		emitLine(logstream.Line{
+			Source: step.Node.ID,
+			Level:  logLevelFromVariant(step.Node.Variant),
+			Kind:   "user",
+			Text:   expandLogMessage(msg, step),
+		})
+		return nil
 	}
 
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner claimed the step on the host worker.", step.Node.Name)))
@@ -201,6 +243,19 @@ func probeMessage(step StepSpec) string {
 		return fmt.Sprintf("[%s] Test checks completed without violating suite assertions.", step.Node.Name)
 	default:
 		return fmt.Sprintf("[%s] Health probe passed and downstream dependencies may proceed.", step.Node.Name)
+	}
+}
+
+func logLevelFromVariant(variant string) string {
+	switch variant {
+	case "log.warn":
+		return "warn"
+	case "log.error":
+		return "error"
+	case "log.debug":
+		return "debug"
+	default:
+		return "info"
 	}
 }
 

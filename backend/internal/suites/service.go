@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/babelsuite/babelsuite/internal/demofs"
 	"github.com/babelsuite/babelsuite/internal/examplefs"
 )
 
@@ -18,9 +18,14 @@ type Service struct {
 }
 
 func NewService() *Service {
-	return &Service{
-		suites: hydrateSuites(loadDemoSuites()),
-	}
+	return &Service{suites: map[string]Definition{}}
+}
+
+// NewWorkspaceService loads suites from the local examples workspace.
+// Use this in tests and dev tools only — the production server reads suites
+// exclusively from the OCI catalog.
+func NewWorkspaceService() *Service {
+	return &Service{suites: hydrateSuites(loadWorkspaceSuites())}
 }
 
 func (s *Service) List() []Definition {
@@ -127,14 +132,6 @@ func suiteCatalog(items map[string]Definition) []Definition {
 	return result
 }
 
-func loadDemoSuites() map[string]Definition {
-	demoSuites := loadSeedSuites()
-	if demofs.Enabled() {
-		return demoSuites
-	}
-
-	return mergeWorkspaceSuites(loadWorkspaceSuites(), demoSuites)
-}
 
 func (s *Service) Register(req RegisterRequest) (Definition, error) {
 	id := strings.TrimSpace(req.ID)
@@ -178,7 +175,7 @@ func (s *Service) Register(req RegisterRequest) (Definition, error) {
 		Description: strings.TrimSpace(req.Description),
 		Status:      "Installed",
 		SuiteStar:   suiteStar,
-		Contracts:   loadWorkspaceContracts(suiteStar),
+		Contracts:   extractLoadContracts(suiteStar),
 	}
 
 	_ = persistSuiteToDisk(id, suiteStar)
@@ -203,63 +200,47 @@ func persistSuiteToDisk(id, suiteStar string) error {
 		return fmt.Errorf("invalid suite id")
 	}
 	dir := filepath.Join(examplefs.ResolveRoot(), "oci-suites", id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+	// Only update suite.star for suites that already have a proper workspace structure.
+	// This prevents transient test registrations from creating incomplete workspace entries.
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil
 	}
 	return os.WriteFile(filepath.Join(dir, "suite.star"), []byte(suiteStar), 0o644)
 }
 
-func loadSeedSuites() map[string]Definition {
-	manifest, err := demofs.LoadManifest()
-	if err != nil {
-		return map[string]Definition{}
-	}
 
-	definitions, err := demofs.LoadJSON[[]Definition](manifest.SuitesFile)
-	if err != nil {
-		return map[string]Definition{}
-	}
+var loadStmtRe = regexp.MustCompile(`(?m)^\s*load\s*\(\s*"([^"]+)"`)
 
-	result := make(map[string]Definition, len(definitions))
-	for _, definition := range definitions {
-		result[strings.TrimSpace(definition.ID)] = definition
-	}
-	return result
-}
-
-func mergeWorkspaceSuites(workspace, seeded map[string]Definition) map[string]Definition {
-	if len(workspace) == 0 {
-		return map[string]Definition{}
-	}
-
-	result := make(map[string]Definition, len(workspace))
-	for id, definition := range workspace {
-		if seededDefinition, ok := seeded[id]; ok {
-			definition = mergeWorkspaceDefinition(definition, seededDefinition)
+func extractLoadContracts(suiteStar string) []string {
+	seen := map[string]struct{}{}
+	result := []string{}
+	for _, m := range loadStmtRe.FindAllStringSubmatch(suiteStar, -1) {
+		module := strings.TrimSpace(m[1])
+		if module == "" {
+			continue
 		}
-		result[id] = definition
+		if _, ok := seen[module]; ok {
+			continue
+		}
+		seen[module] = struct{}{}
+		result = append(result, module)
 	}
 	return result
 }
 
-func mergeWorkspaceDefinition(workspace, seeded Definition) Definition {
-	merged := workspace
-
-	if len(merged.APISurfaces) == 0 && len(seeded.APISurfaces) > 0 {
-		merged.APISurfaces = cloneSurfaces(seeded.APISurfaces)
+func humanizeIdentifier(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "Workspace"
 	}
-	if len(merged.Contracts) == 0 && len(seeded.Contracts) > 0 {
-		merged.Contracts = append([]string{}, seeded.Contracts...)
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == '-' || r == '_' || r == '/' || r == '.'
+	})
+	for i := range parts {
+		if parts[i] == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(parts[i][:1]) + strings.ToLower(parts[i][1:])
 	}
-	if strings.TrimSpace(merged.Description) == "" {
-		merged.Description = seeded.Description
-	}
-	if strings.TrimSpace(merged.Owner) == "" {
-		merged.Owner = seeded.Owner
-	}
-	if len(merged.Labels) == 0 && len(seeded.Labels) > 0 {
-		merged.Labels = cloneStringMap(seeded.Labels)
-	}
-
-	return merged
+	return strings.Join(parts, " ")
 }

@@ -8,14 +8,24 @@ import (
 )
 
 func packageID(repository, kind string) string {
-	base := strings.ToLower(strings.TrimSpace(repository))
-	replacer := strings.NewReplacer("/", "-", ":", "-", ".", "-", "_", "-")
-	base = replacer.Replace(base)
-	base = strings.Trim(base, "-")
-	if base == "" {
-		base = "package"
+	repository = strings.TrimSpace(repository)
+	// Strip registry host (anything before the first slash that looks like a host).
+	if slash := strings.Index(repository, "/"); slash >= 0 {
+		host := repository[:slash]
+		if strings.Contains(host, ".") || strings.Contains(host, ":") || strings.EqualFold(host, "localhost") {
+			repository = repository[slash+1:]
+		}
 	}
-	return kind + "-" + base
+	// Use the last path segment as the ID (e.g. "platform/notification-hub" → "notification-hub").
+	parts := strings.Split(strings.Trim(strings.ToLower(repository), "/"), "/")
+	last := parts[len(parts)-1]
+	if last == "" {
+		last = "package"
+	}
+	if kind == "suite" {
+		return last
+	}
+	return kind + "-" + last
 }
 
 func inferKind(repository string) string {

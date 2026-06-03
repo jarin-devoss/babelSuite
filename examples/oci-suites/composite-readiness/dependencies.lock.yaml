@@ -1,4 +1,11 @@
 locks:
-  payments-module:
-    version: workspace
+  payment-suite:
     resolved: localhost:5000/core-platform/payment-suite@sha256:1111111111111111111111111111111111111111111111111111111111111111
+  identity-broker:
+    resolved: localhost:5000/security/identity-broker@sha256:2222222222222222222222222222222222222222222222222222222222222222
+  returns-control-plane:
+    resolved: localhost:5000/qa/returns-control-plane@sha256:3333333333333333333333333333333333333333333333333333333333333333
+  notification-hub:
+    resolved: localhost:5000/platform/notification-hub@sha256:4444444444444444444444444444444444444444444444444444444444444444
+  fleet-control-room:
+    resolved: localhost:5000/platform/fleet-control-room@sha256:5555555555555555555555555555555555555555555555555555555555555555

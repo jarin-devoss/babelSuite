@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "security")
+load("@babelsuite/runtime", "service", "task", "security", "log")
 
 # Mock the API under test — the APISIX sidecar is provisioned automatically
 # alongside every mock node, so all security steps derive their gateway URL
@@ -37,12 +37,18 @@ cors_audit = security.cors(
     exports = [{"path": "/findings/cors.json", "on": "always"}],
 )
 
+# --- Surface checks done — moving to active injection tests ---
+passive_done = log.info(
+    "passive surface checks complete — starting active injection tests",
+    after=[probe, headers_audit, verbs_check, graphql_introspection, cors_audit],
+)
+
 # --- Active injection tests ---
 
 fuzz = security.fuzz(
     name = "fuzz",
     technique = "sqli",
-    after = [probe],
+    after = [passive_done],
     exports = [{"path": "/findings/fuzz.json", "on": "always"}],
 )
 

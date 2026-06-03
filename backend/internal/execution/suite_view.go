@@ -29,7 +29,7 @@ func toExecutionProfiles(input []suites.ProfileOption) []ProfileOption {
 }
 
 func buildExecutionSuite(suite suites.Definition) ExecutionSuite {
-	renderedSurfaces := cloneExecutionSurfaces(suite.APISurfaces)
+	renderedSurfaces := cloneExecutionSurfaces(mocking.RenderExchangePreviews(suite, suite.APISurfaces))
 	for surfaceIndex := range renderedSurfaces {
 		for operationIndex := range renderedSurfaces[surfaceIndex].Operations {
 			for exchangeIndex := range renderedSurfaces[surfaceIndex].Operations[operationIndex].Exchanges {

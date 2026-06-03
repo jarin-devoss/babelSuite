@@ -27,7 +27,7 @@ func (r staticSuiteReader) Get(id string) (*suites.Definition, error) {
 }
 
 func TestPaymentMockPersistsStateAcrossOperations(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 
 	createReq := httptest.NewRequest("POST", "/mocks/rest/payment-suite/payment-gateway/payments?status=approved", strings.NewReader(`{"amount":1299,"currency":"USD","merchantId":"m-117"}`))
 	createReq.Header.Set("Content-Type", "application/json")
@@ -64,7 +64,7 @@ func TestPaymentMockPersistsStateAcrossOperations(t *testing.T) {
 }
 
 func TestResetSuiteStateClearsPersistedMockState(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 
 	createReq := httptest.NewRequest("POST", "/mocks/rest/payment-suite/payment-gateway/payments?status=approved", strings.NewReader(`{"amount":1299,"currency":"USD","merchantId":"m-117"}`))
 	createReq.Header.Set("Content-Type", "application/json")
@@ -94,7 +94,7 @@ func TestResetSuiteStateClearsPersistedMockState(t *testing.T) {
 }
 
 func TestListProductsEnforcesConstraints(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 
 	req := httptest.NewRequest("GET", "/mocks/rest/storefront-browser-lab/storefront-api/catalog/products", nil)
 	req.Header.Set("Accept", "application/json")
@@ -112,7 +112,7 @@ func TestListProductsEnforcesConstraints(t *testing.T) {
 }
 
 func TestGRPCAdapterUsesBodyDispatch(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 
 	req := httptest.NewRequest("POST", "/mocks/grpc/fleet-control-room/dispatcher-api/assign-route", strings.NewReader(`{"vehicleId":"vh-11","routeId":"route-778"}`))
 	req.Header.Set("X-Profile", "perf.yaml")
@@ -165,7 +165,7 @@ func TestRenderTemplateResolvesContextPathsAndFallbacks(t *testing.T) {
 }
 
 func TestReturnsMocksGenerateFreshDataPerRequest(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 
 	createReq := httptest.NewRequest("POST", "/mocks/rest/returns-control-plane/returns-api/returns?scenario=approved", strings.NewReader(`{"orderId":"ord_1001","returnReason":"damaged","amountCents":4200}`))
 	createReq.Header.Set("Content-Type", "application/json")
@@ -238,7 +238,7 @@ func TestReturnsMocksGenerateFreshDataPerRequest(t *testing.T) {
 }
 
 func TestSOAPMockRendersXMLResponses(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 
 	req := httptest.NewRequest("POST", "/mocks/rest/soap-claims-hub/claims-soap/ClaimService", strings.NewReader(`<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:clm="urn:claims:v1">
@@ -288,7 +288,7 @@ func TestSOAPMockRendersXMLResponses(t *testing.T) {
 }
 
 func TestResolverEndpointReturnsNormalizedEnvelope(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	handler := NewHandler(service, "")
 	mux := http.NewServeMux()
 	handler.Register(mux)
@@ -344,7 +344,7 @@ func TestResolverEndpointReturnsNormalizedEnvelope(t *testing.T) {
 }
 
 func TestResolverEndpointPreservesPathParamsForRESTOperations(t *testing.T) {
-	service := NewService(suites.NewService())
+	service := NewService(suites.NewWorkspaceService())
 	createReq := httptest.NewRequest("POST", "/mocks/rest/returns-control-plane/returns-api/returns?scenario=approved", strings.NewReader(`{"orderId":"ord_1001","returnReason":"damaged","amountCents":4200}`))
 	createReq.Header.Set("Content-Type", "application/json")
 	createReq.Header.Set("X-Suite-Profile", "canary.yaml")
@@ -395,7 +395,7 @@ func TestResolverEndpointPreservesPathParamsForRESTOperations(t *testing.T) {
 }
 
 func TestSchemaDocumentDrivesMockResponseGeneration(t *testing.T) {
-	source := suites.NewService()
+	source := suites.NewWorkspaceService()
 	suite, err := source.Get("returns-control-plane")
 	if err != nil {
 		t.Fatalf("get suite: %v", err)
@@ -475,7 +475,7 @@ func TestSchemaDocumentDrivesMockResponseGeneration(t *testing.T) {
 }
 
 func TestSchemaDocumentValidatesRequestBody(t *testing.T) {
-	source := suites.NewService()
+	source := suites.NewWorkspaceService()
 	suite, err := source.Get("returns-control-plane")
 	if err != nil {
 		t.Fatalf("get suite: %v", err)

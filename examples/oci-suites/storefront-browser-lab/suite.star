@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite", "log")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ DEVICE_VIEWPORTS = {
 
 BROWSER_IMAGE = "mcr.microsoft.com/playwright:v1.53.0-noble"
 
-PAYMENT_SUITE_REF = env.get("PAYMENT_SUITE_REF", "localhost:5000/core-platform/payment-suite:stable")
+PAYMENT_SUITE_REF = env.get("PAYMENT_SUITE_REF", "payment-suite")
 
 # ── upstream suite dependencies ───────────────────────────────────────────────
 # payment-suite provides the checkout and fraud services the browser tests drive
@@ -56,6 +56,7 @@ seed_products = task.run(
 event_consumer = service.run(after=topic_nodes + promo_topic_nodes + [orders_mock])
 storefront_api = service.run(after=[catalog_mock, orders_mock, seed_products, payment_suite] + topic_nodes)
 storefront_ui  = service.run(after=[storefront_api])
+ui_ready       = log.info("storefront UI serving — running " + str(len(BROWSERS)) + " browser × " + str(len(DEVICE_PROFILES)) + " device matrix", after=[storefront_ui])
 
 # ── performance monitoring (optional) ────────────────────────────────────────
 if ENABLE_PERF:
@@ -85,7 +86,7 @@ for browser in BROWSERS:
             name=test_name,
             file="playwright_checkout.spec.ts",
             image=BROWSER_IMAGE,
-            after=[storefront_ui, event_consumer] + perf_deps,
+            after=[ui_ready, event_consumer] + perf_deps,
             env={
                 "BROWSER":           browser,
                 "VIEWPORT_WIDTH":    str(viewport["width"]),

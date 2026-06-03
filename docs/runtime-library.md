@@ -278,6 +278,58 @@ Security threshold metrics (analogous to traffic thresholds):
 Supported operators: `<`, `<=`, `>`, `>=`, `==`.
 
 
+### `log`
+
+Emits a structured log line at a specific point in the execution graph — no container, no image pull. The node completes instantly after emitting.
+
+| Call | Level |
+|------|-------|
+| `log.info` | info |
+| `log.warn` | warn |
+| `log.error` | error |
+| `log.debug` | debug |
+
+```python
+checkpoint = log.info("schema migrated — starting API warmup", after=[migrate])
+api = service.run(after=[checkpoint])
+```
+
+The message can be passed as a positional argument or via `message=`:
+
+```python
+log.warn(message="feature flag disabled — skipping canary step", after=[db])
+```
+
+`log.*` nodes are valid anywhere in the graph, including inside OCI modules:
+
+```python
+def pg(name="db", ...):
+    cluster = service.run(name=name, ...)
+    ready   = log.info("postgres cluster ready at " + name + ":5432", after=[cluster])
+    return {"service": cluster, "ready": ready, "name": name}
+```
+
+#### Template placeholders
+
+Messages support `{{ ... }}` placeholders that are resolved at runtime from live execution state:
+
+| Placeholder | Resolves to |
+|---|---|
+| `{{ suite }}` | Suite title (e.g. `Payment Suite`) |
+| `{{ profile }}` | Active profile file name (e.g. `staging.yaml`) |
+| `{{ total }}` | Total number of nodes in the topology |
+| `{{ healthy }}` | Number of healthy nodes at the moment the log node runs |
+| `{{ env.NAME }}` | Value of environment variable `NAME` from the active profile |
+
+```python
+infra_ready = log.info(
+    "{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy, FRAUD_STRATEGY={{ env.FRAUD_STRATEGY }}",
+    after=[db, broker, stripe_mock],
+)
+```
+
+`log(...)` bare is rejected. Use one of the explicit `log.*` forms.
+
 ### `suite`
 
 Imports another suite via `dependencies.yaml`.

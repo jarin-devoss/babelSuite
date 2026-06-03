@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: security-suite
+  title: Security Suite
+spec:
+  repository: localhost:5000/security/security-suite
+  owner: Security Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: API security suite covering passive surface checks, active injection tests, rate-limit validation, and aggregated findings export.

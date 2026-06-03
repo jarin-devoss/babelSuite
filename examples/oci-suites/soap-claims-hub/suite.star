@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -56,8 +56,12 @@ else:
     bridge_deps = []
 
 # ── claims bridge ─────────────────────────────────────────────────────────────
+mocks_ready = log.info(
+    str(len(CLAIM_TYPES)) + " SOAP mocks registered across " + str(len(SOAP_VERSIONS)) + " versions",
+    after=all_mocks,
+)
 claims_bridge = service.run(
-    after=all_mocks + bridge_deps + [seed_reference_data],
+    after=[mocks_ready] + bridge_deps + [seed_reference_data],
     env={
         "LEGACY_MODE":       str(LEGACY_MODE).lower(),
         "VALIDATION_LEVEL":  VALIDATION_LEVEL,

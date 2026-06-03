@@ -1,5 +1,5 @@
 load("@babelsuite/postgres", "pg", "connect", "insert", "select", "delete", "upsert")
-load("@babelsuite/runtime", "service")
+load("@babelsuite/runtime", "service", "log")
 
 db = pg(name="payments-db", database="payments")
 
@@ -34,13 +34,15 @@ read_merchant = select(
     after=["payments-db-upsert-merchants"],
 )
 
+seed_done = log.info("seed data applied — starting payments API", after=["payments-db-select-merchants"])
+
 api = service.run(
     name="payments-api",
     image="ghcr.io/acme/payments-api:latest",
     env={
         "DATABASE_URL": db["url"],
     },
-    after=["payments-db", "payments-db-select-merchants"],
+    after=["payments-db", seed_done],
 )
 
 delete_merchant = delete(

@@ -1,7 +1,7 @@
 kind: OCIExampleModule
 metadata:
   id: stdlib-postgres
-  title: @babelsuite/postgres
+  title: "@babelsuite/postgres"
 spec:
   repository: localhost:5000/babelsuite/postgres
   provider: Stdlib

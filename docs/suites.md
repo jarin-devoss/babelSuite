@@ -62,6 +62,7 @@ The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`
 | `test` | `test.run` |
 | `traffic` | `traffic.smoke`, `traffic.baseline`, `traffic.stress`, `traffic.spike`, `traffic.soak`, `traffic.scalability`, `traffic.step`, `traffic.wave`, `traffic.staged`, `traffic.constant_throughput`, `traffic.constant_pacing`, `traffic.open_model` |
 | `security` | `security.probe`, `security.fuzz`, `security.auth`, `security.flood`, `security.headers`, `security.verbs`, `security.graphql`, `security.cors` |
+| `log` | `log.info`, `log.warn`, `log.error`, `log.debug` |
 | `suite` | `suite.run` |
 
 Each node declares ordering with `after=[db, api]`.

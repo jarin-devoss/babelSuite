@@ -14,6 +14,7 @@ type StepNode struct {
 	Kind      string
 	Variant   string
 	Image     string
+	Message   string
 	DependsOn []string
 }
 
@@ -46,6 +47,7 @@ type StepSpec struct {
 	DependencyAlias  string
 	StepIndex        int
 	TotalSteps       int
+	HealthySteps     int
 	LeaseTTL         time.Duration
 	Load             *suites.LoadSpec
 	Security         *suites.SecuritySpec
