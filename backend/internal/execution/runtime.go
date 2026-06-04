@@ -362,12 +362,15 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		GatewayURL:  resolveGatewayURL(executionID, suite),
 		GatewayURLs: resolveGatewayURLs(executionID, suite),
 		Node: runner.StepNode{
-			ID:        node.ID,
-			Name:      node.Name,
-			Kind:      node.Kind,
-			Variant:   node.Variant,
-			Message:   node.Message,
-			DependsOn: append([]string{}, node.DependsOn...),
+			ID:          node.ID,
+			Name:        node.Name,
+			Kind:        node.Kind,
+			Variant:     node.Variant,
+			Message:     node.Message,
+			File:        node.File,
+			Commands:    append([]string{}, node.Commands...),
+			FileContent: resolveNodeFileContent(node.File, suite),
+			DependsOn:   append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {
 		s.appendRunnerLog(executionID, node.ID, line)
@@ -495,6 +498,21 @@ func (s *Service) appendEvent(executionID string, event ExecutionEvent) {
 	s.appendLog(executionID, event)
 	s.persistExecutionRuntime()
 	s.syncObservers(executionID)
+}
+
+func resolveNodeFileContent(file string, suite *suites.Definition) string {
+	if file == "" || suite == nil {
+		return ""
+	}
+	candidates := []string{file, "tasks/" + file, "tests/" + file}
+	for _, sf := range suite.SourceFiles {
+		for _, candidate := range candidates {
+			if sf.Path == candidate {
+				return sf.Content
+			}
+		}
+	}
+	return ""
 }
 
 func (s *Service) countHealthySteps(executionID string) int {

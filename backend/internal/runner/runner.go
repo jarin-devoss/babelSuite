@@ -9,13 +9,16 @@ import (
 )
 
 type StepNode struct {
-	ID        string
-	Name      string
-	Kind      string
-	Variant   string
-	Image     string
-	Message   string
-	DependsOn []string
+	ID          string
+	Name        string
+	Kind        string
+	Variant     string
+	Image       string
+	Message     string
+	File        string
+	Commands    []string
+	FileContent string
+	DependsOn   []string
 }
 
 type ArtifactExport struct {

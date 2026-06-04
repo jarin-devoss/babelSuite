@@ -28,6 +28,7 @@ type starlarkNode struct {
 	variant         string
 	image           string
 	file            string
+	commands        []string
 	ref             string
 	plan            string
 	target          string
@@ -311,6 +312,21 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 					return nil, fmt.Errorf("%s: file must be a string", variant)
 				}
 				node.file = strings.TrimSpace(s)
+
+			case "commands":
+				list, ok := val.(*starlark.List)
+				if !ok {
+					return nil, fmt.Errorf("%s: commands must be a list of strings", variant)
+				}
+				cmds := make([]string, list.Len())
+				for i := range list.Len() {
+					s, ok := starlark.AsString(list.Index(i))
+					if !ok {
+						return nil, fmt.Errorf("%s: commands entries must be strings", variant)
+					}
+					cmds[i] = s
+				}
+				node.commands = cmds
 
 			case "ref":
 				s, ok := starlark.AsString(val)
@@ -619,6 +635,8 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			Name:              node.name,
 			Kind:              node.kind,
 			Variant:           node.variant,
+			File:              node.file,
+			Commands:          append([]string{}, node.commands...),
 			Ref:               node.ref,
 			Target:            node.target,
 			Technique:         node.technique,
