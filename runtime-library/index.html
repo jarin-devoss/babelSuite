@@ -914,6 +914,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#live-terminal-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Live terminal rendering
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -957,6 +966,57 @@
       Evaluation Controls
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ci_script-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      CI_SCRIPT Injection
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI_SCRIPT Injection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How it works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interpreter-inference-for-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interpreter inference for file=
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables-available-inside-the-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment variables available inside the container
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detached-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detached services
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1446,6 +1506,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#live-terminal-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Live terminal rendering
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1489,6 +1558,57 @@
       Evaluation Controls
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ci_script-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      CI_SCRIPT Injection
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI_SCRIPT Injection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How it works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interpreter-inference-for-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interpreter inference for file=
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables-available-inside-the-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment variables available inside the container
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detached-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detached services
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1583,6 +1703,15 @@
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p>Use <code>service.run</code> for first-party background dependencies such as databases, APIs, caches, and workers.</p>
+<p>When <code>image=</code> is provided, <code>service.run</code> starts a real Docker container and runs it <strong>detached</strong> — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">cache</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">worker</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;./worker --queue jobs&quot;</span><span class="p">],</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cache</span><span class="p">],</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span>
+</span></code></pre></div>
+<p><code>commands=</code> is available as an inline alternative to a separate <code>file=</code> script — the commands are encoded into a <code>BABELSUITE_SCRIPT</code> environment variable and executed inside the container via <code>/bin/sh -e</code>. See the <a href="#ci_script-injection">CI_SCRIPT injection</a> section below.</p>
 <p><code>service(...)</code> is intentionally rejected. Use one of the explicit <code>service.*</code> forms.</p>
 <h3 id="servicemock"><code>service.mock</code><a class="headerlink" href="#servicemock" title="Permanent link">&para;</a></h3>
 <p>Native suite-defined mock surfaces.</p>
@@ -1600,7 +1729,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>service.mock</code> is the runtime entrypoint for mocks backed by the suite's <code>api/</code> and <code>mock/</code> folders.</p>
 <p>Compatibility aliases still parse:</p>
@@ -1623,11 +1752,19 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">migrate</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;migrate.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">seed</span>    <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">migrate</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;migrate.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">seed</span>    <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
+</span></code></pre></div>
+<p>Use <code>file=</code> to reference a script bundled in the suite artifact, or <code>commands=</code> for inline shell commands:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">build</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;node:22-alpine&quot;</span><span class="p">,</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;npm ci&quot;</span><span class="p">,</span> <span class="s2">&quot;npm run build&quot;</span><span class="p">],</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">],</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>task(...)</code> is intentionally rejected. Use <code>task.run(...)</code>.</p>
 <p><code>task.run</code> resolves <code>file=</code> relative to <code>tasks/</code>, so <code>file="seed.sh"</code> means <code>./tasks/seed.sh</code>.</p>
+<p>Both <code>file=</code> and <code>commands=</code> execute via the <a href="#ci_script-injection">CI_SCRIPT injection</a> mechanism — see that section for interpreter inference and environment details.</p>
 <h3 id="test"><code>test</code><a class="headerlink" href="#test" title="Permanent link">&para;</a></h3>
 <p>Verification, smoke checks, browser assertions, and pass/fail validation.</p>
 <table>
@@ -1644,10 +1781,18 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
+</span></code></pre></div>
+<p>Use <code>file=</code> to reference a test script from the suite artifact, or <code>commands=</code> for inline assertions:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">ping</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;curlimages/curl:8&quot;</span><span class="p">,</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;curl -sf http://api:8080/health&quot;</span><span class="p">],</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>test(...)</code> is intentionally rejected. Use <code>test.run(...)</code>.</p>
 <p><code>test.run</code> resolves <code>file=</code> relative to <code>tests/</code>, so <code>file="go/smoke_test.go"</code> means <code>./tests/go/smoke_test.go</code>.</p>
+<p>Both <code>file=</code> and <code>commands=</code> execute via the <a href="#ci_script-injection">CI_SCRIPT injection</a> mechanism — see that section for interpreter inference and environment details.</p>
 <h3 id="traffic"><code>traffic</code><a class="headerlink" href="#traffic" title="Permanent link">&para;</a></h3>
 <p>Throughput, concurrency, and latency testing.</p>
 <table>
@@ -1708,10 +1853,10 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">perf</span> <span class="o">=</span> <span class="n">traffic</span><span class="o">.</span><span class="n">smoke</span><span class="p">(</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">perf</span> <span class="o">=</span> <span class="n">traffic</span><span class="o">.</span><span class="n">smoke</span><span class="p">(</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>traffic(...)</code> is intentionally rejected. Use one of the explicit <code>traffic.*</code> forms.</p>
 <p>Each <code>traffic.*</code> node must declare:</p>
@@ -1831,14 +1976,14 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/probe.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/fuzz.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">flood</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">flood</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;flood&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/api/v1/resource&quot;</span><span class="p">,</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">rate</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">expect_throttle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/flood.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/probe.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/fuzz.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">flood</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">flood</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;flood&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/api/v1/resource&quot;</span><span class="p">,</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">rate</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">expect_throttle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/flood.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
 </span></code></pre></div>
 <p><code>security(...)</code> is intentionally rejected. Use one of the explicit <code>security.*</code> forms.</p>
 <p>Mode reference:</p>
@@ -1933,17 +2078,17 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">checkpoint</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;schema migrated — starting API warmup&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">checkpoint</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">checkpoint</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;schema migrated — starting API warmup&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">checkpoint</span><span class="p">])</span>
 </span></code></pre></div>
 <p>The message can be passed as a positional argument or via <code>message=</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;feature flag disabled — skipping canary step&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;feature flag disabled — skipping canary step&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>log.*</code> nodes are valid anywhere in the graph, including inside OCI modules:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">pg</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;db&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">cluster</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">ready</span>   <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;postgres cluster ready at &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;:5432&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cluster</span><span class="p">])</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="p">,</span> <span class="s2">&quot;ready&quot;</span><span class="p">:</span> <span class="n">ready</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">}</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">pg</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;db&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">cluster</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">ready</span>   <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;postgres cluster ready at &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;:5432&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cluster</span><span class="p">])</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="p">,</span> <span class="s2">&quot;ready&quot;</span><span class="p">:</span> <span class="n">ready</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">}</span>
 </span></code></pre></div>
 <h4 id="template-placeholders">Template placeholders<a class="headerlink" href="#template-placeholders" title="Permanent link">&para;</a></h4>
 <p>Messages support <code>{{ ... }}</code> placeholders that are resolved at runtime from live execution state:</p>
@@ -1977,11 +2122,13 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">infra_ready</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="s2">&quot;{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy, FRAUD_STRATEGY={{ env.FRAUD_STRATEGY }}&quot;</span><span class="p">,</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">broker</span><span class="p">,</span> <span class="n">stripe_mock</span><span class="p">],</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">infra_ready</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="s2">&quot;{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy, FRAUD_STRATEGY={{ env.FRAUD_STRATEGY }}&quot;</span><span class="p">,</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">broker</span><span class="p">,</span> <span class="n">stripe_mock</span><span class="p">],</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="p">)</span>
 </span></code></pre></div>
+<h4 id="live-terminal-rendering">Live terminal rendering<a class="headerlink" href="#live-terminal-rendering" title="Permanent link">&para;</a></h4>
+<p><code>log.*</code> nodes render inline in the live execution terminal as the graph runs — no container pull, no queue wait. Template placeholders are resolved at the moment the node executes, so <code>{{ healthy }}</code> and <code>{{ total }}</code> reflect real-time graph state.</p>
 <p><code>log(...)</code> bare is rejected. Use one of the explicit <code>log.*</code> forms.</p>
 <h3 id="suite"><code>suite</code><a class="headerlink" href="#suite" title="Permanent link">&para;</a></h3>
 <p>Imports another suite via <code>dependencies.yaml</code>.</p>
@@ -1999,7 +2146,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">payments</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ref</span><span class="o">=</span><span class="s2">&quot;payments-module&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">payments</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ref</span><span class="o">=</span><span class="s2">&quot;payments-module&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>suite(...)</code> is intentionally rejected. Use <code>suite.run(...)</code>.</p>
 <p>For nested suite manifests, see <a href="../dependencies/">Dependency Manifests</a>.</p>
@@ -2030,8 +2177,16 @@
 <td>failure-trigger ordering edge</td>
 </tr>
 <tr>
+<td><code>image="..."</code></td>
+<td>container image for <code>task.run</code>, <code>test.run</code>, and <code>service.run</code></td>
+</tr>
+<tr>
 <td><code>file="..."</code></td>
-<td>task/test asset path</td>
+<td>task/test asset path (alternative to <code>commands=</code>)</td>
+</tr>
+<tr>
+<td><code>commands=["...", "..."]</code></td>
+<td>inline shell commands (alternative to <code>file=</code>)</td>
 </tr>
 <tr>
 <td><code>plan="..."</code></td>
@@ -2090,10 +2245,10 @@
 <p>The variable name is the default node ID. Use <code>name=</code> or <code>id=</code> only when you need an explicit override.</p>
 <h2 id="artifact-exports">Artifact Exports<a class="headerlink" href="#artifact-exports" title="Permanent link">&para;</a></h2>
 <p>Nodes can attach artifact export rules with chained <code>.export(...)</code> calls:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">)</span> \
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;coverage/*.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-coverage&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;cobertura&quot;</span><span class="p">)</span> \
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;reports/junit.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-tests&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;junit&quot;</span><span class="p">)</span> \
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;logs/crash.dump&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;crash-debug&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">)</span> \
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;coverage/*.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-coverage&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;cobertura&quot;</span><span class="p">)</span> \
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;reports/junit.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-tests&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;junit&quot;</span><span class="p">)</span> \
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;logs/crash.dump&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;crash-debug&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;failure&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Supported export arguments:</p>
 <ul>
@@ -2119,13 +2274,13 @@
 </ul>
 <h2 id="evaluation-controls">Evaluation Controls<a class="headerlink" href="#evaluation-controls" title="Permanent link">&para;</a></h2>
 <p><code>task.run(...)</code>, <code>test.run(...)</code>, and other runnable nodes can declare explicit success/failure expectations:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">seed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">expect_exit</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">expect_logs</span><span class="o">=</span><span class="s2">&quot;Task completed successfully&quot;</span><span class="p">,</span>
-</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">fail_on_logs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;FATAL ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;panic:&quot;</span><span class="p">],</span>
-</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">seed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">expect_exit</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">expect_logs</span><span class="o">=</span><span class="s2">&quot;Task completed successfully&quot;</span><span class="p">,</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">fail_on_logs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;FATAL ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;panic:&quot;</span><span class="p">],</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>Supported controls:</p>
 <ul>
@@ -2148,9 +2303,88 @@
 <li><code>reset_mocks=[billing_mock]</code> clears persisted mock state before a <code>test.run(...)</code> step starts</li>
 <li>once a hard failure happens, unrelated branches are skipped while activated failure-path branches continue</li>
 </ul>
-<p>Current limit:</p>
+<p>Current behavior:</p>
 <ul>
-<li>the local and orchestrated runners still use BabelSuite's current simulated task/test execution path, so log assertions match the step log stream rather than a full streamed process stdout/stderr capture</li>
+<li>exit-code and log assertions apply to any step that runs in a container (<code>file=</code> or <code>commands=</code> steps)</li>
+<li><code>log.*</code> node output is included in the step log stream for <code>expect_logs</code> / <code>fail_on_logs</code> matching</li>
+</ul>
+<h2 id="ci_script-injection">CI_SCRIPT Injection<a class="headerlink" href="#ci_script-injection" title="Permanent link">&para;</a></h2>
+<p><code>task.run</code>, <code>test.run</code>, and <code>service.run</code> steps that specify <code>file=</code> or <code>commands=</code> execute inside a Docker container via an injected script.</p>
+<h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Script assembly</strong> — the runner builds a POSIX shell script from <code>commands=</code> entries, or writes the <code>file=</code> content to the shared execution workspace and prepends the appropriate interpreter call.</li>
+<li><strong>Encoding</strong> — the script is base64-encoded and injected as <code>BABELSUITE_SCRIPT</code> into the container environment.</li>
+<li><strong>Execution</strong> — the container entrypoint is overridden to:
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>/bin/sh -c &quot;echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e&quot;
+</span></code></pre></div></li>
+<li><strong>Exit code</strong> — the shell exits with the script's exit code, which the runner records as the step result.</li>
+</ol>
+<h3 id="interpreter-inference-for-file">Interpreter inference for <code>file=</code><a class="headerlink" href="#interpreter-inference-for-file" title="Permanent link">&para;</a></h3>
+<p>The interpreter is inferred from the file extension when <code>file=</code> is used:</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Interpreter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.sh</code>, <code>.bash</code></td>
+<td><code>/bin/sh</code></td>
+</tr>
+<tr>
+<td><code>.py</code></td>
+<td><code>python</code></td>
+</tr>
+<tr>
+<td><code>.js</code></td>
+<td><code>node</code></td>
+</tr>
+<tr>
+<td><code>.rb</code></td>
+<td><code>ruby</code></td>
+</tr>
+<tr>
+<td><code>.ts</code></td>
+<td><code>ts-node</code></td>
+</tr>
+<tr>
+<td>other</td>
+<td><code>/bin/sh</code> (treated as shell script)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="environment-variables-available-inside-the-container">Environment variables available inside the container<a class="headerlink" href="#environment-variables-available-inside-the-container" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BABELSUITE_SCRIPT</code></td>
+<td>base64-encoded script (consumed automatically by the entrypoint)</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_WORKSPACE</code></td>
+<td>path to the shared execution workspace bind-mounted into the container</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_ARTIFACTS_DIR</code></td>
+<td>path to the artifacts directory; files written here are harvested after exit</td>
+</tr>
+</tbody>
+</table>
+<h3 id="detached-services">Detached services<a class="headerlink" href="#detached-services" title="Permanent link">&para;</a></h3>
+<p><code>service.run(image="...")</code> runs the container detached:</p>
+<ul>
+<li>The container is started and the runner waits up to 500 ms for an immediate crash.</li>
+<li>If the container is still running, the node is marked <strong>healthy</strong> and downstream nodes proceed.</li>
+<li>Stdout/stderr are streamed to the execution log for the lifetime of the execution.</li>
+<li>The container is stopped and removed when the execution context is cancelled (execution end or failure).</li>
 </ul>
 <h2 id="authoring-rules">Authoring Rules<a class="headerlink" href="#authoring-rules" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2160,8 +2394,9 @@
 <li>use <code>after=[db, api]</code> to declare ordering; omitting it means the node has no dependencies</li>
 <li>use <code>on_failure=[primary]</code> for rollback or contingency branches</li>
 <li>quoted <code>after=["db"]</code> still parses, but identifier references are the preferred style</li>
-<li><code>task.run(file="...")</code> resolves from <code>tasks/</code></li>
-<li><code>test.run(file="...")</code> resolves from <code>tests/</code></li>
+<li><code>task.run(file="...")</code> resolves from <code>tasks/</code>; <code>task.run(commands=[...])</code> is the inline alternative — both require <code>image=</code></li>
+<li><code>test.run(file="...")</code> resolves from <code>tests/</code>; <code>test.run(commands=[...])</code> is the inline alternative — both require <code>image=</code></li>
+<li><code>service.run(image="...")</code> starts a detached container; <code>commands=</code> is accepted here too</li>
 <li><code>traffic.*(plan="...")</code> resolves from <code>traffic/</code> — only applies when <code>plan=</code> is specified</li>
 <li><code>ref=</code> is required for <code>suite.run</code>; the parser errors if it is missing</li>
 <li>duplicate <code>after</code> entries are deduplicated automatically</li>
