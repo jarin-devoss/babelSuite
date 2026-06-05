@@ -55,7 +55,7 @@ Workspace suite discovery currently uses these fields directly:
 - `runtime.profileFile`
 - `modules`
 
-Profile loading and execution also consume optional `env`, `services.<step>.env`, and `secretRefs` blocks from the same YAML body.
+Profile loading and execution also consume optional `env`, `services.<step>.env`, `services.<step>.devices`, `network.mode`, and `secretRefs` blocks from the same YAML body.
 
 ## Managed Profile Record Shape
 
@@ -77,22 +77,33 @@ The managed YAML payload is validated as YAML and can carry fields like:
 
 - `secretRefs`
 - `env`
-- `services`
+- `services` (per-node `env:` and `devices:`)
+- `network`
 
 Example:
 
 ```yaml
+network:
+  mode: execution   # isolated Docker bridge — containers reach each other by node name
+
 secretRefs:
   - key: API_TOKEN
     provider: Vault
     ref: kv/service/api-token
+
 env:
   LOG_LEVEL: debug
   TELEMETRY_PROFILE: verbose
+
 services:
   api:
     env:
+      API_PORT: 8080
       API_MODE: strict
+  seed-job:
+    devices: ["gpu"]          # NVIDIA GPU attached to this step
+  capture:
+    devices: ["/dev/video0"]  # specific /dev path
 ```
 
 ## Defaults And Selection

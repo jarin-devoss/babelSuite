@@ -248,6 +248,24 @@ verify = test.run(
 
 Use `BABELSUITE_ARTIFACTS_DIR` with `.export()` when you want BabelSuite to store and display the file in the execution UI (JUnit reports, coverage, crash dumps). Use `BABELSUITE_WORKSPACE_DIR` when you only need the next step to consume it.
 
+## Profile-Controlled Hardware and Networking
+
+Hardware requirements (`devices:`) and network topology (`network.mode:`) are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable across environments.
+
+```yaml
+# perf.yaml
+network:
+  mode: execution   # containers reach each other by node name
+
+services:
+  seed-job:
+    devices: ["gpu"]          # GPU attached to this step in perf runs only
+  capture:
+    devices: ["/dev/video0"]  # USB camera for hardware tests
+```
+
+The same `suite.star` runs with no GPU on a laptop (`local.yaml` omits `devices:`) and with GPU on a cluster (`perf.yaml` adds it). See [Profiles](profiles.md) for the full reference.
+
 ## Authoring Tips
 
 - keep `suite.star` focused on orchestration instead of large inline data blobs
