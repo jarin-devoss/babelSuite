@@ -163,6 +163,36 @@ func isDetachedService(step StepSpec) bool {
 	return step.Node.Kind == "service" && (step.Node.Image != "" || resolveStepImage(step) != "")
 }
 
+func buildDeviceConfig(devices []string) ([]container.DeviceRequest, []container.DeviceMapping) {
+	var requests []container.DeviceRequest
+	var mappings []container.DeviceMapping
+	for _, d := range devices {
+		switch {
+		case d == "gpu":
+			requests = append(requests, container.DeviceRequest{
+				Driver:       "nvidia",
+				Count:        -1,
+				Capabilities: [][]string{{"gpu"}},
+			})
+		case strings.HasPrefix(d, "gpu:"):
+			n := 1
+			fmt.Sscanf(strings.TrimPrefix(d, "gpu:"), "%d", &n)
+			requests = append(requests, container.DeviceRequest{
+				Driver:       "nvidia",
+				Count:        n,
+				Capabilities: [][]string{{"gpu"}},
+			})
+		case strings.HasPrefix(d, "/dev/"):
+			mappings = append(mappings, container.DeviceMapping{
+				PathOnHost:        d,
+				PathInContainer:   d,
+				CgroupPermissions: "rwm",
+			})
+		}
+	}
+	return requests, mappings
+}
+
 func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -228,13 +258,16 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 
 	pidsLimit := containerPidsLimit
+	deviceRequests, deviceMappings := buildDeviceConfig(step.Node.Devices)
 	hostCfg := &container.HostConfig{
 		AutoRemove:  false,
 		CapDrop:     []string{"ALL"},
 		SecurityOpt: []string{"no-new-privileges:true"},
 		Resources: container.Resources{
-			Memory:    containerMemoryLimit,
-			PidsLimit: &pidsLimit,
+			Memory:         containerMemoryLimit,
+			PidsLimit:      &pidsLimit,
+			Devices:        deviceMappings,
+			DeviceRequests: deviceRequests,
 		},
 		Binds: []string{workspaceDir + ":" + containerWorkspaceMount + ":rw"},
 	}

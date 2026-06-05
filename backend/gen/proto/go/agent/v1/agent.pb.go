@@ -95,6 +95,8 @@ type StepNode struct {
 	Commands      []string               `protobuf:"bytes,8,rep,name=commands,proto3" json:"commands,omitempty"`
 	FileContent   string                 `protobuf:"bytes,9,opt,name=file_content,json=fileContent,proto3" json:"file_content,omitempty"`
 	Message       string                 `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
+	Devices       []string               `protobuf:"bytes,11,rep,name=devices,proto3" json:"devices,omitempty"`
+	ResourceClass string                 `protobuf:"bytes,12,opt,name=resource_class,json=resourceClass,proto3" json:"resource_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,6 +197,20 @@ func (x *StepNode) GetFileContent() string {
 func (x *StepNode) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *StepNode) GetDevices() []string {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+func (x *StepNode) GetResourceClass() string {
+	if x != nil {
+		return x.ResourceClass
 	}
 	return ""
 }
@@ -1811,7 +1827,7 @@ var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14agent/v1/agent.proto\x12\x13babelsuite.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1clogstream/v1/logstream.proto\"\xfe\x01\n" +
+	"\x14agent/v1/agent.proto\x12\x13babelsuite.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1clogstream/v1/logstream.proto\"\xbf\x02\n" +
 	"\bStepNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1824,7 +1840,9 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\bcommands\x18\b \x03(\tR\bcommands\x12!\n" +
 	"\ffile_content\x18\t \x01(\tR\vfileContent\x12\x18\n" +
 	"\amessage\x18\n" +
-	" \x01(\tR\amessage\"`\n" +
+	" \x01(\tR\amessage\x12\x18\n" +
+	"\adevices\x18\v \x03(\tR\adevices\x12%\n" +
+	"\x0eresource_class\x18\f \x01(\tR\rresourceClass\"`\n" +
 	"\x0eArtifactExport\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
