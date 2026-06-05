@@ -71,11 +71,16 @@ func main() {
 			OnFailure:        append([]string{}, request.OnFailure...),
 			ArtifactExports:  cloneArtifactExports(request.ArtifactExports),
 			Node: runner.StepNode{
-				ID:        request.Node.ID,
-				Name:      request.Node.Name,
-				Kind:      request.Node.Kind,
-				Variant:   request.Node.Variant,
-				DependsOn: append([]string{}, request.Node.DependsOn...),
+				ID:          request.Node.ID,
+				Name:        request.Node.Name,
+				Kind:        request.Node.Kind,
+				Variant:     request.Node.Variant,
+				DependsOn:   append([]string{}, request.Node.DependsOn...),
+				Image:       request.Node.Image,
+				File:        request.Node.File,
+				Commands:    append([]string{}, request.Node.Commands...),
+				FileContent: request.Node.FileContent,
+				Message:     request.Node.Message,
 			},
 		}, emit)
 	}))
