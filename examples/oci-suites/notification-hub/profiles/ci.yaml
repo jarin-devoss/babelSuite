@@ -1,24 +1,16 @@
 name: CI
-description: Minimal resource footprint for pipeline runs.
-runtime:
-  suite: notification-hub
-  repository: localhost:5000/platform/notification-hub
-  profileFile: ci.yaml
-modules:
-  - redis
-  - postgres
-observability:
-  logs: json
-  traces: disabled
-  metrics: disabled
+description: Minimal footprint for pipeline runs — quiet logs, tight worker limits.
+default: false
+
 env:
   LOG_LEVEL: warn
   EMAIL_PROVIDER: mock
   RATE_LIMIT_RPS: "500"
+
 services:
-  notification_api:
+  notification-api:
     env:
-      API_PORT: 18090
+      API_PORT: 8090
       BATCH_SIZE: "20"
   dispatcher:
     env:

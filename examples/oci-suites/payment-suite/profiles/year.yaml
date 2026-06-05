@@ -1,29 +1,26 @@
+extendsId: base
 name: Year-End
-description: Ledger rollover fixtures, end-of-year reporting toggles, and settlement edge cases.
+description: Ledger rollover fixtures and year-end settlement edge cases.
 default: false
-runtime:
-  suite: payment-suite
-  repository: localhost:5000/core-platform/payment-suite
-  profileFile: year.yaml
-modules:
-  - postgres
-  - kafka
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LEDGER_PERIOD: year_end
+  FRAUD_STRATEGY: settlement_review
+  TRAFFIC_PROFILE: stress
+
 secretRefs:
   - key: SETTLEMENT_SFTP_KEY
     provider: Vault
     ref: kv/payment-suite/year-end-sftp-key
-env:
-  LEDGER_PERIOD: year_end
-  FRAUD_STRATEGY: settlement_review
+
 services:
-  payment_gateway:
+  payment-gateway:
     env:
-      SETTLEMENT_BATCH_SIZE: 500
-  fraud_worker:
+      SETTLEMENT_BATCH_SIZE: "500"
+  fraud-worker-0:
     env:
-      REPLAY_HISTORICAL_CHARGES: true
+      REPLAY_HISTORICAL_CHARGES: "true"
       LEDGER_CLOSE_MODE: year-end

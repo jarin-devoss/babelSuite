@@ -1,129 +1,38 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
-load("@babelsuite/postgres", "pg", "connect", "insert")
+load("@babelsuite/runtime", "service", "task", "test", "log")
 
-# ── environment knobs ────────────────────────────────────────────────────────
-PROVIDERS         = env.get("AUTH_PROVIDERS", "oidc,saml,ldap").split(",")
-REALM_COUNT       = int(env.get("REALM_COUNT", "3"))
-ENABLE_MFA        = env.get("ENABLE_MFA", "true") == "true"
-ENABLE_CANARY     = env.get("ENABLE_CANARY", "false") == "true"
-SESSION_BACKENDS  = env.get("SESSION_BACKENDS", "jwt,cookie").split(",")
+# ── Level 2: adds task.run with commands=, service.mock, log.info, secretRefs ─
+# New here: inline commands, mock surfaces, log checkpoints, secret injection.
+# Profile secretRefs resolve JWT_SIGNING_KEY from vault or local secrets.
 
-PROVIDER_IMAGES = {
-    "oidc": "node:22",
-    "saml": "node:22",
-    "ldap": "python:3.12",
-}
+db    = service.run(name="db")
+vault = service.run(name="vault", after=[db])
 
-PROVIDER_MOCK_FILES = {
-    "oidc": "mock/oidc",
-    "saml": "mock/saml",
-    "ldap": "mock/ldap",
-}
+oidc_mock = service.mock(name="oidc-provider", after=[vault])
 
-# ── infrastructure ───────────────────────────────────────────────────────────
-db   = pg()
-conn = connect(after=[db])
-
-# ── seed realms ──────────────────────────────────────────────────────────────
-realms = []
-for i in range(REALM_COUNT):
-    realm_id = "realm-" + str(i)
-    realms.append({"id": realm_id, "name": "Realm " + str(i), "tier": "enterprise" if i == 0 else "standard"})
-
-seed_realms = insert(table="realms", rows=realms, after=[conn])
-
-# ── provider mocks (only the ones listed in PROVIDERS) ───────────────────────
-provider_mocks = {}
-for provider in PROVIDERS:
-    if provider not in PROVIDER_MOCK_FILES:
-        continue
-    mock = service.mock(
-        name=provider + "-mock",
-        definition=PROVIDER_MOCK_FILES[provider],
-        after=[conn],
-    )
-    provider_mocks[provider] = mock
-
-# ── optional MFA service ─────────────────────────────────────────────────────
-if ENABLE_MFA:
-    totp_service  = service.run(name="totp-service",  after=list(provider_mocks.values()) + [conn])
-    webauthn_stub = service.mock(name="webauthn-stub", after=[conn])
-    mfa_deps      = [totp_service, webauthn_stub]
-else:
-    mfa_deps = []
-
-# ── broker API ───────────────────────────────────────────────────────────────
-providers_ready = log.info("provider mocks up — seeded " + str(REALM_COUNT) + " realms", after=list(provider_mocks.values()) + [seed_realms])
-broker_api = service.run(
-    after=[providers_ready] + mfa_deps,
-    env={"ENABLED_PROVIDERS": ",".join(PROVIDERS), "MFA_ENABLED": str(ENABLE_MFA).lower()},
+seed = task.run(
+    name     = "seed-realms",
+    image    = "python:3.12",
+    commands = ["python seed_realms.py --env {{ env.REALM_ENV }}"],
+    after    = [db],
 )
 
-# ── session workers (one per backend type) ───────────────────────────────────
-session_workers = []
-for backend in SESSION_BACKENDS:
-    worker = service.run(
-        name="session-worker-" + backend,
-        after=[broker_api],
-        env={"SESSION_BACKEND": backend},
-    )
-    session_workers.append(worker)
+ready = log.info("identity infrastructure ready — db seeded, vault up, OIDC mock healthy", after=[vault, oidc_mock, seed])
 
-# ── canary broker (optional) ─────────────────────────────────────────────────
-if ENABLE_CANARY:
-    canary_broker = service.run(
-        name="broker-api-canary",
-        after=list(provider_mocks.values()) + [seed_realms],
-        env={"ENABLED_PROVIDERS": ",".join(PROVIDERS), "FEATURE_FLAGS": "token_binding=true"},
-    )
-    api_targets = [broker_api, canary_broker]
-else:
-    api_targets = [broker_api]
+broker = service.run(name="broker-api", after=[ready])
 
-# ── login traffic ────────────────────────────────────────────────────────────
-traffic_nodes = []
-for target in api_targets:
-    t = traffic.baseline(
-        name="login-baseline-" + target.name,
-        target="http://" + target.name + ":9000",
-        after=session_workers + [target],
-    )
-    traffic_nodes.append(t)
+login_smoke = test.run(
+    name     = "login-smoke",
+    image    = "python:3.12",
+    commands = ["python -m pytest tests/login.py -v --base-url http://broker-api:9000"],
+    after    = [broker],
+    exports  = [{"path": "reports/junit.xml", "name": "login-tests", "format": "junit", "on": "always"}],
+)
 
-# ── smoke tests — one per provider ───────────────────────────────────────────
-smoke_nodes = []
-for provider in PROVIDERS:
-    if provider not in provider_mocks:
-        continue
-    smoke = test.run(
-        name="login-smoke-" + provider,
-        file="login_smoke.py",
-        image=PROVIDER_IMAGES.get(provider, "python:3.12"),
-        after=traffic_nodes,
-        env={"AUTH_PROVIDER": provider},
-        exports=[
-            {"path": "reports/" + provider + "-junit.xml", "name": "login-smoke-" + provider, "on": "always", "format": "junit"},
-        ],
-    )
-    smoke_nodes.append(smoke)
-
-# ── MFA smoke (only when MFA is enabled) ─────────────────────────────────────
-if ENABLE_MFA:
-    test.run(
-        name="mfa-smoke",
-        file="mfa_smoke.py",
-        image="python:3.12",
-        after=smoke_nodes,
-        fail_on_logs=["MFA_BYPASS_ATTEMPTED", "TOKEN_REPLAY_DETECTED"],
-        exports=[{"path": "reports/mfa-junit.xml", "name": "mfa-smoke", "on": "always", "format": "junit"}],
-    )
-
-# ── realm isolation test — one per realm ─────────────────────────────────────
-for i in range(REALM_COUNT):
-    test.run(
-        name="realm-isolation-" + str(i),
-        file="realm_isolation.py",
-        image="python:3.12",
-        after=smoke_nodes,
-        env={"REALM_ID": "realm-" + str(i)},
-    )
+token_smoke = test.run(
+    name             = "token-refresh",
+    image            = "python:3.12",
+    commands         = ["python -m pytest tests/token_refresh.py -v"],
+    after            = [login_smoke],
+    continue_on_failure = True,
+    exports          = [{"path": "reports/token.xml", "name": "token-tests", "format": "junit", "on": "always"}],
+)

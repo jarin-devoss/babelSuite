@@ -1,25 +1,21 @@
 name: Base Runtime
-description: Canonical suite defaults shared by every execution context before local, CI, or staging overrides are layered in.
+description: Canonical defaults shared by every profile via extendsId.
 default: false
-runtime:
-  suite: payment-suite
-  repository: localhost:5000/core-platform/payment-suite
-  profileFile: base.yaml
-modules:
-  - postgres
-  - kafka
+
+env:
+  LOG_LEVEL: info
+  FRAUD_STRATEGY: standard
+  TRAFFIC_PROFILE: baseline
+
 secretRefs:
   - key: JWT_PRIVATE_KEY
     provider: Local Secret
     ref: secrets://developer/jwt-private-key
-env:
-  LOG_LEVEL: info
-  PAYMENTS_API_BASE_URL: http://payment-gateway.internal
-  FRAUD_STRATEGY: standard
+
 services:
-  payment_gateway:
+  payment-gateway:
     env:
       POSTGRES_URL: postgres://test:test@db:5432/payments
-  fraud_worker:
+  stripe-mock:
     env:
-      KAFKA_BROKER: kafka:9092
+      RESPONSE_DELAY_MS: "0"

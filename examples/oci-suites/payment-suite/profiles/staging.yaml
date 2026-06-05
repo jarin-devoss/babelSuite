@@ -1,32 +1,28 @@
 extendsId: base
 name: Staging
-description: Production-like service topology with settings-managed secret injection.
+description: Production-like topology with execution network and Vault secrets.
 default: false
-runtime:
-  suite: payment-suite
-  repository: localhost:5000/core-platform/payment-suite
-  profileFile: staging.yaml
-modules:
-  - postgres
-  - kafka
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+# network.mode: execution — containers reach each other by name
+# (payment-gateway, db, stripe-mock all on the same bridge)
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: info
+  FRAUD_STRATEGY: strict
+  FRAUD_REPLICAS: "3"
+
 secretRefs:
   - key: DB_PASSWORD
     provider: Vault
     ref: kv/payment-suite/staging-db-password
-env:
-  LOG_LEVEL: info
-  PAYMENTS_API_BASE_URL: https://payments.staging.company.test
-  FRAUD_STRATEGY: strict
+
 services:
-  payment_gateway:
+  payment-gateway:
     env:
       API_PORT: 8080
       ROUTING_MODE: staging
-  fraud_worker:
+  fraud-worker-0:
     env:
-      WORKER_REPLICA_COUNT: 3
       DECISION_MODE: strict

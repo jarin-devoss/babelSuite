@@ -17,6 +17,7 @@ import (
 
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/profiles"
+	"github.com/babelsuite/babelsuite/internal/runner"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,9 +33,10 @@ type serviceSpec struct {
 }
 
 type profileRuntimeDocument struct {
-	Env        map[string]string
-	Services   map[string]serviceSpec
-	SecretRefs []profiles.SecretReference
+	Env         map[string]string
+	Services    map[string]serviceSpec
+	NetworkMode string
+	SecretRefs  []profiles.SecretReference
 }
 
 func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, profile string) (executionRuntimeOverlay, error) {
@@ -49,8 +51,9 @@ func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, p
 	}
 
 	overlay := executionRuntimeOverlay{
-		Env:      mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
-		Services: cloneServiceMap(profileRuntime.Services),
+		Env:         mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
+		Services:    cloneServiceMap(profileRuntime.Services),
+		NetworkMode: profileRuntime.NetworkMode,
 	}
 
 	if len(profileRuntime.SecretRefs) > 0 {
@@ -79,6 +82,16 @@ func (s *Service) resolveNodeRuntimeEnv(executionID string, node topologyNode) m
 		serviceEnv,
 		item.runtime.SecretEnv,
 	)
+}
+
+func (s *Service) resolveExecutionNetworkName(executionID string) string {
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil || item.runtime.NetworkMode != "execution" {
+		return ""
+	}
+	return runner.ExecutionNetworkName(executionID)
 }
 
 func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []string {
@@ -143,6 +156,9 @@ func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profile
 		runtime.Env = mergeRuntimeMaps(runtime.Env, parsed.Env)
 		runtime.Services = mergeServiceSpecs(runtime.Services, parsed.Services)
 		runtime.SecretRefs = mergeSecretRefs(runtime.SecretRefs, parsed.SecretRefs, current.SecretRefs)
+		if parsed.NetworkMode != "" {
+			runtime.NetworkMode = parsed.NetworkMode
+		}
 	}
 
 	return runtime, nil
@@ -163,6 +179,12 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 		Env:        scalarStringMap(document["env"]),
 		Services:   map[string]serviceSpec{},
 		SecretRefs: profiles.ExtractSecretRefsFromYAML(source),
+	}
+
+	if netBlock, ok := document["network"].(map[string]any); ok {
+		if mode, ok := netBlock["mode"].(string); ok {
+			runtime.NetworkMode = strings.TrimSpace(strings.ToLower(mode))
+		}
 	}
 
 	if services, ok := document["services"].(map[string]any); ok {

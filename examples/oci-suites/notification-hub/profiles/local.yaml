@@ -1,23 +1,14 @@
 name: Local Debug
-description: Verbose logs, mock email provider, and relaxed rate limits.
+description: Verbose logs, mock email provider, single dispatcher worker.
 default: true
-runtime:
-  suite: notification-hub
-  repository: localhost:5000/platform/notification-hub
-  profileFile: local.yaml
-modules:
-  - redis
-  - postgres
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
 env:
   LOG_LEVEL: debug
   EMAIL_PROVIDER: mock
   RATE_LIMIT_RPS: "1000"
+
 services:
-  notification_api:
+  notification-api:
     env:
       API_PORT: 18090
       BATCH_SIZE: "50"

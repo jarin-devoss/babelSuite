@@ -175,6 +175,9 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 
 	executionID := "run-" + uuid.NewString()[:8]
 	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700) //nolint:errcheck
+	if runtimeOverlay.NetworkMode == "execution" {
+		runner.EnsureExecutionNetwork(executionID)
+	}
 	startedAt := time.Now().UTC()
 	state := &executionState{
 		record: ExecutionRecord{
@@ -359,6 +362,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 				collectedFiles[path] = content
 			}
 		},
+		NetworkName: s.resolveExecutionNetworkName(executionID),
 		GatewayURL:  resolveGatewayURL(executionID, suite),
 		GatewayURLs: resolveGatewayURLs(executionID, suite),
 		Node: runner.StepNode{

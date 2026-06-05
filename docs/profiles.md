@@ -14,7 +14,8 @@ A profile can:
 
 - set environment variables for the run
 - select module hints and observability settings
-- override individual service env vars
+- override individual service env vars — including `devices:` for hardware passthrough
+- configure the execution network mode (`network.mode`)
 - declare secret-backed env vars with `secretRefs`
 - inherit from another profile via `extendsId`
 
@@ -80,20 +81,66 @@ Profiles stored via the API expose:
 | `launchable` | Whether this profile appears in the launch UI |
 | `updatedAt` | Last modified timestamp |
 
-The `yaml` payload typically carries:
+The `yaml` payload supports:
 
 ```yaml
+# Execution-scoped Docker network — all containers reachable by node name
+network:
+  mode: execution   # or: host | none (default: no dedicated network)
+
 secretRefs:
   - key: API_TOKEN
     provider: Vault
     ref: kv/service/api-token
+
 env:
   LOG_LEVEL: debug
   TELEMETRY_PROFILE: verbose
+
 services:
   api:
     env:
       API_MODE: strict
+  seed-job:
+    # Hardware devices attached to this step's container
+    devices: ["gpu"]           # nvidia GPU (all)
+    # devices: ["gpu:2"]       # exactly 2 GPUs
+    # devices: ["/dev/ttyUSB0"] # USB serial device
+```
+
+### `network.mode`
+
+| Value | Behaviour |
+|-------|-----------|
+| `execution` | One isolated Docker bridge network per execution. Every container joins it and is reachable by its node `name` as hostname — e.g. `redis:6379`, `payment-gateway:8080`. Network is created at execution start and removed when the execution finishes. |
+| `host` | Containers share the host network stack. |
+| `none` or omitted | Docker default bridge — containers are isolated from each other. |
+
+### `services.<name>.devices`
+
+Hardware devices to pass through into the step's container. The profile controls which hardware each step gets; `suite.star` stays portable.
+
+| Value | Docker | Kubernetes |
+|-------|--------|-----------|
+| `"gpu"` | nvidia `DeviceRequest` (all GPUs) | `nvidia.com/gpu: 1` limit + toleration |
+| `"gpu:N"` | N GPUs | `nvidia.com/gpu: N` |
+| `"/dev/foo"` | `DeviceMapping` bind | `smarter-devices/foo: 1` |
+
+Different profiles can assign different hardware to the same node:
+
+```yaml
+# local.yaml — no GPU
+services:
+  seed-job:
+    env:
+      BATCH_SIZE: "100"
+
+# perf.yaml — GPU for large batch
+services:
+  seed-job:
+    devices: ["gpu"]
+    env:
+      BATCH_SIZE: "50000"
 ```
 
 ## Default Selection

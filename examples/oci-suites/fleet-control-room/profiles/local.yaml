@@ -1,15 +1,18 @@
 name: Local Debug
-description: Browser-forwarded ports and verbose telemetry payloads.
+description: Single region, verbose telemetry, browser-forwarded ports.
 default: true
-runtime:
-  suite: fleet-control-room
-  repository: localhost:5000/platform/fleet-control-room
-  profileFile: local.yaml
-modules:
-    - redis
-    - grpc
-    - prometheus
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: debug
+  REGIONS: eu-west
+  ENABLE_TELEMETRY: "true"
+  ENABLE_GEO_FENCE: "true"
+  SPIKE_MULTIPLIER: "2"
+
+services:
+  control-room:
+    env:
+      API_PORT: 13000

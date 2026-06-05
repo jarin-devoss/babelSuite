@@ -225,6 +225,7 @@ func (s *Service) finishStepObservation(ctx context.Context, span trace.Span, st
 func (s *Service) finishExecutionObservation(executionID string, err error) {
 	defer s.queue.PruneGroup(executionID)
 	defer os.RemoveAll(runner.ExecutionWorkspaceDir(executionID))
+	defer runner.RemoveExecutionNetwork(executionID)
 
 	if s.signals == nil {
 		return

@@ -1,138 +1,75 @@
 load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
-load("@babelsuite/kafka",   "kafka", "create_topic")
-load("@babelsuite/postgres", "pg", "connect", "insert")
 
-# ── environment knobs ────────────────────────────────────────────────────────
-FRAUD_STRATEGY   = env.get("FRAUD_STRATEGY",   "strict")      # strict | permissive | shadow
+# ── Level 3: adds file=, profile extendsId inheritance, network.mode ─────────
+# New here: file= resolves scripts from the suite OCI artifact (tasks/ tests/).
+# Staging profile extends base, adds network.mode: execution so containers
+# reach each other by name (e.g. payment-gateway, db, stripe-mock).
+
+FRAUD_STRATEGY   = env.get("FRAUD_STRATEGY",   "standard")
 CURRENCY_MARKETS = env.get("CURRENCY_MARKETS", "usd,eur,gbp").split(",")
 REPLICA_COUNT    = int(env.get("FRAUD_REPLICAS", "1"))
-ENABLE_CANARY    = env.get("ENABLE_CANARY", "false") == "true"
-TRAFFIC_PROFILES = {
-    "baseline": {"rps": 50,  "duration": "2m"},
-    "stress":   {"rps": 500, "duration": "5m"},
-    "soak":     {"rps": 120, "duration": "30m"},
-}
-ACTIVE_TRAFFIC = env.get("TRAFFIC_PROFILE", "baseline")
+ACTIVE_TRAFFIC   = env.get("TRAFFIC_PROFILE",  "baseline")
 
-# ── infrastructure ───────────────────────────────────────────────────────────
-db     = pg()
-conn   = connect(after=[db])
-broker = kafka()
+# ── infrastructure ────────────────────────────────────────────────────────────
+db          = service.run(name="db")
+stripe_mock = service.mock(name="stripe-mock", after=[db])
 
-stripe_mock    = service.mock(after=[conn])
-migrations     = task.run(file="migrate.py", image="python:3.12", after=[conn])
-
-# seed merchant and card fixture data
-seed_merchants = insert(
-    table="merchants",
-    rows=[
-        {"id": "m-usd", "name": "USD Merchant", "currency": "usd"},
-        {"id": "m-eur", "name": "EUR Merchant", "currency": "eur"},
-        {"id": "m-gbp", "name": "GBP Merchant", "currency": "gbp"},
-    ],
-    after=[migrations],
+migrate = task.run(
+    name  = "migrate",
+    image = "python:3.12",
+    file  = "migrate.py",
+    after = [db],
 )
 
-# ── per-currency topic bootstrap ─────────────────────────────────────────────
-topic_nodes = []
-for currency in CURRENCY_MARKETS:
-    charge_topic  = create_topic("charges-"  + currency, name="charges-"  + currency, partitions=6, after=[broker])
-    refund_topic  = create_topic("refunds-"  + currency, name="refunds-"  + currency, partitions=3, after=[broker])
-    dlq_topic     = create_topic("dlq-"      + currency, name="dlq-"      + currency, partitions=1, after=[broker])
-    topic_nodes  += [charge_topic, refund_topic, dlq_topic]
+seed = task.run(
+    name  = "seed",
+    image = "bash:5.2",
+    file  = "seed.sh",
+    after = [migrate],
+)
 
-# ── payment gateway ──────────────────────────────────────────────────────────
-infra_ready = log.info("infrastructure ready — db migrated, topics bootstrapped, stripe mock up", after=topic_nodes + [seed_merchants, stripe_mock])
-payment_gateway = service.run(after=[infra_ready])
+infra_ready = log.info(
+    "db migrated and seeded — stripe mock up, starting gateway",
+    after = [seed, stripe_mock],
+)
 
-# ── fraud workers (one per replica) ─────────────────────────────────────────
+payment_gateway = service.run(name="payment-gateway", after=[infra_ready])
+
+# ── fraud workers (one per replica) ──────────────────────────────────────────
 fraud_workers = []
 for i in range(REPLICA_COUNT):
     worker = service.run(
-        name="fraud-worker-" + str(i),
-        after=topic_nodes + [payment_gateway],
-        env={"WORKER_INDEX": str(i), "FRAUD_STRATEGY": FRAUD_STRATEGY},
+        name  = "fraud-worker-" + str(i),
+        after = [payment_gateway],
+        env   = {"WORKER_INDEX": str(i), "FRAUD_STRATEGY": FRAUD_STRATEGY},
     )
     fraud_workers.append(worker)
 
-# ── canary gateway (optional) ────────────────────────────────────────────────
-if ENABLE_CANARY:
-    log.warn("canary gateway enabled — traffic will be split between stable and canary", after=fraud_workers)
-    canary_gateway = service.run(
-        name="payment-gateway-canary",
-        after=[conn, stripe_mock, migrations],
-        env={"FEATURE_FLAGS": "new_checkout_v2=true"},
-    )
-    traffic_targets = [payment_gateway, canary_gateway]
+# ── traffic ───────────────────────────────────────────────────────────────────
+if ACTIVE_TRAFFIC == "stress":
+    t = traffic.stress(name="checkout-stress", target="http://payment-gateway:8080", rps=200, after=fraud_workers)
 else:
-    traffic_targets = [payment_gateway]
+    t = traffic.baseline(name="checkout-baseline", target="http://payment-gateway:8080", rps=50, after=fraud_workers)
 
-# ── traffic ──────────────────────────────────────────────────────────────────
-traffic_profile = TRAFFIC_PROFILES[ACTIVE_TRAFFIC]
-traffic_nodes   = []
+# ── tests ─────────────────────────────────────────────────────────────────────
+checkout_smoke = test.run(
+    name            = "checkout-smoke",
+    image           = "python:3.12",
+    file            = "checkout_smoke.py",
+    after           = [t],
+    fail_on_logs    = ["FRAUD_BLOCK", "RISK_THRESHOLD_EXCEEDED"] if FRAUD_STRATEGY == "strict" else [],
+    exports         = [
+        {"path": "reports/junit.xml",      "name": "checkout-tests",   "format": "junit",     "on": "always"},
+        {"path": "coverage/cobertura.xml", "name": "checkout-coverage","format": "cobertura",  "on": "always"},
+    ],
+)
 
-for target in traffic_targets:
-    target_name = target.name if ENABLE_CANARY else "gateway"
-    if ACTIVE_TRAFFIC == "baseline":
-        t = traffic.baseline(
-            name="checkout-baseline-" + target_name,
-            target="http://" + target_name + ":8080",
-            rps=traffic_profile["rps"],
-            after=fraud_workers + [target],
-        )
-    elif ACTIVE_TRAFFIC == "stress":
-        t = traffic.stress(
-            name="checkout-stress-" + target_name,
-            target="http://" + target_name + ":8080",
-            rps=traffic_profile["rps"],
-            after=fraud_workers + [target],
-        )
-    else:
-        t = traffic.soak(
-            name="checkout-soak-" + target_name,
-            target="http://" + target_name + ":8080",
-            rps=traffic_profile["rps"],
-            after=fraud_workers + [target],
-        )
-    traffic_nodes.append(t)
-
-# ── smoke tests ───────────────────────────────────────────────────────────────
-common_exports = [
-    {"path": "reports/junit.xml",         "name": "checkout-test-report", "on": "always", "format": "junit"},
-    {"path": "coverage/cobertura.xml",    "name": "checkout-coverage",    "on": "always", "format": "cobertura"},
-]
-
-if FRAUD_STRATEGY == "permissive":
-    checkout_smoke = test.run(
-        file="checkout_smoke.py",
-        image="python:3.12",
-        after=traffic_nodes,
-        exports=common_exports,
-    )
-elif FRAUD_STRATEGY == "shadow":
-    checkout_smoke = test.run(
-        file="checkout_smoke.py",
-        image="python:3.12",
-        after=traffic_nodes,
-        env={"ASSERT_SHADOW_DECISIONS": "true"},
-        exports=common_exports,
-    )
-else:
-    checkout_smoke = test.run(
-        file="checkout_smoke.py",
-        image="python:3.12",
-        after=traffic_nodes,
-        fail_on_logs=["FRAUD_BLOCK", "RISK_THRESHOLD_EXCEEDED"],
-        exports=common_exports,
-    )
-
-# per-currency settlement reconciliation tests
 for currency in CURRENCY_MARKETS:
     test.run(
-        name="reconcile-" + currency,
-        file="reconcile_smoke.py",
-        image="python:3.12",
-        after=[checkout_smoke],
-        env={"TARGET_CURRENCY": currency},
-        exports=[{"path": "reports/reconcile-" + currency + ".xml", "name": "reconcile-" + currency, "on": "always", "format": "junit"}],
+        name    = "reconcile-" + currency,
+        image   = "python:3.12",
+        file    = "reconcile_smoke.py",
+        after   = [checkout_smoke],
+        env     = {"TARGET_CURRENCY": currency},
+        exports = [{"path": "reports/reconcile-" + currency + ".xml", "name": "reconcile-" + currency, "format": "junit", "on": "always"}],
     )

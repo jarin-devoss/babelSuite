@@ -1,19 +1,18 @@
 name: Canary Partner
-description: Partner-like SOAP headers and stricter claim review toggles.
+description: New SOAP 1.2 path, strict validation, no legacy adapter.
 default: false
-runtime:
-  suite: soap-claims-hub
-  repository: localhost:5000/enterprise-integration/soap-claims-hub
-  profileFile: canary.yaml
-modules:
-    - runtime
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
 env:
+  LOG_LEVEL: info
   CLAIM_TYPES: medical,dental,vision,pharmacy
   LEGACY_MODE: "false"
-  ENABLE_ADAPTER: "true"
-  VALIDATION_LEVEL: strict
-  SOAP_VERSIONS: "1.2"
+
+services:
+  claims-api:
+    env:
+      VALIDATION_LEVEL: strict
+      REVIEW_ESCALATION: enabled
+      SOAP_VERSION: "1.2"

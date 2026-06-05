@@ -1,15 +1,24 @@
 name: Peak Season
-description: High-volume return traffic with fraud screening and worker backpressure.
+description: High-volume refund traffic with GPU-accelerated policy seeding.
 default: false
-runtime:
-  suite: returns-control-plane
-  repository: localhost:5000/qa/returns-control-plane
-  profileFile: peak.yaml
-modules:
-    - postgres
-    - kafka
-    - grpc
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: info
+  REFUND_MODES: instant,delayed,manual,disputed
+  ENABLE_FRAUD_SCREENING: "true"
+
+# seed-policies gets a GPU in peak runs — policy graph is large
+services:
+  seed-policies:
+    devices: ["gpu"]
+  returns-api:
+    env:
+      API_PORT: 8085
+      MAX_CONCURRENT_REFUNDS: "500"
+  fraud-worker:
+    env:
+      DECISION_MODE: strict
+      WORKER_THREADS: "8"
