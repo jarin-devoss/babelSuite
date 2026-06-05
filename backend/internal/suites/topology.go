@@ -38,6 +38,7 @@ type rawTopologyNode struct {
 	Variant           string
 	File              string
 	Commands          []string
+	ResourceClass     string
 	Arguments         string
 	Ref               string
 	Target            string
@@ -231,6 +232,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			Variant:           raw.Variant,
 			File:              raw.File,
 			Commands:          append([]string{}, raw.Commands...),
+			ResourceClass:     raw.ResourceClass,
 			Message:           raw.Message,
 			DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
 			ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),

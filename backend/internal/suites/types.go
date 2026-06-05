@@ -78,6 +78,7 @@ type TopologyNode struct {
 	Message           string            `json:"message,omitempty"`
 	File              string            `json:"file,omitempty"`
 	Commands          []string          `json:"commands,omitempty"`
+	ResourceClass     string            `json:"resourceClass,omitempty"`
 	DependsOn         []string          `json:"dependsOn"`
 	ResetMocks        []string          `json:"resetMocks,omitempty"`
 	OnFailure         []string          `json:"onFailure,omitempty"`

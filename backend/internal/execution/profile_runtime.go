@@ -26,10 +26,17 @@ type suiteProfilesReader interface {
 	GetSuiteProfiles(suiteID string) (*profiles.SuiteProfiles, error)
 }
 
+type ResourceClassSpec struct {
+	Devices []string `yaml:"devices"`
+	Memory  string   `yaml:"memory"`
+	CPU     string   `yaml:"cpu"`
+}
+
 type profileRuntimeDocument struct {
-	Env        map[string]string
-	Services   map[string]map[string]string
-	SecretRefs []profiles.SecretReference
+	Env             map[string]string
+	Services        map[string]map[string]string
+	ResourceClasses map[string]ResourceClassSpec
+	SecretRefs      []profiles.SecretReference
 }
 
 func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, profile string) (executionRuntimeOverlay, error) {
@@ -44,8 +51,9 @@ func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, p
 	}
 
 	overlay := executionRuntimeOverlay{
-		Env:      mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
-		Services: cloneServiceEnvMap(profileRuntime.Services),
+		Env:             mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
+		Services:        cloneServiceEnvMap(profileRuntime.Services),
+		ResourceClasses: profileRuntime.ResourceClasses,
 	}
 
 	if len(profileRuntime.SecretRefs) > 0 {
@@ -76,6 +84,23 @@ func (s *Service) resolveNodeRuntimeEnv(executionID string, node topologyNode) m
 	)
 }
 
+func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []string {
+	if node.ResourceClass == "" {
+		return nil
+	}
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil {
+		return nil
+	}
+	spec, ok := item.runtime.ResourceClasses[node.ResourceClass]
+	if !ok {
+		return nil
+	}
+	return append([]string{}, spec.Devices...)
+}
+
 func (o executionRuntimeOverlay) serviceEnv(node topologyNode) map[string]string {
 	if len(o.Services) == 0 {
 		return nil
@@ -90,67 +115,40 @@ func (o executionRuntimeOverlay) serviceEnv(node topologyNode) map[string]string
 	return nil
 }
 
-func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (struct {
-	Env        map[string]string
-	Services   map[string]map[string]string
-	SecretRefs []profiles.SecretReference
-}, error) {
+func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profileRuntimeDocument, error) {
 	reader, ok := s.suiteSource.(suiteProfilesReader)
 	if !ok {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, nil
+		return profileRuntimeDocument{}, nil
 	}
 
 	payload, err := reader.GetSuiteProfiles(suiteID)
 	if err != nil {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, fmt.Errorf("%w: could not load managed profiles for suite %q: %v", ErrProfileRuntime, suiteID, err)
+		return profileRuntimeDocument{}, fmt.Errorf("%w: could not load managed profiles for suite %q: %v", ErrProfileRuntime, suiteID, err)
 	}
 
 	record := findProfileRecord(payload.Profiles, profile)
 	if record == nil {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, nil
+		return profileRuntimeDocument{}, nil
 	}
 
 	chain, err := resolveProfileChain(payload.Profiles, record.ID)
 	if err != nil {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, fmt.Errorf("%w: %v", ErrProfileRuntime, err)
+		return profileRuntimeDocument{}, fmt.Errorf("%w: %v", ErrProfileRuntime, err)
 	}
 
-	runtime := struct {
-		Env        map[string]string
-		Services   map[string]map[string]string
-		SecretRefs []profiles.SecretReference
-	}{
+	runtime := profileRuntimeDocument{
 		Services: map[string]map[string]string{},
 	}
 
 	for _, current := range chain {
 		parsed, err := parseManagedProfileYAML(current.YAML)
 		if err != nil {
-			return struct {
-				Env        map[string]string
-				Services   map[string]map[string]string
-				SecretRefs []profiles.SecretReference
-			}{}, fmt.Errorf("%w: could not parse %s: %v", ErrProfileRuntime, current.FileName, err)
+			return profileRuntimeDocument{}, fmt.Errorf("%w: could not parse %s: %v", ErrProfileRuntime, current.FileName, err)
 		}
 		runtime.Env = mergeRuntimeMaps(runtime.Env, parsed.Env)
 		runtime.Services = mergeServiceEnvMaps(runtime.Services, parsed.Services)
 		runtime.SecretRefs = mergeSecretRefs(runtime.SecretRefs, parsed.SecretRefs, current.SecretRefs)
+		runtime.ResourceClasses = mergeResourceClasses(runtime.ResourceClasses, parsed.ResourceClasses)
 	}
 
 	return runtime, nil
@@ -171,6 +169,31 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 		Env:        scalarStringMap(document["env"]),
 		Services:   map[string]map[string]string{},
 		SecretRefs: profiles.ExtractSecretRefsFromYAML(source),
+	}
+
+	if rc, ok := document["resource_classes"].(map[string]any); ok {
+		runtime.ResourceClasses = make(map[string]ResourceClassSpec, len(rc))
+		for name, rawSpec := range rc {
+			spec, ok := rawSpec.(map[string]any)
+			if !ok {
+				continue
+			}
+			var entry ResourceClassSpec
+			if devices, ok := spec["devices"].([]any); ok {
+				for _, d := range devices {
+					if s, ok := d.(string); ok && strings.TrimSpace(s) != "" {
+						entry.Devices = append(entry.Devices, strings.TrimSpace(s))
+					}
+				}
+			}
+			if m, ok := spec["memory"].(string); ok {
+				entry.Memory = strings.TrimSpace(m)
+			}
+			if c, ok := spec["cpu"].(string); ok {
+				entry.CPU = strings.TrimSpace(c)
+			}
+			runtime.ResourceClasses[strings.TrimSpace(name)] = entry
+		}
 	}
 
 	if services, ok := document["services"].(map[string]any); ok {
@@ -264,6 +287,20 @@ func platformGlobalOverrideEnv(settings *platform.PlatformSettings) map[string]s
 		return nil
 	}
 	return env
+}
+
+func mergeResourceClasses(base, overlay map[string]ResourceClassSpec) map[string]ResourceClassSpec {
+	if len(base) == 0 && len(overlay) == 0 {
+		return nil
+	}
+	result := make(map[string]ResourceClassSpec, len(base)+len(overlay))
+	for k, v := range base {
+		result[k] = v
+	}
+	for k, v := range overlay {
+		result[k] = v
+	}
+	return result
 }
 
 func mergeServiceEnvMaps(base map[string]map[string]string, overlays ...map[string]map[string]string) map[string]map[string]string {
