@@ -90,6 +90,11 @@ type StepNode struct {
 	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
 	Variant       string                 `protobuf:"bytes,4,opt,name=variant,proto3" json:"variant,omitempty"`
 	DependsOn     []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	Image         string                 `protobuf:"bytes,6,opt,name=image,proto3" json:"image,omitempty"`
+	File          string                 `protobuf:"bytes,7,opt,name=file,proto3" json:"file,omitempty"`
+	Commands      []string               `protobuf:"bytes,8,rep,name=commands,proto3" json:"commands,omitempty"`
+	FileContent   string                 `protobuf:"bytes,9,opt,name=file_content,json=fileContent,proto3" json:"file_content,omitempty"`
+	Message       string                 `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -157,6 +162,41 @@ func (x *StepNode) GetDependsOn() []string {
 		return x.DependsOn
 	}
 	return nil
+}
+
+func (x *StepNode) GetImage() string {
+	if x != nil {
+		return x.Image
+	}
+	return ""
+}
+
+func (x *StepNode) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *StepNode) GetCommands() []string {
+	if x != nil {
+		return x.Commands
+	}
+	return nil
+}
+
+func (x *StepNode) GetFileContent() string {
+	if x != nil {
+		return x.FileContent
+	}
+	return ""
+}
+
+func (x *StepNode) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 type ArtifactExport struct {
@@ -1771,14 +1811,20 @@ var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14agent/v1/agent.proto\x12\x13babelsuite.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1clogstream/v1/logstream.proto\"{\n" +
+	"\x14agent/v1/agent.proto\x12\x13babelsuite.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1clogstream/v1/logstream.proto\"\xfe\x01\n" +
 	"\bStepNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x18\n" +
 	"\avariant\x18\x04 \x01(\tR\avariant\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\x05 \x03(\tR\tdependsOn\"`\n" +
+	"depends_on\x18\x05 \x03(\tR\tdependsOn\x12\x14\n" +
+	"\x05image\x18\x06 \x01(\tR\x05image\x12\x12\n" +
+	"\x04file\x18\a \x01(\tR\x04file\x12\x1a\n" +
+	"\bcommands\x18\b \x03(\tR\bcommands\x12!\n" +
+	"\ffile_content\x18\t \x01(\tR\vfileContent\x12\x18\n" +
+	"\amessage\x18\n" +
+	" \x01(\tR\amessage\"`\n" +
 	"\x0eArtifactExport\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +

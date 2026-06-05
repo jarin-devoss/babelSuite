@@ -91,11 +91,16 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		OnFailure:        append([]string{}, step.OnFailure...),
 		ArtifactExports:  cloneRunnerArtifactExports(step.ArtifactExports),
 		Node: agent.StepNode{
-			ID:        step.Node.ID,
-			Name:      step.Node.Name,
-			Kind:      step.Node.Kind,
-			Variant:   step.Node.Variant,
-			DependsOn: append([]string{}, step.Node.DependsOn...),
+			ID:          step.Node.ID,
+			Name:        step.Node.Name,
+			Kind:        step.Node.Kind,
+			Variant:     step.Node.Variant,
+			DependsOn:   append([]string{}, step.Node.DependsOn...),
+			Image:       step.Node.Image,
+			File:        step.Node.File,
+			Commands:    append([]string{}, step.Node.Commands...),
+			FileContent: step.Node.FileContent,
+			Message:     step.Node.Message,
 		},
 	}, emit)
 }
