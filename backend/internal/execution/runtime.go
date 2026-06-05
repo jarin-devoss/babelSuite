@@ -370,8 +370,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 			File:          node.File,
 			Commands:      append([]string{}, node.Commands...),
 			FileContent:   resolveNodeFileContent(node.File, suite),
-			ResourceClass: node.ResourceClass,
-			Devices:       s.resolveNodeDevices(executionID, node),
+			Devices: s.resolveNodeDevices(executionID, node),
 			DependsOn:     append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {

@@ -110,18 +110,17 @@ func protoToStepRequest(p *agentv1.StepRequest) StepRequest {
 
 func stepNodeToProto(n StepNode) *agentv1.StepNode {
 	return &agentv1.StepNode{
-		Id:            n.ID,
-		Name:          n.Name,
-		Kind:          n.Kind,
-		Variant:       n.Variant,
-		DependsOn:     n.DependsOn,
-		Image:         n.Image,
-		File:          n.File,
-		Commands:      n.Commands,
-		FileContent:   n.FileContent,
-		Message:       n.Message,
-		Devices:       n.Devices,
-		ResourceClass: n.ResourceClass,
+		Id:          n.ID,
+		Name:        n.Name,
+		Kind:        n.Kind,
+		Variant:     n.Variant,
+		DependsOn:   n.DependsOn,
+		Image:       n.Image,
+		File:        n.File,
+		Commands:    n.Commands,
+		FileContent: n.FileContent,
+		Message:     n.Message,
+		Devices:     n.Devices,
 	}
 }
 
@@ -130,18 +129,17 @@ func protoToStepNode(p *agentv1.StepNode) StepNode {
 		return StepNode{}
 	}
 	return StepNode{
-		ID:            p.Id,
-		Name:          p.Name,
-		Kind:          p.Kind,
-		Variant:       p.Variant,
-		DependsOn:     p.DependsOn,
-		Image:         p.Image,
-		File:          p.File,
-		Commands:      p.Commands,
-		FileContent:   p.FileContent,
-		Message:       p.Message,
-		Devices:       p.Devices,
-		ResourceClass: p.ResourceClass,
+		ID:          p.Id,
+		Name:        p.Name,
+		Kind:        p.Kind,
+		Variant:     p.Variant,
+		DependsOn:   p.DependsOn,
+		Image:       p.Image,
+		File:        p.File,
+		Commands:    p.Commands,
+		FileContent: p.FileContent,
+		Message:     p.Message,
+		Devices:     p.Devices,
 	}
 }
 

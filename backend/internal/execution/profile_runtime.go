@@ -26,17 +26,15 @@ type suiteProfilesReader interface {
 	GetSuiteProfiles(suiteID string) (*profiles.SuiteProfiles, error)
 }
 
-type ResourceClassSpec struct {
-	Devices []string `yaml:"devices"`
-	Memory  string   `yaml:"memory"`
-	CPU     string   `yaml:"cpu"`
+type serviceSpec struct {
+	Env     map[string]string
+	Devices []string
 }
 
 type profileRuntimeDocument struct {
-	Env             map[string]string
-	Services        map[string]map[string]string
-	ResourceClasses map[string]ResourceClassSpec
-	SecretRefs      []profiles.SecretReference
+	Env        map[string]string
+	Services   map[string]serviceSpec
+	SecretRefs []profiles.SecretReference
 }
 
 func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, profile string) (executionRuntimeOverlay, error) {
@@ -51,9 +49,8 @@ func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, p
 	}
 
 	overlay := executionRuntimeOverlay{
-		Env:             mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
-		Services:        cloneServiceEnvMap(profileRuntime.Services),
-		ResourceClasses: profileRuntime.ResourceClasses,
+		Env:      mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
+		Services: cloneServiceMap(profileRuntime.Services),
 	}
 
 	if len(profileRuntime.SecretRefs) > 0 {
@@ -85,32 +82,30 @@ func (s *Service) resolveNodeRuntimeEnv(executionID string, node topologyNode) m
 }
 
 func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []string {
-	if node.ResourceClass == "" {
-		return nil
-	}
 	s.mu.Lock()
 	item := s.executions[executionID]
 	s.mu.Unlock()
 	if item == nil {
 		return nil
 	}
-	spec, ok := item.runtime.ResourceClasses[node.ResourceClass]
-	if !ok {
-		return nil
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.ID)]; ok && len(spec.Devices) > 0 {
+		return append([]string{}, spec.Devices...)
 	}
-	return append([]string{}, spec.Devices...)
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.Name)]; ok && len(spec.Devices) > 0 {
+		return append([]string{}, spec.Devices...)
+	}
+	return nil
 }
 
 func (o executionRuntimeOverlay) serviceEnv(node topologyNode) map[string]string {
 	if len(o.Services) == 0 {
 		return nil
 	}
-
-	if env := o.Services[strings.TrimSpace(node.ID)]; len(env) > 0 {
-		return cloneRuntimeMap(env)
+	if spec, ok := o.Services[strings.TrimSpace(node.ID)]; ok && len(spec.Env) > 0 {
+		return cloneRuntimeMap(spec.Env)
 	}
-	if env := o.Services[strings.TrimSpace(node.Name)]; len(env) > 0 {
-		return cloneRuntimeMap(env)
+	if spec, ok := o.Services[strings.TrimSpace(node.Name)]; ok && len(spec.Env) > 0 {
+		return cloneRuntimeMap(spec.Env)
 	}
 	return nil
 }
@@ -137,7 +132,7 @@ func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profile
 	}
 
 	runtime := profileRuntimeDocument{
-		Services: map[string]map[string]string{},
+		Services: map[string]serviceSpec{},
 	}
 
 	for _, current := range chain {
@@ -146,9 +141,8 @@ func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profile
 			return profileRuntimeDocument{}, fmt.Errorf("%w: could not parse %s: %v", ErrProfileRuntime, current.FileName, err)
 		}
 		runtime.Env = mergeRuntimeMaps(runtime.Env, parsed.Env)
-		runtime.Services = mergeServiceEnvMaps(runtime.Services, parsed.Services)
+		runtime.Services = mergeServiceSpecs(runtime.Services, parsed.Services)
 		runtime.SecretRefs = mergeSecretRefs(runtime.SecretRefs, parsed.SecretRefs, current.SecretRefs)
-		runtime.ResourceClasses = mergeResourceClasses(runtime.ResourceClasses, parsed.ResourceClasses)
 	}
 
 	return runtime, nil
@@ -167,46 +161,29 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 
 	runtime := profileRuntimeDocument{
 		Env:        scalarStringMap(document["env"]),
-		Services:   map[string]map[string]string{},
+		Services:   map[string]serviceSpec{},
 		SecretRefs: profiles.ExtractSecretRefsFromYAML(source),
 	}
 
-	if rc, ok := document["resource_classes"].(map[string]any); ok {
-		runtime.ResourceClasses = make(map[string]ResourceClassSpec, len(rc))
-		for name, rawSpec := range rc {
-			spec, ok := rawSpec.(map[string]any)
+	if services, ok := document["services"].(map[string]any); ok {
+		for name, rawService := range services {
+			svcMap, ok := rawService.(map[string]any)
 			if !ok {
 				continue
 			}
-			var entry ResourceClassSpec
-			if devices, ok := spec["devices"].([]any); ok {
-				for _, d := range devices {
+			entry := serviceSpec{
+				Env: scalarStringMap(svcMap["env"]),
+			}
+			if raw, ok := svcMap["devices"].([]any); ok {
+				for _, d := range raw {
 					if s, ok := d.(string); ok && strings.TrimSpace(s) != "" {
 						entry.Devices = append(entry.Devices, strings.TrimSpace(s))
 					}
 				}
 			}
-			if m, ok := spec["memory"].(string); ok {
-				entry.Memory = strings.TrimSpace(m)
+			if len(entry.Env) > 0 || len(entry.Devices) > 0 {
+				runtime.Services[strings.TrimSpace(name)] = entry
 			}
-			if c, ok := spec["cpu"].(string); ok {
-				entry.CPU = strings.TrimSpace(c)
-			}
-			runtime.ResourceClasses[strings.TrimSpace(name)] = entry
-		}
-	}
-
-	if services, ok := document["services"].(map[string]any); ok {
-		for name, rawService := range services {
-			serviceMap, ok := rawService.(map[string]any)
-			if !ok {
-				continue
-			}
-			env := scalarStringMap(serviceMap["env"])
-			if len(env) == 0 {
-				continue
-			}
-			runtime.Services[strings.TrimSpace(name)] = env
 		}
 	}
 
@@ -289,49 +266,35 @@ func platformGlobalOverrideEnv(settings *platform.PlatformSettings) map[string]s
 	return env
 }
 
-func mergeResourceClasses(base, overlay map[string]ResourceClassSpec) map[string]ResourceClassSpec {
+func mergeServiceSpecs(base, overlay map[string]serviceSpec) map[string]serviceSpec {
 	if len(base) == 0 && len(overlay) == 0 {
 		return nil
 	}
-	result := make(map[string]ResourceClassSpec, len(base)+len(overlay))
+	result := make(map[string]serviceSpec, len(base)+len(overlay))
 	for k, v := range base {
-		result[k] = v
+		result[k] = serviceSpec{Env: cloneRuntimeMap(v.Env), Devices: append([]string{}, v.Devices...)}
 	}
 	for k, v := range overlay {
-		result[k] = v
-	}
-	return result
-}
-
-func mergeServiceEnvMaps(base map[string]map[string]string, overlays ...map[string]map[string]string) map[string]map[string]string {
-	size := len(base)
-	for _, overlay := range overlays {
-		size += len(overlay)
-	}
-	if size == 0 {
-		return nil
-	}
-
-	result := make(map[string]map[string]string, size)
-	for name, env := range base {
-		result[name] = cloneRuntimeMap(env)
-	}
-	for _, overlay := range overlays {
-		for name, env := range overlay {
-			result[name] = mergeRuntimeMaps(result[name], env)
+		existing := result[k]
+		merged := serviceSpec{
+			Env:     mergeRuntimeMaps(existing.Env, v.Env),
+			Devices: existing.Devices,
 		}
+		if len(v.Devices) > 0 {
+			merged.Devices = append([]string{}, v.Devices...)
+		}
+		result[k] = merged
 	}
 	return result
 }
 
-func cloneServiceEnvMap(input map[string]map[string]string) map[string]map[string]string {
+func cloneServiceMap(input map[string]serviceSpec) map[string]serviceSpec {
 	if len(input) == 0 {
 		return nil
 	}
-
-	output := make(map[string]map[string]string, len(input))
-	for name, env := range input {
-		output[name] = cloneRuntimeMap(env)
+	output := make(map[string]serviceSpec, len(input))
+	for name, spec := range input {
+		output[name] = serviceSpec{Env: cloneRuntimeMap(spec.Env), Devices: append([]string{}, spec.Devices...)}
 	}
 	return output
 }

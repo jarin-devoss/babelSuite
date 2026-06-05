@@ -14,13 +14,12 @@ type StepNode struct {
 	Kind        string   `json:"kind" yaml:"kind"`
 	Variant     string   `json:"variant,omitempty" yaml:"variant,omitempty"`
 	DependsOn   []string `json:"dependsOn" yaml:"dependsOn"`
-	Image         string   `json:"image,omitempty" yaml:"image,omitempty"`
-	File          string   `json:"file,omitempty" yaml:"file,omitempty"`
-	Commands      []string `json:"commands,omitempty" yaml:"commands,omitempty"`
-	FileContent   string   `json:"fileContent,omitempty" yaml:"fileContent,omitempty"`
-	Message       string   `json:"message,omitempty" yaml:"message,omitempty"`
-	Devices       []string `json:"devices,omitempty" yaml:"devices,omitempty"`
-	ResourceClass string   `json:"resourceClass,omitempty" yaml:"resourceClass,omitempty"`
+	Image       string   `json:"image,omitempty" yaml:"image,omitempty"`
+	File        string   `json:"file,omitempty" yaml:"file,omitempty"`
+	Commands    []string `json:"commands,omitempty" yaml:"commands,omitempty"`
+	FileContent string   `json:"fileContent,omitempty" yaml:"fileContent,omitempty"`
+	Message     string   `json:"message,omitempty" yaml:"message,omitempty"`
+	Devices     []string `json:"devices,omitempty" yaml:"devices,omitempty"`
 }
 
 type ArtifactExport struct {

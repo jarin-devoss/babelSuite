@@ -16,11 +16,10 @@ type StepNode struct {
 	Image       string
 	Message     string
 	File        string
-	Commands      []string
-	FileContent   string
-	Devices       []string
-	ResourceClass string
-	DependsOn     []string
+	Commands    []string
+	FileContent string
+	Devices     []string
+	DependsOn   []string
 }
 
 type ArtifactExport struct {

@@ -30,7 +30,6 @@ message StepNode {
   string file_content = 9;
   string message = 10;
   repeated string devices = 11;
-  string resource_class = 12;
 }
 
 message ArtifactExport {
