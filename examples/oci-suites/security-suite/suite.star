@@ -1,80 +1,60 @@
 load("@babelsuite/runtime", "service", "task", "security", "log")
 
-# Mock the API under test — the APISIX sidecar is provisioned automatically
-# alongside every mock node, so all security steps derive their gateway URL
-# from it without needing an explicit target= argument.
+# Level 8 — dedicated security reference
+# This suite exists as a clean, focused reference for all 8 security modes.
+# The hardware.yaml profile routes verify-findings to a physical USB device
+# via services.verify-findings.devices = ["/dev/ttyUSB0"].
+# The mock is set up with network.mode: execution so the APISIX sidecar
+# can reach the mock API by name.
+
 api = service.mock(name="api")
 
-# --- Passive surface checks (no authentication required) ---
+log.info("APISIX sidecar provisioned — starting passive surface checks", after=[api])
 
-probe = security.probe(
-    name = "probe",
-    after = [api],
-    exports = [{"path": "/findings/probe.json", "on": "always"}],
-)
+# ── passive surface checks (no authentication required) ───────────────────────
+probe   = security.probe(  name="probe",   after=[api], exports=[{"path": "/findings/probe.json",   "on": "always"}])
+headers = security.headers(name="headers", after=[api], exports=[{"path": "/findings/headers.json", "on": "always"}])
+verbs   = security.verbs(  name="verbs",   after=[api], exports=[{"path": "/findings/verbs.json",   "on": "always"}])
+graphql = security.graphql(name="graphql", after=[api], exports=[{"path": "/findings/graphql.json", "on": "always"}])
+cors    = security.cors(   name="cors",    after=[api], exports=[{"path": "/findings/cors.json",    "on": "always"}])
 
-headers_audit = security.headers(
-    name = "headers-audit",
-    after = [api],
-    exports = [{"path": "/findings/headers.json", "on": "always"}],
-)
-
-verbs_check = security.verbs(
-    name = "verbs-check",
-    after = [api],
-    exports = [{"path": "/findings/verbs.json", "on": "always"}],
-)
-
-graphql_introspection = security.graphql(
-    name = "graphql-introspection",
-    after = [api],
-    exports = [{"path": "/findings/graphql.json", "on": "always"}],
-)
-
-cors_audit = security.cors(
-    name = "cors-audit",
-    after = [api],
-    exports = [{"path": "/findings/cors.json", "on": "always"}],
-)
-
-# --- Surface checks done — moving to active injection tests ---
 passive_done = log.info(
-    "passive surface checks complete — starting active injection tests",
-    after=[probe, headers_audit, verbs_check, graphql_introspection, cors_audit],
+    "passive checks complete (probe, headers, verbs, graphql, cors) — starting active injection",
+    after = [probe, headers, verbs, graphql, cors],
 )
 
-# --- Active injection tests ---
-
+# ── active injection tests ─────────────────────────────────────────────────────
 fuzz = security.fuzz(
-    name = "fuzz",
+    name      = "fuzz",
     technique = "sqli",
-    after = [passive_done],
-    exports = [{"path": "/findings/fuzz.json", "on": "always"}],
+    after     = [passive_done],
+    exports   = [{"path": "/findings/fuzz.json", "on": "always"}],
 )
 
-auth_check = security.auth(
-    name = "auth-check",
-    after = [api],
+auth = security.auth(
+    name    = "auth-check",
+    after   = [passive_done],
     exports = [{"path": "/findings/auth.json", "on": "always"}],
 )
 
-# --- Rate-limit / throttle validation ---
-
+# ── rate-limit validation ──────────────────────────────────────────────────────
 flood = security.flood(
-    name = "flood",
-    path = "/api/v1/resource",
-    rate = 50.0,
-    duration = 5.0,
+    name            = "flood",
+    path            = "/api/v1/resource",
+    rate            = 50.0,
+    duration        = 5.0,
     expect_throttle = True,
-    after = [api],
-    exports = [{"path": "/findings/flood.json", "on": "always"}],
+    after           = [passive_done],
+    exports         = [{"path": "/findings/flood.json", "on": "always"}],
 )
 
-# --- Aggregate verification ---
+log.info("all 8 security modes complete — aggregating findings", after=[fuzz, auth, flood])
 
+# verify-findings: in hardware.yaml profile this task gets /dev/ttyUSB0
+# so it can relay findings to a physical security audit device
 verify = task.run(
-    name = "verify-findings",
+    name  = "verify-findings",
     image = "python:3.12-slim",
-    file = "verify_findings.py",
-    after = [probe, headers_audit, verbs_check, graphql_introspection, cors_audit, fuzz, auth_check, flood],
+    file  = "verify_findings.py",
+    after = [fuzz, auth, flood, headers, verbs, graphql, cors],
 )

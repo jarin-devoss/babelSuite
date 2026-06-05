@@ -1,16 +1,19 @@
 load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
 load("@babelsuite/playwright", "browser")
 
-# ── Level 5: adds browser tests, multi-browser loop, continue_on_failure ─────
-# New here: Playwright browser() nodes, per-browser loop, continue_on_failure
-# lets the suite stay Healthy even when one browser has flaky coverage.
+# Level 5 — loops, Playwright, service.prism, reset_mocks on test, ctrf, log.error, traffic.soak
+# New: for-loop over browser matrix, browser() Playwright nodes, service.prism
+#      (OpenAPI contract mock), reset_mocks= on test.run, .export(ctrf),
+#      traffic.soak, log.error on failure path
 
 BROWSERS = env.get("BROWSERS", "chromium").split(",")
 
 # ── infrastructure ────────────────────────────────────────────────────────────
 db           = service.run(name="db")
 cache        = service.run(name="cache",        after=[db])
-catalog_mock = service.mock(name="catalog-mock",after=[db])
+
+# service.prism validates requests against the OpenAPI spec in api/
+catalog_mock = service.prism(name="catalog-api", after=[db])
 
 seed = task.run(
     name     = "seed-products",
@@ -22,25 +25,30 @@ seed = task.run(
 storefront = service.run(name="storefront", after=[seed, cache, catalog_mock])
 
 ready = log.info(
-    "storefront ready — {{ healthy }}/{{ total }} healthy, BROWSERS={{ env.BROWSERS }}",
+    "storefront ready — {{ healthy }}/{{ total }} healthy — BROWSERS={{ env.BROWSERS }}",
     after = [storefront],
 )
 
-# ── api load + smoke ──────────────────────────────────────────────────────────
-cart_load = traffic.smoke(
-    name   = "cart-load",
+# ── api smoke + soak ──────────────────────────────────────────────────────────
+soak = traffic.soak(
+    name   = "cart-soak",
     target = "http://storefront:3000",
     after  = [ready],
 )
 
+# reset_mocks clears catalog-api mock state before each api test run
 api_smoke = test.run(
     name                = "api-smoke",
     image               = "node:22-alpine",
     file                = "api.test.ts",
+    reset_mocks         = [catalog_mock],
     continue_on_failure = True,
     fail_on_logs        = ["UNCAUGHT_EXCEPTION", "CHECKOUT_TIMEOUT"],
-    after               = [cart_load],
-    exports             = [{"path": "reports/api.xml", "name": "api-tests", "format": "junit", "on": "always"}],
+    after               = [soak],
+    exports             = [
+        {"path": "reports/api.xml",  "name": "api-tests",  "format": "junit", "on": "always"},
+        {"path": "reports/ctrf.json","name": "api-ctrf",   "format": "ctrf",  "on": "always"},
+    ],
 )
 
 # ── per-browser checkout tests ────────────────────────────────────────────────
@@ -55,12 +63,16 @@ for b in BROWSERS:
     )
     browser_nodes.append(node)
 
-# ── rollback on api-smoke failure ─────────────────────────────────────────────
-task.run(
+# ── rollback on api failure ───────────────────────────────────────────────────
+rollback = task.run(
     name       = "reset-catalog",
     image      = "node:22-alpine",
     commands   = ["node scripts/reset.js"],
     on_failure = [api_smoke],
 )
 
-log.info("browser lab complete — {{ healthy }}/{{ total }} passed", after=browser_nodes + [api_smoke])
+# log.error — only emits if something went wrong downstream
+if len(BROWSERS) > 1:
+    log.error("multi-browser run — review any failing browser reports above", after=browser_nodes + [rollback])
+else:
+    log.info("browser lab complete — {{ healthy }}/{{ total }} passed", after=browser_nodes + [rollback])
