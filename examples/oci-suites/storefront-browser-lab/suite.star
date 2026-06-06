@@ -1,19 +1,16 @@
 load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
-load("@babelsuite/playwright", "browser")
 
-# Level 5 — loops, Playwright, service.prism, reset_mocks on test, ctrf, log.error, traffic.soak
-# New: for-loop over browser matrix, browser() Playwright nodes, service.prism
-#      (OpenAPI contract mock), reset_mocks= on test.run, .export(ctrf),
-#      traffic.soak, log.error on failure path
+# Level 5 — loops, reset_mocks, ctrf, traffic.soak, log.error, on_failure
+# New: for-loop over browser matrix using test.run with env=, reset_mocks= on
+#      test.run clears mock state between runs, .export(ctrf), traffic.soak,
+#      log.error on failure path, on_failure= rollback branch
 
 BROWSERS = env.get("BROWSERS", "chromium").split(",")
 
 # ── infrastructure ────────────────────────────────────────────────────────────
 db           = service.run(name="db")
 cache        = service.run(name="cache",        after=[db])
-
-# service.prism validates requests against the OpenAPI spec in api/
-catalog_mock = service.prism(name="catalog-api", after=[db])
+catalog_mock = service.mock(name="catalog-api", after=[db])
 
 seed = task.run(
     name     = "seed-products",
@@ -46,19 +43,20 @@ api_smoke = test.run(
     fail_on_logs        = ["UNCAUGHT_EXCEPTION", "CHECKOUT_TIMEOUT"],
     after               = [soak],
     exports             = [
-        {"path": "reports/api.xml",  "name": "api-tests",  "format": "junit", "on": "always"},
-        {"path": "reports/ctrf.json","name": "api-ctrf",   "format": "ctrf",  "on": "always"},
+        {"path": "reports/api.xml",   "name": "api-tests", "format": "junit", "on": "always"},
+        {"path": "reports/ctrf.json", "name": "api-ctrf",  "format": "ctrf",  "on": "always"},
     ],
 )
 
 # ── per-browser checkout tests ────────────────────────────────────────────────
 browser_nodes = []
 for b in BROWSERS:
-    node = browser(
+    node = test.run(
         name    = "checkout-" + b,
+        image   = "mcr.microsoft.com/playwright:v1.44.0-jammy",
         file    = "tests/checkout.spec.ts",
-        browser = b,
         after   = [ready],
+        env     = {"BROWSER": b},
         exports = [{"path": "playwright-report/" + b + ".xml", "name": "browser-" + b, "format": "junit", "on": "always"}],
     )
     browser_nodes.append(node)

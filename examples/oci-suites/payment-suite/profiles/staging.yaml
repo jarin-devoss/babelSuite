@@ -10,6 +10,7 @@ network:
 
 env:
   LOG_LEVEL: info
+  PAYMENTS_API_BASE_URL: https://payments.staging.company.test
   FRAUD_STRATEGY: strict
   FRAUD_REPLICAS: "3"
 

@@ -355,9 +355,6 @@ func buildStartMessage(node topologyNode, suite *suites.Definition, profile stri
 	case suites.NodeKindMock:
 		return fmt.Sprintf("[%s] Loading mock assets from api/ and mock/ for %s under %s.", node.Name, suite.Title, profile)
 	case suites.NodeKindService:
-		if isCompatibilityVariant(node.Variant) {
-			return fmt.Sprintf("[%s] Starting compatibility service assets from services/ under the %s profile.", node.Name, profile)
-		}
 		return fmt.Sprintf("[%s] Starting background service infrastructure declared in suite.star under the %s profile.", node.Name, profile)
 	case suites.NodeKindTask:
 		return fmt.Sprintf("[%s] Executing one-shot task assets from tasks/ before exposing dependent services.", node.Name)
@@ -381,9 +378,6 @@ func buildHealthyMessage(node topologyNode, suite *suites.Definition, profile st
 	case suites.NodeKindMock:
 		return fmt.Sprintf("[%s] Mock surface is healthy. Exchanges from api/ and mock/ are now routable for %s.", node.Name, suite.Title)
 	case suites.NodeKindService:
-		if isCompatibilityVariant(node.Variant) {
-			return fmt.Sprintf("[%s] Compatibility service is healthy and reachable for downstream checks in the %s profile.", node.Name, profile)
-		}
 		return fmt.Sprintf("[%s] Background service is healthy and reachable for downstream steps in the %s profile.", node.Name, profile)
 	case suites.NodeKindTask:
 		return fmt.Sprintf("[%s] Task completed successfully. Outputs were registered for the %s execution context.", node.Name, profile)
@@ -409,9 +403,6 @@ func buildFailureMessage(node topologyNode, suite *suites.Definition) string {
 	case suites.NodeKindTraffic:
 		return fmt.Sprintf("[%s] Traffic thresholds were exceeded while driving the %s topology under synthetic traffic.", node.Name, suite.Title)
 	case suites.NodeKindService:
-		if isCompatibilityVariant(node.Variant) {
-			return fmt.Sprintf("[%s] Compatibility service exited unexpectedly while supporting the %s topology.", node.Name, suite.Title)
-		}
 		return fmt.Sprintf("[%s] Background service exited unexpectedly while supporting the %s topology.", node.Name, suite.Title)
 	case suites.NodeKindTask:
 		return fmt.Sprintf("[%s] Task exited with a non-zero status while preparing the %s topology.", node.Name, suite.Title)
@@ -420,11 +411,6 @@ func buildFailureMessage(node topologyNode, suite *suites.Definition) string {
 	}
 }
 
-func isCompatibilityVariant(variant string) bool {
-	return variant == suites.VariantServicePrism ||
-		variant == suites.VariantServiceWiremock ||
-		variant == suites.VariantServiceCustom
-}
 
 func buildCommitHash(suiteID, executionID string) string {
 	sum := sha256.Sum256([]byte(suiteID + "-" + executionID))

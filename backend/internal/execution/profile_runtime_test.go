@@ -237,13 +237,13 @@ func TestRunNodeInjectsPaymentSuiteStagingProfileRuntimeIntoBackend(t *testing.T
 	backend := &captureBackend{}
 	var gatewayNode topologyNode
 	for _, node := range suite.Topology {
-		if node.ID == "payment_gateway" {
+		if node.ID == "payment-gateway" {
 			gatewayNode = node
 			break
 		}
 	}
 	if gatewayNode.ID == "" {
-		t.Fatal("expected payment_gateway node in payment-suite topology")
+		t.Fatal("expected payment-gateway node in payment-suite topology")
 	}
 
 	if err := service.runNode(context.Background(), "run-payment-staging", suite, "staging.yaml", backend, gatewayNode); err != nil {
@@ -365,13 +365,13 @@ func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T)
 	backend := &captureBackend{}
 	var gatewayNode topologyNode
 	for _, node := range suite.Topology {
-		if node.ID == "payment_gateway" {
+		if node.ID == "payment-gateway" {
 			gatewayNode = node
 			break
 		}
 	}
 	if gatewayNode.ID == "" {
-		t.Fatal("expected payment_gateway node in payment-suite topology")
+		t.Fatal("expected payment-gateway node in payment-suite topology")
 	}
 
 	if err := service.runNode(context.Background(), "run-payment-workspace-staging", suite, "staging.yaml", backend, gatewayNode); err != nil {

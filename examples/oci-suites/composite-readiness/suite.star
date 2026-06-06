@@ -1,9 +1,9 @@
 load("@babelsuite/runtime", "service", "test", "suite", "task", "log")
 load("@babelsuite/postgres", "pg", "connect")
 
-# Level 9 — suite.run cross-suite orchestration, service.custom, all log levels
-# New: suite.run imports and runs other suites as sub-graphs, service.custom for
-#      bespoke infrastructure, all four log levels (info/warn/error/debug),
+# Level 9 — suite.run cross-suite orchestration, all log levels
+# New: suite.run imports and runs other suites as sub-graphs,
+#      all four log levels (info/warn/error/debug),
 #      dynamic topology from registry dict, conditional strict-mode checks
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -29,10 +29,6 @@ SUITE_HEALTH_ENDPOINTS = {
     "fleet-control-room":     "http://control-room:8080/health",
 }
 
-# ── service.custom — bespoke readiness gate service ──────────────────────────
-# service.custom runs a hand-rolled image with custom health probe logic
-readiness_gate = service.custom(name="readiness-gate", image="readiness-gate:latest")
-
 # ── optional DB connectivity probe ────────────────────────────────────────────
 if ENABLE_DB_PROBE:
     db   = pg()
@@ -53,7 +49,7 @@ for suite_name in SUITES_TO_CHECK:
         log.error("unknown suite requested: " + suite_name + " — not in registry, skipping")
         continue
 
-    s = suite.run(name=suite_name, ref=suite_name, after=db_deps + [readiness_gate])
+    s = suite.run(name=suite_name, ref=suite_name, after=db_deps)
     suite_nodes.append(s)
 
 # ── pre-flight connectivity checks ────────────────────────────────────────────

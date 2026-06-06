@@ -12,8 +12,7 @@ REFUND_MODES = env.get("REFUND_MODES", "instant,delayed,manual").split(",")
 db     = service.run(name="db")
 broker = service.run(name="broker", after=[db])
 
-# service.wiremock spins up a WireMock instance backed by mock/ stubs
-partner_mock = service.wiremock(name="partner-api", after=[db])
+partner_mock = service.mock(name="partner-api", after=[db])
 
 seed = task.run(
     name     = "seed-policies",
@@ -35,7 +34,7 @@ ready = log.info(
 
 # ── traffic — stress then spike ───────────────────────────────────────────────
 stress = traffic.stress(name="returns-stress", target="http://returns-api:8080", rps=100, after=[ready])
-spike  = traffic.spike( name="returns-spike",  target="http://returns-api:8080", rps=400, after=[stress])
+spike  = traffic.spike( name="returns-spike",  target="http://returns-api:8080", rps=80,  after=[stress])
 
 # ── tests with failure path ───────────────────────────────────────────────────
 smoke = test.run(

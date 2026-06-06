@@ -207,9 +207,6 @@ func bootMessage(step StepSpec) string {
 	case "mock":
 		return fmt.Sprintf("[%s] Hydrating mock assets from api/ and mock/ for %s with the %s profile.", step.Node.Name, step.SuiteTitle, effectiveProfile(step))
 	case "service":
-		if step.Node.Variant == "service.prism" || step.Node.Variant == "service.wiremock" || step.Node.Variant == "service.custom" {
-			return fmt.Sprintf("[%s] Starting compatibility service assets for %s under the %s profile.", step.Node.Name, step.SuiteTitle, effectiveProfile(step))
-		}
 		return fmt.Sprintf("[%s] Starting background service infrastructure for %s under the %s profile.", step.Node.Name, step.SuiteTitle, effectiveProfile(step))
 	case "task":
 		return fmt.Sprintf("[%s] Running one-shot task assets from tasks/ under the %s profile.", step.Node.Name, effectiveProfile(step))
@@ -227,9 +224,6 @@ func probeMessage(step StepSpec) string {
 	case "mock":
 		return fmt.Sprintf("[%s] Dispatch table loaded and mock endpoint is answering health probes.", step.Node.Name)
 	case "service":
-		if step.Node.Variant == "service.prism" || step.Node.Variant == "service.wiremock" || step.Node.Variant == "service.custom" {
-			return fmt.Sprintf("[%s] Compatibility service answered readiness probes and exposed its local endpoint.", step.Node.Name)
-		}
 		return fmt.Sprintf("[%s] Background service answered readiness probes and is available to downstream steps.", step.Node.Name)
 	case "task":
 		return fmt.Sprintf("[%s] Task completed successfully and published its derived outputs.", step.Node.Name)

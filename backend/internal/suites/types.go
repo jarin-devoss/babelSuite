@@ -28,10 +28,7 @@ const (
 	NodeKindSecurity = "security"
 	NodeKindLog      = "log"
 
-	VariantServiceMock     = "service.mock"
-	VariantServicePrism    = "service.prism"
-	VariantServiceWiremock = "service.wiremock"
-	VariantServiceCustom   = "service.custom"
+	VariantServiceMock = "service.mock"
 )
 
 type ProfileOption struct {

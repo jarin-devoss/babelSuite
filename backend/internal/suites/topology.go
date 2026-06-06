@@ -744,7 +744,7 @@ func topologyKind(call string) (string, bool) {
 	switch strings.TrimSpace(call) {
 	case "service.mock":
 		return "mock", true
-	case "service.run", "service.wiremock", "service.prism", "service.custom":
+	case "service.run":
 		return "service", true
 	case "task.run":
 		return "task", true

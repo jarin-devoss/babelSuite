@@ -49,9 +49,6 @@ Long-lived background infrastructure in the suite graph.
 | Call | Kind |
 |------|------|
 | `service.run` | `service` |
-| `service.wiremock` | `service` |
-| `service.prism` | `service` |
-| `service.custom` | `service` |
 
 ```python
 db  = service.run()

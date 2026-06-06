@@ -512,20 +512,13 @@ func resolveStepImage(step StepSpec) string {
 		return stepImageFromVariant(step.Node.Variant, "test")
 	case "service":
 		return stepImageFromVariant(step.Node.Variant, "service")
-	case "mock":
-		return "wiremock/wiremock:3.10"
 	}
 	return ""
 }
 
 func stepImageFromVariant(variant, _ string) string {
-	switch variant {
-	case "task.run", "test.run":
+	if variant == "task.run" || variant == "test.run" {
 		return "alpine:3.19"
-	case "service.wiremock":
-		return "wiremock/wiremock:3.10"
-	case "service.prism":
-		return "stoplight/prism:5"
 	}
 	return ""
 }
