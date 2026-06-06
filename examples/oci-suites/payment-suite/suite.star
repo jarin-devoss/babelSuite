@@ -1,9 +1,10 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
+load("@babelsuite/postgres", "pg", "connect")
 
-# Level 3 — file=, env.get(), conditionals, extendsId, traffic, reset_mocks, cobertura
-# New: file= resolves scripts from the suite OCI artifact, env.get() reads
-#      profile env vars, if/else conditionals, traffic.baseline, reset_mocks=,
-#      .export(cobertura), log.warn, profile extendsId inheritance
+# Level 3 — OCI modules, file=, env.get(), conditionals, extendsId, traffic, reset_mocks, cobertura
+# New: @babelsuite/postgres module (pg, connect), file= resolves scripts from the
+#      suite OCI artifact, env.get() reads profile env vars, if/else conditionals,
+#      traffic.baseline/stress, reset_mocks=, cobertura export, profile extendsId
 
 FRAUD_STRATEGY   = env.get("FRAUD_STRATEGY",   "standard")
 CURRENCY_MARKETS = env.get("CURRENCY_MARKETS", "usd,eur,gbp").split(",")
@@ -14,11 +15,13 @@ if FRAUD_STRATEGY == "shadow":
     log.warn("shadow mode: decisions logged but not enforced — check fraud-worker logs")
 
 # ── infrastructure ────────────────────────────────────────────────────────────
-db          = service.run(name="db")
-stripe_mock = service.mock(name="stripe-mock", after=[db])
+db   = pg()
+conn = connect(db)
 
-migrate = task.run(name="migrate", image="python:3.12", file="migrate.py",   after=[db])
-seed    = task.run(name="seed",    image="bash:5.2",    file="seed.sh",      after=[migrate])
+stripe_mock = service.mock(name="stripe-mock", after=[conn])
+
+migrate = task.run(name="migrate", image="python:3.12", file="migrate.py", after=[conn])
+seed    = task.run(name="seed",    image="bash:5.2",    file="seed.sh",    after=[migrate])
 
 infra_ready = log.info("db migrated and seeded — starting gateway", after=[seed, stripe_mock])
 

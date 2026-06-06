@@ -1,53 +1,33 @@
-load("@babelsuite/postgres", "pg", "connect", "insert", "select", "delete", "upsert")
-load("@babelsuite/runtime", "service", "log")
+load("@babelsuite/postgres", "pg", "connect", "insert", "select", "upsert", "delete")
+load("@babelsuite/runtime",  "service", "log")
 
 db = pg(name="payments-db", database="payments")
 
-db_ready = connect(db)
+ready = connect(db)
 
-seed_merchant = insert(
+seed = insert(
     db,
-    table="merchants",
-    values={
-        "merchant_id": "m-100",
-        "status": "active",
-    },
-    after=["payments-db-connect"],
+    table  = "merchants",
+    values = {"merchant_id": "m-100", "status": "active"},
+    after  = [ready],
 )
 
-upsert_merchant = upsert(
+bump = upsert(
     db,
-    table="merchants",
-    values={
-        "merchant_id": "m-100",
-        "status": "vip",
-    },
-    conflict_columns=["merchant_id"],
-    after=["payments-db-insert-merchants"],
+    table            = "merchants",
+    values           = {"merchant_id": "m-100", "status": "vip"},
+    conflict_columns = ["merchant_id"],
+    after            = [seed],
 )
 
-read_merchant = select(
-    db,
-    table="merchants",
-    columns=["merchant_id", "status"],
-    where={"merchant_id": "m-100"},
-    after=["payments-db-upsert-merchants"],
-)
+read = select(db, "merchants", columns=["merchant_id", "status"], where={"merchant_id": "m-100"}, after=[bump])
 
-seed_done = log.info("seed data applied — starting payments API", after=["payments-db-select-merchants"])
+seeded = log.info("seed data applied", after=[read])
 
 api = service.run(
-    name="payments-api",
-    image="ghcr.io/acme/payments-api:latest",
-    env={
-        "DATABASE_URL": db["url"],
-    },
-    after=["payments-db", seed_done],
+    name  = "payments-api",
+    image = "ghcr.io/acme/payments-api:latest",
+    after = [seeded],
 )
 
-delete_merchant = delete(
-    db,
-    table="merchants",
-    where={"merchant_id": "m-100"},
-    after=["payments-api"],
-)
+delete(db, "merchants", where={"merchant_id": "m-100"}, after=[api])

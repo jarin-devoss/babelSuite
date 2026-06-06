@@ -1,28 +1,33 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
+load("@babelsuite/postgres", "pg", "connect")
+load("@babelsuite/kafka",    "kafka", "create_topic")
 
-# Level 4 — network.mode, devices in profile, log templates, on_failure, traffic variants
-# New: network.mode: execution (containers reach each other by name), devices:
-#      in peak profile (GPU for batch seeding), log {{ }} template placeholders,
-#      on_failure= rollback branch, traffic.stress + traffic.spike, service.wiremock
+# Level 4 — multiple OCI modules, network.mode, devices, log templates, on_failure
+# New: @babelsuite/kafka module (kafka, create_topic), combined with postgres,
+#      network.mode: execution, devices: in peak profile (GPU seed), log {{ }}
+#      template placeholders, on_failure= rollback branch, traffic.stress + spike
 
 ENABLE_FRAUD = env.get("ENABLE_FRAUD_SCREENING", "true") == "true"
 REFUND_MODES = env.get("REFUND_MODES", "instant,delayed,manual").split(",")
 
 # ── infrastructure ────────────────────────────────────────────────────────────
-db     = service.run(name="db")
-broker = service.run(name="broker", after=[db])
+db     = pg()
+conn   = connect(db)
+broker = kafka(after=[conn])
 
-partner_mock = service.mock(name="partner-api", after=[db])
+returns_topic = create_topic(broker, "returns.events", partitions=3)
+
+partner_mock = service.mock(name="partner-api", after=[conn])
 
 seed = task.run(
     name     = "seed-policies",
     image    = "python:3.12",
     commands = ["python seed.py --modes " + ",".join(REFUND_MODES) + " --count 5000"],
-    after    = [db],
+    after    = [conn],
 )
 
-returns_api  = service.run(name="returns-api",  after=[seed, broker, partner_mock])
-fraud_worker = service.run(name="fraud-worker", after=[broker, returns_api]) if ENABLE_FRAUD else None
+returns_api  = service.run(name="returns-api",  after=[seed, returns_topic, partner_mock])
+fraud_worker = service.run(name="fraud-worker", after=[returns_topic, returns_api]) if ENABLE_FRAUD else None
 
 all_services = [returns_api] + ([fraud_worker] if fraud_worker else [])
 

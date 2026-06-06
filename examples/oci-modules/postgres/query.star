@@ -1,90 +1,54 @@
 load("@babelsuite/runtime", "task")
-load("_shared.star", "merge_after", "merge_dicts", "quoted", "sanitize_name", "sql_predicate", "sql_value")
+load("_shared.star", "quoted", "sanitize_name", "sql_value", "sql_predicate")
 
-def query_task(database, name, sql, after = [], env = {}):
-    task_env = merge_dicts(database["env"], env)
+def _query(db, name, sql, image = "postgres:16", after = []):
+    url = '"${POSTGRES_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@' + db.name + ':5432/${POSTGRES_DB:-app}}"'
     return task.run(
-        name = name,
-        image = database["client_image"],
-        after = merge_after(database, after),
-        env = task_env,
-        command = [
-            "bash",
-            "-lc",
-            "psql "
-            + quoted(database["url"])
-            + " -v ON_ERROR_STOP=1 -c "
-            + quoted(sql),
-        ],
+        name     = name,
+        image    = image,
+        after    = [db] + after,
+        commands = ["sh", "-c", "psql " + url + " -v ON_ERROR_STOP=1 -c " + quoted(sql)],
     )
 
-def connect(database, after = []):
-    return query_task(
-        database,
-        name = database["name"] + "-connect",
-        sql = "select 1;",
-        after = after,
-    )
+def connect(db, image = "postgres:16", after = []):
+    return _query(db, db.name + "-connect", "select 1;", image=image, after=after)
 
-def query(database, sql, name = None, after = []):
-    return query_task(
-        database,
-        name = name or (database["name"] + "-query-" + sanitize_name(sql[:24])),
-        sql = sql,
-        after = after,
-    )
+def query(db, sql, name = None, image = "postgres:16", after = []):
+    return _query(db, name or (db.name + "-query-" + sanitize_name(sql[:24])), sql, image=image, after=after)
 
-def insert(database, table, values, after = []):
+def insert(db, table, values, image = "postgres:16", after = []):
     columns = []
-    literal_values = []
+    vals = []
     for key, value in values.items():
         columns.append(str(key))
-        literal_values.append(sql_value(value))
-    return query_task(
-        database,
-        name = database["name"] + "-insert-" + sanitize_name(table),
-        sql = "insert into " + table + " (" + ", ".join(columns) + ") values (" + ", ".join(literal_values) + ");",
-        after = after,
-    )
+        vals.append(sql_value(value))
+    sql = "insert into " + table + " (" + ", ".join(columns) + ") values (" + ", ".join(vals) + ");"
+    return _query(db, db.name + "-insert-" + sanitize_name(table), sql, image=image, after=after)
 
-def select(database, table, columns = ["*"], where = None, after = []):
+def select(db, table, columns = ["*"], where = None, image = "postgres:16", after = []):
     sql = "select " + ", ".join(columns) + " from " + table
     if where != None:
         sql += " where " + sql_predicate(where)
     sql += ";"
-    return query_task(
-        database,
-        name = database["name"] + "-select-" + sanitize_name(table),
-        sql = sql,
-        after = after,
-    )
+    return _query(db, db.name + "-select-" + sanitize_name(table), sql, image=image, after=after)
 
-def delete(database, table, where, after = []):
-    return query_task(
-        database,
-        name = database["name"] + "-delete-" + sanitize_name(table),
-        sql = "delete from " + table + " where " + sql_predicate(where) + ";",
-        after = after,
-    )
+def delete(db, table, where, image = "postgres:16", after = []):
+    sql = "delete from " + table + " where " + sql_predicate(where) + ";"
+    return _query(db, db.name + "-delete-" + sanitize_name(table), sql, image=image, after=after)
 
-def upsert(database, table, values, conflict_columns, after = []):
+def upsert(db, table, values, conflict_columns, image = "postgres:16", after = []):
     columns = []
-    literal_values = []
+    vals = []
     assignments = []
     for key, value in values.items():
         columns.append(str(key))
-        literal_values.append(sql_value(value))
+        vals.append(sql_value(value))
         assignments.append(str(key) + " = excluded." + str(key))
-    return query_task(
-        database,
-        name = database["name"] + "-upsert-" + sanitize_name(table),
-        sql = (
-            "insert into " + table
-            + " (" + ", ".join(columns) + ")"
-            + " values (" + ", ".join(literal_values) + ")"
-            + " on conflict (" + ", ".join(conflict_columns) + ")"
-            + " do update set " + ", ".join(assignments)
-            + ";"
-        ),
-        after = after,
+    sql = (
+        "insert into " + table
+        + " (" + ", ".join(columns) + ")"
+        + " values (" + ", ".join(vals) + ")"
+        + " on conflict (" + ", ".join(conflict_columns) + ")"
+        + " do update set " + ", ".join(assignments) + ";"
     )
+    return _query(db, db.name + "-upsert-" + sanitize_name(table), sql, image=image, after=after)

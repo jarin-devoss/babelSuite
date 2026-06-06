@@ -8,8 +8,10 @@ DEVICE_PRESETS = {
 }
 
 def sanitize_name(value):
+    s = str(value)
     output = ""
-    for ch in str(value):
+    for i in range(len(s)):
+        ch = s[i]
         if ("a" <= ch and ch <= "z") or ("A" <= ch and ch <= "Z") or ("0" <= ch and ch <= "9"):
             output += ch.lower()
         else:

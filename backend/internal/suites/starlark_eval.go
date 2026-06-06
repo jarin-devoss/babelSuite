@@ -2,10 +2,12 @@ package suites
 
 import (
 	"fmt"
-	"regexp"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/babelsuite/babelsuite/internal/examplefs"
 	"go.starlark.net/starlark"
 	"go.starlark.net/syntax"
 )
@@ -17,7 +19,7 @@ var starlarkFileOptions = &syntax.FileOptions{
 	GlobalReassign:  true,
 	Recursion:       false,
 	TopLevelControl: true,
-	While:           false,
+	While:           true,
 }
 
 type starlarkNode struct {
@@ -74,20 +76,6 @@ func (r *starlarkRegistry) register(n *starlarkNode) {
 	r.mu.Unlock()
 }
 
-var loadStmtRE = regexp.MustCompile(`(?m)^\s*load\s*\(\s*"([^"]+)"((?:\s*,\s*"[^"]+")*)`)
-var loadNameRE = regexp.MustCompile(`"([^"]+)"`)
-
-func parseModuleStubs(src string) map[string][]string {
-	stubs := make(map[string][]string)
-	for _, m := range loadStmtRE.FindAllStringSubmatch(src, -1) {
-		module := m[1]
-		for _, nm := range loadNameRE.FindAllStringSubmatch(m[2], -1) {
-			stubs[module] = append(stubs[module], nm[1])
-		}
-	}
-	return stubs
-}
-
 func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -96,7 +84,6 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	}()
 
 	reg := &starlarkRegistry{}
-	stubs := parseModuleStubs(suiteStar)
 
 	predeclared, err := buildRuntimePredeclared(reg)
 	if err != nil {
@@ -106,7 +93,7 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	thread := &starlark.Thread{
 		Name: "suite.star",
 		Load: func(t *starlark.Thread, module string) (starlark.StringDict, error) {
-			return resolveStarlarkModule(module, reg, stubs)
+			return resolveStarlarkModule(module, reg)
 		},
 	}
 	thread.SetMaxExecutionSteps(starlarkMaxSteps)
@@ -141,19 +128,61 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 	}, nil
 }
 
-func resolveStarlarkModule(module string, reg *starlarkRegistry, stubs map[string][]string) (starlark.StringDict, error) {
+func resolveStarlarkModule(module string, reg *starlarkRegistry) (starlark.StringDict, error) {
 	if module == "@babelsuite/runtime" {
 		return buildRuntimeModule(reg)
 	}
 	if strings.HasPrefix(module, "@babelsuite/") {
-		names := stubs[module]
-		dict := make(starlark.StringDict, len(names))
-		for _, name := range names {
-			dict[name] = starlark.NewBuiltin(name, buildNodeFunc(reg, "service.run"))
-		}
-		return dict, nil
+		suffix := strings.TrimPrefix(module, "@babelsuite/")
+		return loadModuleDir(suffix, reg)
 	}
 	return nil, fmt.Errorf("unknown module %q", module)
+}
+
+func loadModuleDir(suffix string, reg *starlarkRegistry) (starlark.StringDict, error) {
+	moduleRoot := filepath.Join(examplefs.ResolveRoot(), "oci-modules", suffix)
+	entries, err := os.ReadDir(moduleRoot)
+	if err != nil {
+		return nil, fmt.Errorf("module @babelsuite/%s not found", suffix)
+	}
+
+	var loader func(_ *starlark.Thread, mod string) (starlark.StringDict, error)
+	loader = func(_ *starlark.Thread, mod string) (starlark.StringDict, error) {
+		if mod == "@babelsuite/runtime" {
+			return buildRuntimeModule(reg)
+		}
+		content, err := os.ReadFile(filepath.Join(moduleRoot, mod))
+		if err != nil {
+			return nil, fmt.Errorf("cannot load %q: %w", mod, err)
+		}
+		t := &starlark.Thread{Name: mod, Load: loader}
+		t.SetMaxExecutionSteps(starlarkMaxSteps)
+		return starlark.ExecFileOptions(starlarkFileOptions, t, mod, content, nil)
+	}
+
+	combined := make(starlark.StringDict)
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".star") || strings.HasPrefix(name, "_") || name == "module.star" || name == "usage.star" {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join(moduleRoot, name))
+		if err != nil {
+			continue
+		}
+		t := &starlark.Thread{Name: "@babelsuite/" + suffix + "/" + name, Load: loader}
+		t.SetMaxExecutionSteps(starlarkMaxSteps)
+		globals, err := starlark.ExecFileOptions(starlarkFileOptions, t, name, content, nil)
+		if err != nil {
+			continue
+		}
+		for symName, val := range globals {
+			if !strings.HasPrefix(symName, "_") {
+				combined[symName] = val
+			}
+		}
+	}
+	return combined, nil
 }
 
 func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {

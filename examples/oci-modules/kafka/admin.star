@@ -1,69 +1,70 @@
 load("@babelsuite/runtime", "task")
-load("_shared.star", "merge_dicts", "merge_after", "quoted", "sanitize_name")
+load("_shared.star", "quoted", "sanitize_name")
 
-def admin_task(cluster, name, script_body, after = [], env = {}):
-    task_env = merge_dicts(cluster["env"], env)
+def _admin(broker, name, script, image = "bitnami/kafka:3.7", after = []):
+    servers = '"${KAFKA_BOOTSTRAP_SERVERS:-' + broker.name + ':9092}"'
     return task.run(
-        name = name,
-        image = cluster["admin_image"],
-        after = merge_after(cluster, after),
-        env = task_env,
-        command = ["bash", "-lc", script_body],
+        name     = name,
+        image    = image,
+        after    = [broker] + after,
+        commands = ["sh", "-c", script.replace("__SERVERS__", servers)],
     )
 
-def create_topic(cluster, topic, partitions = 1, replication_factor = 1, configs = {}, after = []):
+def create_topic(broker, topic, partitions = 1, replication_factor = 1, configs = {}, image = "bitnami/kafka:3.7", after = []):
     config_flags = ""
     for key, value in configs.items():
         config_flags += " --config " + quoted(str(key) + "=" + str(value))
-    return admin_task(
-        cluster,
-        name = cluster["name"] + "-create-topic-" + sanitize_name(topic),
-        script_body = (
+    return _admin(
+        broker,
+        name   = broker.name + "-create-" + sanitize_name(topic),
+        image  = image,
+        script = (
             "kafka-topics.sh"
-            + " --bootstrap-server " + quoted(cluster["bootstrap_servers"])
-            + " --create"
-            + " --if-not-exists"
+            + " --bootstrap-server __SERVERS__"
+            + " --create --if-not-exists"
             + " --topic " + quoted(topic)
             + " --partitions " + str(partitions)
             + " --replication-factor " + str(replication_factor)
             + config_flags
         ),
-        after = after,
+        after  = after,
     )
 
-def delete_topic(cluster, topic, after = []):
-    return admin_task(
-        cluster,
-        name = cluster["name"] + "-delete-topic-" + sanitize_name(topic),
-        script_body = (
+def delete_topic(broker, topic, image = "bitnami/kafka:3.7", after = []):
+    return _admin(
+        broker,
+        name   = broker.name + "-delete-" + sanitize_name(topic),
+        image  = image,
+        script = (
             "kafka-topics.sh"
-            + " --bootstrap-server " + quoted(cluster["bootstrap_servers"])
-            + " --delete"
-            + " --if-exists"
+            + " --bootstrap-server __SERVERS__"
+            + " --delete --if-exists"
             + " --topic " + quoted(topic)
         ),
-        after = after,
+        after  = after,
     )
 
-def set_group_offset(cluster, group, topic, offset, partition = 0, after = []):
-    return admin_task(
-        cluster,
-        name = cluster["name"] + "-offset-" + sanitize_name(group) + "-" + sanitize_name(topic),
-        script_body = (
+def set_group_offset(broker, group, topic, offset, partition = 0, image = "bitnami/kafka:3.7", after = []):
+    return _admin(
+        broker,
+        name   = broker.name + "-offset-" + sanitize_name(group) + "-" + sanitize_name(topic),
+        image  = image,
+        script = (
             "kafka-consumer-groups.sh"
-            + " --bootstrap-server " + quoted(cluster["bootstrap_servers"])
+            + " --bootstrap-server __SERVERS__"
             + " --group " + quoted(group)
             + " --topic " + quoted(topic + ":" + str(partition))
-            + " --reset-offsets"
-            + " --to-offset " + str(offset)
+            + " --reset-offsets --to-offset " + str(offset)
             + " --execute"
         ),
-        after = after,
+        after  = after,
     )
 
-def disconnect(cluster):
-    return admin_task(
-        cluster,
-        name = cluster["name"] + "-disconnect",
-        script_body = "kafka-server-stop.sh || true",
+def disconnect(broker, image = "bitnami/kafka:3.7", after = []):
+    return _admin(
+        broker,
+        name   = broker.name + "-disconnect",
+        image  = image,
+        script = "kafka-server-stop.sh || true",
+        after  = after,
     )
