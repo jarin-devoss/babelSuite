@@ -1,30 +1,22 @@
+extendsId: base
 name: Local Debug
-description: Verbose logs, local secrets, and relaxed timeouts.
+description: Verbose logs, permissive fraud, local secrets.
 default: true
-runtime:
-  suite: payment-suite
-  repository: localhost:5000/core-platform/payment-suite
-  profileFile: local.yaml
-modules:
-  - postgres
-  - kafka
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+env:
+  LOG_LEVEL: debug
+  FRAUD_STRATEGY: permissive
+
 secretRefs:
   - key: STRIPE_API_KEY
     provider: Local Secret
     ref: secrets://developer/stripe-api-key
-env:
-  LOG_LEVEL: debug
-  PAYMENTS_API_BASE_URL: http://payment-gateway.internal
-  FRAUD_STRATEGY: permissive
+
 services:
-  payment_gateway:
+  payment-gateway:
     env:
       API_PORT: 18080
       CHECKOUT_MODE: local-debug
-  fraud_worker:
+  fraud-worker-0:
     env:
-      WORKER_REPLICA_COUNT: 1
+      WORKER_REPLICA_COUNT: "1"

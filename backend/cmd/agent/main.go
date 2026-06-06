@@ -81,6 +81,7 @@ func main() {
 				Commands:    append([]string{}, request.Node.Commands...),
 				FileContent: request.Node.FileContent,
 				Message:     request.Node.Message,
+				Devices:     append([]string{}, request.Node.Devices...),
 			},
 		}, emit)
 	}))

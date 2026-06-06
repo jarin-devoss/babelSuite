@@ -120,6 +120,7 @@ func stepNodeToProto(n StepNode) *agentv1.StepNode {
 		Commands:    n.Commands,
 		FileContent: n.FileContent,
 		Message:     n.Message,
+		Devices:     n.Devices,
 	}
 }
 
@@ -138,6 +139,7 @@ func protoToStepNode(p *agentv1.StepNode) StepNode {
 		Commands:    p.Commands,
 		FileContent: p.FileContent,
 		Message:     p.Message,
+		Devices:     p.Devices,
 	}
 }
 

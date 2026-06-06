@@ -1,6 +1,11 @@
 name: Performance
 description: Synthetic bursts for planner saturation tests.
 default: false
+network:
+  mode: execution
+services:
+  seed_routes:
+    devices: ["gpu"]
 runtime:
   suite: fleet-control-room
   repository: localhost:5000/platform/fleet-control-room

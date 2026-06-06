@@ -146,6 +146,8 @@ func (r *Registry) Unregister(agentID string) {
 	}
 }
 
+func (r *Registry) ListRegistrations() []Registration { return r.List() }
+
 func (r *Registry) List() []Registration {
 	if settings, err := r.loadSettings(); err == nil {
 		records := append([]Registration{}, settings.Agents...)

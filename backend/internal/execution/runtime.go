@@ -175,6 +175,9 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 
 	executionID := "run-" + uuid.NewString()[:8]
 	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700) //nolint:errcheck
+	if runtimeOverlay.NetworkMode == "execution" {
+		runner.EnsureExecutionNetwork(executionID)
+	}
 	startedAt := time.Now().UTC()
 	state := &executionState{
 		record: ExecutionRecord{
@@ -359,18 +362,20 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 				collectedFiles[path] = content
 			}
 		},
+		NetworkName: s.resolveExecutionNetworkName(executionID),
 		GatewayURL:  resolveGatewayURL(executionID, suite),
 		GatewayURLs: resolveGatewayURLs(executionID, suite),
 		Node: runner.StepNode{
-			ID:          node.ID,
-			Name:        node.Name,
-			Kind:        node.Kind,
-			Variant:     node.Variant,
-			Message:     node.Message,
-			File:        node.File,
-			Commands:    append([]string{}, node.Commands...),
-			FileContent: resolveNodeFileContent(node.File, suite),
-			DependsOn:   append([]string{}, node.DependsOn...),
+			ID:            node.ID,
+			Name:          node.Name,
+			Kind:          node.Kind,
+			Variant:       node.Variant,
+			Message:       node.Message,
+			File:          node.File,
+			Commands:      append([]string{}, node.Commands...),
+			FileContent:   resolveNodeFileContent(node.File, suite),
+			Devices: s.resolveNodeDevices(executionID, node),
+			DependsOn:     append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {
 		s.appendRunnerLog(executionID, node.ID, line)

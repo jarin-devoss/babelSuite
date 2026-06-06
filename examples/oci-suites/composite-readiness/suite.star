@@ -1,5 +1,10 @@
-load("@babelsuite/runtime", "test", "suite", "task", "log")
+load("@babelsuite/runtime", "service", "test", "suite", "task", "log")
 load("@babelsuite/postgres", "pg", "connect")
+
+# Level 9 — suite.run cross-suite orchestration, all log levels
+# New: suite.run imports and runs other suites as sub-graphs,
+#      all four log levels (info/warn/error/debug),
+#      dynamic topology from registry dict, conditional strict-mode checks
 
 # ── environment knobs ────────────────────────────────────────────────────────
 SUITES_TO_CHECK   = env.get("SUITES_TO_CHECK", "payment-suite,identity-broker,returns-control-plane").split(",")
@@ -28,8 +33,10 @@ SUITE_HEALTH_ENDPOINTS = {
 if ENABLE_DB_PROBE:
     db   = pg()
     conn = connect(after=[db])
+    log.debug("DB connectivity probe enabled — waiting for postgres", after=[conn])
     db_deps = [conn]
 else:
+    log.warn("ENABLE_DB_PROBE=false — skipping database connectivity check")
     db_deps = []
 
 # ── load dependent suites ─────────────────────────────────────────────────────
@@ -39,9 +46,10 @@ unknown_suites = []
 for suite_name in SUITES_TO_CHECK:
     if suite_name not in SUITE_REGISTRY_REFS:
         unknown_suites.append(suite_name)
+        log.error("unknown suite requested: " + suite_name + " — not in registry, skipping")
         continue
 
-    s   = suite.run(name=suite_name, ref=suite_name, after=db_deps)
+    s = suite.run(name=suite_name, ref=suite_name, after=db_deps)
     suite_nodes.append(s)
 
 # ── pre-flight connectivity checks ────────────────────────────────────────────

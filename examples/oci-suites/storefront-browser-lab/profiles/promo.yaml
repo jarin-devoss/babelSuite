@@ -1,14 +1,19 @@
 name: Promo Burst
-description: High-throughput cart and checkout traffic with promotional catalog fixtures.
+description: All browsers, promo fixtures, GPU-accelerated catalog seeding.
 default: false
-runtime:
-  suite: storefront-browser-lab
-  repository: localhost:5000/qa/storefront-browser-lab
-  profileFile: promo.yaml
-modules:
-    - kafka
-    - playwright
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: info
+  BROWSERS: chromium,firefox,webkit
+
+services:
+  seed-products:
+    devices: ["gpu"]
+  storefront:
+    env:
+      API_PORT: 3000
+      PROMO_MODE: enabled
+      DISCOUNT_CAP: "50"

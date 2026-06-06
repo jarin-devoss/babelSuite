@@ -1,14 +1,19 @@
 name: CI Smoke
-description: Fast login assertions with deterministic realms.
+description: Fast login assertions with deterministic realms, no TLS.
 default: false
-runtime:
-  suite: identity-broker
-  repository: localhost:5000/security/identity-broker
-  profileFile: ci.yaml
-modules:
-    - vault
-    - postgres
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+env:
+  LOG_LEVEL: warn
+  REALM_ENV: ci
+  SESSION_TTL_SECONDS: "300"
+
+secretRefs:
+  - key: JWT_SIGNING_KEY
+    provider: Local Secret
+    ref: secrets://ci/jwt-signing-key
+
+services:
+  broker-api:
+    env:
+      API_PORT: 9000
+      TLS_ENABLED: "false"

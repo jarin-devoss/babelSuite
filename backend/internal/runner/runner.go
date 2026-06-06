@@ -18,6 +18,7 @@ type StepNode struct {
 	File        string
 	Commands    []string
 	FileContent string
+	Devices     []string
 	DependsOn   []string
 }
 
@@ -61,6 +62,9 @@ type StepSpec struct {
 	// May be nil when the backend does not support container-level file collection.
 	OnArtifact func(path string, content []byte)
 	Node             StepNode
+	// NetworkName is the Docker network all step containers in this execution share.
+	// Empty means no dedicated network (default Docker bridge).
+	NetworkName string
 	// GatewayURL is the primary APISIX sidecar address (first mock node).
 	GatewayURL string
 	// GatewayURLs contains one address per mock node in topology order.

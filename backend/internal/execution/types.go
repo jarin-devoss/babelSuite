@@ -294,7 +294,8 @@ type executionState struct {
 }
 
 type executionRuntimeOverlay struct {
-	Env       map[string]string
-	Services  map[string]map[string]string
-	SecretEnv map[string]string
+	Env         map[string]string
+	Services    map[string]serviceSpec
+	SecretEnv   map[string]string
+	NetworkMode string
 }

@@ -1,15 +1,19 @@
 name: Local Debug
-description: Verbose logs, seeded return ids, and open worker traces.
+description: Verbose logs, permissive fraud, execution network.
 default: true
-runtime:
-  suite: returns-control-plane
-  repository: localhost:5000/qa/returns-control-plane
-  profileFile: local.yaml
-modules:
-    - postgres
-    - kafka
-    - grpc
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: debug
+  REFUND_MODES: instant,delayed,manual
+  ENABLE_FRAUD_SCREENING: "true"
+
+services:
+  returns-api:
+    env:
+      API_PORT: 18085
+  fraud-worker:
+    env:
+      DECISION_MODE: permissive

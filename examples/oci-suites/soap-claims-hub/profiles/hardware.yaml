@@ -1,0 +1,19 @@
+name: Hardware Device
+description: Runs verify-findings against a physical claims processor connected over USB.
+default: false
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: info
+  CLAIM_TYPES: medical,dental
+  LEGACY_MODE: "true"
+
+# verify-findings gets direct access to the USB claims device
+services:
+  verify-findings:
+    devices: ["/dev/ttyUSB0"]
+  claims-api:
+    env:
+      VALIDATION_LEVEL: strict

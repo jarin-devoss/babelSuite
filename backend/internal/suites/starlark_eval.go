@@ -26,10 +26,10 @@ type starlarkNode struct {
 	explicitName    bool
 	kind            string
 	variant         string
-	image           string
-	file            string
-	commands        []string
-	ref             string
+	image    string
+	file     string
+	commands []string
+	ref      string
 	plan            string
 	target          string
 	technique       string
@@ -160,11 +160,8 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 	service := &starlarkNamespace{
 		reg: reg,
 		methods: map[string]starlarkBuilderFunc{
-			"run":      buildNodeFunc(reg, "service.run"),
-			"mock":     buildNodeFunc(reg, "service.mock"),
-			"wiremock": buildNodeFunc(reg, "service.wiremock"),
-			"prism":    buildNodeFunc(reg, "service.prism"),
-			"custom":   buildNodeFunc(reg, "service.custom"),
+			"run":  buildNodeFunc(reg, "service.run"),
+			"mock": buildNodeFunc(reg, "service.mock"),
 		},
 	}
 	task := &starlarkNamespace{

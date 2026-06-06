@@ -1,14 +1,21 @@
 name: Canary
 description: New session persistence behavior and stricter cookie policies.
 default: false
-runtime:
-  suite: identity-broker
-  repository: localhost:5000/security/identity-broker
-  profileFile: canary.yaml
-modules:
-    - vault
-    - postgres
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+env:
+  LOG_LEVEL: info
+  REALM_ENV: staging
+  SESSION_TTL_SECONDS: "900"
+
+secretRefs:
+  - key: JWT_SIGNING_KEY
+    provider: Vault
+    ref: kv/identity-broker/canary-jwt-key
+
+services:
+  broker-api:
+    env:
+      API_PORT: 9000
+      TLS_ENABLED: "true"
+      COOKIE_POLICY: strict
+      SESSION_STORE: distributed

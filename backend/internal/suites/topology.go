@@ -36,9 +36,9 @@ type rawTopologyNode struct {
 	Name              string
 	Kind              string
 	Variant           string
-	File              string
-	Commands          []string
-	Arguments         string
+	File      string
+	Commands  []string
+	Arguments string
 	Ref               string
 	Target            string
 	Technique         string
@@ -229,8 +229,8 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			Name:              raw.Name,
 			Kind:              raw.Kind,
 			Variant:           raw.Variant,
-			File:              raw.File,
-			Commands:          append([]string{}, raw.Commands...),
+			File:     raw.File,
+			Commands: append([]string{}, raw.Commands...),
 			Message:           raw.Message,
 			DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
 			ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),
@@ -744,7 +744,7 @@ func topologyKind(call string) (string, bool) {
 	switch strings.TrimSpace(call) {
 	case "service.mock":
 		return "mock", true
-	case "service.run", "service.wiremock", "service.prism", "service.custom":
+	case "service.run":
 		return "service", true
 	case "task.run":
 		return "task", true

@@ -1,14 +1,16 @@
 name: CI Browser
-description: Headless Playwright suite with tighter timeouts and deterministic mocks.
+description: Headless Chromium only, tight timeouts, deterministic mocks.
 default: false
-runtime:
-  suite: storefront-browser-lab
-  repository: localhost:5000/qa/storefront-browser-lab
-  profileFile: ci.yaml
-modules:
-    - kafka
-    - playwright
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: warn
+  BROWSERS: chromium
+
+services:
+  storefront:
+    env:
+      API_PORT: 3000
+      FEATURE_FLAGS: ""

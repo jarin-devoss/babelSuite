@@ -211,8 +211,8 @@ func TestParseSuiteTopologySupportsMockAndServiceModuleEntrypoints(t *testing.T)
 
 payments_api = service.run(name="payments-api")
 orders = service.mock(name="orders-mock", source="mock/orders", after=[payments_api])
-catalog = service.prism(name="catalog-compat", spec_path="./compat/prism/openapi.yaml", port=4010, after=[orders])
-legacy = service.custom(name="legacy-compat", command=["node", "./services/custom_mock.js"], port=9090, after=[catalog])
+catalog = service.run(name="catalog-compat", image="stoplight/prism:5", after=[orders])
+legacy = service.run(name="legacy-compat", image="node:22-alpine", after=[catalog])
 smoke = test.run(name="smoke", file="http/smoke.hurl", image="curlimages/curl:8.7.1", after=[legacy])`
 
 	topology, err := parseSuiteTopology(suiteStar)

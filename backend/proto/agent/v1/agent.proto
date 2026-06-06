@@ -29,6 +29,7 @@ message StepNode {
   repeated string commands = 8;
   string file_content = 9;
   string message = 10;
+  repeated string devices = 11;
 }
 
 message ArtifactExport {

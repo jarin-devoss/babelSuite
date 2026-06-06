@@ -1,0 +1,10 @@
+name: Hardware Device
+description: Runs the security suite against an API served by a physical device connected over USB serial.
+default: false
+runtime:
+  suite: security-suite
+  repository: localhost:5000/security/security-suite
+  profileFile: hardware.yaml
+services:
+  verify-findings:
+    devices: ["/dev/ttyUSB0"]

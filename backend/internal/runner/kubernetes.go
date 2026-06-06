@@ -203,6 +203,8 @@ func (k *Kubernetes) buildPod(podName string, step StepSpec, img string, withArt
 		},
 	}
 
+	applyDevicesToPod(pod, step.Node.Devices)
+
 	if withArtifacts {
 		sidecarUID := int64(0)
 		pod.Spec.Volumes = []corev1.Volume{
@@ -244,6 +246,39 @@ func (k *Kubernetes) buildPod(podName string, step StepSpec, img string, withArt
 	}
 
 	return pod
+}
+
+func applyDevicesToPod(pod *corev1.Pod, devices []string) {
+	if len(devices) == 0 {
+		return
+	}
+	limits := pod.Spec.Containers[0].Resources.Limits
+	if limits == nil {
+		limits = corev1.ResourceList{}
+	}
+	for _, d := range devices {
+		switch {
+		case d == "gpu":
+			limits["nvidia.com/gpu"] = resource.MustParse("1")
+			pod.Spec.Tolerations = append(pod.Spec.Tolerations, corev1.Toleration{
+				Key:      "nvidia.com/gpu",
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			})
+		case strings.HasPrefix(d, "gpu:"):
+			count := strings.TrimPrefix(d, "gpu:")
+			limits["nvidia.com/gpu"] = resource.MustParse(count)
+			pod.Spec.Tolerations = append(pod.Spec.Tolerations, corev1.Toleration{
+				Key:      "nvidia.com/gpu",
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			})
+		case strings.HasPrefix(d, "/dev/"):
+			name := corev1.ResourceName("smarter-devices/" + strings.TrimPrefix(d, "/dev/"))
+			limits[name] = resource.MustParse("1")
+		}
+	}
+	pod.Spec.Containers[0].Resources.Limits = limits
 }
 
 // waitForStepContainer watches pod events and returns when the step container terminates.

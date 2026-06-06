@@ -19,6 +19,7 @@ type StepNode struct {
 	Commands    []string `json:"commands,omitempty" yaml:"commands,omitempty"`
 	FileContent string   `json:"fileContent,omitempty" yaml:"fileContent,omitempty"`
 	Message     string   `json:"message,omitempty" yaml:"message,omitempty"`
+	Devices     []string `json:"devices,omitempty" yaml:"devices,omitempty"`
 }
 
 type ArtifactExport struct {

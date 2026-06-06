@@ -101,6 +101,7 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 			Commands:    append([]string{}, step.Node.Commands...),
 			FileContent: step.Node.FileContent,
 			Message:     step.Node.Message,
+			Devices:     append([]string{}, step.Node.Devices...),
 		},
 	}, emit)
 }

@@ -49,9 +49,6 @@ Long-lived background infrastructure in the suite graph.
 | Call | Kind |
 |------|------|
 | `service.run` | `service` |
-| `service.wiremock` | `service` |
-| `service.prism` | `service` |
-| `service.custom` | `service` |
 
 ```python
 db  = service.run()
@@ -532,6 +529,50 @@ The interpreter is inferred from the file extension when `file=` is used:
 - If the container is still running, the node is marked **healthy** and downstream nodes proceed.
 - Stdout/stderr are streamed to the execution log for the lifetime of the execution.
 - The container is stopped and removed when the execution context is cancelled (execution end or failure).
+
+## Profile-Controlled Step Config
+
+Hardware and networking are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge) and a GPU cluster (with devices, execution network) by switching profiles.
+
+### `services.<name>.devices`
+
+Attach hardware devices to a step's container:
+
+```yaml
+# perf.yaml
+services:
+  seed-job:
+    devices: ["gpu"]        # NVIDIA GPU (all)
+  capture:
+    devices: ["/dev/video0"]  # camera
+  verify-hw:
+    devices: ["/dev/ttyUSB0"] # USB serial
+```
+
+Device values translate automatically per backend — see [Profiles](profiles.md#servicesdevices) for the full mapping table (Docker `DeviceRequest`/`DeviceMapping`, Kubernetes `nvidia.com/gpu` resource limits, remote agent capability matching).
+
+### `network.mode`
+
+```yaml
+# staging.yaml
+network:
+  mode: execution   # isolated bridge — containers reach each other by node name
+```
+
+When `mode: execution` is set, every container in the execution joins a shared Docker bridge network. The node's `name` becomes its DNS hostname — a `service.run(name="redis")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required.
+
+```python
+# suite.star — works the same regardless of network mode
+redis   = service.run(name="redis",  image="redis:7-alpine")
+api     = service.run(name="api",    image="myapp:latest", after=[redis])
+smoke   = test.run(
+    image    = "python:3.12",
+    commands = ["python test.py --host api --redis redis:6379"],
+    after    = [api],
+)
+```
+
+The network is created at execution start and removed when the execution finishes, alongside the shared workspace directory.
 
 ## Authoring Rules
 

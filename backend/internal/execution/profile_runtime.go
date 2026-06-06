@@ -17,6 +17,7 @@ import (
 
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/profiles"
+	"github.com/babelsuite/babelsuite/internal/runner"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,10 +27,16 @@ type suiteProfilesReader interface {
 	GetSuiteProfiles(suiteID string) (*profiles.SuiteProfiles, error)
 }
 
+type serviceSpec struct {
+	Env     map[string]string
+	Devices []string
+}
+
 type profileRuntimeDocument struct {
-	Env        map[string]string
-	Services   map[string]map[string]string
-	SecretRefs []profiles.SecretReference
+	Env         map[string]string
+	Services    map[string]serviceSpec
+	NetworkMode string
+	SecretRefs  []profiles.SecretReference
 }
 
 func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, profile string) (executionRuntimeOverlay, error) {
@@ -44,8 +51,9 @@ func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, p
 	}
 
 	overlay := executionRuntimeOverlay{
-		Env:      mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
-		Services: cloneServiceEnvMap(profileRuntime.Services),
+		Env:         mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
+		Services:    cloneServiceMap(profileRuntime.Services),
+		NetworkMode: profileRuntime.NetworkMode,
 	}
 
 	if len(profileRuntime.SecretRefs) > 0 {
@@ -76,81 +84,81 @@ func (s *Service) resolveNodeRuntimeEnv(executionID string, node topologyNode) m
 	)
 }
 
-func (o executionRuntimeOverlay) serviceEnv(node topologyNode) map[string]string {
-	if len(o.Services) == 0 {
+func (s *Service) resolveExecutionNetworkName(executionID string) string {
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil || item.runtime.NetworkMode != "execution" {
+		return ""
+	}
+	return runner.ExecutionNetworkName(executionID)
+}
+
+func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []string {
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil {
 		return nil
 	}
-
-	if env := o.Services[strings.TrimSpace(node.ID)]; len(env) > 0 {
-		return cloneRuntimeMap(env)
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.ID)]; ok && len(spec.Devices) > 0 {
+		return append([]string{}, spec.Devices...)
 	}
-	if env := o.Services[strings.TrimSpace(node.Name)]; len(env) > 0 {
-		return cloneRuntimeMap(env)
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.Name)]; ok && len(spec.Devices) > 0 {
+		return append([]string{}, spec.Devices...)
 	}
 	return nil
 }
 
-func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (struct {
-	Env        map[string]string
-	Services   map[string]map[string]string
-	SecretRefs []profiles.SecretReference
-}, error) {
+func (o executionRuntimeOverlay) serviceEnv(node topologyNode) map[string]string {
+	if len(o.Services) == 0 {
+		return nil
+	}
+	if spec, ok := o.Services[strings.TrimSpace(node.ID)]; ok && len(spec.Env) > 0 {
+		return cloneRuntimeMap(spec.Env)
+	}
+	if spec, ok := o.Services[strings.TrimSpace(node.Name)]; ok && len(spec.Env) > 0 {
+		return cloneRuntimeMap(spec.Env)
+	}
+	return nil
+}
+
+func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profileRuntimeDocument, error) {
 	reader, ok := s.suiteSource.(suiteProfilesReader)
 	if !ok {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, nil
+		return profileRuntimeDocument{}, nil
 	}
 
 	payload, err := reader.GetSuiteProfiles(suiteID)
 	if err != nil {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, fmt.Errorf("%w: could not load managed profiles for suite %q: %v", ErrProfileRuntime, suiteID, err)
+		return profileRuntimeDocument{}, fmt.Errorf("%w: could not load managed profiles for suite %q: %v", ErrProfileRuntime, suiteID, err)
 	}
 
 	record := findProfileRecord(payload.Profiles, profile)
 	if record == nil {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, nil
+		return profileRuntimeDocument{}, nil
 	}
 
 	chain, err := resolveProfileChain(payload.Profiles, record.ID)
 	if err != nil {
-		return struct {
-			Env        map[string]string
-			Services   map[string]map[string]string
-			SecretRefs []profiles.SecretReference
-		}{}, fmt.Errorf("%w: %v", ErrProfileRuntime, err)
+		return profileRuntimeDocument{}, fmt.Errorf("%w: %v", ErrProfileRuntime, err)
 	}
 
-	runtime := struct {
-		Env        map[string]string
-		Services   map[string]map[string]string
-		SecretRefs []profiles.SecretReference
-	}{
-		Services: map[string]map[string]string{},
+	runtime := profileRuntimeDocument{
+		Services: map[string]serviceSpec{},
 	}
 
 	for _, current := range chain {
 		parsed, err := parseManagedProfileYAML(current.YAML)
 		if err != nil {
-			return struct {
-				Env        map[string]string
-				Services   map[string]map[string]string
-				SecretRefs []profiles.SecretReference
-			}{}, fmt.Errorf("%w: could not parse %s: %v", ErrProfileRuntime, current.FileName, err)
+			return profileRuntimeDocument{}, fmt.Errorf("%w: could not parse %s: %v", ErrProfileRuntime, current.FileName, err)
 		}
 		runtime.Env = mergeRuntimeMaps(runtime.Env, parsed.Env)
-		runtime.Services = mergeServiceEnvMaps(runtime.Services, parsed.Services)
+		runtime.Services = mergeServiceSpecs(runtime.Services, parsed.Services)
 		runtime.SecretRefs = mergeSecretRefs(runtime.SecretRefs, parsed.SecretRefs, current.SecretRefs)
+		if parsed.NetworkMode != "" {
+			runtime.NetworkMode = parsed.NetworkMode
+		}
 	}
 
 	return runtime, nil
@@ -169,21 +177,35 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 
 	runtime := profileRuntimeDocument{
 		Env:        scalarStringMap(document["env"]),
-		Services:   map[string]map[string]string{},
+		Services:   map[string]serviceSpec{},
 		SecretRefs: profiles.ExtractSecretRefsFromYAML(source),
+	}
+
+	if netBlock, ok := document["network"].(map[string]any); ok {
+		if mode, ok := netBlock["mode"].(string); ok {
+			runtime.NetworkMode = strings.TrimSpace(strings.ToLower(mode))
+		}
 	}
 
 	if services, ok := document["services"].(map[string]any); ok {
 		for name, rawService := range services {
-			serviceMap, ok := rawService.(map[string]any)
+			svcMap, ok := rawService.(map[string]any)
 			if !ok {
 				continue
 			}
-			env := scalarStringMap(serviceMap["env"])
-			if len(env) == 0 {
-				continue
+			entry := serviceSpec{
+				Env: scalarStringMap(svcMap["env"]),
 			}
-			runtime.Services[strings.TrimSpace(name)] = env
+			if raw, ok := svcMap["devices"].([]any); ok {
+				for _, d := range raw {
+					if s, ok := d.(string); ok && strings.TrimSpace(s) != "" {
+						entry.Devices = append(entry.Devices, strings.TrimSpace(s))
+					}
+				}
+			}
+			if len(entry.Env) > 0 || len(entry.Devices) > 0 {
+				runtime.Services[strings.TrimSpace(name)] = entry
+			}
 		}
 	}
 
@@ -266,35 +288,35 @@ func platformGlobalOverrideEnv(settings *platform.PlatformSettings) map[string]s
 	return env
 }
 
-func mergeServiceEnvMaps(base map[string]map[string]string, overlays ...map[string]map[string]string) map[string]map[string]string {
-	size := len(base)
-	for _, overlay := range overlays {
-		size += len(overlay)
-	}
-	if size == 0 {
+func mergeServiceSpecs(base, overlay map[string]serviceSpec) map[string]serviceSpec {
+	if len(base) == 0 && len(overlay) == 0 {
 		return nil
 	}
-
-	result := make(map[string]map[string]string, size)
-	for name, env := range base {
-		result[name] = cloneRuntimeMap(env)
+	result := make(map[string]serviceSpec, len(base)+len(overlay))
+	for k, v := range base {
+		result[k] = serviceSpec{Env: cloneRuntimeMap(v.Env), Devices: append([]string{}, v.Devices...)}
 	}
-	for _, overlay := range overlays {
-		for name, env := range overlay {
-			result[name] = mergeRuntimeMaps(result[name], env)
+	for k, v := range overlay {
+		existing := result[k]
+		merged := serviceSpec{
+			Env:     mergeRuntimeMaps(existing.Env, v.Env),
+			Devices: existing.Devices,
 		}
+		if len(v.Devices) > 0 {
+			merged.Devices = append([]string{}, v.Devices...)
+		}
+		result[k] = merged
 	}
 	return result
 }
 
-func cloneServiceEnvMap(input map[string]map[string]string) map[string]map[string]string {
+func cloneServiceMap(input map[string]serviceSpec) map[string]serviceSpec {
 	if len(input) == 0 {
 		return nil
 	}
-
-	output := make(map[string]map[string]string, len(input))
-	for name, env := range input {
-		output[name] = cloneRuntimeMap(env)
+	output := make(map[string]serviceSpec, len(input))
+	for name, spec := range input {
+		output[name] = serviceSpec{Env: cloneRuntimeMap(spec.Env), Devices: append([]string{}, spec.Devices...)}
 	}
 	return output
 }

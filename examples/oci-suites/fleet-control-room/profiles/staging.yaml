@@ -1,15 +1,17 @@
 name: Staging
-description: Shared staging identities and realistic routing backends.
+description: Realistic routing backends with execution network.
 default: false
-runtime:
-  suite: fleet-control-room
-  repository: localhost:5000/platform/fleet-control-room
-  profileFile: staging.yaml
-modules:
-    - redis
-    - grpc
-    - prometheus
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+network:
+  mode: execution
+
+env:
+  LOG_LEVEL: info
+  ENABLE_TELEMETRY: "true"
+  ENABLE_GEO_FENCE: "true"
+  SPIKE_MULTIPLIER: "3"
+
+services:
+  control-room:
+    env:
+      API_PORT: 8080

@@ -1,14 +1,22 @@
 name: Local Debug
-description: Relaxed certificates and hot-reloadable providers.
+description: Relaxed TLS, hot-reload, local secret resolution.
 default: true
-runtime:
-  suite: identity-broker
-  repository: localhost:5000/security/identity-broker
-  profileFile: local.yaml
-modules:
-    - vault
-    - postgres
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+env:
+  LOG_LEVEL: debug
+  REALM_ENV: local
+  SESSION_TTL_SECONDS: "3600"
+
+secretRefs:
+  - key: JWT_SIGNING_KEY
+    provider: Local Secret
+    ref: secrets://developer/jwt-signing-key
+
+services:
+  broker-api:
+    env:
+      API_PORT: 19000
+      TLS_ENABLED: "false"
+  oidc-provider:
+    env:
+      RESPONSE_DELAY_MS: "50"

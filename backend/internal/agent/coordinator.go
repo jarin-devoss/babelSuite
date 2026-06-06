@@ -48,6 +48,7 @@ type runtimeCache interface {
 
 type RegistryReader interface {
 	IsAvailable(agentID string) bool
+	ListRegistrations() []Registration
 }
 
 type assignmentEntry struct {
