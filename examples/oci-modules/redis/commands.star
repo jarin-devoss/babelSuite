@@ -10,7 +10,7 @@ def _cli(cache, name, cmd, image = "redis:7.2-alpine", after = []):
         name     = name,
         image    = image,
         after    = [cache] + after,
-        commands = ["sh", "-c", prefix + " " + cmd],
+        commands = [prefix + " " + cmd],
     )
 
 def wait_ready(cache, image = "redis:7.2-alpine", after = []):
@@ -22,7 +22,7 @@ def wait_ready(cache, image = "redis:7.2-alpine", after = []):
         name     = cache.name + "-wait-ready",
         image    = image,
         after    = [cache] + after,
-        commands = ["sh", "-c", "until " + probe + " | grep -q PONG; do sleep 1; done"],
+        commands = ["until " + probe + " | grep -q PONG; do sleep 1; done"],
     )
 
 def set_key(cache, key, value, ttl_seconds = None, image = "redis:7.2-alpine", after = []):
@@ -42,7 +42,7 @@ def set_keys(cache, mapping, ttl_seconds = None, image = "redis:7.2-alpine", aft
         name     = cache.name + "-set-keys",
         image    = image,
         after    = [cache] + after,
-        commands = ["sh", "-c", " && ".join([
+        commands = [" && ".join([
             "redis-cli -h \"${REDIS_HOST:-" + cache.name + "}\" -p \"${REDIS_PORT:-6379}\" ${REDIS_PASSWORD:+-a \"$REDIS_PASSWORD\"} " + p
             for p in parts
         ])],

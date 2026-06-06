@@ -7,7 +7,7 @@ def _admin(broker, name, script, image = "bitnami/kafka:3.7", after = []):
         name     = name,
         image    = image,
         after    = [broker] + after,
-        commands = ["sh", "-c", script.replace("__SERVERS__", servers)],
+        commands = [script.replace("__SERVERS__", servers)],
     )
 
 def create_topic(broker, topic, partitions = 1, replication_factor = 1, configs = {}, image = "bitnami/kafka:3.7", after = []):

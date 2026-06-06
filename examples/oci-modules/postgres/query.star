@@ -7,7 +7,7 @@ def _query(db, name, sql, image = "postgres:16", after = []):
         name     = name,
         image    = image,
         after    = [db] + after,
-        commands = ["sh", "-c", "psql " + url + " -v ON_ERROR_STOP=1 -c " + quoted(sql)],
+        commands = ["psql " + url + " -v ON_ERROR_STOP=1 -c " + quoted(sql)],
     )
 
 def connect(db, image = "postgres:16", after = []):

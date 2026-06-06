@@ -7,7 +7,7 @@ def _mongosh(cluster, name, db, js, image = "mongo:7.0", after = []):
         name     = name,
         image    = image,
         after    = [cluster] + after,
-        commands = ["sh", "-c", "mongosh " + uri + "/" + db + ' --eval \'' + js.replace("'", "'\\''") + "'"],
+        commands = ["mongosh " + uri + "/" + db + ' --eval \'' + js.replace("'", "'\\''") + "'"],
     )
 
 def create_collection(cluster, db, collection, validator = None, image = "mongo:7.0", after = []):
@@ -77,5 +77,5 @@ def run_script(cluster, db, script_path, image = "mongo:7.0", after = []):
         name     = cluster.name + "-script-" + sanitize_name(db) + "-" + sanitize_name(script_path),
         image    = image,
         after    = [cluster] + after,
-        commands = ["sh", "-c", "mongosh " + uri + "/" + db + " " + script_path],
+        commands = ["mongosh " + uri + "/" + db + " " + script_path],
     )

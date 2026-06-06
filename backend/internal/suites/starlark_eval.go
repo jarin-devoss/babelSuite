@@ -661,6 +661,7 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			Name:              node.name,
 			Kind:              node.kind,
 			Variant:           node.variant,
+			Image:             node.image,
 			File:              node.file,
 			Commands:          append([]string{}, node.commands...),
 			Ref:               node.ref,

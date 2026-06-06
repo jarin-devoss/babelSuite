@@ -73,8 +73,9 @@ type TopologyNode struct {
 	Load              *LoadSpec         `json:"traffic,omitempty"`
 	Security          *SecuritySpec     `json:"security,omitempty"`
 	Message           string            `json:"message,omitempty"`
-	File     string   `json:"file,omitempty"`
-	Commands []string `json:"commands,omitempty"`
+	Image             string            `json:"image,omitempty"`
+	File              string            `json:"file,omitempty"`
+	Commands          []string          `json:"commands,omitempty"`
 	DependsOn         []string          `json:"dependsOn"`
 	ResetMocks        []string          `json:"resetMocks,omitempty"`
 	OnFailure         []string          `json:"onFailure,omitempty"`

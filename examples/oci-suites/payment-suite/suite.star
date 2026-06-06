@@ -25,7 +25,7 @@ seed    = task.run(name="seed",    image="bash:5.2",    file="seed.sh",    after
 
 infra_ready = log.info("db migrated and seeded — starting gateway", after=[seed, stripe_mock])
 
-payment_gateway = service.run(name="payment-gateway", after=[infra_ready])
+payment_gateway = service.run(after=[infra_ready])
 
 fraud_workers = []
 for i in range(REPLICA_COUNT):
