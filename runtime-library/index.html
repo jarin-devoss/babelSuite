@@ -1021,6 +1021,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#profile-controlled-step-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile-Controlled Step Config
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Profile-Controlled Step Config">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#servicesnamedevices" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.devices
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#networkmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      network.mode
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-rules" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Rules
@@ -1613,6 +1646,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#profile-controlled-step-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile-Controlled Step Config
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Profile-Controlled Step Config">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#servicesnamedevices" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.devices
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#networkmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      network.mode
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-rules" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Rules
@@ -1683,18 +1749,6 @@
 <tbody>
 <tr>
 <td><code>service.run</code></td>
-<td><code>service</code></td>
-</tr>
-<tr>
-<td><code>service.wiremock</code></td>
-<td><code>service</code></td>
-</tr>
-<tr>
-<td><code>service.prism</code></td>
-<td><code>service</code></td>
-</tr>
-<tr>
-<td><code>service.custom</code></td>
 <td><code>service</code></td>
 </tr>
 </tbody>
@@ -2386,6 +2440,36 @@
 <li>Stdout/stderr are streamed to the execution log for the lifetime of the execution.</li>
 <li>The container is stopped and removed when the execution context is cancelled (execution end or failure).</li>
 </ul>
+<h2 id="profile-controlled-step-config">Profile-Controlled Step Config<a class="headerlink" href="#profile-controlled-step-config" title="Permanent link">&para;</a></h2>
+<p>Hardware and networking are declared in the <strong>profile YAML</strong>, not in <code>suite.star</code>. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge) and a GPU cluster (with devices, execution network) by switching profiles.</p>
+<h3 id="servicesnamedevices"><code>services.&lt;name&gt;.devices</code><a class="headerlink" href="#servicesnamedevices" title="Permanent link">&para;</a></h3>
+<p>Attach hardware devices to a step's container:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># perf.yaml</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">seed-job</span><span class="p">:</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">        </span><span class="c1"># NVIDIA GPU (all)</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># camera</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">  </span><span class="nt">verify-hw</span><span class="p">:</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/ttyUSB0&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># USB serial</span>
+</span></code></pre></div>
+<p>Device values translate automatically per backend — see <a href="../profiles/#servicesdevices">Profiles</a> for the full mapping table (Docker <code>DeviceRequest</code>/<code>DeviceMapping</code>, Kubernetes <code>nvidia.com/gpu</code> resource limits, remote agent capability matching).</p>
+<h3 id="networkmode"><code>network.mode</code><a class="headerlink" href="#networkmode" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># staging.yaml</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">network</span><span class="p">:</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># isolated bridge — containers reach each other by node name</span>
+</span></code></pre></div>
+<p>When <code>mode: execution</code> is set, every container in the execution joins a shared Docker bridge network. The node's <code>name</code> becomes its DNS hostname — a <code>service.run(name="redis")</code> is reachable at <code>redis:6379</code> from any <code>task.run</code> or <code>test.run</code> in the same execution. No <code>suite.star</code> changes required.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># suite.star — works the same regardless of network mode</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">redis</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;redis&quot;</span><span class="p">,</span>  <span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">)</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">api</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">redis</span><span class="p">])</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">smoke</span>   <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">image</span>    <span class="o">=</span> <span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>    <span class="n">commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python test.py --host api --redis redis:6379&quot;</span><span class="p">],</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>    <span class="n">after</span>    <span class="o">=</span> <span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>The network is created at execution start and removed when the execution finishes, alongside the shared workspace directory.</p>
 <h2 id="authoring-rules">Authoring Rules<a class="headerlink" href="#authoring-rules" title="Permanent link">&para;</a></h2>
 <ul>
 <li>one node assignment per logical statement</li>

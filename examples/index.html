@@ -1070,6 +1070,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Example Suites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#feature-quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Feature quick-reference
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1085,15 +1100,6 @@
   <a href="#syncing-example-content" class="md-nav__link">
     <span class="md-ellipsis">
       Syncing Example Content
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#seeding-a-local-registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      Seeding A Local Registry
     </span>
   </a>
   
@@ -1209,6 +1215,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Example Suites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#feature-quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Feature quick-reference
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1224,15 +1245,6 @@
   <a href="#syncing-example-content" class="md-nav__link">
     <span class="md-ellipsis">
       Syncing Example Content
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#seeding-a-local-registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      Seeding A Local Registry
     </span>
   </a>
   
@@ -1268,46 +1280,143 @@
 <h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
 <h2 id="example-suites">Example Suites<a class="headerlink" href="#example-suites" title="Permanent link">&para;</a></h2>
-<p>The repository includes these workspace suites under <a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites"><code>examples/oci-suites/</code></a>:</p>
+<p>The example suites under <a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites"><code>examples/oci-suites/</code></a> are ordered from simplest to most complex. Each one introduces new features on top of the previous.</p>
 <table>
 <thead>
 <tr>
+<th>Level</th>
 <th>Suite</th>
-<th>Description</th>
+<th>What it introduces</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/composite-readiness"><code>composite-readiness</code></a></td>
-<td>Nested suite composition with shared readiness gates</td>
+<td>1</td>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/notification-hub"><code>notification-hub</code></a></td>
+<td><code>service.run</code>, <code>test.run</code>, <code>commands=</code>, profile <code>env:</code>, <code>services.&lt;name&gt;.env:</code></td>
 </tr>
 <tr>
-<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/fleet-control-room"><code>fleet-control-room</code></a></td>
-<td>Event-driven topology with multiple async workers</td>
-</tr>
-<tr>
+<td>2</td>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/identity-broker"><code>identity-broker</code></a></td>
-<td>Auth and SSO flows with mock identity provider</td>
+<td><code>task.run</code>, <code>service.mock</code>, <code>log.info/debug</code>, <code>secretRefs</code>, <code>expect_exit=</code>, <code>expect_logs=</code>, <code>fail_on_logs=</code>, <code>continue_on_failure=</code></td>
 </tr>
 <tr>
-<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/kafka-topic-lifecycle"><code>kafka-topic-lifecycle</code></a></td>
-<td>Kafka broker, topic creation, and consumer group tests</td>
-</tr>
-<tr>
+<td>3</td>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite"><code>payment-suite</code></a></td>
-<td>Mock-heavy payment API with traffic and security probes</td>
+<td><code>file=</code>, <code>env.get()</code>, conditionals, profile <code>extendsId</code>, <code>traffic.baseline/stress</code>, <code>reset_mocks=</code>, <code>log.warn</code>, <code>.export(cobertura)</code></td>
 </tr>
 <tr>
+<td>4</td>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/returns-control-plane"><code>returns-control-plane</code></a></td>
-<td>Policy and fixture-driven returns and refund flows</td>
+<td><code>network.mode: execution</code>, <code>services.&lt;name&gt;.devices:</code>, log <code>{{ }}</code> templates, <code>on_failure=</code>, <code>traffic.stress/spike</code></td>
 </tr>
 <tr>
-<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/soap-claims-hub"><code>soap-claims-hub</code></a></td>
-<td>SOAP/XML API mocking with CUE-driven mock exchanges</td>
-</tr>
-<tr>
+<td>5</td>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab"><code>storefront-browser-lab</code></a></td>
-<td>Browser-driven Playwright tests across device and browser matrix</td>
+<td>Playwright <code>browser()</code>, loops over browser matrix, <code>.export(ctrf)</code>, <code>traffic.soak</code>, <code>log.error</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/soap-claims-hub"><code>soap-claims-hub</code></a></td>
+<td>All 8 <code>security.*</code> modes, <code>traffic.scalability</code>, hardware profile <code>/dev/ttyUSB0</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/fleet-control-room"><code>fleet-control-room</code></a></td>
+<td>OCI modules (kafka, redis), <code>service.run(image=, commands=)</code> detached, all traffic phases, all log levels, multi-region loops, GPU in perf profile</td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/security-suite"><code>security-suite</code></a></td>
+<td>Focused security reference — all 8 modes in sequence, hardware device profile</td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/composite-readiness"><code>composite-readiness</code></a></td>
+<td><code>suite.run</code> cross-suite orchestration, all log levels, dynamic topology from dict</td>
+</tr>
+</tbody>
+</table>
+<h3 id="feature-quick-reference">Feature quick-reference<a class="headerlink" href="#feature-quick-reference" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>First introduced</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>service.run</code>, <code>test.run</code>, <code>commands=</code></td>
+<td>notification-hub</td>
+</tr>
+<tr>
+<td>Profile <code>env:</code>, <code>services.&lt;name&gt;.env:</code></td>
+<td>notification-hub</td>
+</tr>
+<tr>
+<td><code>task.run</code>, <code>service.mock</code>, <code>log.info/debug</code></td>
+<td>identity-broker</td>
+</tr>
+<tr>
+<td><code>secretRefs</code>, <code>expect_exit=</code>, <code>expect_logs=</code>, <code>fail_on_logs=</code></td>
+<td>identity-broker</td>
+</tr>
+<tr>
+<td><code>continue_on_failure=</code></td>
+<td>identity-broker</td>
+</tr>
+<tr>
+<td><code>file=</code>, <code>env.get()</code>, conditionals</td>
+<td>payment-suite</td>
+</tr>
+<tr>
+<td>Profile <code>extendsId</code>, <code>reset_mocks=</code>, <code>log.warn</code></td>
+<td>payment-suite</td>
+</tr>
+<tr>
+<td><code>traffic.baseline/stress</code>, <code>.export(cobertura)</code></td>
+<td>payment-suite</td>
+</tr>
+<tr>
+<td><code>network.mode: execution</code>, <code>services.&lt;name&gt;.devices:</code></td>
+<td>returns-control-plane</td>
+</tr>
+<tr>
+<td>Log <code>{{ }}</code> templates, <code>on_failure=</code></td>
+<td>returns-control-plane</td>
+</tr>
+<tr>
+<td><code>traffic.spike</code></td>
+<td>returns-control-plane</td>
+</tr>
+<tr>
+<td>Playwright <code>browser()</code>, loops</td>
+<td>storefront-browser-lab</td>
+</tr>
+<tr>
+<td><code>.export(ctrf)</code>, <code>traffic.soak</code>, <code>log.error</code></td>
+<td>storefront-browser-lab</td>
+</tr>
+<tr>
+<td>All 8 <code>security.*</code> modes</td>
+<td>soap-claims-hub</td>
+</tr>
+<tr>
+<td><code>traffic.scalability</code>, hardware device profile</td>
+<td>soap-claims-hub</td>
+</tr>
+<tr>
+<td>OCI modules, <code>service.run(image=, commands=)</code> detached</td>
+<td>fleet-control-room</td>
+</tr>
+<tr>
+<td><code>traffic.wave</code>, all log levels</td>
+<td>fleet-control-room</td>
+</tr>
+<tr>
+<td><code>suite.run</code></td>
+<td>composite-readiness</td>
 </tr>
 </tbody>
 </table>
@@ -1329,32 +1438,27 @@
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/postgres"><code>postgres</code></a></td>
 <td>Postgres cluster and query execution helpers</td>
 </tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/redis"><code>redis</code></a></td>
+<td>Redis cluster helpers</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/mongodb"><code>mongodb</code></a></td>
+<td>MongoDB cluster and collection helpers</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules/playwright"><code>playwright</code></a></td>
+<td>Playwright browser test runner</td>
+</tr>
 </tbody>
 </table>
 <p>These are pure Starlark module examples built on top of the built-in runtime primitives.</p>
 <h2 id="syncing-example-content">Syncing Example Content<a class="headerlink" href="#syncing-example-content" title="Permanent link">&para;</a></h2>
-<p>The repository includes:</p>
-<ul>
-<li><code>backend/cmd/sync-examples</code></li>
-</ul>
-<p>This command syncs generated example workspace content into the checked-in examples root.</p>
-<p>Run it from <code>backend/</code> with:</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="nb">sync-examples</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd </span><span class="n">backend</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="nb">sync-examples</span>
 </span></code></pre></div>
-<h2 id="seeding-a-local-registry">Seeding A Local Registry<a class="headerlink" href="#seeding-a-local-registry" title="Permanent link">&para;</a></h2>
-<p>The repository also includes:</p>
-<ul>
-<li><code>backend/cmd/seed-zot</code></li>
-</ul>
-<p>This command can publish seeded references into a local registry so the catalog has discoverable package content.</p>
 <h2 id="why-the-examples-matter">Why The Examples Matter<a class="headerlink" href="#why-the-examples-matter" title="Permanent link">&para;</a></h2>
-<p>The examples act as:</p>
-<ul>
-<li>runnable reference suites</li>
-<li>UI inspection data</li>
-<li>catalog enrichment sources</li>
-<li>authoring examples for new suites and modules</li>
-</ul>
+<p>The examples act as runnable reference suites, UI inspection data, catalog enrichment sources, and authoring guides for new suites and modules.</p>
 
 
 

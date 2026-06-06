@@ -823,6 +823,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#profile-controlled-hardware-and-networking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile-Controlled Hardware and Networking
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-tips" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Tips
@@ -1418,6 +1427,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#profile-controlled-hardware-and-networking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profile-Controlled Hardware and Networking
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-tips" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Tips
@@ -1768,6 +1786,19 @@
 </span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>Use <code>BABELSUITE_ARTIFACTS_DIR</code> with <code>.export()</code> when you want BabelSuite to store and display the file in the execution UI (JUnit reports, coverage, crash dumps). Use <code>BABELSUITE_WORKSPACE_DIR</code> when you only need the next step to consume it.</p>
+<h2 id="profile-controlled-hardware-and-networking">Profile-Controlled Hardware and Networking<a class="headerlink" href="#profile-controlled-hardware-and-networking" title="Permanent link">&para;</a></h2>
+<p>Hardware requirements (<code>devices:</code>) and network topology (<code>network.mode:</code>) are declared in the <strong>profile YAML</strong>, not in <code>suite.star</code>. This keeps the suite portable across environments.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># perf.yaml</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nt">network</span><span class="p">:</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># containers reach each other by node name</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="nt">seed-job</span><span class="p">:</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># GPU attached to this step in perf runs only</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># USB camera for hardware tests</span>
+</span></code></pre></div>
+<p>The same <code>suite.star</code> runs with no GPU on a laptop (<code>local.yaml</code> omits <code>devices:</code>) and with GPU on a cluster (<code>perf.yaml</code> adds it). See <a href="../profiles/">Profiles</a> for the full reference.</p>
 <h2 id="authoring-tips">Authoring Tips<a class="headerlink" href="#authoring-tips" title="Permanent link">&para;</a></h2>
 <ul>
 <li>keep <code>suite.star</code> focused on orchestration instead of large inline data blobs</li>
