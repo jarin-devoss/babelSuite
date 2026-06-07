@@ -52,17 +52,35 @@ export default function LiveExecution() {
   const { copyToClipboard } = useClipboardFeedback(1600)
   const logRef = useRef<HTMLDivElement | null>(null)
 
-  const topology = useMemo(
+  const allTopology = useMemo(
     () => execution
       ? groupTopologyByLevel(execution.suite.topology?.length ? execution.suite.topology : parseSuiteTopology(execution.suite.suiteStar))
       : [],
     [execution],
   )
-  const flatTopology = useMemo(() => topology.flat(), [topology])
+  const allFlatTopology = useMemo(() => allTopology.flat(), [allTopology])
   const statusMap = useMemo(
-    () => deriveRuntimeStatus(flatTopology, execution?.events ?? []),
-    [execution?.events, flatTopology],
+    () => deriveRuntimeStatus(allFlatTopology, execution?.events ?? []),
+    [execution?.events, allFlatTopology],
   )
+  const activeSources = useMemo(
+    () => new Set(logs.map((l) => l.source)),
+    [logs],
+  )
+  const topology = useMemo(() => {
+    const knownIds = new Set(allFlatTopology.map((n) => n.id))
+    const visible = allTopology
+      .map((wave) => wave.filter((node) => activeSources.has(node.id)))
+      .filter((wave) => wave.length > 0)
+    const orphans = [...activeSources]
+      .filter((src) => src && src !== 'all' && !knownIds.has(src))
+      .map((src) => ({ id: src, name: src, kind: 'service', dependsOn: [], level: 0 }))
+    if (orphans.length > 0) {
+      visible.push(orphans)
+    }
+    return visible
+  }, [allTopology, allFlatTopology, activeSources])
+  const flatTopology = useMemo(() => topology.flat(), [topology])
   const filteredLogs = useMemo(() => {
     let result = selectedSource === 'all' ? logs : logs.filter((line) => line.source === selectedSource)
     // Never render metric payloads in the terminal — they go to the stats panel
@@ -157,14 +175,14 @@ export default function LiveExecution() {
     )
   }
 
-  const readyNodes = flatTopology.filter((n) => statusMap[n.id] === 'healthy').length
-  const activeNodes = flatTopology.filter((n) => statusMap[n.id] === 'running').length
-  const failedNodes = flatTopology.filter((n) => statusMap[n.id] === 'failed').length
-  const skippedNodes = flatTopology.filter((n) => statusMap[n.id] === 'skipped').length
-  const pendingNodes = flatTopology.filter((n) => statusMap[n.id] === 'pending').length
-  const progress = flatTopology.length === 0
+  const readyNodes = allFlatTopology.filter((n) => statusMap[n.id] === 'healthy').length
+  const activeNodes = allFlatTopology.filter((n) => statusMap[n.id] === 'running').length
+  const failedNodes = allFlatTopology.filter((n) => statusMap[n.id] === 'failed').length
+  const skippedNodes = allFlatTopology.filter((n) => statusMap[n.id] === 'skipped').length
+  const pendingNodes = allFlatTopology.filter((n) => statusMap[n.id] === undefined).length
+  const progress = allFlatTopology.length === 0
     ? (execution.status === 'Healthy' ? 100 : 0)
-    : Math.round(((readyNodes + activeNodes + failedNodes + skippedNodes) / flatTopology.length) * 100)
+    : Math.round(((readyNodes + activeNodes + failedNodes + skippedNodes) / allFlatTopology.length) * 100)
 
   const alert = notice || actionError || error
   const activeMockPreview = mockPreviews.find((preview) => preview.id === selectedMockPreviewId) ?? mockPreviews[0]
