@@ -654,14 +654,12 @@ export function groupTopologyByLevel(topology: TopologyNode[]) {
 }
 
 export function deriveRuntimeStatus(
-  topology: TopologyNode[],
+  _topology: TopologyNode[],
   events: Array<{ source: string; status: RuntimeStatus }>,
 ) {
-  const statuses = Object.fromEntries(topology.map((node) => [node.id, 'pending'])) as Record<string, RuntimeStatus>
-
+  const statuses: Record<string, RuntimeStatus> = {}
   for (const event of events) {
     statuses[event.source] = event.status
   }
-
   return statuses
 }

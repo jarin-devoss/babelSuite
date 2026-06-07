@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -126,7 +127,6 @@ func (s *Service) GetExecution(executionID, workspaceID string) (*ExecutionRecor
 func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*ExecutionSummary, error) {
 	select {
 	case s.concurrencySem <- struct{}{}:
-		defer func() { <-s.concurrencySem }()
 	default:
 		return nil, ErrBackendUnavailable
 	}
@@ -139,45 +139,30 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 		suite, err = s.suiteSource.Resolve(suiteID)
 	}
 	if err != nil {
+		<-s.concurrencySem
 		s.noteRejectedLaunch(ctx, suiteID, "suite_not_found")
 		return nil, ErrSuiteNotFound
 	}
-	resolved, err := suites.ResolveRuntime(*suite, s.suiteSource.List())
-	if err != nil {
-		s.noteRejectedLaunch(ctx, suite.ID, "invalid_topology")
-		return nil, ErrInvalidTopology
-	}
-	suite.Topology = resolved.Nodes
-	suite.ResolvedDependencies = resolved.Dependencies
-	suite.TopologyError = ""
-	meta := s.suiteMeta[suite.ID]
 
 	profile := strings.TrimSpace(request.Profile)
 	if profile == "" {
 		profile = defaultProfile(suite.Profiles)
 	}
 	if profile != "" && !suiteHasProfile(suite.Profiles, profile) {
+		<-s.concurrencySem
 		s.noteRejectedLaunch(ctx, suite.ID, "profile_not_found")
 		return nil, ErrProfileNotFound
 	}
 
-	runtimeOverlay, err := s.resolveExecutionRuntimeOverlay(ctx, suite.ID, profile)
-	if err != nil {
-		s.noteRejectedLaunch(ctx, suite.ID, "profile_runtime_error")
-		return nil, err
-	}
-
 	selectedBackend, err := s.resolveBackend(ctx, request.Backend)
 	if err != nil {
+		<-s.concurrencySem
 		s.noteRejectedLaunch(ctx, suite.ID, "backend_unavailable")
 		return nil, err
 	}
 
+	meta := s.suiteMeta[suite.ID]
 	executionID := "run-" + uuid.NewString()[:8]
-	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700) //nolint:errcheck
-	if runtimeOverlay.NetworkMode == "execution" {
-		runner.EnsureExecutionNetwork(executionID)
-	}
 	startedAt := time.Now().UTC()
 	state := &executionState{
 		record: ExecutionRecord{
@@ -198,12 +183,7 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 			Artifacts: []ExecutionArtifact{},
 		},
 		workspaceID: request.WorkspaceID,
-		runtime:     runtimeOverlay,
-		stepStatus:  make(map[string]string, len(resolved.Nodes)),
-	}
-	state.total = len(resolved.Nodes)
-	for _, node := range resolved.Nodes {
-		state.stepStatus[node.ID] = "pending"
+		stepStatus:  make(map[string]string),
 	}
 
 	s.mu.Lock()
@@ -212,8 +192,56 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 	s.evictOldExecutionsLocked()
 	s.mu.Unlock()
 	s.logs.Open(executionID)
-	s.persistExecutionRuntime()
-	s.beginRunObservation(ctx, state)
+	s.schedulePersist()
+
+	go s.bootExecution(executionID, suite, profile, selectedBackend)
+
+	s.mu.Lock()
+	summary := s.summaryLocked(state)
+	s.mu.Unlock()
+	go s.syncObservers(executionID)
+	return &summary, nil
+}
+
+func (s *Service) bootExecution(executionID string, suite *suites.Definition, profile string, selectedBackend backendBinding) {
+	defer func() { <-s.concurrencySem }()
+
+	resolved, err := suites.ResolveRuntimeWithModules(*suite, s.suiteSource.List(), s.suiteSource.ResolveModuleFiles)
+	if err != nil {
+		slog.Error("suite topology resolution failed", "suiteID", suite.ID, "error", err)
+		s.noteRejectedLaunch(context.Background(), suite.ID, "invalid_topology")
+		s.failBootedExecution(executionID, err)
+		return
+	}
+	suite.Topology = resolved.Nodes
+	suite.ResolvedDependencies = resolved.Dependencies
+	suite.TopologyError = ""
+
+	runtimeOverlay, err := s.resolveExecutionRuntimeOverlay(context.Background(), suite.ID, profile)
+	if err != nil {
+		s.noteRejectedLaunch(context.Background(), suite.ID, "profile_runtime_error")
+		s.failBootedExecution(executionID, err)
+		return
+	}
+
+	s.mu.Lock()
+	state := s.executions[executionID]
+	if state != nil {
+		state.runtime = runtimeOverlay
+		state.total = len(resolved.Nodes)
+		state.stepStatus = make(map[string]string, len(resolved.Nodes))
+		for _, node := range resolved.Nodes {
+			state.stepStatus[node.ID] = "pending"
+		}
+		state.record.Suite = buildExecutionSuite(*suite)
+	}
+	s.mu.Unlock()
+	if state == nil {
+		return
+	}
+
+	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700) //nolint:errcheck
+	s.beginRunObservation(context.Background(), state)
 
 	tasks := make([]queue.Task, 0, len(resolved.Nodes))
 	taskIDs := make(map[string]string, len(resolved.Nodes))
@@ -225,7 +253,6 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 		for _, dep := range node.OnFailure {
 			onFailureSet[dep] = true
 		}
-
 		dependencies := make([]string, 0, len(node.DependsOn))
 		softDeps := make([]string, 0, len(node.OnFailure))
 		for _, dependency := range node.DependsOn {
@@ -239,7 +266,6 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 				dependencies = append(dependencies, depTaskID)
 			}
 		}
-
 		node := node
 		tasks = append(tasks, queue.Task{
 			ID:               taskIDs[node.ID],
@@ -261,28 +287,29 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 		})
 	}
 
-	if err := s.queue.Enqueue(tasks); err != nil {
-		s.noteRejectedLaunch(ctx, suite.ID, "enqueue_failed")
-		s.mu.Lock()
-		if item := s.executions[executionID]; item != nil {
-			item.record.Status = "Failed"
-			item.record.UpdatedAt = time.Now().UTC()
-		}
-		s.mu.Unlock()
-		s.finishExecutionObservation(executionID, err)
+	runner.SetupExecutionNetwork(executionID)
 
+	if err := s.queue.Enqueue(tasks); err != nil {
+		s.noteRejectedLaunch(context.Background(), suite.ID, "enqueue_failed")
+		s.failBootedExecution(executionID, err)
 		s.mu.Lock()
 		delete(s.executions, executionID)
 		s.order = filterOut(s.order, executionID)
 		s.mu.Unlock()
-		return nil, err
+		return
 	}
 
-	s.mu.Lock()
-	summary := s.summaryLocked(state)
-	s.mu.Unlock()
 	go s.syncObservers(executionID)
-	return &summary, nil
+}
+
+func (s *Service) failBootedExecution(executionID string, err error) {
+	s.mu.Lock()
+	if item := s.executions[executionID]; item != nil {
+		item.record.Status = "Failed"
+		item.record.UpdatedAt = time.Now().UTC()
+	}
+	s.mu.Unlock()
+	s.finishExecutionObservation(executionID, err)
 }
 
 func (s *Service) runNode(ctx context.Context, executionID string, suite *suites.Definition, profile string, backend runner.Backend, node topologyNode) error {
@@ -362,20 +389,19 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 				collectedFiles[path] = content
 			}
 		},
-		NetworkName: s.resolveExecutionNetworkName(executionID),
 		GatewayURL:  resolveGatewayURL(executionID, suite),
 		GatewayURLs: resolveGatewayURLs(executionID, suite),
 		Node: runner.StepNode{
-			ID:            node.ID,
-			Name:          node.Name,
-			Kind:          node.Kind,
-			Variant:       node.Variant,
-			Message:       node.Message,
-			File:          node.File,
-			Commands:      append([]string{}, node.Commands...),
-			FileContent:   resolveNodeFileContent(node.File, suite),
-			Devices: s.resolveNodeDevices(executionID, node),
-			DependsOn:     append([]string{}, node.DependsOn...),
+			ID:          node.ID,
+			Name:        node.Name,
+			Kind:        node.Kind,
+			Variant:     node.Variant,
+			Image:       node.Image,
+			Message:     node.Message,
+			File:        node.File,
+			Commands:    append([]string{}, node.Commands...),
+			FileContent: resolveNodeFileContent(node.File, suite),
+			DependsOn:   append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {
 		s.appendRunnerLog(executionID, node.ID, line)
@@ -501,7 +527,7 @@ func (s *Service) appendEvent(executionID string, event ExecutionEvent) {
 
 	s.publish(streamEvent, subscribers)
 	s.appendLog(executionID, event)
-	s.persistExecutionRuntime()
+	s.schedulePersist()
 	s.syncObservers(executionID)
 }
 

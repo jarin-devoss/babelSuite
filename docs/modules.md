@@ -57,7 +57,6 @@ kafka/
   module.star     # public entrypoint — re-exports all symbols
   cluster.star    # broker lifecycle node
   admin.star      # topic and group admin helpers
-  _shared.star    # internal utilities (not exported)
   usage.star      # runnable examples
   module.yaml     # OCI metadata
   README.md
@@ -104,7 +103,6 @@ postgres/
   module.star     # public entrypoint
   cluster.star    # cluster lifecycle node
   query.star      # query execution helpers
-  _shared.star    # internal utilities (not exported)
   usage.star      # runnable examples
   module.yaml     # OCI metadata
   README.md
@@ -158,7 +156,6 @@ redis/
   module.star     # public entrypoint — re-exports all symbols
   cluster.star    # cache lifecycle node
   commands.star   # key/db management helpers
-  _shared.star    # internal utilities (not exported)
   usage.star      # runnable examples
   module.yaml     # OCI metadata
 ```
@@ -210,7 +207,6 @@ mongodb/
   module.star       # public entrypoint — re-exports all symbols
   cluster.star      # cluster lifecycle node
   collections.star  # collection, index, and document helpers
-  _shared.star      # internal utilities (not exported)
   usage.star        # runnable examples
   module.yaml       # OCI metadata
 ```
@@ -259,7 +255,6 @@ The Playwright module runs browser tests, accessibility audits, and visual regre
 playwright/
   module.star   # public entrypoint — re-exports all symbols
   runner.star   # browser test, a11y, and visual diff helpers
-  _shared.star  # internal utilities (not exported)
   usage.star    # runnable examples
   module.yaml   # OCI metadata
 ```

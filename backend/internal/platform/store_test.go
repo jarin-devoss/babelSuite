@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/babelsuite/babelsuite/internal/demofs"
 )
 
 func TestDefaultSettingsIncludeAPISIXSidecarOnAgents(t *testing.T) {
@@ -69,21 +68,8 @@ func TestNormalizeBackfillsAPISIXSidecarDefaults(t *testing.T) {
 	}
 }
 
-func TestFileStoreLoadReturnsDefaultsWhenDemoEnabledAndFileMissing(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "true")
-
-	store := NewFileStore(filepath.Join(t.TempDir(), "missing-platform.yaml"))
-	settings, err := store.Load()
-	if err != nil {
-		t.Fatalf("load settings: %v", err)
-	}
-	if settings == nil || len(settings.Agents) == 0 {
-		t.Fatal("expected default settings when demo is enabled")
-	}
-}
 
 func TestFileStoreLoadRequiresConfigWhenDemoDisabledAndFileMissing(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 
 	store := NewFileStore(filepath.Join(t.TempDir(), "missing-platform.yaml"))
 	if _, err := store.Load(); err == nil {

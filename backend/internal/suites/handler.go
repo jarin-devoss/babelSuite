@@ -44,7 +44,7 @@ func (h *Handler) createSuite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.SuiteStar) != "" {
-		if _, err := parseRawTopology(req.SuiteStar); err != nil {
+		if _, err := parseRawTopology(req.SuiteStar, nil); err != nil {
 			httpserver.WriteError(w, http.StatusBadRequest, "suite.star parse error: "+err.Error())
 			return
 		}

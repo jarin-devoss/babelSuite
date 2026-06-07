@@ -7,9 +7,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
+)
+
+var (
+	dockerAvailCacheMu  sync.Mutex
+	dockerAvailCached   bool
+	dockerAvailAt       time.Time
+	dockerAvailTTL      = 5 * time.Second
 )
 
 var logTemplateVar = regexp.MustCompile(`\{\{\s*([\w.]+)\s*\}\}`)
@@ -67,7 +75,21 @@ func (l *Local) IsAvailable(ctx context.Context) bool {
 	if l.config.Permissive {
 		return true
 	}
-	return pingDocker(ctx)
+	dockerAvailCacheMu.Lock()
+	if time.Since(dockerAvailAt) < dockerAvailTTL {
+		cached := dockerAvailCached
+		dockerAvailCacheMu.Unlock()
+		return cached
+	}
+	dockerAvailCacheMu.Unlock()
+
+	ok := pingDocker(ctx)
+
+	dockerAvailCacheMu.Lock()
+	dockerAvailCached = ok
+	dockerAvailAt = time.Now()
+	dockerAvailCacheMu.Unlock()
+	return ok
 }
 
 func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line)) (err error) {
@@ -75,12 +97,20 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	defer func() { finishStepSpan(spanCtx, span, step, err) }()
 	ctx = spanCtx
 
+	var capturedMu sync.Mutex
 	capturedLogs := make([]string, 0, 8)
 	emitLine := func(entry logstream.Line) {
 		if text := strings.TrimSpace(entry.Text); text != "" {
+			capturedMu.Lock()
 			capturedLogs = append(capturedLogs, text)
+			capturedMu.Unlock()
 		}
 		emit(entry)
+	}
+	snapshotLogs := func() []string {
+		capturedMu.Lock()
+		defer capturedMu.Unlock()
+		return append([]string(nil), capturedLogs...)
 	}
 
 	if step.Node.Kind == "log" {
@@ -115,7 +145,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		if err := executeLoadStep(ctx, step, emitLine); err != nil {
 			return err
 		}
-		return evaluateStepExpectations(step, 0, capturedLogs, emitLine)
+		return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 	}
 
 	if _, available := sharedDockerClient(); available && stepRequiresContainer(step) {
@@ -123,7 +153,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 			emitLine(line(step, "error", fmt.Sprintf("[%s] Container execution failed: %v", step.Node.Name, err)))
 			return err
 		}
-		return evaluateStepExpectations(step, 0, capturedLogs, emitLine)
+		return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 	}
 
 	delay := nodeDelay(step.Node.Kind)
@@ -142,7 +172,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	}
 	emitLine(line(step, "info", probeMessage(step)))
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner reported the step healthy and released the lease cycle.", step.Node.Name)))
-	return evaluateStepExpectations(step, 0, capturedLogs, emitLine)
+	return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 }
 
 func stepRequiresContainer(step StepSpec) bool {

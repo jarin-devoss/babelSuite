@@ -84,7 +84,7 @@ func TestHydrateSuitesSkipsInvalidDefinitions(t *testing.T) {
 	result := hydrateSuites(map[string]Definition{
 		valid.ID:   valid,
 		invalid.ID: invalid,
-	})
+	}, nil)
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 hydrated suite, got %d", len(result))

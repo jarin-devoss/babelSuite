@@ -259,6 +259,10 @@ func (s staticSuiteSource) Resolve(ref string) (*suites.Definition, error) {
 	return s.Get(ref)
 }
 
+func (s staticSuiteSource) ResolveModuleFiles(_ string) (map[string]string, error) {
+	return nil, nil
+}
+
 func TestCreateExecutionRejectsProfileFromAnotherSuite(t *testing.T) {
 	service := NewService(suites.NewWorkspaceService())
 	defer service.Close()
@@ -304,13 +308,23 @@ func TestCreateExecutionRejectsInvalidTopology(t *testing.T) {
 	service := NewService(source)
 	defer service.Close()
 
-	_, err := service.CreateExecution(context.Background(), CreateRequest{
+	execution, err := service.CreateExecution(context.Background(), CreateRequest{
 		SuiteID: "broken-suite",
 		Profile: "local.yaml",
 	})
-	if !errors.Is(err, ErrInvalidTopology) {
-		t.Fatalf("expected ErrInvalidTopology, got %v", err)
+	if err != nil {
+		t.Fatalf("create execution: %v", err)
 	}
+	// topology resolution runs in bootExecution goroutine — poll until terminal
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		record, _ := service.GetExecution(execution.ID, "")
+		if record != nil && record.Status == "Failed" {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("expected execution to fail due to invalid topology within 5s")
 }
 
 func TestCreateExecutionExpandsNestedSuiteTopology(t *testing.T) {
@@ -396,9 +410,18 @@ locks:
 		t.Fatalf("create execution: %v", err)
 	}
 
-	record, err := service.GetExecution(execution.ID, "")
-	if err != nil {
-		t.Fatalf("get execution: %v", err)
+	// topology expansion runs in bootExecution goroutine — poll until populated
+	var record *ExecutionRecord
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		record, err = service.GetExecution(execution.ID, "")
+		if err != nil {
+			t.Fatalf("get execution: %v", err)
+		}
+		if len(record.Suite.Topology) > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	if len(record.Suite.Topology) != 5 {

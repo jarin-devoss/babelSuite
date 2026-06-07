@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/babelsuite/babelsuite/internal/demofs"
 	"github.com/babelsuite/babelsuite/internal/examplefs"
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
@@ -101,7 +100,6 @@ func TestServicePreventsDeletingBaseProfile(t *testing.T) {
 }
 
 func TestServiceLoadsWorkspaceProfilesWhenDemoDisabled(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	configureProfilesExamplesRoot(t)
 
 	service := NewService(suites.NewWorkspaceService(), NewMemoryStore())

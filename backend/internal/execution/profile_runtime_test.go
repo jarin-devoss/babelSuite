@@ -7,18 +7,29 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/babelsuite/babelsuite/internal/demofs"
 	"github.com/babelsuite/babelsuite/internal/examplefs"
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/profiles"
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
+var (
+	workspaceProfilesOnce sync.Once
+	workspaceProfiles     *profiles.Service
+)
+
+func sharedWorkspaceProfiles() *profiles.Service {
+	workspaceProfilesOnce.Do(func() {
+		workspaceProfiles = profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
+	})
+	return workspaceProfiles
+}
+
 func TestRunNodeInjectsManagedProfileSecretsAndOverridesIntoBackend(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	t.Setenv("BABELSUITE_VAULT_TOKEN", "vault-token")
 	oldNets := vaultBlockedNets
 	vaultBlockedNets = nil
@@ -189,7 +200,7 @@ services:
 }
 
 func TestRunNodeInjectsPaymentSuiteStagingProfileRuntimeIntoBackend(t *testing.T) {
-	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
+	profileService := sharedWorkspaceProfiles()
 	service := NewService(profileService)
 	defer service.Close()
 
@@ -277,7 +288,6 @@ func TestRunNodeInjectsPaymentSuiteStagingProfileRuntimeIntoBackend(t *testing.T
 }
 
 func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	t.Setenv("BABELSUITE_VAULT_TOKEN", "vault-token")
 	configureExecutionExamplesRoot(t)
 	oldNets := vaultBlockedNets
@@ -299,7 +309,7 @@ func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T)
 	}))
 	defer vaultServer.Close()
 
-	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
+	profileService := sharedWorkspaceProfiles()
 	service := NewServiceWithPlatform(profileService, stubPlatformSource{
 		settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{
@@ -396,10 +406,9 @@ func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T)
 }
 
 func TestResolveExecutionRuntimeOverlaySkipsWorkspaceVaultRefsWhenPlatformDefaultsDoNotEnableVault(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	configureExecutionExamplesRoot(t)
 
-	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())
+	profileService := sharedWorkspaceProfiles()
 	settings := platform.DefaultSettings()
 	settings.Secrets.Provider = "none"
 	service := NewServiceWithPlatform(profileService, stubPlatformSource{settings: &settings})

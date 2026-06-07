@@ -31,23 +31,28 @@ type suiteWorkspaceReader interface {
 }
 
 type catalogSuiteReader struct {
-	catalog   catalog.Reader
-	settings  suiteSettingsReader
-	workspace suiteWorkspaceReader
-	client    *http.Client
-	mu        sync.RWMutex
-	cache     map[string]*suites.Definition
-	ready     chan struct{}
+	catalog      catalog.Reader
+	settings     suiteSettingsReader
+	workspace    suiteWorkspaceReader
+	client       *http.Client
+	mu           sync.RWMutex
+	cache        map[string]*suites.Definition
+	ready        chan struct{}
+	moduleMu      sync.RWMutex
+	moduleCache   map[string]map[string]string
+	moduleByName  map[string]map[string]string
 }
 
 func newCatalogSuiteReader(cat catalog.Reader, settings suiteSettingsReader, workspace suiteWorkspaceReader) *catalogSuiteReader {
 	r := &catalogSuiteReader{
-		catalog:   cat,
-		settings:  settings,
-		workspace: workspace,
-		client:    &http.Client{Timeout: 15 * time.Second},
-		cache:     make(map[string]*suites.Definition),
-		ready:     make(chan struct{}),
+		catalog:     cat,
+		settings:    settings,
+		workspace:   workspace,
+		client:      &http.Client{Timeout: 15 * time.Second},
+		cache:       make(map[string]*suites.Definition),
+		ready:       make(chan struct{}),
+		moduleCache:  make(map[string]map[string]string),
+		moduleByName: make(map[string]map[string]string),
 	}
 	go func() {
 		r.warmCache()
@@ -83,6 +88,14 @@ func (r *catalogSuiteReader) warmCache() {
 		}(pkg)
 	}
 	wg.Wait()
+
+	cat := r.cachedCatalog()
+	r.mu.Lock()
+	for id, def := range r.cache {
+		resolved := suites.ResolveDefinitionTopology(*def, cat)
+		r.cache[id] = &resolved
+	}
+	r.mu.Unlock()
 }
 
 func (r *catalogSuiteReader) buildDefinition(ctx context.Context, pkg catalog.Package) *suites.Definition {
@@ -428,71 +441,13 @@ func toPascalCase(s string) string {
 }
 
 func (r *catalogSuiteReader) List() []suites.Definition {
-	packages, err := r.catalog.ListPackages(context.Background())
-	if err != nil && r.workspace != nil {
-		return r.workspace.List()
+	r.mu.RLock()
+	result := make([]suites.Definition, 0, len(r.cache))
+	for _, def := range r.cache {
+		result = append(result, *def)
 	}
-	if err != nil {
-		return nil
-	}
+	r.mu.RUnlock()
 
-	type slot struct {
-		pkg    catalog.Package
-		cached *suites.Definition
-	}
-
-	slots := make([]slot, 0, len(packages))
-	for _, pkg := range packages {
-		if pkg.Kind != "suite" {
-			continue
-		}
-		r.mu.RLock()
-		cached := r.cache[pkg.ID]
-		r.mu.RUnlock()
-		slots = append(slots, slot{pkg: pkg, cached: cached})
-	}
-
-	// Serve whatever is cached immediately; trigger background fetches for the rest.
-	result := make([]suites.Definition, len(slots))
-	var wg sync.WaitGroup
-	for i, s := range slots {
-		if s.cached != nil {
-			result[i] = *s.cached
-			continue
-		}
-		// Not cached yet — fetch now (warmCache may still be in flight).
-		wg.Add(1)
-		go func(i int, pkg catalog.Package) {
-			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			def := r.buildDefinition(ctx, pkg)
-			if def == nil {
-				return
-			}
-			r.mu.Lock()
-			r.cache[pkg.ID] = def
-			r.mu.Unlock()
-			result[i] = *def
-		}(i, s.pkg)
-	}
-	wg.Wait()
-
-	// Drop zero-ID slots (failed fetches) from result.
-	filled := result[:0]
-	for _, d := range result {
-		if d.ID != "" {
-			filled = append(filled, d)
-		}
-	}
-	result = filled
-
-	cat := r.cachedCatalog()
-	for i := range result {
-		result[i] = suites.ResolveDefinitionTopology(result[i], cat)
-	}
-
-	// Include workspace suites that are not in the catalog (e.g. registered via API).
 	if r.workspace != nil {
 		catalogIDs := make(map[string]struct{}, len(result))
 		for _, d := range result {
@@ -515,7 +470,7 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 	cached := r.cache[id]
 	r.mu.RUnlock()
 	if cached != nil {
-		clone := suites.ResolveDefinitionTopology(*cached, r.cachedCatalog())
+		clone := *cached
 		return &clone, nil
 	}
 
@@ -532,16 +487,48 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 		return nil, suites.ErrNotFound
 	}
 
+	resolved := suites.ResolveDefinitionTopology(*def, r.cachedCatalog())
 	r.mu.Lock()
-	r.cache[id] = def
+	r.cache[id] = &resolved
 	r.mu.Unlock()
 
-	clone := suites.ResolveDefinitionTopology(*def, r.cachedCatalog())
+	clone := resolved
 	return &clone, nil
 }
 
 func (r *catalogSuiteReader) Resolve(ref string) (*suites.Definition, error) {
 	return r.Get(ref)
+}
+
+func (r *catalogSuiteReader) ResolveModuleFiles(name string) (map[string]string, error) {
+	r.moduleMu.RLock()
+	if cached, ok := r.moduleByName[name]; ok {
+		r.moduleMu.RUnlock()
+		return cached, nil
+	}
+	r.moduleMu.RUnlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	packages, err := r.catalog.ListPackages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	needle := "/babelsuite/" + name
+	for _, pkg := range packages {
+		if pkg.Kind == "stdlib" && strings.HasSuffix(strings.ToLower(pkg.Repository), strings.ToLower(needle)) {
+			files, err := r.pullOCIFiles(ctx, pkg)
+			if err != nil {
+				return nil, err
+			}
+			r.moduleMu.Lock()
+			r.moduleByName[name] = files
+			r.moduleMu.Unlock()
+			return files, nil
+		}
+	}
+	return nil, fmt.Errorf("module @babelsuite/%s not found in catalog", name)
 }
 
 // ── Suite handler adapter ─────────────────────────────────────────────────────
@@ -601,7 +588,25 @@ func (r *catalogSuiteReader) pullOCIFiles(ctx context.Context, pkg catalog.Packa
 		return nil, fmt.Errorf("no layers in manifest")
 	}
 
-	return r.fetchAndExtractLayer(ctx, baseURL, repoPath, manifest.Layers[0].Digest, reg)
+	digest := manifest.Layers[0].Digest
+
+	r.moduleMu.RLock()
+	cached, hit := r.moduleCache[digest]
+	r.moduleMu.RUnlock()
+	if hit {
+		return cached, nil
+	}
+
+	files, err := r.fetchAndExtractLayer(ctx, baseURL, repoPath, digest, reg)
+	if err != nil {
+		return nil, err
+	}
+
+	r.moduleMu.Lock()
+	r.moduleCache[digest] = files
+	r.moduleMu.Unlock()
+
+	return files, nil
 }
 
 func (r *catalogSuiteReader) fetchManifest(ctx context.Context, baseURL, repoPath, tag string, reg *platform.OCIRegistry) (*ociManifest, error) {

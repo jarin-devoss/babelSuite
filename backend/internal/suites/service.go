@@ -2,14 +2,10 @@ package suites
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/babelsuite/babelsuite/internal/examplefs"
 )
 
 type Service struct {
@@ -21,12 +17,6 @@ func NewService() *Service {
 	return &Service{suites: map[string]Definition{}}
 }
 
-// NewWorkspaceService loads suites from the local examples workspace.
-// Use this in tests and dev tools only — the production server reads suites
-// exclusively from the OCI catalog.
-func NewWorkspaceService() *Service {
-	return &Service{suites: hydrateSuites(loadWorkspaceSuites())}
-}
 
 func (s *Service) List() []Definition {
 	s.mu.RLock()
@@ -88,6 +78,12 @@ func (s *Service) Resolve(ref string) (*Definition, error) {
 	return nil, ErrNotFound
 }
 
+// ResolveModuleFiles is a no-op for the workspace suite service — module files
+// are resolved via the catalog in production; tests use the stdlib fallback.
+func (s *Service) ResolveModuleFiles(_ string) (map[string]string, error) {
+	return nil, fmt.Errorf("module resolution not available in workspace service")
+}
+
 // normalizeSuiteRef strips the digest and tag from a repository ref so that
 // refs like "registry.io/team/suite:v1.0" compare equal to "registry.io/team/suite".
 func normalizeSuiteRef(ref string) string {
@@ -145,7 +141,7 @@ func (s *Service) Register(req RegisterRequest) (Definition, error) {
 	if suiteStar == "" {
 		return Definition{}, fmt.Errorf("suite.star content is required")
 	}
-	if _, err := parseRawTopology(suiteStar); err != nil {
+	if _, err := parseRawTopology(suiteStar, nil); err != nil {
 		return Definition{}, fmt.Errorf("invalid suite topology: %w", err)
 	}
 
@@ -178,7 +174,6 @@ func (s *Service) Register(req RegisterRequest) (Definition, error) {
 		Contracts:   extractLoadContracts(suiteStar),
 	}
 
-	_ = persistSuiteToDisk(id, suiteStar)
 	s.suites[id] = definition
 	return cloneDefinition(definition), nil
 }
@@ -193,19 +188,6 @@ func isValidSuiteID(id string) bool {
 		}
 	}
 	return true
-}
-
-func persistSuiteToDisk(id, suiteStar string) error {
-	if id == "" || strings.ContainsAny(id, "/\\") || strings.Contains(id, "..") {
-		return fmt.Errorf("invalid suite id")
-	}
-	dir := filepath.Join(examplefs.ResolveRoot(), "oci-suites", id)
-	// Only update suite.star for suites that already have a proper workspace structure.
-	// This prevents transient test registrations from creating incomplete workspace entries.
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
-	}
-	return os.WriteFile(filepath.Join(dir, "suite.star"), []byte(suiteStar), 0o644)
 }
 
 

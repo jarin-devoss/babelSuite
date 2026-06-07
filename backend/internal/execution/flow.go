@@ -297,7 +297,7 @@ func (s *Service) markNodeTerminal(executionID, nodeID, status, message, level s
 	s.publish(streamEvent, subscribers)
 	s.appendLog(executionID, event)
 	if shouldPersist {
-		s.persistExecutionRuntime()
+		s.schedulePersist()
 		s.syncObservers(executionID)
 	}
 

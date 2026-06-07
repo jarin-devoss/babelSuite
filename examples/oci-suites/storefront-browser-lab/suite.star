@@ -1,25 +1,28 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
+load("@babelsuite/postgres", "pg", "connect")
+load("@babelsuite/redis",    "redis", "wait_ready", "flush_db")
 
-# Level 5 — loops, reset_mocks, ctrf, traffic.soak, log.error, on_failure
-# New: for-loop over browser matrix using test.run with env=, reset_mocks= on
-#      test.run clears mock state between runs, .export(ctrf), traffic.soak,
-#      log.error on failure path, on_failure= rollback branch
 
 BROWSERS = env.get("BROWSERS", "chromium").split(",")
 
 # ── infrastructure ────────────────────────────────────────────────────────────
-db           = service.run(name="db")
-cache        = service.run(name="cache",        after=[db])
-catalog_mock = service.mock(name="catalog-api", after=[db])
+db    = pg()
+conn  = connect(db)
+cache = redis(after=[conn])
+
+cache_ready = wait_ready(cache)
+flush       = flush_db(cache, db=0, after=[cache_ready])
+
+catalog_mock = service.mock(name="catalog-api", after=[conn])
 
 seed = task.run(
-    name     = "seed-products",
-    image    = "node:22-alpine",
-    commands = ["node scripts/seed.js --count 200"],
-    after    = [db],
+    name  = "seed-products",
+    image = "postgres:16",
+    file  = "tasks/seed_products.sh",
+    after = [conn],
 )
 
-storefront = service.run(name="storefront", after=[seed, cache, catalog_mock])
+storefront = service.run(name="storefront", after=[seed, flush, catalog_mock])
 
 ready = log.info(
     "storefront ready — {{ healthy }}/{{ total }} healthy — BROWSERS={{ env.BROWSERS }}",
