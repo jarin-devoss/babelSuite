@@ -13,9 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
-	dockernetwork "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/babelsuite/babelsuite/internal/logstream"
@@ -35,38 +37,54 @@ func ExecutionWorkspaceDir(executionID string) string {
 	return filepath.Join(os.TempDir(), "babel-workspace", sanitizeID(executionID))
 }
 
-// ExecutionNetworkName returns the deterministic Docker network name for an execution.
-func ExecutionNetworkName(executionID string) string {
+// executionNetworkName returns the Docker network name for an execution.
+func executionNetworkName(executionID string) string {
 	return "babel-net-" + sanitizeID(executionID)
 }
 
-// EnsureExecutionNetwork creates the per-execution Docker bridge network if it
-// does not already exist. Safe to call concurrently — duplicate-network errors
-// are silently ignored.
-func EnsureExecutionNetwork(executionID string) {
+// ensureExecutionNetwork returns the network name for an execution.
+// The network is created upfront by SetupExecutionNetwork before any tasks run.
+func ensureExecutionNetwork(_ context.Context, _ *client.Client, executionID string) string {
+	return executionNetworkName(executionID)
+}
+
+// SetupExecutionNetwork creates the per-execution bridge network once, before
+// any container goroutines start. Call this before enqueuing tasks so that
+// every concurrent runInDocker call finds the network already present.
+func SetupExecutionNetwork(executionID string) {
 	cli, ok := sharedDockerClient()
 	if !ok {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, err := cli.NetworkCreate(ctx, ExecutionNetworkName(executionID), dockernetwork.CreateOptions{Driver: "bridge"})
-	if err != nil && !strings.Contains(err.Error(), "already exists") {
-		// non-fatal: containers will fall back to the default bridge
-		_ = err
-	}
+	name := executionNetworkName(executionID)
+	cli.NetworkCreate(ctx, name, network.CreateOptions{Driver: "bridge"}) //nolint:errcheck
 }
 
-// RemoveExecutionNetwork removes the per-execution Docker network. Called at
-// execution teardown alongside workspace removal.
+// RemoveExecutionNetwork stops and removes all containers for the execution,
+// then removes the per-execution bridge network. Service containers may still
+// be running when the execution finishes, so we force-remove them first to
+// avoid leaving orphaned networks that exhaust the Docker address pool.
 func RemoveExecutionNetwork(executionID string) {
 	cli, ok := sharedDockerClient()
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	_ = cli.NetworkRemove(ctx, ExecutionNetworkName(executionID))
+
+	containers, err := cli.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("label", "babelsuite.execution="+executionID)),
+	})
+	if err == nil {
+		for _, c := range containers {
+			cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true}) //nolint:errcheck
+		}
+	}
+
+	cli.NetworkRemove(ctx, executionNetworkName(executionID)) //nolint:errcheck
 }
 
 var (
@@ -178,7 +196,7 @@ func buildStepScript(step StepSpec) string {
 	if step.Node.FileContent != "" {
 		ext := strings.ToLower(filepath.Ext(step.Node.File))
 		interpreter := map[string]string{
-			".py": "python", ".sh": "/bin/sh", ".bash": "bash",
+			".py": "python", ".sh": "bash", ".bash": "bash",
 			".js": "node", ".rb": "ruby", ".ts": "npx ts-node",
 		}[ext]
 		if interpreter == "" {
@@ -187,7 +205,7 @@ func buildStepScript(step StepSpec) string {
 		sb.WriteString(interpreter + " " + containerWorkspaceMount + "/" + step.Node.File + "\n")
 	}
 	for _, cmd := range step.Node.Commands {
-		sb.WriteString(cmd + "\n")
+		sb.WriteString(strings.ReplaceAll(cmd, "\r", "") + "\n")
 	}
 	return sb.String()
 }
@@ -196,36 +214,6 @@ func buildStepScript(step StepSpec) string {
 // container (started then left running while downstream steps proceed).
 func isDetachedService(step StepSpec) bool {
 	return step.Node.Kind == "service" && (step.Node.Image != "" || resolveStepImage(step) != "")
-}
-
-func buildDeviceConfig(devices []string) ([]container.DeviceRequest, []container.DeviceMapping) {
-	var requests []container.DeviceRequest
-	var mappings []container.DeviceMapping
-	for _, d := range devices {
-		switch {
-		case d == "gpu":
-			requests = append(requests, container.DeviceRequest{
-				Driver:       "nvidia",
-				Count:        -1,
-				Capabilities: [][]string{{"gpu"}},
-			})
-		case strings.HasPrefix(d, "gpu:"):
-			n := 1
-			fmt.Sscanf(strings.TrimPrefix(d, "gpu:"), "%d", &n)
-			requests = append(requests, container.DeviceRequest{
-				Driver:       "nvidia",
-				Count:        n,
-				Capabilities: [][]string{{"gpu"}},
-			})
-		case strings.HasPrefix(d, "/dev/"):
-			mappings = append(mappings, container.DeviceMapping{
-				PathOnHost:        d,
-				PathInContainer:   d,
-				CgroupPermissions: "rwm",
-			})
-		}
-	}
-	return requests, mappings
 }
 
 func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
@@ -252,20 +240,12 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	if step.Node.FileContent != "" {
 		hostPath := filepath.Join(workspaceDir, filepath.FromSlash(step.Node.File))
 		if mkErr := os.MkdirAll(filepath.Dir(hostPath), 0755); mkErr == nil {
-			_ = os.WriteFile(hostPath, []byte(step.Node.FileContent), 0644)
+			// Normalize CRLF → LF so scripts work correctly inside Linux containers.
+			content := strings.ReplaceAll(step.Node.FileContent, "\r\n", "\n")
+			content = strings.ReplaceAll(content, "\r", "\n")
+			_ = os.WriteFile(hostPath, []byte(content), 0644)
 		}
 	}
-
-	emit(line(step, "info", fmt.Sprintf("[%s] Pulling image %s.", step.Node.Name, img)))
-	pullOut, err := cli.ImagePull(ctx, img, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("image pull failed for %s: %w", img, err)
-	}
-	if _, err := io.Copy(io.Discard, pullOut); err != nil {
-		pullOut.Close()
-		return fmt.Errorf("image pull stream error for %s: %w", img, err)
-	}
-	pullOut.Close()
 
 	env := make([]string, 0, len(step.Env)+1)
 	for k, v := range step.Env {
@@ -284,8 +264,6 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		},
 	}
 
-	// Inject commands or file as a base64-encoded script executed by the
-	// container's shell, overriding the default image entrypoint.
 	if script := buildStepScript(step); script != "" {
 		encoded := base64.StdEncoding.EncodeToString([]byte(script))
 		cfg.Env = append(cfg.Env, "BABELSUITE_SCRIPT="+encoded)
@@ -293,32 +271,41 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 
 	pidsLimit := containerPidsLimit
-	deviceRequests, deviceMappings := buildDeviceConfig(step.Node.Devices)
 	hostCfg := &container.HostConfig{
-		AutoRemove:  false,
-		CapDrop:     []string{"ALL"},
-		SecurityOpt: []string{"no-new-privileges:true"},
+		AutoRemove: false,
 		Resources: container.Resources{
-			Memory:         containerMemoryLimit,
-			PidsLimit:      &pidsLimit,
-			Devices:        deviceMappings,
-			DeviceRequests: deviceRequests,
+			Memory:    containerMemoryLimit,
+			PidsLimit: &pidsLimit,
 		},
 		Binds: []string{workspaceDir + ":" + containerWorkspaceMount + ":rw"},
 	}
-
-	var netCfg *dockernetwork.NetworkingConfig
-	if step.NetworkName != "" {
-		cfg.Hostname = sanitizeID(step.Node.Name)
-		netCfg = &dockernetwork.NetworkingConfig{
-			EndpointsConfig: map[string]*dockernetwork.EndpointSettings{
-				step.NetworkName: {Aliases: []string{sanitizeID(step.Node.Name)}},
-			},
-		}
+	if !isDetachedService(step) {
+		hostCfg.CapDrop = []string{"ALL"}
+		hostCfg.SecurityOpt = []string{"no-new-privileges:true"}
 	}
 
-	emit(line(step, "info", fmt.Sprintf("[%s] Creating container %s.", step.Node.Name, containerName)))
+	netName := ensureExecutionNetwork(ctx, cli, step.ExecutionID)
+	alias := step.Node.Name
+	if idx := strings.LastIndex(alias, "/"); idx >= 0 {
+		alias = alias[idx+1:]
+	}
+	netCfg := &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			netName: {Aliases: []string{alias}},
+		},
+	}
+
 	created, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, nil, containerName)
+	if errdefs.IsNotFound(err) {
+		emit(line(step, "info", fmt.Sprintf("[%s] Pulling image %s.", step.Node.Name, img)))
+		pullOut, pullErr := cli.ImagePull(ctx, img, image.PullOptions{})
+		if pullErr != nil {
+			return fmt.Errorf("image pull failed for %s: %w", img, pullErr)
+		}
+		io.Copy(io.Discard, pullOut) //nolint:errcheck
+		pullOut.Close()
+		created, err = cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, nil, containerName)
+	}
 	if err != nil {
 		return fmt.Errorf("container create failed: %w", err)
 	}
@@ -512,13 +499,20 @@ func resolveStepImage(step StepSpec) string {
 		return stepImageFromVariant(step.Node.Variant, "test")
 	case "service":
 		return stepImageFromVariant(step.Node.Variant, "service")
+	case "mock":
+		return "wiremock/wiremock:3.10"
 	}
 	return ""
 }
 
 func stepImageFromVariant(variant, _ string) string {
-	if variant == "task.run" || variant == "test.run" {
+	switch variant {
+	case "task.run", "test.run":
 		return "alpine:3.19"
+	case "service.wiremock":
+		return "wiremock/wiremock:3.10"
+	case "service.prism":
+		return "stoplight/prism:5"
 	}
 	return ""
 }

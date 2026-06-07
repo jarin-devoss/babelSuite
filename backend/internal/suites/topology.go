@@ -54,6 +54,7 @@ type rawTopologyNode struct {
 	ContinueOnFailure bool
 	Evaluation        *StepEvaluation
 	Exports           []ArtifactExport
+	Env               map[string]string
 	Order             int
 }
 
@@ -120,8 +121,16 @@ func ResolveTopology(suite Definition, catalog []Definition) ([]TopologyNode, er
 }
 
 func ResolveRuntime(suite Definition, catalog []Definition) (resolvedTopology, error) {
-	resolver := newTopologyResolver(catalog)
-	return resolver.resolveSuite(suite, nil)
+	return ResolveRuntimeWithModules(suite, catalog, nil)
+}
+
+// ResolveRuntimeWithModules is like ResolveRuntime but accepts an OCI-backed
+// ModuleResolver so the execution path can pull @babelsuite/* module files from
+// the catalog instead of falling back to the embedded stdlib.
+func ResolveRuntimeWithModules(suite Definition, catalog []Definition, resolve ModuleResolver) (resolvedTopology, error) {
+	r := newTopologyResolver(catalog)
+	r.moduleResolver = resolve
+	return r.resolveSuite(suite, nil)
 }
 
 func ResolveDefinitionTopology(suite Definition, catalog []Definition) Definition {
@@ -139,8 +148,9 @@ func ResolveDefinitionTopology(suite Definition, catalog []Definition) Definitio
 }
 
 type topologyResolver struct {
-	byID   map[string]Definition
-	cached map[string]resolvedTopology
+	byID           map[string]Definition
+	cached         map[string]resolvedTopology
+	moduleResolver ModuleResolver
 }
 
 func newTopologyResolver(catalog []Definition) *topologyResolver {
@@ -167,7 +177,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 		return resolvedTopology{}, fmt.Errorf("invalid suite topology: nested suite cycle detected: %s", strings.Join(path, " -> "))
 	}
 
-	rawNodes, err := parseRawTopology(suite.SuiteStar)
+	rawNodes, err := parseRawTopology(suite.SuiteStar, r.moduleResolver)
 	if err != nil {
 		return resolvedTopology{}, err
 	}
@@ -234,6 +244,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			File:              raw.File,
 			Commands:          append([]string{}, raw.Commands...),
 			Message:           raw.Message,
+			RuntimeEnv:        cloneStringMap(raw.Env),
 			DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
 			ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),
 			OnFailure:         expandImportedDependencies(raw.OnFailure, imports),
@@ -401,8 +412,8 @@ func parseDependencyManifest(sourceFiles []SourceFile) (map[string]dependencyEnt
 	return map[string]dependencyEntry{}, nil
 }
 
-func parseRawTopology(suiteStar string) ([]rawTopologyNode, error) {
-	return evalStarlarkTopology(suiteStar)
+func parseRawTopology(suiteStar string, resolve ModuleResolver) ([]rawTopologyNode, error) {
+	return evalStarlarkTopology(suiteStar, resolve)
 }
 
 func parseTopologyAssignment(line string) (string, string, bool) {

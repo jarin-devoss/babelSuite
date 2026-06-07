@@ -31,23 +31,28 @@ type suiteWorkspaceReader interface {
 }
 
 type catalogSuiteReader struct {
-	catalog   catalog.Reader
-	settings  suiteSettingsReader
-	workspace suiteWorkspaceReader
-	client    *http.Client
-	mu        sync.RWMutex
-	cache     map[string]*suites.Definition
-	ready     chan struct{}
+	catalog      catalog.Reader
+	settings     suiteSettingsReader
+	workspace    suiteWorkspaceReader
+	client       *http.Client
+	mu           sync.RWMutex
+	cache        map[string]*suites.Definition
+	ready        chan struct{}
+	moduleMu      sync.RWMutex
+	moduleCache   map[string]map[string]string
+	moduleByName  map[string]map[string]string
 }
 
 func newCatalogSuiteReader(cat catalog.Reader, settings suiteSettingsReader, workspace suiteWorkspaceReader) *catalogSuiteReader {
 	r := &catalogSuiteReader{
-		catalog:   cat,
-		settings:  settings,
-		workspace: workspace,
-		client:    &http.Client{Timeout: 15 * time.Second},
-		cache:     make(map[string]*suites.Definition),
-		ready:     make(chan struct{}),
+		catalog:     cat,
+		settings:    settings,
+		workspace:   workspace,
+		client:      &http.Client{Timeout: 15 * time.Second},
+		cache:       make(map[string]*suites.Definition),
+		ready:       make(chan struct{}),
+		moduleCache:  make(map[string]map[string]string),
+		moduleByName: make(map[string]map[string]string),
 	}
 	go func() {
 		r.warmCache()
@@ -544,6 +549,37 @@ func (r *catalogSuiteReader) Resolve(ref string) (*suites.Definition, error) {
 	return r.Get(ref)
 }
 
+func (r *catalogSuiteReader) ResolveModuleFiles(name string) (map[string]string, error) {
+	r.moduleMu.RLock()
+	if cached, ok := r.moduleByName[name]; ok {
+		r.moduleMu.RUnlock()
+		return cached, nil
+	}
+	r.moduleMu.RUnlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	packages, err := r.catalog.ListPackages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	needle := "/babelsuite/" + name
+	for _, pkg := range packages {
+		if pkg.Kind == "stdlib" && strings.HasSuffix(strings.ToLower(pkg.Repository), strings.ToLower(needle)) {
+			files, err := r.pullOCIFiles(ctx, pkg)
+			if err != nil {
+				return nil, err
+			}
+			r.moduleMu.Lock()
+			r.moduleByName[name] = files
+			r.moduleMu.Unlock()
+			return files, nil
+		}
+	}
+	return nil, fmt.Errorf("module @babelsuite/%s not found in catalog", name)
+}
+
 // ── Suite handler adapter ─────────────────────────────────────────────────────
 
 type suiteRegistrar interface {
@@ -601,7 +637,25 @@ func (r *catalogSuiteReader) pullOCIFiles(ctx context.Context, pkg catalog.Packa
 		return nil, fmt.Errorf("no layers in manifest")
 	}
 
-	return r.fetchAndExtractLayer(ctx, baseURL, repoPath, manifest.Layers[0].Digest, reg)
+	digest := manifest.Layers[0].Digest
+
+	r.moduleMu.RLock()
+	cached, hit := r.moduleCache[digest]
+	r.moduleMu.RUnlock()
+	if hit {
+		return cached, nil
+	}
+
+	files, err := r.fetchAndExtractLayer(ctx, baseURL, repoPath, digest, reg)
+	if err != nil {
+		return nil, err
+	}
+
+	r.moduleMu.Lock()
+	r.moduleCache[digest] = files
+	r.moduleMu.Unlock()
+
+	return files, nil
 }
 
 func (r *catalogSuiteReader) fetchManifest(ctx context.Context, baseURL, repoPath, tag string, reg *platform.OCIRegistry) (*ociManifest, error) {
