@@ -97,12 +97,20 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	defer func() { finishStepSpan(spanCtx, span, step, err) }()
 	ctx = spanCtx
 
+	var capturedMu sync.Mutex
 	capturedLogs := make([]string, 0, 8)
 	emitLine := func(entry logstream.Line) {
 		if text := strings.TrimSpace(entry.Text); text != "" {
+			capturedMu.Lock()
 			capturedLogs = append(capturedLogs, text)
+			capturedMu.Unlock()
 		}
 		emit(entry)
+	}
+	snapshotLogs := func() []string {
+		capturedMu.Lock()
+		defer capturedMu.Unlock()
+		return append([]string(nil), capturedLogs...)
 	}
 
 	if step.Node.Kind == "log" {
@@ -137,7 +145,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		if err := executeLoadStep(ctx, step, emitLine); err != nil {
 			return err
 		}
-		return evaluateStepExpectations(step, 0, capturedLogs, emitLine)
+		return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 	}
 
 	if _, available := sharedDockerClient(); available && stepRequiresContainer(step) {
@@ -145,7 +153,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 			emitLine(line(step, "error", fmt.Sprintf("[%s] Container execution failed: %v", step.Node.Name, err)))
 			return err
 		}
-		return evaluateStepExpectations(step, 0, capturedLogs, emitLine)
+		return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 	}
 
 	delay := nodeDelay(step.Node.Kind)
@@ -164,7 +172,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	}
 	emitLine(line(step, "info", probeMessage(step)))
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner reported the step healthy and released the lease cycle.", step.Node.Name)))
-	return evaluateStepExpectations(step, 0, capturedLogs, emitLine)
+	return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 }
 
 func stepRequiresContainer(step StepSpec) bool {
