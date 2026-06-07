@@ -1,10 +1,6 @@
 load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect")
 
-# Level 3 — OCI modules, file=, env.get(), conditionals, extendsId, traffic, reset_mocks, cobertura
-# New: @babelsuite/postgres module (pg, connect), file= resolves scripts from the
-#      suite OCI artifact, env.get() reads profile env vars, if/else conditionals,
-#      traffic.baseline/stress, reset_mocks=, cobertura export, profile extendsId
 
 FRAUD_STRATEGY   = env.get("FRAUD_STRATEGY",   "standard")
 CURRENCY_MARKETS = env.get("CURRENCY_MARKETS", "usd,eur,gbp").split(",")

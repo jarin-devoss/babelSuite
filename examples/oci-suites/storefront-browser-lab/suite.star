@@ -2,10 +2,6 @@ load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect")
 load("@babelsuite/redis",    "redis", "wait_ready", "flush_db")
 
-# Level 5 — redis module, loops, reset_mocks, ctrf, traffic.soak, log.error, on_failure
-# New: @babelsuite/redis module (redis, wait_ready, flush_db), for-loop over
-#      browser matrix, reset_mocks= on test.run, ctrf export, traffic.soak,
-#      log.error on failure path, on_failure= rollback branch
 
 BROWSERS = env.get("BROWSERS", "chromium").split(",")
 
@@ -20,10 +16,10 @@ flush       = flush_db(cache, db=0, after=[cache_ready])
 catalog_mock = service.mock(name="catalog-api", after=[conn])
 
 seed = task.run(
-    name     = "seed-products",
-    image    = "node:22-alpine",
-    commands = ["node scripts/seed.js --count 200"],
-    after    = [conn],
+    name  = "seed-products",
+    image = "postgres:16",
+    file  = "tasks/seed_products.sh",
+    after = [conn],
 )
 
 storefront = service.run(name="storefront", after=[seed, flush, catalog_mock])
