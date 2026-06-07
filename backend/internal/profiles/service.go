@@ -54,6 +54,10 @@ func (s *Service) Resolve(ref string) (*suites.Definition, error) {
 	return definition, nil
 }
 
+func (s *Service) ResolveModuleFiles(name string) (map[string]string, error) {
+	return s.base.ResolveModuleFiles(name)
+}
+
 func (s *Service) ListSuiteSummaries() ([]SuiteSummary, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

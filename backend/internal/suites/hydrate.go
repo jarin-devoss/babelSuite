@@ -19,11 +19,11 @@ func HydrateDefinition(def Definition) (Definition, error) {
 	return def, nil
 }
 
-func hydrateSuites(input map[string]Definition) map[string]Definition {
+func hydrateSuites(input map[string]Definition, loader sourceFileLoader) map[string]Definition {
 	output := make(map[string]Definition, len(input))
 	for id, suite := range input {
 		suite = normalizeDefinition(suite)
-		suite.SourceFiles = buildSourceFiles(suite, readExampleSourceFile)
+		suite.SourceFiles = buildSourceFiles(suite, loader)
 		if err := ValidateDefinition(suite); err != nil {
 			continue
 		}

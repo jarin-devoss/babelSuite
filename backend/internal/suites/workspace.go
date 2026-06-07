@@ -584,3 +584,18 @@ func loadWorkspaceAPISurfaces(base string) []APISurface {
 func workspaceNormKey(id string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(id)), "-", ""), "_", "")
 }
+
+// NewWorkspaceService loads suites from the local examples directory.
+// Only for tests — the production server reads suites from the OCI catalog.
+func NewWorkspaceService() *Service {
+	return &Service{suites: hydrateSuites(loadWorkspaceSuites(), workspaceSourceFileLoader)}
+}
+
+func workspaceSourceFileLoader(suiteID, path string) (string, bool) {
+	target := examplefs.SuiteFilePath(suiteID, path)
+	data, err := os.ReadFile(target)
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}

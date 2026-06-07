@@ -121,7 +121,7 @@ registries:
       region: ""
       allowLocalNetwork: true
       syncStatus: Indexed
-      lastSyncedAt: 2026-06-02T09:20:24.8299269Z
+      lastSyncedAt: 2026-06-06T11:11:33.016495Z
 secrets:
     provider: vault
     vaultAddress: https://vault.internal.company.com
@@ -148,5 +148,5 @@ notifications:
         username: ""
         password: ""
         from: ""
-updatedAt: 2026-06-02T09:20:24.8299269Z
+updatedAt: 2026-06-06T11:11:33.016495Z
 description: Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials.

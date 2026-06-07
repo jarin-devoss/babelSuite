@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/babelsuite/babelsuite/internal/demofs"
 	"github.com/babelsuite/babelsuite/internal/examplefs"
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/profiles"
@@ -18,7 +17,6 @@ import (
 )
 
 func TestRunNodeInjectsManagedProfileSecretsAndOverridesIntoBackend(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	t.Setenv("BABELSUITE_VAULT_TOKEN", "vault-token")
 	oldNets := vaultBlockedNets
 	vaultBlockedNets = nil
@@ -277,7 +275,6 @@ func TestRunNodeInjectsPaymentSuiteStagingProfileRuntimeIntoBackend(t *testing.T
 }
 
 func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	t.Setenv("BABELSUITE_VAULT_TOKEN", "vault-token")
 	configureExecutionExamplesRoot(t)
 	oldNets := vaultBlockedNets
@@ -396,7 +393,6 @@ func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T)
 }
 
 func TestResolveExecutionRuntimeOverlaySkipsWorkspaceVaultRefsWhenPlatformDefaultsDoNotEnableVault(t *testing.T) {
-	t.Setenv(demofs.EnableEnvVar, "false")
 	configureExecutionExamplesRoot(t)
 
 	profileService := profiles.NewService(suites.NewWorkspaceService(), profiles.NewMemoryStore())

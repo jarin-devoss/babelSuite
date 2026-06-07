@@ -1,14 +1,11 @@
 package suites
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/babelsuite/babelsuite/internal/apisix"
-	"github.com/babelsuite/babelsuite/internal/examplefs"
 )
 
 type sourceFileLoader func(suiteID, path string) (string, bool)
@@ -25,9 +22,6 @@ func buildSourceFiles(suite Definition, loader sourceFileLoader) []SourceFile {
 		content, generated := explicitSuiteSourceContent(suite.SeedSources, path)
 		if !generated {
 			content, generated = GeneratedSourceContent(suite, path)
-		}
-		if !generated {
-			content = missingSourceContent(suite, path)
 		}
 		if !generated && loader != nil {
 			if loaded, ok := loader(suite.ID, path); ok {
@@ -84,23 +78,6 @@ func GeneratedSourceContent(suite Definition, path string) (string, bool) {
 	return apisix.RenderStandaloneConfig(apisixSuiteConfig(suite)), true
 }
 
-func readExampleSourceFile(suiteID, path string) (string, bool) {
-	target := examplefs.SuiteFilePath(suiteID, path)
-	content, err := os.ReadFile(target)
-	if err != nil {
-		return "", false
-	}
-	return string(content), true
-}
-
-func missingSourceContent(suite Definition, path string) string {
-	return fmt.Sprintf(
-		"# Missing example source for %s\n# Expected file: %s\n# Configure %s to point at the shared examples folder.\n",
-		path,
-		examplefs.SuiteFilePath(suite.ID, path),
-		examplefs.RootEnvVar,
-	)
-}
 
 func DetectSourceLanguage(path string) string {
 	switch strings.ToLower(filepath.Ext(path)) {
@@ -183,9 +160,6 @@ func contractSourceContent(suite Definition, contractPath string) string {
 	}
 
 	if content, ok := explicitSuiteSourceContent(suite.SeedSources, path); ok {
-		return content
-	}
-	if content, ok := readExampleSourceFile(suite.ID, path); ok {
 		return content
 	}
 	return ""

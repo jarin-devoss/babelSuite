@@ -71,6 +71,7 @@ type suiteReader interface {
 	List() []suites.Definition
 	Get(id string) (*suites.Definition, error)
 	Resolve(ref string) (*suites.Definition, error)
+	ResolveModuleFiles(name string) (map[string]string, error)
 }
 
 type Document struct {
