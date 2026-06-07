@@ -1,4 +1,5 @@
 load("@babelsuite/runtime", "task")
+load("_shared.star", "sanitize_name")
 
 def _cli(cache, name, cmd, image = "redis:7.2-alpine", after = []):
     host = '"${REDIS_HOST:-' + cache.name + '}"'
@@ -28,7 +29,7 @@ def set_key(cache, key, value, ttl_seconds = None, image = "redis:7.2-alpine", a
     cmd = "SET '" + key + "' '" + str(value) + "'"
     if ttl_seconds != None:
         cmd += " EX " + str(ttl_seconds)
-    return _cli(cache, cache.name + "-set-" + utils.sanitize(key), cmd, image=image, after=after)
+    return _cli(cache, cache.name + "-set-" + sanitize_name(key), cmd, image=image, after=after)
 
 def set_keys(cache, mapping, ttl_seconds = None, image = "redis:7.2-alpine", after = []):
     parts = []
@@ -48,7 +49,7 @@ def set_keys(cache, mapping, ttl_seconds = None, image = "redis:7.2-alpine", aft
     )
 
 def delete_key(cache, key, image = "redis:7.2-alpine", after = []):
-    return _cli(cache, cache.name + "-del-" + utils.sanitize(key), "DEL '" + key + "'", image=image, after=after)
+    return _cli(cache, cache.name + "-del-" + sanitize_name(key), "DEL '" + key + "'", image=image, after=after)
 
 def flush_db(cache, db = 0, image = "redis:7.2-alpine", after = []):
     return _cli(cache, cache.name + "-flushdb-" + str(db), "-n " + str(db) + " FLUSHDB", image=image, after=after)

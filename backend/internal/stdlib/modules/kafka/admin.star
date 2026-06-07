@@ -1,4 +1,5 @@
 load("@babelsuite/runtime", "task")
+load("_shared.star", "quoted", "sanitize_name")
 
 def _admin(broker, name, script, image = "apache/kafka:latest", after = []):
     servers = '"${KAFKA_BOOTSTRAP_SERVERS:-' + broker.name + ':9092}"'
@@ -13,16 +14,16 @@ def _admin(broker, name, script, image = "apache/kafka:latest", after = []):
 def create_topic(broker, topic, partitions = 1, replication_factor = 1, configs = {}, image = "apache/kafka:latest", after = []):
     config_flags = ""
     for key, value in configs.items():
-        config_flags += " --config " + utils.quoted(str(key) + "=" + str(value))
+        config_flags += " --config " + quoted(str(key) + "=" + str(value))
     return _admin(
         broker,
-        name   = broker.name + "-create-" + utils.sanitize(topic),
+        name   = broker.name + "-create-" + sanitize_name(topic),
         image  = image,
         script = (
             "/opt/kafka/bin/kafka-topics.sh"
             + " --bootstrap-server __SERVERS__"
             + " --create --if-not-exists"
-            + " --topic " + utils.quoted(topic)
+            + " --topic " + quoted(topic)
             + " --partitions " + str(partitions)
             + " --replication-factor " + str(replication_factor)
             + config_flags
@@ -33,13 +34,13 @@ def create_topic(broker, topic, partitions = 1, replication_factor = 1, configs 
 def delete_topic(broker, topic, image = "apache/kafka:latest", after = []):
     return _admin(
         broker,
-        name   = broker.name + "-delete-" + utils.sanitize(topic),
+        name   = broker.name + "-delete-" + sanitize_name(topic),
         image  = image,
         script = (
             "/opt/kafka/bin/kafka-topics.sh"
             + " --bootstrap-server __SERVERS__"
             + " --delete --if-exists"
-            + " --topic " + utils.quoted(topic)
+            + " --topic " + quoted(topic)
         ),
         after  = after,
     )
@@ -47,13 +48,13 @@ def delete_topic(broker, topic, image = "apache/kafka:latest", after = []):
 def set_group_offset(broker, group, topic, offset, partition = 0, image = "apache/kafka:latest", after = []):
     return _admin(
         broker,
-        name   = broker.name + "-offset-" + utils.sanitize(group) + "-" + utils.sanitize(topic),
+        name   = broker.name + "-offset-" + sanitize_name(group) + "-" + sanitize_name(topic),
         image  = image,
         script = (
             "/opt/kafka/bin/kafka-consumer-groups.sh"
             + " --bootstrap-server __SERVERS__"
-            + " --group " + utils.quoted(group)
-            + " --topic " + utils.quoted(topic + ":" + str(partition))
+            + " --group " + quoted(group)
+            + " --topic " + quoted(topic + ":" + str(partition))
             + " --reset-offsets --to-offset " + str(offset)
             + " --execute"
         ),

@@ -1,4 +1,5 @@
 load("@babelsuite/runtime", "task")
+load("_shared.star", "sanitize_name", "js_value")
 
 def _mongosh(cluster, name, db, js, image = "mongo:7.0", after = []):
     uri = '"${MONGO_URI:-mongodb://' + cluster.name + ':27017}"'
@@ -16,7 +17,7 @@ def create_collection(cluster, db, collection, validator = None, image = "mongo:
         js = "db.createCollection('" + collection + "')"
     return _mongosh(
         cluster,
-        name  = cluster.name + "-create-" + utils.sanitize(db) + "-" + utils.sanitize(collection),
+        name  = cluster.name + "-create-" + sanitize_name(db) + "-" + sanitize_name(collection),
         db    = db,
         js    = js,
         image = image,
@@ -36,7 +37,7 @@ def create_index(cluster, db, collection, keys, unique = False, sparse = False, 
     js = "db." + collection + ".createIndex({" + ", ".join(key_parts) + "}, " + opts_js + ")"
     return _mongosh(
         cluster,
-        name  = cluster.name + "-idx-" + utils.sanitize(collection) + "-" + utils.sanitize(",".join(keys.keys())),
+        name  = cluster.name + "-idx-" + sanitize_name(collection) + "-" + sanitize_name(",".join(keys.keys())),
         db    = db,
         js    = js,
         image = image,
@@ -48,12 +49,12 @@ def insert_documents(cluster, db, collection, documents, image = "mongo:7.0", af
     for doc in documents:
         field_parts = []
         for key, value in doc.items():
-            field_parts.append('"' + key + '": ' + utils.js_value(value))
+            field_parts.append('"' + key + '": ' + js_value(value))
         doc_parts.append("{" + ", ".join(field_parts) + "}")
     js = "db." + collection + ".insertMany([" + ", ".join(doc_parts) + "])"
     return _mongosh(
         cluster,
-        name  = cluster.name + "-insert-" + utils.sanitize(db) + "-" + utils.sanitize(collection),
+        name  = cluster.name + "-insert-" + sanitize_name(db) + "-" + sanitize_name(collection),
         db    = db,
         js    = js,
         image = image,
@@ -63,7 +64,7 @@ def insert_documents(cluster, db, collection, documents, image = "mongo:7.0", af
 def drop_collection(cluster, db, collection, image = "mongo:7.0", after = []):
     return _mongosh(
         cluster,
-        name  = cluster.name + "-drop-" + utils.sanitize(db) + "-" + utils.sanitize(collection),
+        name  = cluster.name + "-drop-" + sanitize_name(db) + "-" + sanitize_name(collection),
         db    = db,
         js    = "db." + collection + ".drop()",
         image = image,
@@ -73,7 +74,7 @@ def drop_collection(cluster, db, collection, image = "mongo:7.0", after = []):
 def run_script(cluster, db, script_path, image = "mongo:7.0", after = []):
     uri = '"${MONGO_URI:-mongodb://' + cluster.name + ':27017}"'
     return task.run(
-        name     = cluster.name + "-script-" + utils.sanitize(db) + "-" + utils.sanitize(script_path),
+        name     = cluster.name + "-script-" + sanitize_name(db) + "-" + sanitize_name(script_path),
         image    = image,
         after    = [cluster] + after,
         commands = ["mongosh " + uri + "/" + db + " " + script_path],

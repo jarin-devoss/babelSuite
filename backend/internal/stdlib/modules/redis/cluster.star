@@ -1,4 +1,5 @@
 load("@babelsuite/runtime", "service")
+load("_shared.star", "merge_dicts")
 
 def redis(
         name              = "redis",
@@ -28,5 +29,5 @@ def redis(
         name  = name,
         image = image,
         after = after,
-        env   = utils.merge(base_env, env),
+        env   = merge_dicts(base_env, env),
     )

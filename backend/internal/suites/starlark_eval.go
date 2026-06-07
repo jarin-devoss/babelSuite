@@ -2,12 +2,11 @@ package suites
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"strings"
 	"sync"
 
-	"github.com/babelsuite/babelsuite/internal/examplefs"
+	"github.com/babelsuite/babelsuite/internal/stdlib"
 	"go.starlark.net/starlark"
 	"go.starlark.net/syntax"
 )
@@ -19,7 +18,7 @@ var starlarkFileOptions = &syntax.FileOptions{
 	GlobalReassign:  true,
 	Recursion:       false,
 	TopLevelControl: true,
-	While:           true,
+	While:           false,
 }
 
 type starlarkNode struct {
@@ -48,6 +47,7 @@ type starlarkNode struct {
 	continueOnFail  bool
 	evaluation      *StepEvaluation
 	exports         []ArtifactExport
+	env             map[string]string
 	order           int
 }
 
@@ -76,7 +76,7 @@ func (r *starlarkRegistry) register(n *starlarkNode) {
 	r.mu.Unlock()
 }
 
-func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr error) {
+func evalStarlarkTopology(suiteStar string, resolve ModuleResolver) (nodes []rawTopologyNode, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			retErr = fmt.Errorf("starlark evaluation panicked: %v", r)
@@ -93,7 +93,7 @@ func evalStarlarkTopology(suiteStar string) (nodes []rawTopologyNode, retErr err
 	thread := &starlark.Thread{
 		Name: "suite.star",
 		Load: func(t *starlark.Thread, module string) (starlark.StringDict, error) {
-			return resolveStarlarkModule(module, reg)
+			return resolveStarlarkModule(module, reg, resolve)
 		},
 	}
 	thread.SetMaxExecutionSteps(starlarkMaxSteps)
@@ -125,39 +125,238 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 		"security": runtimeModule["security"],
 		"log":      runtimeModule["log"],
 		"env":      frozenEmptyDict(),
+		"utils":    buildUtilsModule(),
 	}, nil
 }
 
-func resolveStarlarkModule(module string, reg *starlarkRegistry) (starlark.StringDict, error) {
+func buildUtilsModule() *starlarkUtils {
+	return &starlarkUtils{members: starlark.StringDict{
+		"sanitize":      starlark.NewBuiltin("sanitize", utilsSanitize),
+		"merge":         starlark.NewBuiltin("merge", utilsMerge),
+		"quoted":        starlark.NewBuiltin("quoted", utilsQuoted),
+		"unique":        starlark.NewBuiltin("unique", utilsUnique),
+		"sql_value":     starlark.NewBuiltin("sql_value", utilsSqlValue),
+		"sql_predicate": starlark.NewBuiltin("sql_predicate", utilsSqlPredicate),
+		"js_value":      starlark.NewBuiltin("js_value", utilsJsValue),
+	}}
+}
+
+type starlarkUtils struct{ members starlark.StringDict }
+
+func (u *starlarkUtils) String() string        { return "utils" }
+func (u *starlarkUtils) Type() string          { return "babelsuite.Utils" }
+func (u *starlarkUtils) Freeze()               {}
+func (u *starlarkUtils) Truth() starlark.Bool  { return starlark.True }
+func (u *starlarkUtils) Hash() (uint32, error) { return 0, fmt.Errorf("utils is not hashable") }
+func (u *starlarkUtils) Attr(name string) (starlark.Value, error) {
+	return u.members[name], nil
+}
+func (u *starlarkUtils) AttrNames() []string {
+	names := make([]string, 0, len(u.members))
+	for k := range u.members {
+		names = append(names, k)
+	}
+	return names
+}
+
+func utilsSanitize(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var val starlark.Value
+	if err := starlark.UnpackArgs("utils.sanitize", args, kwargs, "value", &val); err != nil {
+		return nil, err
+	}
+	s, _ := starlark.AsString(val)
+	if s == "" {
+		s = val.String()
+	}
+	var b strings.Builder
+	for _, ch := range s {
+		switch {
+		case ch >= 'a' && ch <= 'z', ch >= '0' && ch <= '9':
+			b.WriteRune(ch)
+		case ch >= 'A' && ch <= 'Z':
+			b.WriteRune(ch + 32)
+		default:
+			b.WriteRune('-')
+		}
+	}
+	result := b.String()
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
+	result = strings.Trim(result, "-")
+	if result == "" {
+		result = "step"
+	}
+	return starlark.String(result), nil
+}
+
+func utilsMerge(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var base, overrides *starlark.Dict
+	if err := starlark.UnpackArgs("utils.merge", args, kwargs, "base", &base, "overrides", &overrides); err != nil {
+		return nil, err
+	}
+	merged := starlark.NewDict(base.Len() + overrides.Len())
+	for _, kv := range base.Items() {
+		merged.SetKey(kv[0], kv[1]) //nolint:errcheck
+	}
+	for _, kv := range overrides.Items() {
+		merged.SetKey(kv[0], kv[1]) //nolint:errcheck
+	}
+	return merged, nil
+}
+
+func utilsQuoted(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var val starlark.Value
+	if err := starlark.UnpackArgs("utils.quoted", args, kwargs, "value", &val); err != nil {
+		return nil, err
+	}
+	s, _ := starlark.AsString(val)
+	if s == "" {
+		s = val.String()
+	}
+	return starlark.String("'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"), nil
+}
+
+func utilsUnique(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var list *starlark.List
+	var item starlark.Value
+	if err := starlark.UnpackArgs("utils.unique", args, kwargs, "values", &list, "item", &item); err != nil {
+		return nil, err
+	}
+	result := starlark.NewList(nil)
+	found := false
+	for i := 0; i < list.Len(); i++ {
+		v := list.Index(i)
+		result.Append(v) //nolint:errcheck
+		if v.String() == item.String() {
+			found = true
+		}
+	}
+	if !found {
+		result.Append(item) //nolint:errcheck
+	}
+	return result, nil
+}
+
+func utilsSqlValue(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var val starlark.Value
+	if err := starlark.UnpackArgs("utils.sql_value", args, kwargs, "value", &val); err != nil {
+		return nil, err
+	}
+	switch v := val.(type) {
+	case starlark.NoneType:
+		return starlark.String("null"), nil
+	case starlark.Bool:
+		if v {
+			return starlark.String("true"), nil
+		}
+		return starlark.String("false"), nil
+	case starlark.Int:
+		return starlark.String(v.String()), nil
+	case starlark.Float:
+		return starlark.String(v.String()), nil
+	default:
+		s, _ := starlark.AsString(val)
+		return starlark.String("'" + strings.ReplaceAll(s, "'", "''") + "'"), nil
+	}
+}
+
+func utilsSqlPredicate(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var val starlark.Value
+	if err := starlark.UnpackArgs("utils.sql_predicate", args, kwargs, "where", &val); err != nil {
+		return nil, err
+	}
+	if s, ok := starlark.AsString(val); ok {
+		return starlark.String(s), nil
+	}
+	d, ok := val.(*starlark.Dict)
+	if !ok {
+		return nil, fmt.Errorf("utils.sql_predicate: where must be a string or dict")
+	}
+	parts := make([]string, 0, d.Len())
+	for _, kv := range d.Items() {
+		sqlVal, err := utilsSqlValue(thread, fn, starlark.Tuple{kv[1]}, nil)
+		if err != nil {
+			return nil, err
+		}
+		k, _ := starlark.AsString(kv[0])
+		parts = append(parts, k+" = "+sqlVal.(starlark.String).GoString())
+	}
+	return starlark.String(strings.Join(parts, " and ")), nil
+}
+
+func utilsJsValue(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var val starlark.Value
+	if err := starlark.UnpackArgs("utils.js_value", args, kwargs, "value", &val); err != nil {
+		return nil, err
+	}
+	switch v := val.(type) {
+	case starlark.String:
+		s, _ := starlark.AsString(val)
+		return starlark.String(`"` + strings.ReplaceAll(s, `"`, `\"`) + `"`), nil
+	case starlark.Bool:
+		if v {
+			return starlark.String("true"), nil
+		}
+		return starlark.String("false"), nil
+	case starlark.NoneType:
+		return starlark.String("null"), nil
+	default:
+		return starlark.String(val.String()), nil
+	}
+}
+
+func resolveStarlarkModule(module string, reg *starlarkRegistry, resolve ModuleResolver) (starlark.StringDict, error) {
 	if module == "@babelsuite/runtime" {
 		return buildRuntimeModule(reg)
 	}
 	if strings.HasPrefix(module, "@babelsuite/") {
 		suffix := strings.TrimPrefix(module, "@babelsuite/")
-		return loadModuleDir(suffix, reg)
+		return loadModuleDir(suffix, reg, resolve)
 	}
 	return nil, fmt.Errorf("unknown module %q", module)
 }
 
-func loadModuleDir(suffix string, reg *starlarkRegistry) (starlark.StringDict, error) {
-	moduleRoot := filepath.Join(examplefs.ResolveRoot(), "oci-modules", suffix)
-	entries, err := os.ReadDir(moduleRoot)
-	if err != nil {
-		return nil, fmt.Errorf("module @babelsuite/%s not found", suffix)
+// ModuleResolver resolves @babelsuite/<name> module files. When nil, the
+// embedded stdlib is used as a fallback (topology display / tests). The
+// execution path passes an OCI-backed resolver that pulls from the catalog.
+type ModuleResolver func(name string) (map[string]string, error)
+
+func loadModuleDir(suffix string, reg *starlarkRegistry, resolve ModuleResolver) (starlark.StringDict, error) {
+	var moduleFS fs.FS
+	if resolve != nil {
+		files, err := resolve(suffix)
+		if err == nil && len(files) > 0 {
+			moduleFS = mapFS(files)
+		}
 	}
+	if moduleFS == nil {
+		mfs, err := stdlib.ModuleFS(suffix)
+		if err != nil {
+			return nil, fmt.Errorf("module @babelsuite/%s not found", suffix)
+		}
+		moduleFS = mfs
+	}
+
+	modulePredeclared := starlark.StringDict{"utils": buildUtilsModule()}
 
 	var loader func(_ *starlark.Thread, mod string) (starlark.StringDict, error)
 	loader = func(_ *starlark.Thread, mod string) (starlark.StringDict, error) {
 		if mod == "@babelsuite/runtime" {
 			return buildRuntimeModule(reg)
 		}
-		content, err := os.ReadFile(filepath.Join(moduleRoot, mod))
+		content, err := fs.ReadFile(moduleFS, mod)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load %q: %w", mod, err)
 		}
 		t := &starlark.Thread{Name: mod, Load: loader}
 		t.SetMaxExecutionSteps(starlarkMaxSteps)
-		return starlark.ExecFileOptions(starlarkFileOptions, t, mod, content, nil)
+		return starlark.ExecFileOptions(starlarkFileOptions, t, mod, content, modulePredeclared)
+	}
+
+	entries, err := fs.ReadDir(moduleFS, ".")
+	if err != nil {
+		return nil, fmt.Errorf("module @babelsuite/%s not found", suffix)
 	}
 
 	combined := make(starlark.StringDict)
@@ -166,13 +365,13 @@ func loadModuleDir(suffix string, reg *starlarkRegistry) (starlark.StringDict, e
 		if entry.IsDir() || !strings.HasSuffix(name, ".star") || strings.HasPrefix(name, "_") || name == "module.star" || name == "usage.star" {
 			continue
 		}
-		content, err := os.ReadFile(filepath.Join(moduleRoot, name))
+		content, err := fs.ReadFile(moduleFS, name)
 		if err != nil {
 			continue
 		}
 		t := &starlark.Thread{Name: "@babelsuite/" + suffix + "/" + name, Load: loader}
 		t.SetMaxExecutionSteps(starlarkMaxSteps)
-		globals, err := starlark.ExecFileOptions(starlarkFileOptions, t, name, content, nil)
+		globals, err := starlark.ExecFileOptions(starlarkFileOptions, t, name, content, modulePredeclared)
 		if err != nil {
 			continue
 		}
@@ -184,6 +383,40 @@ func loadModuleDir(suffix string, reg *starlarkRegistry) (starlark.StringDict, e
 	}
 	return combined, nil
 }
+
+// mapFS wraps a map[string]string as an fs.FS backed by strings.Reader.
+type mapFS map[string]string
+
+func (m mapFS) Open(name string) (fs.File, error) {
+	content, ok := m[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+	return &mapFile{Reader: strings.NewReader(content)}, nil
+}
+
+type mapFile struct{ *strings.Reader }
+
+func (f *mapFile) Close() error               { return nil }
+func (f *mapFile) Stat() (fs.FileInfo, error) { return nil, fmt.Errorf("not supported") }
+
+func (m mapFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	if name != "." {
+		return nil, &fs.PathError{Op: "readdir", Path: name, Err: fs.ErrNotExist}
+	}
+	entries := make([]fs.DirEntry, 0, len(m))
+	for k := range m {
+		entries = append(entries, mapDirEntry(k))
+	}
+	return entries, nil
+}
+
+type mapDirEntry string
+
+func (e mapDirEntry) Name() string               { return string(e) }
+func (e mapDirEntry) IsDir() bool                { return false }
+func (e mapDirEntry) Type() fs.FileMode          { return 0 }
+func (e mapDirEntry) Info() (fs.FileInfo, error) { return nil, fmt.Errorf("not supported") }
 
 func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 	service := &starlarkNamespace{
@@ -443,6 +676,21 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 				}
 				node.exports = exports
 
+			case "env":
+				d, ok := val.(*starlark.Dict)
+				if !ok {
+					return nil, fmt.Errorf("%s: env must be a dict", variant)
+				}
+				envMap := make(map[string]string, d.Len())
+				for _, kv := range d.Items() {
+					k, ok1 := starlark.AsString(kv[0])
+					v, ok2 := starlark.AsString(kv[1])
+					if ok1 && ok2 {
+						envMap[k] = v
+					}
+				}
+				node.env = envMap
+
 			case "technique":
 				s, ok := starlark.AsString(val)
 				if !ok {
@@ -676,6 +924,7 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			ContinueOnFailure: node.continueOnFail,
 			Evaluation:        node.evaluation,
 			Exports:           append([]ArtifactExport{}, node.exports...),
+			Env:               cloneStringMap(node.env),
 			Order:             node.order,
 		}
 
