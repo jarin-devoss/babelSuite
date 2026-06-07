@@ -192,7 +192,7 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 	s.evictOldExecutionsLocked()
 	s.mu.Unlock()
 	s.logs.Open(executionID)
-	s.persistExecutionRuntime()
+	s.schedulePersist()
 
 	go s.bootExecution(executionID, suite, profile, selectedBackend)
 
@@ -527,7 +527,7 @@ func (s *Service) appendEvent(executionID string, event ExecutionEvent) {
 
 	s.publish(streamEvent, subscribers)
 	s.appendLog(executionID, event)
-	s.persistExecutionRuntime()
+	s.schedulePersist()
 	s.syncObservers(executionID)
 }
 

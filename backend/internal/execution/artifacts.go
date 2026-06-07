@@ -37,7 +37,7 @@ func (s *Service) registerStepArtifacts(executionID string, node topologyNode, s
 	s.mu.Unlock()
 
 	if added {
-		s.persistExecutionRuntime()
+		s.schedulePersist()
 		s.syncObservers(executionID)
 	}
 }

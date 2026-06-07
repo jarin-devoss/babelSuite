@@ -7,9 +7,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
+)
+
+var (
+	dockerAvailCacheMu  sync.Mutex
+	dockerAvailCached   bool
+	dockerAvailAt       time.Time
+	dockerAvailTTL      = 5 * time.Second
 )
 
 var logTemplateVar = regexp.MustCompile(`\{\{\s*([\w.]+)\s*\}\}`)
@@ -67,7 +75,21 @@ func (l *Local) IsAvailable(ctx context.Context) bool {
 	if l.config.Permissive {
 		return true
 	}
-	return pingDocker(ctx)
+	dockerAvailCacheMu.Lock()
+	if time.Since(dockerAvailAt) < dockerAvailTTL {
+		cached := dockerAvailCached
+		dockerAvailCacheMu.Unlock()
+		return cached
+	}
+	dockerAvailCacheMu.Unlock()
+
+	ok := pingDocker(ctx)
+
+	dockerAvailCacheMu.Lock()
+	dockerAvailCached = ok
+	dockerAvailAt = time.Now()
+	dockerAvailCacheMu.Unlock()
+	return ok
 }
 
 func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line)) (err error) {
