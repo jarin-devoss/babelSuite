@@ -88,6 +88,14 @@ func (r *catalogSuiteReader) warmCache() {
 		}(pkg)
 	}
 	wg.Wait()
+
+	cat := r.cachedCatalog()
+	r.mu.Lock()
+	for id, def := range r.cache {
+		resolved := suites.ResolveDefinitionTopology(*def, cat)
+		r.cache[id] = &resolved
+	}
+	r.mu.Unlock()
 }
 
 func (r *catalogSuiteReader) buildDefinition(ctx context.Context, pkg catalog.Package) *suites.Definition {
@@ -433,71 +441,13 @@ func toPascalCase(s string) string {
 }
 
 func (r *catalogSuiteReader) List() []suites.Definition {
-	packages, err := r.catalog.ListPackages(context.Background())
-	if err != nil && r.workspace != nil {
-		return r.workspace.List()
+	r.mu.RLock()
+	result := make([]suites.Definition, 0, len(r.cache))
+	for _, def := range r.cache {
+		result = append(result, *def)
 	}
-	if err != nil {
-		return nil
-	}
+	r.mu.RUnlock()
 
-	type slot struct {
-		pkg    catalog.Package
-		cached *suites.Definition
-	}
-
-	slots := make([]slot, 0, len(packages))
-	for _, pkg := range packages {
-		if pkg.Kind != "suite" {
-			continue
-		}
-		r.mu.RLock()
-		cached := r.cache[pkg.ID]
-		r.mu.RUnlock()
-		slots = append(slots, slot{pkg: pkg, cached: cached})
-	}
-
-	// Serve whatever is cached immediately; trigger background fetches for the rest.
-	result := make([]suites.Definition, len(slots))
-	var wg sync.WaitGroup
-	for i, s := range slots {
-		if s.cached != nil {
-			result[i] = *s.cached
-			continue
-		}
-		// Not cached yet — fetch now (warmCache may still be in flight).
-		wg.Add(1)
-		go func(i int, pkg catalog.Package) {
-			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			def := r.buildDefinition(ctx, pkg)
-			if def == nil {
-				return
-			}
-			r.mu.Lock()
-			r.cache[pkg.ID] = def
-			r.mu.Unlock()
-			result[i] = *def
-		}(i, s.pkg)
-	}
-	wg.Wait()
-
-	// Drop zero-ID slots (failed fetches) from result.
-	filled := result[:0]
-	for _, d := range result {
-		if d.ID != "" {
-			filled = append(filled, d)
-		}
-	}
-	result = filled
-
-	cat := r.cachedCatalog()
-	for i := range result {
-		result[i] = suites.ResolveDefinitionTopology(result[i], cat)
-	}
-
-	// Include workspace suites that are not in the catalog (e.g. registered via API).
 	if r.workspace != nil {
 		catalogIDs := make(map[string]struct{}, len(result))
 		for _, d := range result {
@@ -520,7 +470,7 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 	cached := r.cache[id]
 	r.mu.RUnlock()
 	if cached != nil {
-		clone := suites.ResolveDefinitionTopology(*cached, r.cachedCatalog())
+		clone := *cached
 		return &clone, nil
 	}
 
@@ -537,11 +487,12 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 		return nil, suites.ErrNotFound
 	}
 
+	resolved := suites.ResolveDefinitionTopology(*def, r.cachedCatalog())
 	r.mu.Lock()
-	r.cache[id] = def
+	r.cache[id] = &resolved
 	r.mu.Unlock()
 
-	clone := suites.ResolveDefinitionTopology(*def, r.cachedCatalog())
+	clone := resolved
 	return &clone, nil
 }
 
