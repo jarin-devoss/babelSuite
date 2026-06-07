@@ -1,5 +1,4 @@
 load("@babelsuite/runtime", "service")
-load("_shared.star", "merge_dicts")
 
 def mongodb(
         name                 = "mongodb",
@@ -24,5 +23,5 @@ def mongodb(
         name  = name,
         image = image,
         after = after,
-        env   = merge_dicts(base_env, env),
+        env   = utils.merge(base_env, env),
     )

@@ -1,5 +1,5 @@
 load("@babelsuite/runtime", "test")
-load("_shared.star", "SUPPORTED_BROWSERS", "DEVICE_PRESETS", "sanitize_name", "merge_dicts", "default_exports")
+load("_shared.star", "SUPPORTED_BROWSERS", "DEVICE_PRESETS", "default_exports")
 
 def browser_test(
         spec,
@@ -23,18 +23,18 @@ def browser_test(
                 fail("unsupported device preset: " + device + ". Must be one of: " + ", ".join(DEVICE_PRESETS.keys()))
 
             preset    = DEVICE_PRESETS[device]
-            test_name = sanitize_name(spec) + "-" + browser + "-" + device
+            test_name = utils.sanitize(spec) + "-" + browser + "-" + device
 
             base_env = {
-                "BROWSER":           browser,
-                "BASE_URL":          base_url,
-                "DEVICE":            device,
-                "VIEWPORT_WIDTH":    str(preset["width"]),
-                "VIEWPORT_HEIGHT":   str(preset["height"]),
-                "DEVICE_SCALE":      str(preset["device_scale"]),
-                "IS_MOBILE":         str(preset["is_mobile"]).lower(),
-                "COLLECT_TRACES":    str(collect_traces).lower(),
-                "COLLECT_VIDEO":     str(collect_video).lower(),
+                "BROWSER":        browser,
+                "BASE_URL":       base_url,
+                "DEVICE":         device,
+                "VIEWPORT_WIDTH":  str(preset["width"]),
+                "VIEWPORT_HEIGHT": str(preset["height"]),
+                "DEVICE_SCALE":    str(preset["device_scale"]),
+                "IS_MOBILE":       str(preset["is_mobile"]).lower(),
+                "COLLECT_TRACES":  str(collect_traces).lower(),
+                "COLLECT_VIDEO":   str(collect_video).lower(),
             }
 
             exports = default_exports(test_name) + extra_exports
@@ -46,7 +46,7 @@ def browser_test(
                 file    = spec,
                 image   = image,
                 after   = after,
-                env     = merge_dicts(base_env, env),
+                env     = utils.merge(base_env, env),
                 exports = exports,
             )
             nodes.append(node)
@@ -59,18 +59,18 @@ def a11y_audit(
         wcag_level = "AA",
         fail_on_critical = True,
         image = "mcr.microsoft.com/playwright:v1.53.0-noble"):
-    audit_name = "a11y-audit-" + sanitize_name(url)
+    audit_name = "a11y-audit-" + utils.sanitize(url)
     fail_logs  = ["AXE_CRITICAL"] if fail_on_critical else []
 
     return test.run(
-        name    = audit_name,
-        file    = "a11y_audit.spec.ts",
-        image   = image,
-        after   = after,
-        env     = {"TARGET_URL": url, "WCAG_LEVEL": wcag_level},
+        name         = audit_name,
+        file         = "a11y_audit.spec.ts",
+        image        = image,
+        after        = after,
+        env          = {"TARGET_URL": url, "WCAG_LEVEL": wcag_level},
         fail_on_logs = fail_logs,
         exports = [
-            {"path": "reports/" + audit_name + ".xml", "name": audit_name, "on": "always", "format": "junit"},
+            {"path": "reports/" + audit_name + ".xml",  "name": audit_name,          "on": "always", "format": "junit"},
             {"path": "reports/" + audit_name + ".json", "name": audit_name + "-detail", "on": "always"},
         ],
     )
@@ -86,17 +86,17 @@ def visual_diff(
     for browser in browsers:
         if browser not in SUPPORTED_BROWSERS:
             fail("unsupported browser: " + browser)
-        diff_name = sanitize_name(spec) + "-visual-" + browser
+        diff_name = utils.sanitize(spec) + "-visual-" + browser
         node = test.run(
-            name    = diff_name,
-            file    = spec,
-            image   = image,
-            after   = after,
-            env     = {
-                "BROWSER":            browser,
-                "BASE_URL":           base_url,
-                "DIFF_THRESHOLD":     str(threshold),
-                "PLAYWRIGHT_MODE":    "visual",
+            name         = diff_name,
+            file         = spec,
+            image        = image,
+            after        = after,
+            env          = {
+                "BROWSER":         browser,
+                "BASE_URL":        base_url,
+                "DIFF_THRESHOLD":  str(threshold),
+                "PLAYWRIGHT_MODE": "visual",
             },
             fail_on_logs = ["VISUAL_REGRESSION_DETECTED"],
             exports = [

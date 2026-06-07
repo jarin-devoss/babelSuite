@@ -1,12 +1,11 @@
 load("@babelsuite/runtime", "service")
-load("_shared.star", "merge_dicts")
 
 def kafka(name = "kafka", image = "apache/kafka:latest", port = 9092, after = [], env = {}):
     return service.run(
         name  = name,
         image = image,
         after = after,
-        env   = merge_dicts({
+        env   = utils.merge({
             "KAFKA_NODE_ID":                        "1",
             "KAFKA_PROCESS_ROLES":                  "broker,controller",
             "KAFKA_LISTENERS":                      "PLAINTEXT://:" + str(port) + ",CONTROLLER://:9093",
