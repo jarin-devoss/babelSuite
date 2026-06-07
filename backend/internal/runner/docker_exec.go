@@ -42,6 +42,12 @@ func executionNetworkName(executionID string) string {
 	return "babel-net-" + sanitizeID(executionID)
 }
 
+// ExecutionNetworkName is the exported form of executionNetworkName for use
+// outside the runner package.
+func ExecutionNetworkName(executionID string) string {
+	return executionNetworkName(executionID)
+}
+
 // ensureExecutionNetwork returns the network name for an execution.
 // The network is created upfront by SetupExecutionNetwork before any tasks run.
 func ensureExecutionNetwork(_ context.Context, _ *client.Client, executionID string) string {
