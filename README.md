@@ -204,7 +204,7 @@ Open [http://localhost:5173](http://localhost:5173) and sign in:
 Populate the catalog with the bundled example suites:
 
 ```bash
-cd backend && go run ./cmd/seed-zot
+python scripts/push-to-zot.py
 ```
 
 Then open `/catalog`, pick a suite, select a profile, and launch your first run.
