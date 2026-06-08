@@ -84,6 +84,12 @@
   box-shadow: inset 0 0 0 1px rgba(31, 126, 168, 0.2);
 }
 
+.platform-button--danger {
+  background: #fde8e8;
+  color: #c0392b;
+  box-shadow: inset 0 0 0 1px rgba(192, 57, 43, 0.2);
+}
+
 .platform-button:hover,
 .platform-icon-button:hover {
   opacity: 0.87;
@@ -296,6 +302,23 @@
   font-family: "Courier New", Courier, monospace;
   font-size: 0.83rem;
   color: #4a6278;
+}
+
+.bs-table-list__issues {
+  padding: 6px 16px 8px 48px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: #fff8f8;
+  border-top: 1px solid #fde8e8;
+}
+
+.bs-table-list__issue {
+  font-size: 0.78rem;
+  color: #c0392b;
+  background: #fde8e8;
+  border-radius: 4px;
+  padding: 2px 8px;
 }
 
 .bs-status-icon {
