@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
+	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
@@ -55,6 +56,8 @@ type StepSpec struct {
 	LeaseTTL         time.Duration
 	Load             *suites.LoadSpec
 	Security         *suites.SecuritySpec
+	Plugin           *suites.PluginSpec
+	RegisteredPlugins []platform.CustomPlugin
 	Evaluation       *suites.StepEvaluation
 	OnFailure        []string
 	ArtifactExports  []ArtifactExport

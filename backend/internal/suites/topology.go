@@ -55,6 +55,8 @@ type rawTopologyNode struct {
 	Evaluation        *StepEvaluation
 	Exports           []ArtifactExport
 	Env               map[string]string
+	PluginOp          string
+	PluginConfig      map[string]any
 	Order             int
 }
 
@@ -272,6 +274,13 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 				FloodRate:     raw.FloodRate,
 				FloodDuration: raw.FloodDuration,
 				FloodThrottle: raw.FloodThrottle,
+			}
+		}
+		if raw.Kind == NodeKindPlugin {
+			node.Plugin = &PluginSpec{
+				Name:   raw.Variant,
+				Op:     raw.PluginOp,
+				Config: raw.PluginConfig,
 			}
 		}
 		final = append(final, node)
@@ -772,6 +781,8 @@ func topologyKind(call string) (string, bool) {
 		return "security", true
 	case "log.info", "log.warn", "log.error", "log.debug":
 		return "log", true
+	case NodeKindPlugin:
+		return NodeKindPlugin, true
 	default:
 		return "", false
 	}

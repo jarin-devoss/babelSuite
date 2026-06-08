@@ -40,6 +40,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	httpserver.HandleFunc(mux, "GET /api/v1/executions/{executionId}", h.getExecution, protected)
 	httpserver.HandleFunc(mux, "GET /api/v1/executions/{executionId}/events", h.streamEvents, streaming)
 	httpserver.HandleFunc(mux, "GET /api/v1/executions/{executionId}/logs", h.streamLogs, streaming)
+	httpserver.HandleFunc(mux, "GET /api/v1/executions/{executionId}/logs/snapshot", h.snapshotLogs, protected)
 }
 
 func (h *Handler) listLaunchSuites(w http.ResponseWriter, r *http.Request) {
@@ -301,4 +302,22 @@ func (h *Handler) streamLogs(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+func (h *Handler) snapshotLogs(w http.ResponseWriter, r *http.Request) {
+	executionID := r.PathValue("executionId")
+	workspaceID := ""
+	if claims, ok := auth.SessionFromContext(r.Context()); ok {
+		workspaceID = claims.WorkspaceID
+	}
+	lines, err := h.service.SnapshotLogs(executionID, workspaceID)
+	if err != nil {
+		if errors.Is(err, ErrExecutionNotFound) {
+			httpserver.WriteError(w, http.StatusNotFound, "Execution not found.")
+			return
+		}
+		httpserver.WriteError(w, http.StatusInternalServerError, "Could not read logs.")
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, map[string]any{"executionId": executionID, "lines": lines})
 }

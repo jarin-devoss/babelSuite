@@ -45,6 +45,8 @@ type starlarkNode struct {
 	resetMocks      []*starlarkNode
 	onFailure       []*starlarkNode
 	continueOnFail  bool
+	pluginOp        string
+	pluginConfig    map[string]any
 	evaluation      *StepEvaluation
 	exports         []ArtifactExport
 	env             map[string]string
@@ -124,6 +126,7 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 		"suite":    runtimeModule["suite"],
 		"security": runtimeModule["security"],
 		"log":      runtimeModule["log"],
+		"plugin":   runtimeModule["plugin"],
 		"env":      frozenEmptyDict(),
 		"utils":    buildUtilsModule(),
 	}, nil
@@ -314,6 +317,10 @@ func resolveStarlarkModule(module string, reg *starlarkRegistry, resolve ModuleR
 		suffix := strings.TrimPrefix(module, "@babelsuite/")
 		return loadModuleDir(suffix, reg, resolve)
 	}
+	if strings.HasPrefix(module, "@plugins/") {
+		suffix := strings.TrimPrefix(module, "@plugins/")
+		return loadModuleDir(suffix, reg, resolve)
+	}
 	return nil, fmt.Errorf("unknown module %q", module)
 }
 
@@ -477,6 +484,17 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 		},
 	}
 
+	plugin := starlark.NewBuiltin("plugin", func(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		if len(args) != 1 {
+			return nil, fmt.Errorf("plugin() takes exactly one positional argument (the registered plugin name)")
+		}
+		name, ok := starlark.AsString(args[0])
+		if !ok || strings.TrimSpace(name) == "" {
+			return nil, fmt.Errorf("plugin() argument must be a non-empty string")
+		}
+		return &starlarkPluginRef{reg: reg, pluginName: strings.TrimSpace(name)}, nil
+	})
+
 	return starlark.StringDict{
 		"service":  service,
 		"task":     task,
@@ -485,6 +503,7 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 		"suite":    suite,
 		"security": security,
 		"log":      log,
+		"plugin":   plugin,
 	}, nil
 }
 
@@ -737,6 +756,64 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 	}
 }
 
+// starlarkPluginRef is returned by plugin("registered-plugin-name").
+// It binds the plugin name and exposes a single .run() method.
+type starlarkPluginRef struct {
+	reg        *starlarkRegistry
+	pluginName string
+}
+
+func (p *starlarkPluginRef) String() string        { return "plugin(" + p.pluginName + ")" }
+func (p *starlarkPluginRef) Type() string          { return "babelsuite.PluginRef" }
+func (p *starlarkPluginRef) Freeze()               {}
+func (p *starlarkPluginRef) Truth() starlark.Bool  { return starlark.True }
+func (p *starlarkPluginRef) Hash() (uint32, error) { return 0, fmt.Errorf("plugin ref is not hashable") }
+func (p *starlarkPluginRef) AttrNames() []string {
+	return []string{"run", "watch", "monitor", "check", "assert", "probe"}
+}
+
+// Attr returns a step builder for any operation name. The operation name controls
+// failure behaviour: watch/monitor are non-blocking (continue_on_failure=true),
+// all others are blocking and fail the suite on findings.
+func (p *starlarkPluginRef) Attr(op string) (starlark.Value, error) {
+	softFail := op == "watch" || op == "monitor"
+	return starlark.NewBuiltin(op, func(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		node := &starlarkNode{
+			kind:           NodeKindPlugin,
+			variant:        p.pluginName,
+			pluginOp:       op,
+			continueOnFail: softFail,
+			pluginConfig:   make(map[string]any),
+		}
+		for _, kv := range kwargs {
+			key, _ := starlark.AsString(kv[0])
+			val := kv[1]
+			switch key {
+			case "name":
+				s, ok := starlark.AsString(val)
+				if !ok {
+					return nil, fmt.Errorf("plugin.%s: name must be a string", op)
+				}
+				node.name = strings.TrimSpace(s)
+				node.explicitName = node.name != ""
+			case "after":
+				nodes, err := extractNodeList(val, "plugin."+op, "after")
+				if err != nil {
+					return nil, err
+				}
+				node.after = nodes
+			default:
+				node.pluginConfig[key] = starlarkToGo(val)
+			}
+		}
+		if node.name == "" {
+			return nil, fmt.Errorf("plugin.%s: name is required", op)
+		}
+		p.reg.register(node)
+		return node, nil
+	}), nil
+}
+
 func extractNodeList(val starlark.Value, call, param string) ([]*starlarkNode, error) {
 	list, ok := val.(*starlark.List)
 	if !ok {
@@ -894,6 +971,32 @@ func buildStarlarkArguments(node *starlarkNode) string {
 	return strings.Join(parts, ", ")
 }
 
+func starlarkToGo(val starlark.Value) any {
+	switch v := val.(type) {
+	case starlark.String:
+		s, _ := starlark.AsString(val)
+		return s
+	case starlark.Int:
+		n, _ := v.Int64()
+		return n
+	case starlark.Float:
+		f, _ := starlark.AsFloat(val)
+		return f
+	case starlark.Bool:
+		return bool(v)
+	case *starlark.List:
+		out := make([]any, v.Len())
+		for i := range v.Len() {
+			out[i] = starlarkToGo(v.Index(i))
+		}
+		return out
+	case starlark.NoneType:
+		return nil
+	default:
+		return val.String()
+	}
+}
+
 func frozenEmptyDict() *starlark.Dict {
 	d := starlark.NewDict(0)
 	d.Freeze()
@@ -925,6 +1028,8 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			Evaluation:        node.evaluation,
 			Exports:           append([]ArtifactExport{}, node.exports...),
 			Env:               cloneStringMap(node.env),
+			PluginOp:          node.pluginOp,
+			PluginConfig:      node.pluginConfig,
 			Order:             node.order,
 		}
 

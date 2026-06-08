@@ -14,8 +14,16 @@ const (
 var pathParameterPattern = regexp.MustCompile(`\{[^/]+\}`)
 
 type SuiteConfig struct {
-	ID          string
-	APISurfaces []SurfaceConfig
+	ID            string
+	APISurfaces   []SurfaceConfig
+	CustomPlugins []CustomPluginConfig
+}
+
+// CustomPluginConfig carries the registration data for a user-defined Lua plugin.
+type CustomPluginConfig struct {
+	Name    string
+	Trigger string
+	Lua     string
 }
 
 type SurfaceConfig struct {

@@ -25,8 +25,25 @@ type PlatformSettings struct {
 	Registries    []OCIRegistry       `json:"registries" yaml:"registries"`
 	Secrets       SecretsConfig       `json:"secrets" yaml:"secrets"`
 	Notifications NotificationsConfig `json:"notifications" yaml:"notifications"`
+	Plugins       []CustomPlugin      `json:"plugins" yaml:"plugins"`
 	UpdatedAt     time.Time           `json:"updatedAt" yaml:"updatedAt"`
 	Description   string              `json:"description" yaml:"description"`
+}
+
+// CustomPlugin registers a user-authored APISIX Lua plugin with BabelSuite.
+// The Lua source is embedded verbatim into the generated apisix.yaml for the
+// sidecar, and the CUE schema is used to validate step config before dispatch.
+type CustomPlugin struct {
+	Name       string   `json:"name" yaml:"name"`
+	Trigger    string   `json:"trigger" yaml:"trigger"`
+	Kind       string   `json:"kind" yaml:"kind"`
+	Variants   []string `json:"variants" yaml:"variants"`
+	Operations []string `json:"operations,omitempty" yaml:"operations,omitempty"`
+	Lua        string   `json:"lua" yaml:"lua"`
+	Schema     string   `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Star       string   `json:"star,omitempty" yaml:"star,omitempty"`
+	Version    string   `json:"version,omitempty" yaml:"version,omitempty"`
+	Deprecated bool     `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
 }
 
 type NotificationsConfig struct {

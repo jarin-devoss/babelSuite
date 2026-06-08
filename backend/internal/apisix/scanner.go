@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // AttackScannerPluginName is the APISIX plugin name registered in apisix.yaml.
@@ -19,10 +20,15 @@ const LuaPluginMountPath = "/usr/local/openresty/site/lualib/apisix/plugins"
 // WriteLuaPluginFiles writes the embedded Lua plugin sources to destDir so they
 // can be bind-mounted into the APISIX sidecar container before it starts.
 // Returns an error if any file cannot be written.
-func WriteLuaPluginFiles(destDir string) error {
+func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) error {
 	plugins := map[string]string{
 		TrafficCannonPluginName + ".lua": TrafficCannonLua,
 		AttackScannerPluginName + ".lua": AttackScannerLua,
+	}
+	for _, p := range userPlugins {
+		if strings.TrimSpace(p.Lua) != "" {
+			plugins[p.Name+".lua"] = p.Lua
+		}
 	}
 	for name, code := range plugins {
 		p := filepath.Join(destDir, name)

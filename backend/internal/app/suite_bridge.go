@@ -126,7 +126,7 @@ func (r *catalogSuiteReader) buildDefinition(ctx context.Context, pkg catalog.Pa
 	def.Folders = buildFoldersFromFiles(files)
 	def.SourceFiles = buildSourceFilesFromMap(files)
 
-	if gatewayYAML := buildGatewayConfig(pkg.ID, files); gatewayYAML != "" {
+	if gatewayYAML := buildGatewayConfig(pkg.ID, files, r.loadCustomPlugins()); gatewayYAML != "" {
 		def.SourceFiles = append(def.SourceFiles, suites.SourceFile{
 			Path:     "gateway/apisix.yaml",
 			Language: "yaml",
@@ -181,11 +181,31 @@ func (r *catalogSuiteReader) cachedCatalog() []suites.Definition {
 
 // ── APISIX gateway config generation ─────────────────────────────────────────
 
-func buildGatewayConfig(suiteID string, files map[string]string) string {
+func buildGatewayConfig(suiteID string, files map[string]string, plugins []apisix.CustomPluginConfig) string {
 	return apisix.RenderStandaloneConfig(apisix.SuiteConfig{
-		ID:          suiteID,
-		APISurfaces: parseAPISurfaces(suiteID, files),
+		ID:            suiteID,
+		APISurfaces:   parseAPISurfaces(suiteID, files),
+		CustomPlugins: plugins,
 	})
+}
+
+func (r *catalogSuiteReader) loadCustomPlugins() []apisix.CustomPluginConfig {
+	if r.settings == nil {
+		return nil
+	}
+	settings, err := r.settings.Load()
+	if err != nil || settings == nil {
+		return nil
+	}
+	out := make([]apisix.CustomPluginConfig, 0, len(settings.Plugins))
+	for _, p := range settings.Plugins {
+		out = append(out, apisix.CustomPluginConfig{
+			Name:    p.Name,
+			Trigger: p.Trigger,
+			Lua:     p.Lua,
+		})
+	}
+	return out
 }
 
 func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceConfig {

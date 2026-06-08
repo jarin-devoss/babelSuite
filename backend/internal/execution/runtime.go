@@ -206,7 +206,7 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 func (s *Service) bootExecution(executionID string, suite *suites.Definition, profile string, selectedBackend backendBinding) {
 	defer func() { <-s.concurrencySem }()
 
-	resolved, err := suites.ResolveRuntimeWithModules(*suite, s.suiteSource.List(), s.suiteSource.ResolveModuleFiles)
+	resolved, err := suites.ResolveRuntimeWithModules(*suite, s.suiteSource.List(), s.pluginAwareModuleResolver())
 	if err != nil {
 		slog.Error("suite topology resolution failed", "suiteID", suite.ID, "error", err)
 		s.noteRejectedLaunch(context.Background(), suite.ID, "invalid_topology")
@@ -380,7 +380,9 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		TotalSteps:       len(suite.Topology),
 		HealthySteps:     s.countHealthySteps(executionID),
 		LeaseTTL:         8 * time.Second,
-		Load:             suitesCloneLoadSpec(node.Load),
+		Load:              suitesCloneLoadSpec(node.Load),
+		Plugin:            node.Plugin,
+		RegisteredPlugins: s.loadRegisteredPlugins(),
 		Evaluation:       cloneNodeEvaluation(node.Evaluation),
 		OnFailure:        append([]string{}, node.OnFailure...),
 		ArtifactExports:  cloneNodeArtifactExports(node.ArtifactExports),
