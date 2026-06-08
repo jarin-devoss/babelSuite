@@ -1,0 +1,7 @@
+name: spice-sim
+trigger: /_babelsuite/plugins/spice-sim/start
+kind: plugin
+variants: [spice-sim]
+operations: [run, watch]
+schema: schema.cue
+lua: plugin.lua

@@ -1,0 +1,6 @@
+name: pii-scanner
+trigger: /_babelsuite/plugins/pii-scanner/start
+kind: plugin
+variants: [pii-scanner]
+schema: schema.cue
+lua: plugin.lua

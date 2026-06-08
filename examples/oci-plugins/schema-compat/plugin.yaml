@@ -1,0 +1,6 @@
+name: schema-compat
+trigger: /_babelsuite/plugins/schema-compat/start
+kind: plugin
+variants: [schema-compat]
+schema: schema.cue
+lua: plugin.lua

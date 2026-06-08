@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: Control System Simulation Service
+  version: v1.0.0
+servers:
+  - url: https://control-service.mock.internal
+paths:
+  /simulate:
+    post:
+      operationId: control-simulate
+      summary: Simulate a transfer function G(s) and return stability, settling time, overshoot, and DC gain.
+      responses:
+        "200":
+          description: Successful mock response

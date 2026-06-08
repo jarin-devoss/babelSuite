@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: Verilog Simulation Service
+  version: v1.0.0
+servers:
+  - url: https://verilog-service.mock.internal
+paths:
+  /simulate:
+    post:
+      operationId: verilog-simulate
+      summary: Compile and simulate a Verilog design + testbench, return compile errors, sim error count, and X-state signals.
+      responses:
+        "200":
+          description: Successful mock response

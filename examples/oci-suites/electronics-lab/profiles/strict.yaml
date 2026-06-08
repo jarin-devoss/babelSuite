@@ -1,0 +1,43 @@
+name: Strict
+description: Tighter thresholds for CI gate — fails on any marginal result.
+
+services:
+  rc-filter-step-response:
+    env:
+      sim_url:      http://spice-service:8081
+      netlist: |
+        RC Filter Simulation
+        Vinput 1 0 DC 5V
+        R1 1 2 1k
+        C1 2 0 1uF
+        .tran 0.1ms 10ms
+        .end
+      analysis:     transient
+      step_time_ms: "0.1"
+      end_time_ms:  "10"
+      probe_node:   "2"
+      max_rise_ms:  "2.5"
+      max_voltage:  "5.1"
+      severity:     critical
+
+  4bit-counter-correctness:
+    env:
+      sim_url:     http://verilog-service:8082
+      top_module:  tb_counter
+      timeout_ns:  "150"
+      assert_no_x: "true"
+      max_errors:  "0"
+      severity:    critical
+
+  mass-spring-damper-response:
+    env:
+      sim_url:           http://control-service:8083
+      numerator:         "[1]"
+      denominator:       "[1, 2, 1]"
+      analysis:          step
+      time_end:          "10"
+      max_settling_time: "5.0"
+      max_overshoot_pct: "2.0"
+      min_dc_gain:       "0.95"
+      max_dc_gain:       "1.05"
+      severity:          critical

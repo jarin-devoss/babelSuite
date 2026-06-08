@@ -1,0 +1,6 @@
+name: consumer-lag
+trigger: /_babelsuite/plugins/consumer-lag/start
+kind: plugin
+variants: [consumer-lag]
+schema: schema.cue
+lua: plugin.lua

@@ -1,0 +1,6 @@
+name: canary-validator
+trigger: /_babelsuite/plugins/canary-validator/start
+kind: plugin
+variants: [canary-validator]
+schema: schema.cue
+lua: plugin.lua

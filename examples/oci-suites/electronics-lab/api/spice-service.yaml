@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: SPICE Simulation Service
+  version: v1.0.0
+servers:
+  - url: https://spice-service.mock.internal
+paths:
+  /simulate:
+    post:
+      operationId: spice-simulate
+      summary: Run a SPICE netlist simulation and return time/voltage arrays for the probed node.
+      responses:
+        "200":
+          description: Successful mock response

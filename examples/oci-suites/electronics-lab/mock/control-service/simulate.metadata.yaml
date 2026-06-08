@@ -1,0 +1,40 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/control-service/simulate.metadata.yaml
+    operationId: control-simulate
+    sourceArtifact: mock/control-service/simulate.cue
+    suite: electronics-lab
+spec:
+    adapter: rest
+    delayMillis: 60
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "422"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "UNKNOWN_SCENARIO",
+              "message": "No control-sim mock matched. Use ?scenario=stable or ?scenario=unstable."
+            }
+        headers: []
+    parameterConstraints:
+        - name: scenario
+          source: query
+          required: true
+          forward: false
+          pattern: ^(stable|unstable)$
+        - name: content-type
+          source: header
+          required: true
+          forward: false
+          pattern: (?i)^application/json
+    resolverUrl: /internal/mock-data/electronics-lab/control-service/control-simulate
+    runtimeUrl: /mocks/rest/electronics-lab/control-service/simulate?scenario=stable
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []

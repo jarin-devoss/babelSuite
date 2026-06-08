@@ -1,0 +1,7 @@
+name: control-sim
+trigger: /_babelsuite/plugins/control-sim/start
+kind: plugin
+variants: [control-sim]
+operations: [run, watch, monitor]
+schema: schema.cue
+lua: plugin.lua

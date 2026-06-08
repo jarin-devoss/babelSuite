@@ -1,0 +1,7 @@
+name: verilog-sim
+trigger: /_babelsuite/plugins/verilog-sim/start
+kind: plugin
+variants: [verilog-sim]
+operations: [run, assert]
+schema: schema.cue
+lua: plugin.lua

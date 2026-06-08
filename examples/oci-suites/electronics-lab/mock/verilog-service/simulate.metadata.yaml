@@ -1,0 +1,40 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/verilog-service/simulate.metadata.yaml
+    operationId: verilog-simulate
+    sourceArtifact: mock/verilog-service/simulate.cue
+    suite: electronics-lab
+spec:
+    adapter: rest
+    delayMillis: 120
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "422"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "UNKNOWN_SCENARIO",
+              "message": "No verilog-sim mock matched. Use ?scenario=pass or ?scenario=fail."
+            }
+        headers: []
+    parameterConstraints:
+        - name: scenario
+          source: query
+          required: true
+          forward: false
+          pattern: ^(pass|fail)$
+        - name: content-type
+          source: header
+          required: true
+          forward: false
+          pattern: (?i)^application/json
+    resolverUrl: /internal/mock-data/electronics-lab/verilog-service/verilog-simulate
+    runtimeUrl: /mocks/rest/electronics-lab/verilog-service/simulate?scenario=pass
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []
