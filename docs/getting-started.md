@@ -117,8 +117,7 @@ The repository includes workspace suites under `examples/oci-suites/`:
 To work with catalog discovery and local OCI package flows, populate the local Zot registry:
 
 ```bash
-# From backend/
-go run ./cmd/seed-zot
+python scripts/push-to-zot.py
 ```
 
 !!! tip
