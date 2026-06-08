@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -145,7 +146,7 @@ func main() {
 
 	s.AddTool(
 		mcp.NewTool("launch_execution",
-			mcp.WithDescription("Launch a new suite execution. Returns the execution record with an ID you can poll with get_execution."),
+			mcp.WithDescription("Launch a new suite execution. Returns the execution record with an ID. Use watch_execution to block until it completes — it handles polling automatically. Use validate_plugin_config before launching if the suite uses plugin.run() steps."),
 			mcp.WithString("suite_id", mcp.Required(), mcp.Description("Suite ID to execute")),
 			mcp.WithString("profile", mcp.Description("Profile file name (e.g. staging.yaml). Omit to use the default.")),
 			mcp.WithString("backend", mcp.Description("Backend agent ID. Omit to use the default backend.")),
@@ -290,6 +291,160 @@ func main() {
 		),
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			return callPost(ctx, c, "/api/v1/sandboxes/reap-all", nil)
+		},
+	)
+
+	// ── Plugins ───────────────────────────────────────────────────────────────
+
+	s.AddTool(
+		mcp.NewTool("list_plugins",
+			mcp.WithDescription("List all registered APISIX Lua plugins. Each plugin can be used in a suite with plugin.run()."),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			return callGet(ctx, c, "/api/v1/platform-settings/plugins", nil)
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("create_plugin",
+			mcp.WithDescription("Register a new APISIX Lua plugin. The plugin becomes available immediately as a plugin.run() step in any suite. The Lua source is embedded into the APISIX sidecar config at execution time. After creating, call check_plugin to verify the schema and trigger are valid."),
+			mcp.WithString("name", mcp.Required(), mcp.Description("Unique plugin name, e.g. babelsuite-pii-scanner")),
+			mcp.WithString("trigger", mcp.Required(), mcp.Description("APISIX trigger route the runner POSTs to, e.g. /_babelsuite/plugins/pii-scanner/start")),
+			mcp.WithString("lua", mcp.Required(), mcp.Description("Full Lua plugin source code. Must implement _M.access(conf, ctx) and return _M.")),
+			mcp.WithString("kind", mcp.Description("Step kind the plugin handles. Defaults to 'plugin'.")),
+			mcp.WithString("variants", mcp.Description("Comma-separated list of variant names the plugin handles, e.g. 'pii-scanner'.")),
+			mcp.WithString("schema", mcp.Description("CUE schema string for validating the config dict passed to plugin.run(). Optional but recommended.")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			name, err := req.RequireString("name")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			trigger, err := req.RequireString("trigger")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			lua, err := req.RequireString("lua")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			body := map[string]any{
+				"name":    name,
+				"trigger": trigger,
+				"lua":     lua,
+				"kind":    req.GetString("kind", "plugin"),
+			}
+			if v := req.GetString("variants", ""); v != "" {
+				variants := []string{}
+				for _, s := range strings.Split(v, ",") {
+					s = strings.TrimSpace(s)
+					if s != "" {
+						variants = append(variants, s)
+					}
+				}
+				body["variants"] = variants
+			}
+			if v := req.GetString("schema", ""); v != "" {
+				body["schema"] = v
+			}
+			return callPost(ctx, c, "/api/v1/platform-settings/plugins", body)
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("delete_plugin",
+			mcp.WithDescription("Remove a registered plugin by name. Suites that reference it will fail until a replacement is registered."),
+			mcp.WithString("name", mcp.Required(), mcp.Description("Plugin name to remove")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			name, err := req.RequireString("name")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			data, err := c.delete(ctx, "/api/v1/platform-settings/plugins/"+name)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			if data != nil {
+				return mcp.NewToolResultText(prettyJSON(data)), nil
+			}
+			return mcp.NewToolResultText(`{"deleted":true}`), nil
+		},
+	)
+
+	// ── Modules ───────────────────────────────────────────────────────────────
+
+	s.AddTool(
+		mcp.NewTool("list_modules",
+			mcp.WithDescription("List all OCI module packages available in the catalog (e.g. @babelsuite/kafka, @babelsuite/postgres). Modules are loaded in suite.star with load()."),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			return callGet(ctx, c, "/api/v1/catalog/packages", map[string]string{"kind": "stdlib"})
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("get_module",
+			mcp.WithDescription("Get metadata and exported symbols for a specific OCI module package."),
+			mcp.WithString("module_id", mcp.Required(), mcp.Description("Module package ID, e.g. stdlib-kafka")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			id, err := req.RequireString("module_id")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			return callGet(ctx, c, "/api/v1/catalog/packages/"+id, nil)
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("check_plugin",
+			mcp.WithDescription("Verify a registered plugin's static configuration: confirms the plugin exists, the trigger path is valid, and the CUE schema (if provided) parses without errors. Call this after create_plugin before using the plugin in a suite."),
+			mcp.WithString("name", mcp.Required(), mcp.Description("Plugin name to check")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			name, err := req.RequireString("name")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			return callGet(ctx, c, "/api/v1/platform-settings/plugins/"+name+"/check", nil)
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("validate_plugin_config",
+			mcp.WithDescription("Validate a config dict against a plugin's CUE schema without executing anything. Returns valid=true or a detailed CUE validation error. Use before launch_execution to catch config mistakes early."),
+			mcp.WithString("name", mcp.Required(), mcp.Description("Plugin name whose schema to validate against")),
+			mcp.WithString("config", mcp.Required(), mcp.Description("JSON object representing the config dict passed to plugin.run()")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			name, err := req.RequireString("name")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			configStr, err := req.RequireString("config")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			var configMap map[string]any
+			if err := json.Unmarshal([]byte(configStr), &configMap); err != nil {
+				return mcp.NewToolResultError("config must be a valid JSON object: " + err.Error()), nil
+			}
+			return callPost(ctx, c, "/api/v1/platform-settings/plugins/"+name+"/validate", map[string]any{"config": configMap})
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("get_execution_logs",
+			mcp.WithDescription("Return a snapshot of all log lines emitted so far for an execution. Plugin findings, step output, and error messages are all included. Useful after watch_execution to inspect what each plugin step reported."),
+			mcp.WithString("execution_id", mcp.Required(), mcp.Description("Execution ID")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			id, err := req.RequireString("execution_id")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			return callGet(ctx, c, "/api/v1/executions/"+id+"/logs/snapshot", nil)
 		},
 	)
 
