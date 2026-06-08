@@ -93,8 +93,8 @@ go run ./cmd/sync-examples
 
 Seed the local registry:
 
-```powershell
-go run ./cmd/seed-zot
+```bash
+python scripts/push-to-zot.py
 ```
 
 ## CLI
