@@ -2,6 +2,6 @@ name: spice-sim
 trigger: /_babelsuite/plugins/spice-sim/start
 kind: plugin
 variants: [spice-sim]
-operations: [run, watch]
+operations: [transient, dc_sweep, ac_analysis]
 schema: schema.cue
 lua: plugin.lua
