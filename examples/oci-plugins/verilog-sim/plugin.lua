@@ -1,6 +1,8 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -66,7 +68,7 @@ local function run_simulate(cfg, sim_url)
     local max_errors = tonumber(cfg.max_errors) or 0
     local assert_x   = cfg.assert_no_x ~= false
     local findings = build_findings(cfg, data, assert_x, max_errors)
-    return {passed = #findings == 0, findings = findings,
+    return {passed = #findings == 0, findings = as_array(findings),
             compile_ok = (#(data.compile_errors or {}) == 0), sim_errors = tonumber(data.sim_errors) or 0,
             stdout = data.stdout or ""}, nil
 end
@@ -82,7 +84,7 @@ local function run_strict(cfg, sim_url)
     if err then return nil, err end
     -- strict: zero tolerance — any x-state, any error, any warning fails
     local findings = build_findings(cfg, data, true, 0)
-    return {passed = #findings == 0, findings = findings,
+    return {passed = #findings == 0, findings = as_array(findings),
             compile_ok = (#(data.compile_errors or {}) == 0), sim_errors = tonumber(data.sim_errors) or 0,
             stdout = data.stdout or ""}, nil
 end

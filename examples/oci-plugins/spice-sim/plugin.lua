@@ -1,6 +1,8 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -89,7 +91,7 @@ local function run_transient(cfg, sim_url)
     if err then return nil, err end
     local findings = {}
     check_voltage_thresholds(cfg, data.times or {}, data.voltages or {}, findings)
-    return {passed = #findings == 0, findings = findings, sample_count = #(data.times or {})}, nil
+    return {passed = #findings == 0, findings = as_array(findings), sample_count = #(data.times or {})}, nil
 end
 
 local function run_dc_sweep(cfg, sim_url)
@@ -102,7 +104,7 @@ local function run_dc_sweep(cfg, sim_url)
     if err then return nil, err end
     local findings = {}
     check_voltage_thresholds(cfg, data.sweep or {}, data.voltages or {}, findings)
-    return {passed = #findings == 0, findings = findings, sample_count = #(data.voltages or {})}, nil
+    return {passed = #findings == 0, findings = as_array(findings), sample_count = #(data.voltages or {})}, nil
 end
 
 local function run_ac_analysis(cfg, sim_url)
@@ -125,7 +127,7 @@ local function run_ac_analysis(cfg, sim_url)
             })
         end
     end
-    return {passed = #findings == 0, findings = findings}, nil
+    return {passed = #findings == 0, findings = as_array(findings)}, nil
 end
 
 function _M.access(conf, ctx)

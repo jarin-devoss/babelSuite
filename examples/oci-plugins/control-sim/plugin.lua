@@ -1,6 +1,8 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -91,7 +93,7 @@ local function run_step_response(cfg, sim_url)
     if err then return nil, err end
     local findings = {}
     check_stability_thresholds(cfg, data, cfg.severity or "critical", findings)
-    return {passed = #findings == 0, findings = findings,
+    return {passed = #findings == 0, findings = as_array(findings),
             stable = data.stable or false, settling_s = tonumber(data.settling_time),
             overshoot_pct = tonumber(data.overshoot_pct), dc_gain = tonumber(data.dc_gain)}, nil
 end
@@ -108,7 +110,7 @@ local function run_monitor(cfg, sim_url)
     -- monitor: always warn severity, never blocks the suite
     local findings = {}
     check_stability_thresholds(cfg, data, "warn", findings)
-    return {passed = #findings == 0, findings = findings,
+    return {passed = #findings == 0, findings = as_array(findings),
             stable = data.stable or false, settling_s = tonumber(data.settling_time),
             overshoot_pct = tonumber(data.overshoot_pct), dc_gain = tonumber(data.dc_gain)}, nil
 end

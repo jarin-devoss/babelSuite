@@ -148,5 +148,356 @@ notifications:
         username: ""
         password: ""
         from: ""
+plugins:
+    - name: spice-sim
+      trigger: /_babelsuite/plugins/spice-sim/start
+      kind: plugin
+      variants: [spice-sim]
+      operations: [transient, dc_sweep, ac_analysis]
+      star: |
+        load("@babelsuite/runtime", "plugin")
+        _ref        = plugin("spice-sim")
+        transient   = _ref.transient
+        dc_sweep    = _ref.dc_sweep
+        ac_analysis = _ref.ac_analysis
+      lua: |
+        local json = require("cjson")
+        local http = require("resty.http")
+
+        local function as_array(t) return #t == 0 and json.empty_array or t end
+
+        local _M = {}
+        _M.version  = 0.1
+        _M.priority = 10
+        _M.name     = "spice-sim"
+        _M.schema   = {type = "object", properties = {}, additionalProperties = false}
+
+        local function sim_request(sim_url, body, timeout_ms)
+            local httpc = http.new()
+            httpc:set_timeout(timeout_ms or 60000)
+            local res, err = httpc:request_uri(sim_url .. "/simulate", {
+                method  = "POST",
+                body    = json.encode(body),
+                headers = {["Content-Type"] = "application/json"},
+            })
+            if err then return nil, "simulation service error: " .. err end
+            if res.status ~= 200 then return nil, "simulation failed: " .. (res.body or "no response") end
+            local ok, data = pcall(json.decode, res.body or "{}")
+            if not ok then return nil, "parse response failed" end
+            return data, nil
+        end
+
+        local function measure_rise_time(times, voltages, lo_pct, hi_pct)
+            local peak = 0
+            for _, v in ipairs(voltages) do if v > peak then peak = v end end
+            local lo, hi = peak * lo_pct, peak * hi_pct
+            local t_lo, t_hi
+            for i, v in ipairs(voltages) do
+                if not t_lo and v >= lo then t_lo = times[i] end
+                if t_lo and not t_hi and v >= hi then t_hi = times[i] end
+            end
+            if t_lo and t_hi then return (t_hi - t_lo) * 1000 end
+        end
+
+        local function check_voltage_thresholds(cfg, times, voltages, findings)
+            local probe   = cfg.probe_node or "out"
+            local severity = cfg.severity or "critical"
+            if cfg.max_voltage then
+                local peak = 0
+                for _, v in ipairs(voltages) do if v > peak then peak = v end end
+                local max_v = tonumber(cfg.max_voltage)
+                if max_v and peak > max_v then
+                    table.insert(findings, {label="spice.voltage.peak "..probe, severity=severity,
+                        detail=string.format("peak=%.4fV max=%.4fV node=%s", peak, max_v, probe)})
+                end
+            end
+            if cfg.min_voltage then
+                local floor = math.huge
+                for _, v in ipairs(voltages) do if v < floor then floor = v end end
+                local min_v = tonumber(cfg.min_voltage)
+                if min_v and floor < min_v then
+                    table.insert(findings, {label="spice.voltage.min "..probe, severity=severity,
+                        detail=string.format("min=%.4fV threshold=%.4fV node=%s", floor, min_v, probe)})
+                end
+            end
+            if cfg.max_rise_ms and #times > 0 then
+                local rise = measure_rise_time(times, voltages, 0.1, 0.9)
+                local max_rise = tonumber(cfg.max_rise_ms)
+                if rise and max_rise and rise > max_rise then
+                    table.insert(findings, {label="spice.rise_time "..probe, severity=severity,
+                        detail=string.format("rise=%.3fms max=%.3fms node=%s", rise, max_rise, probe)})
+                end
+            end
+        end
+
+        local function run_transient(cfg, sim_url)
+            local body = {netlist=cfg.netlist or "", analysis="transient",
+                step_ms=tonumber(cfg.step_time_ms) or 0.1, end_ms=tonumber(cfg.end_time_ms) or 10,
+                probe_node=cfg.probe_node or "out"}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = {}
+            check_voltage_thresholds(cfg, data.times or {}, data.voltages or {}, findings)
+            return {passed=#findings==0, findings=as_array(findings), sample_count=#(data.times or {})}, nil
+        end
+
+        local function run_dc_sweep(cfg, sim_url)
+            local body = {netlist=cfg.netlist or "", analysis="dc", probe_node=cfg.probe_node or "out"}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = {}
+            check_voltage_thresholds(cfg, data.sweep or {}, data.voltages or {}, findings)
+            return {passed=#findings==0, findings=as_array(findings), sample_count=#(data.voltages or {})}, nil
+        end
+
+        local function run_ac_analysis(cfg, sim_url)
+            local body = {netlist=cfg.netlist or "", analysis="ac", probe_node=cfg.probe_node or "out"}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = {}
+            if cfg.min_gain_db then
+                local gain = tonumber(data.gain_db)
+                local min_g = tonumber(cfg.min_gain_db)
+                if gain and min_g and gain < min_g then
+                    table.insert(findings, {label="spice.ac.gain "..(cfg.probe_node or "out"),
+                        severity=cfg.severity or "critical",
+                        detail=string.format("gain=%.2fdB min=%.2fdB", gain, min_g)})
+                end
+            end
+            return {passed=#findings==0, findings=as_array(findings)}, nil
+        end
+
+        function _M.access(conf, ctx)
+            if ngx.var.uri ~= "/_babelsuite/plugins/spice-sim/start" then return ngx.exit(404) end
+            if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
+            ngx.req.read_body()
+            local ok, payload = pcall(json.decode, ngx.req.get_body_data() or "{}")
+            if not ok then ngx.status=400; ngx.say(json.encode({error="invalid json"})); return ngx.exit(400) end
+            local op=payload.op or "transient"; local cfg=payload.config or {}
+            local sim_url=(cfg.sim_url or ""):gsub("/$","")
+            if sim_url=="" then ngx.status=400; ngx.say(json.encode({error="sim_url is required"})); return ngx.exit(400) end
+            if (cfg.netlist or "")=="" then ngx.status=400; ngx.say(json.encode({error="netlist is required"})); return ngx.exit(400) end
+            local result, err
+            if op=="dc_sweep" then result,err=run_dc_sweep(cfg,sim_url)
+            elseif op=="ac_analysis" then result,err=run_ac_analysis(cfg,sim_url)
+            else result,err=run_transient(cfg,sim_url) end
+            if err then ngx.status=500; ngx.say(json.encode({error=err})); return ngx.exit(500) end
+            ngx.status=200; ngx.header["Content-Type"]="application/json"; ngx.say(json.encode(result)); return ngx.exit(200)
+        end
+
+        return _M
+
+    - name: verilog-sim
+      trigger: /_babelsuite/plugins/verilog-sim/start
+      kind: plugin
+      variants: [verilog-sim]
+      operations: [simulate, strict]
+      star: |
+        load("@babelsuite/runtime", "plugin")
+        _ref     = plugin("verilog-sim")
+        simulate = _ref.simulate
+        strict   = _ref.strict
+      lua: |
+        local json = require("cjson")
+        local http = require("resty.http")
+
+        local function as_array(t) return #t == 0 and json.empty_array or t end
+
+        local _M = {}
+        _M.version  = 0.1
+        _M.priority = 10
+        _M.name     = "verilog-sim"
+        _M.schema   = {type = "object", properties = {}, additionalProperties = false}
+
+        local function sim_request(sim_url, body)
+            local httpc = http.new()
+            httpc:set_timeout(120000)
+            local res, err = httpc:request_uri(sim_url .. "/simulate", {
+                method  = "POST",
+                body    = json.encode(body),
+                headers = {["Content-Type"] = "application/json"},
+            })
+            if err then return nil, "verilog service error: " .. err end
+            if res.status ~= 200 then return nil, "simulation failed: " .. (res.body or "no response") end
+            local ok, data = pcall(json.decode, res.body or "{}")
+            if not ok then return nil, "parse response failed" end
+            return data, nil
+        end
+
+        local function build_findings(cfg, data, assert_x, max_errors)
+            local findings = {}
+            local severity = cfg.severity or "critical"
+            if data.compile_errors and #data.compile_errors > 0 then
+                table.insert(findings, {label="verilog.compile_error "..(cfg.top_module or "?"),
+                    severity=severity, detail=table.concat(data.compile_errors, "; ")})
+            end
+            local sim_errors = tonumber(data.sim_errors) or 0
+            if sim_errors > max_errors then
+                table.insert(findings, {label="verilog.sim_errors "..(cfg.top_module or "?"),
+                    severity=severity, detail=string.format("errors=%d max=%d", sim_errors, max_errors)})
+            end
+            if assert_x and data.x_signals and #data.x_signals > 0 then
+                table.insert(findings, {label="verilog.undefined_signals "..(cfg.top_module or "?"),
+                    severity=severity, detail="X-state at $finish: "..table.concat(data.x_signals, ", ")})
+            end
+            return findings
+        end
+
+        local function run_simulate(cfg, sim_url)
+            local body = {top_module=cfg.top_module or "", verilog=cfg.verilog or "",
+                testbench=cfg.testbench or "", timeout_ns=tonumber(cfg.timeout_ns) or 200}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = build_findings(cfg, data, cfg.assert_no_x~=false, tonumber(cfg.max_errors) or 0)
+            return {passed=#findings==0, findings=as_array(findings),
+                compile_ok=#(data.compile_errors or {})==0, sim_errors=tonumber(data.sim_errors) or 0,
+                stdout=data.stdout or ""}, nil
+        end
+
+        local function run_strict(cfg, sim_url)
+            local body = {top_module=cfg.top_module or "", verilog=cfg.verilog or "",
+                testbench=cfg.testbench or "", timeout_ns=tonumber(cfg.timeout_ns) or 200}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = build_findings(cfg, data, true, 0)
+            return {passed=#findings==0, findings=as_array(findings),
+                compile_ok=#(data.compile_errors or {})==0, sim_errors=tonumber(data.sim_errors) or 0,
+                stdout=data.stdout or ""}, nil
+        end
+
+        function _M.access(conf, ctx)
+            if ngx.var.uri ~= "/_babelsuite/plugins/verilog-sim/start" then return ngx.exit(404) end
+            if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
+            ngx.req.read_body()
+            local ok, payload = pcall(json.decode, ngx.req.get_body_data() or "{}")
+            if not ok then ngx.status=400; ngx.say(json.encode({error="invalid json"})); return ngx.exit(400) end
+            local op=payload.op or "simulate"; local cfg=payload.config or {}
+            local sim_url=(cfg.sim_url or ""):gsub("/$","")
+            if sim_url=="" or (cfg.top_module or "")=="" then
+                ngx.status=400; ngx.say(json.encode({error="sim_url and top_module are required"})); return ngx.exit(400) end
+            local result, err
+            if op=="strict" then result,err=run_strict(cfg,sim_url)
+            else result,err=run_simulate(cfg,sim_url) end
+            if err then ngx.status=500; ngx.say(json.encode({error=err})); return ngx.exit(500) end
+            ngx.status=200; ngx.header["Content-Type"]="application/json"; ngx.say(json.encode(result)); return ngx.exit(200)
+        end
+
+        return _M
+
+    - name: control-sim
+      trigger: /_babelsuite/plugins/control-sim/start
+      kind: plugin
+      variants: [control-sim]
+      operations: [step_response, monitor]
+      star: |
+        load("@babelsuite/runtime", "plugin")
+        _ref          = plugin("control-sim")
+        step_response = _ref.step_response
+        monitor       = _ref.monitor
+      lua: |
+        local json = require("cjson")
+        local http = require("resty.http")
+
+        local function as_array(t) return #t == 0 and json.empty_array or t end
+
+        local _M = {}
+        _M.version  = 0.1
+        _M.priority = 10
+        _M.name     = "control-sim"
+        _M.schema   = {type = "object", properties = {}, additionalProperties = false}
+
+        local function sim_request(sim_url, body)
+            local httpc = http.new()
+            httpc:set_timeout(30000)
+            local res, err = httpc:request_uri(sim_url .. "/simulate", {
+                method  = "POST",
+                body    = json.encode(body),
+                headers = {["Content-Type"] = "application/json"},
+            })
+            if err then return nil, "control service error: " .. err end
+            if res.status ~= 200 then return nil, "simulation failed: " .. (res.body or "no response") end
+            local ok, data = pcall(json.decode, res.body or "{}")
+            if not ok then return nil, "parse response failed" end
+            return data, nil
+        end
+
+        local function check_stability_thresholds(cfg, data, severity, findings)
+            if not data.stable then
+                table.insert(findings, {label="control.unstable", severity=severity,
+                    detail="system is unstable (poles in right-half plane)"}) end
+            local settling = tonumber(data.settling_time)
+            if cfg.max_settling_time and settling then
+                local max_s = tonumber(cfg.max_settling_time)
+                if max_s and settling > max_s then
+                    table.insert(findings, {label="control.settling_time", severity=severity,
+                        detail=string.format("settling=%.3fs max=%.3fs", settling, max_s)}) end
+            end
+            local overshoot = tonumber(data.overshoot_pct)
+            if cfg.max_overshoot_pct and overshoot then
+                local max_os = tonumber(cfg.max_overshoot_pct)
+                if max_os and overshoot > max_os then
+                    table.insert(findings, {label="control.overshoot", severity=severity,
+                        detail=string.format("overshoot=%.2f%% max=%.2f%%", overshoot, max_os)}) end
+            end
+            local dc_gain = tonumber(data.dc_gain)
+            if dc_gain then
+                if cfg.min_dc_gain then
+                    local min_g = tonumber(cfg.min_dc_gain)
+                    if min_g and dc_gain < min_g then
+                        table.insert(findings, {label="control.dc_gain.low", severity=severity,
+                            detail=string.format("dc_gain=%.4f min=%.4f", dc_gain, min_g)}) end
+                end
+                if cfg.max_dc_gain then
+                    local max_g = tonumber(cfg.max_dc_gain)
+                    if max_g and dc_gain > max_g then
+                        table.insert(findings, {label="control.dc_gain.high", severity=severity,
+                            detail=string.format("dc_gain=%.4f max=%.4f", dc_gain, max_g)}) end
+                end
+            end
+        end
+
+        local function run_step_response(cfg, sim_url)
+            local body = {numerator=cfg.numerator or {}, denominator=cfg.denominator or {},
+                analysis=cfg.analysis or "step", time_end=tonumber(cfg.time_end) or 10}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = {}
+            check_stability_thresholds(cfg, data, cfg.severity or "critical", findings)
+            return {passed=#findings==0, findings=as_array(findings), stable=data.stable or false,
+                settling_s=tonumber(data.settling_time), overshoot_pct=tonumber(data.overshoot_pct),
+                dc_gain=tonumber(data.dc_gain)}, nil
+        end
+
+        local function run_monitor(cfg, sim_url)
+            local body = {numerator=cfg.numerator or {}, denominator=cfg.denominator or {},
+                analysis="step", time_end=tonumber(cfg.time_end) or 10}
+            local data, err = sim_request(sim_url, body)
+            if err then return nil, err end
+            local findings = {}
+            check_stability_thresholds(cfg, data, "warn", findings)
+            return {passed=#findings==0, findings=as_array(findings), stable=data.stable or false,
+                settling_s=tonumber(data.settling_time), overshoot_pct=tonumber(data.overshoot_pct),
+                dc_gain=tonumber(data.dc_gain)}, nil
+        end
+
+        function _M.access(conf, ctx)
+            if ngx.var.uri ~= "/_babelsuite/plugins/control-sim/start" then return ngx.exit(404) end
+            if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
+            ngx.req.read_body()
+            local ok, payload = pcall(json.decode, ngx.req.get_body_data() or "{}")
+            if not ok then ngx.status=400; ngx.say(json.encode({error="invalid json"})); return ngx.exit(400) end
+            local op=payload.op or "step_response"; local cfg=payload.config or {}
+            local sim_url=(cfg.sim_url or ""):gsub("/$","")
+            if sim_url=="" or not cfg.numerator or not cfg.denominator then
+                ngx.status=400; ngx.say(json.encode({error="sim_url, numerator, and denominator are required"})); return ngx.exit(400) end
+            local result, err
+            if op=="monitor" then result,err=run_monitor(cfg,sim_url)
+            else result,err=run_step_response(cfg,sim_url) end
+            if err then ngx.status=500; ngx.say(json.encode({error=err})); return ngx.exit(500) end
+            ngx.status=200; ngx.header["Content-Type"]="application/json"; ngx.say(json.encode(result)); return ngx.exit(200)
+        end
+
+        return _M
+
 updatedAt: 2026-06-08T19:28:14.4494342Z
 description: Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials.
