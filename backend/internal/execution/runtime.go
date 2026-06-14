@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/babelsuite/babelsuite/internal/apisix"
 	"github.com/babelsuite/babelsuite/internal/logstream"
 	"github.com/babelsuite/babelsuite/internal/queue"
 	"github.com/babelsuite/babelsuite/internal/runner"
@@ -288,6 +289,10 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 
 	runner.SetupExecutionNetwork(executionID)
+	if err := s.ensureSuiteSidecar(suite, profile); err != nil {
+		s.failBootedExecution(executionID, fmt.Errorf("APISIX sidecar failed to start: %w", err))
+		return
+	}
 
 	if err := s.queue.Enqueue(tasks); err != nil {
 		s.noteRejectedLaunch(context.Background(), suite.ID, "enqueue_failed")
@@ -300,6 +305,47 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 
 	go s.syncObservers(executionID)
+}
+
+// ensureSuiteSidecar starts the APISIX sidecar for the suite if it is not
+// already running. Returns an error when the sidecar is required but fails to
+// start — callers should abort the execution in that case.
+func (s *Service) ensureSuiteSidecar(suite *suites.Definition, profile string) error {
+	if suite == nil || !sidecarNeeded(suite) {
+		return nil
+	}
+
+	settings, err := s.loadPlatformSettings()
+	if err != nil || settings == nil {
+		return nil
+	}
+
+	var sidecarImage, configMountPath string
+	for _, agent := range settings.Agents {
+		if normalizeBackendKind(agent.Type) == "local" {
+			sidecarImage = agent.APISIXSidecar.Image
+			configMountPath = agent.APISIXSidecar.ConfigMountPath
+			break
+		}
+	}
+
+	plugins := s.loadRegisteredPlugins()
+	customPlugins := make([]apisix.CustomPluginConfig, 0, len(plugins))
+	for _, p := range plugins {
+		if strings.TrimSpace(p.Lua) == "" {
+			continue
+		}
+		customPlugins = append(customPlugins, apisix.CustomPluginConfig{
+			Name:    p.Name,
+			Trigger: p.Trigger,
+			Lua:     p.Lua,
+		})
+	}
+
+	suiteConfig := suites.ApisixSuiteConfig(*suite)
+	suiteConfig.CustomPlugins = customPlugins
+
+	return runner.EnsureSuiteSidecar(suiteConfig, profile, sidecarImage, configMountPath)
 }
 
 func (s *Service) failBootedExecution(executionID string, err error) {
@@ -391,8 +437,8 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 				collectedFiles[path] = content
 			}
 		},
-		GatewayURL:  resolveGatewayURL(executionID, suite),
-		GatewayURLs: resolveGatewayURLs(executionID, suite),
+		GatewayURL:  resolveGatewayURL(executionID, suite, profile),
+		GatewayURLs: resolveGatewayURLs(executionID, suite, profile),
 		Node: runner.StepNode{
 			ID:          node.ID,
 			Name:        node.Name,
@@ -723,12 +769,45 @@ func (s *Service) executionBackendLabel(executionID string) string {
 // resolveGatewayURL returns all APISIX sidecar addresses for this execution,
 // one per mock node, ordered by topology position. Each mock node runs its own
 // APISIX sidecar container whose name follows the Docker runner pattern:
-// babel-{executionID}-{nodeID}, listening on APISIX's default port 9080.
-// Returns nil when the suite has no mock nodes.
-func resolveGatewayURLs(executionID string, suite *suites.Definition) []string {
-	if suite == nil {
+// sidecarNeeded reports whether the suite has any node that requires the
+// APISIX sidecar: mock (routing), traffic (traffic-cannon), security
+// (attack-scanner), or plugin (user Lua plugins).
+func sidecarNeeded(suite *suites.Definition) bool {
+	for _, node := range suite.Topology {
+		switch node.Kind {
+		case suites.NodeKindMock, suites.NodeKindTraffic, suites.NodeKindSecurity, suites.NodeKindPlugin:
+			return true
+		}
+	}
+	return false
+}
+
+// resolveGatewayURLs returns the APISIX sidecar URL for each mock node in
+// topology order, or a single-element slice when the sidecar is needed for
+// traffic/security/plugin nodes but there are no mock nodes.
+func resolveGatewayURLs(executionID string, suite *suites.Definition, profile string) []string {
+	if suite == nil || !sidecarNeeded(suite) {
 		return nil
 	}
+
+	if url := runner.SuiteSidecarURL(suite.ID, profile); url != "" {
+		mockCount := 0
+		for _, node := range suite.Topology {
+			if node.Kind == suites.NodeKindMock {
+				mockCount++
+			}
+		}
+		if mockCount == 0 {
+			return []string{url}
+		}
+		urls := make([]string, mockCount)
+		for i := range urls {
+			urls[i] = url
+		}
+		return urls
+	}
+
+	// Fallback: container-hostname URLs (works inside Docker networks for K8s / remote agents).
 	var urls []string
 	for _, node := range suite.Topology {
 		if node.Kind != suites.NodeKindMock {
@@ -740,8 +819,8 @@ func resolveGatewayURLs(executionID string, suite *suites.Definition) []string {
 	return urls
 }
 
-func resolveGatewayURL(executionID string, suite *suites.Definition) string {
-	urls := resolveGatewayURLs(executionID, suite)
+func resolveGatewayURL(executionID string, suite *suites.Definition, profile string) string {
+	urls := resolveGatewayURLs(executionID, suite, profile)
 	if len(urls) == 0 {
 		return ""
 	}
