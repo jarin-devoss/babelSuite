@@ -40,6 +40,7 @@ func proxyRewrite(suiteID, surfaceID string, operation OperationConfig) map[stri
 	headers := map[string]string{
 		"X-Babelsuite-Dispatcher": "apisix",
 		"X-Babelsuite-Operation":  operation.ID,
+		"Authorization":           "Bearer babelsuite-internal",
 	}
 
 	target := runtimeTargetPath(suiteID, surfaceID, operation)
