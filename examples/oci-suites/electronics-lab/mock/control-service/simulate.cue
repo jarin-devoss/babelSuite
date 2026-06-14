@@ -7,10 +7,10 @@ adapter: "rest"
 dispatcher: "apisix"
 contractPath: "api/control-service.yaml#/paths/~1simulate/post"
 resolverUrl: "/internal/mock-data/electronics-lab/control-service/control-simulate"
-runtimeUrl: "/mocks/rest/electronics-lab/control-service/simulate?scenario=stable"
+runtimeUrl: "/mocks/rest/electronics-lab/control-service/simulate"
 examples: {
-  "stable": {
-    dispatch: [{"from": "query", "param": "scenario", "value": "stable"}]
+  "mass-spring-sim": {
+    dispatch: []
     requestSchema: {
       headers: {
         "content-type": "application/json"
@@ -29,30 +29,6 @@ examples: {
         settling_time: 4.1
         overshoot_pct: 0.0
         dc_gain:       1.0
-        trace_id:      string @gen(kind="uuid")
-        simulated_at:  string @gen(kind="timestamp")
-      }
-    }
-  }
-  "unstable": {
-    dispatch: [{"from": "query", "param": "scenario", "value": "unstable"}]
-    requestSchema: {
-      headers: {
-        "content-type": "application/json"
-      }
-      body: {
-        analysis: "step"
-      }
-    }
-    responseSchema: {
-      status: "200"
-      mediaType: "application/json"
-      body: {
-        // Unstable system — poles in right-half plane, overshoot far exceeds threshold
-        stable:        false
-        settling_time: null
-        overshoot_pct: 92.3
-        dc_gain:       0.0
         trace_id:      string @gen(kind="uuid")
         simulated_at:  string @gen(kind="timestamp")
       }

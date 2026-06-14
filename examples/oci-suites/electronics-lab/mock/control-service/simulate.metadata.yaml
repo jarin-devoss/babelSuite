@@ -12,27 +12,22 @@ spec:
         mode: static
         examplename: ""
         proxyurl: ""
-        status: "422"
+        status: "500"
         mediatype: application/json
         body: |-
             {
-              "code": "UNKNOWN_SCENARIO",
-              "message": "No control-sim mock matched. Use ?scenario=stable or ?scenario=unstable."
+              "code": "CONTROL_SIM_ERROR",
+              "message": "Control simulation service unavailable."
             }
         headers: []
     parameterConstraints:
-        - name: scenario
-          source: query
-          required: true
-          forward: false
-          pattern: ^(stable|unstable)$
         - name: content-type
           source: header
           required: true
           forward: false
           pattern: (?i)^application/json
     resolverUrl: /internal/mock-data/electronics-lab/control-service/control-simulate
-    runtimeUrl: /mocks/rest/electronics-lab/control-service/simulate?scenario=stable
+    runtimeUrl: /mocks/rest/electronics-lab/control-service/simulate
     state:
         lookupkeytemplate: ""
         mutationkeytemplate: ""

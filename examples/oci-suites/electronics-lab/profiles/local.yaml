@@ -5,7 +5,7 @@ default: true
 services:
   rc-filter-step-response:
     env:
-      sim_url:      http://spice-service:8081
+      sim_url:      http://spice-service:9080
       netlist: |
         RC Filter Simulation
         Vinput 1 0 DC 5V
@@ -23,7 +23,7 @@ services:
 
   4bit-counter-correctness:
     env:
-      sim_url:    http://verilog-service:8082
+      sim_url:    http://verilog-service:9080
       top_module: tb_counter
       timeout_ns: "200"
       assert_no_x: "true"
@@ -32,7 +32,7 @@ services:
 
   mass-spring-damper-response:
     env:
-      sim_url:           http://control-service:8083
+      sim_url:           http://control-service:9080
       numerator:         "[1]"
       denominator:       "[1, 2, 1]"
       analysis:          step

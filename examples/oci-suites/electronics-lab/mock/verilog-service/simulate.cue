@@ -7,10 +7,10 @@ adapter: "rest"
 dispatcher: "apisix"
 contractPath: "api/verilog-service.yaml#/paths/~1simulate/post"
 resolverUrl: "/internal/mock-data/electronics-lab/verilog-service/verilog-simulate"
-runtimeUrl: "/mocks/rest/electronics-lab/verilog-service/simulate?scenario=pass"
+runtimeUrl: "/mocks/rest/electronics-lab/verilog-service/simulate"
 examples: {
-  "counter-pass": {
-    dispatch: [{"from": "query", "param": "scenario", "value": "pass"}]
+  "counter-sim": {
+    dispatch: []
     requestSchema: {
       headers: {
         "content-type": "application/json"
@@ -23,34 +23,11 @@ examples: {
       status: "200"
       mediaType: "application/json"
       body: {
+        // Clean simulation: no compile errors, no sim errors, no X-state signals
         compile_errors: []
         sim_errors:     0
         x_signals:      []
         stdout:         "Time=0 | Reset=1 | Counter Output=0\nTime=10 | Reset=0 | Counter Output=0\nTime=20 | Reset=0 | Counter Output=1\nTime=30 | Reset=0 | Counter Output=2"
-        trace_id:       string @gen(kind="uuid")
-        simulated_at:   string @gen(kind="timestamp")
-      }
-    }
-  }
-  "counter-fail": {
-    dispatch: [{"from": "query", "param": "scenario", "value": "fail"}]
-    requestSchema: {
-      headers: {
-        "content-type": "application/json"
-      }
-      body: {
-        top_module: "tb_counter"
-      }
-    }
-    responseSchema: {
-      status: "200"
-      mediaType: "application/json"
-      body: {
-        // sim_errors=2 exceeds max_errors=0, triggers critical finding
-        compile_errors: []
-        sim_errors:     2
-        x_signals:      ["out[3]", "out[2]"]
-        stdout:         "ERROR: expected 1, got 0\nERROR: expected 2, got 1\nFATAL: 2 assertion(s) failed"
         trace_id:       string @gen(kind="uuid")
         simulated_at:   string @gen(kind="timestamp")
       }

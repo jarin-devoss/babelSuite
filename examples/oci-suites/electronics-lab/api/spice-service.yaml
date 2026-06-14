@@ -3,7 +3,7 @@ info:
   title: SPICE Simulation Service
   version: v1.0.0
 servers:
-  - url: https://spice-service.mock.internal
+  - url: https://spice-service
 paths:
   /simulate:
     post:

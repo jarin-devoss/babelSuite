@@ -3,7 +3,7 @@ info:
   title: Control System Simulation Service
   version: v1.0.0
 servers:
-  - url: https://control-service.mock.internal
+  - url: https://control-service
 paths:
   /simulate:
     post:

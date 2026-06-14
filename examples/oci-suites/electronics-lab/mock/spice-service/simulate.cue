@@ -7,10 +7,10 @@ adapter: "rest"
 dispatcher: "apisix"
 contractPath: "api/spice-service.yaml#/paths/~1simulate/post"
 resolverUrl: "/internal/mock-data/electronics-lab/spice-service/spice-simulate"
-runtimeUrl: "/mocks/rest/electronics-lab/spice-service/simulate?scenario=pass"
+runtimeUrl: "/mocks/rest/electronics-lab/spice-service/simulate"
 examples: {
-  "rc-pass": {
-    dispatch: [{"from": "query", "param": "scenario", "value": "pass"}]
+  "rc-sim": {
+    dispatch: []
     requestSchema: {
       headers: {
         "content-type": "application/json"
@@ -25,33 +25,9 @@ examples: {
       mediaType: "application/json"
       body: {
         // RC filter rising to ~5V within 10ms — rise time ≈ 2.2ms, peak ≈ 5.0V
-        // Both within the plugin thresholds (max_rise_ms=3.0, max_voltage=5.5)
+        // Both within plugin thresholds (max_rise_ms=3.0, max_voltage=5.5)
         times:    [0.0, 0.0005, 0.001, 0.0022, 0.003, 0.005, 0.007, 0.01]
         voltages: [0.0, 0.39,   0.78,  1.96,   3.16,  4.32,  4.75,  5.0]
-        probe_node:   "2"
-        trace_id:     string @gen(kind="uuid")
-        simulated_at: string @gen(kind="timestamp")
-      }
-    }
-  }
-  "rc-fail": {
-    dispatch: [{"from": "query", "param": "scenario", "value": "fail"}]
-    requestSchema: {
-      headers: {
-        "content-type": "application/json"
-      }
-      body: {
-        analysis:  "transient"
-        probe_node: "2"
-      }
-    }
-    responseSchema: {
-      status: "200"
-      mediaType: "application/json"
-      body: {
-        // Overshoot to 5.8V — exceeds max_voltage=5.5, triggers critical finding
-        times:    [0.0, 0.0005, 0.001, 0.002, 0.003, 0.005, 0.008, 0.01]
-        voltages: [0.0, 0.5,    1.5,   3.8,   5.8,   5.4,   5.1,   5.0]
         probe_node:   "2"
         trace_id:     string @gen(kind="uuid")
         simulated_at: string @gen(kind="timestamp")

@@ -3,7 +3,7 @@ info:
   title: Verilog Simulation Service
   version: v1.0.0
 servers:
-  - url: https://verilog-service.mock.internal
+  - url: https://verilog-service
 paths:
   /simulate:
     post:
