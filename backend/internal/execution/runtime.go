@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/babelsuite/babelsuite/internal/apisix"
 	"github.com/babelsuite/babelsuite/internal/logstream"
 	"github.com/babelsuite/babelsuite/internal/queue"
 	"github.com/babelsuite/babelsuite/internal/runner"
@@ -206,7 +208,7 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 func (s *Service) bootExecution(executionID string, suite *suites.Definition, profile string, selectedBackend backendBinding) {
 	defer func() { <-s.concurrencySem }()
 
-	resolved, err := suites.ResolveRuntimeWithModules(*suite, s.suiteSource.List(), s.suiteSource.ResolveModuleFiles)
+	resolved, err := suites.ResolveRuntimeWithModules(*suite, s.suiteSource.List(), s.pluginAwareModuleResolver())
 	if err != nil {
 		slog.Error("suite topology resolution failed", "suiteID", suite.ID, "error", err)
 		s.noteRejectedLaunch(context.Background(), suite.ID, "invalid_topology")
@@ -288,6 +290,10 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 
 	runner.SetupExecutionNetwork(executionID)
+	if err := s.ensureSuiteSidecar(suite, profile); err != nil {
+		s.failBootedExecution(executionID, fmt.Errorf("APISIX sidecar failed to start: %w", err))
+		return
+	}
 
 	if err := s.queue.Enqueue(tasks); err != nil {
 		s.noteRejectedLaunch(context.Background(), suite.ID, "enqueue_failed")
@@ -300,6 +306,50 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 
 	go s.syncObservers(executionID)
+}
+
+// ensureSuiteSidecar starts the APISIX sidecar for the suite if it is not
+// already running. Returns an error when the sidecar is required but fails to
+// start — callers should abort the execution in that case.
+func (s *Service) ensureSuiteSidecar(suite *suites.Definition, profile string) error {
+	if suite == nil || !sidecarNeeded(suite) {
+		return nil
+	}
+
+	settings, err := s.loadPlatformSettings()
+	if err != nil {
+		return fmt.Errorf("load platform settings: %w", err)
+	}
+	if settings == nil {
+		return nil
+	}
+
+	var sidecarImage, configMountPath string
+	for _, agent := range settings.Agents {
+		if normalizeBackendKind(agent.Type) == "local" {
+			sidecarImage = agent.APISIXSidecar.Image
+			configMountPath = agent.APISIXSidecar.ConfigMountPath
+			break
+		}
+	}
+
+	plugins := s.loadRegisteredPlugins()
+	customPlugins := make([]apisix.CustomPluginConfig, 0, len(plugins))
+	for _, p := range plugins {
+		if strings.TrimSpace(p.Lua) == "" {
+			continue
+		}
+		customPlugins = append(customPlugins, apisix.CustomPluginConfig{
+			Name:    p.Name,
+			Trigger: p.Trigger,
+			Lua:     p.Lua,
+		})
+	}
+
+	suiteConfig := suites.ApisixSuiteConfig(*suite)
+	suiteConfig.CustomPlugins = customPlugins
+
+	return runner.EnsureSuiteSidecar(suiteConfig, profile, sidecarImage, configMountPath)
 }
 
 func (s *Service) failBootedExecution(executionID string, err error) {
@@ -380,7 +430,9 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		TotalSteps:       len(suite.Topology),
 		HealthySteps:     s.countHealthySteps(executionID),
 		LeaseTTL:         8 * time.Second,
-		Load:             suitesCloneLoadSpec(node.Load),
+		Load:              suitesCloneLoadSpec(node.Load),
+		Plugin:            rewritePluginConfigForHostAccess(executionID, suite, node.Plugin),
+		RegisteredPlugins: s.loadRegisteredPlugins(),
 		Evaluation:       cloneNodeEvaluation(node.Evaluation),
 		OnFailure:        append([]string{}, node.OnFailure...),
 		ArtifactExports:  cloneNodeArtifactExports(node.ArtifactExports),
@@ -389,8 +441,9 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 				collectedFiles[path] = content
 			}
 		},
-		GatewayURL:  resolveGatewayURL(executionID, suite),
-		GatewayURLs: resolveGatewayURLs(executionID, suite),
+		GatewayURL:   resolveGatewayURL(executionID, suite, profile),
+		GatewayURLs:  resolveGatewayURLs(executionID, suite, profile),
+		PublishPorts: pluginHostPortRefs(suite)[node.Name],
 		Node: runner.StepNode{
 			ID:          node.ID,
 			Name:        node.Name,
@@ -721,12 +774,45 @@ func (s *Service) executionBackendLabel(executionID string) string {
 // resolveGatewayURL returns all APISIX sidecar addresses for this execution,
 // one per mock node, ordered by topology position. Each mock node runs its own
 // APISIX sidecar container whose name follows the Docker runner pattern:
-// babel-{executionID}-{nodeID}, listening on APISIX's default port 9080.
-// Returns nil when the suite has no mock nodes.
-func resolveGatewayURLs(executionID string, suite *suites.Definition) []string {
-	if suite == nil {
+// sidecarNeeded reports whether the suite has any node that requires the
+// APISIX sidecar: mock (routing), traffic (traffic-cannon), security
+// (attack-scanner), or plugin (user Lua plugins).
+func sidecarNeeded(suite *suites.Definition) bool {
+	for _, node := range suite.Topology {
+		switch node.Kind {
+		case suites.NodeKindMock, suites.NodeKindTraffic, suites.NodeKindSecurity, suites.NodeKindPlugin:
+			return true
+		}
+	}
+	return false
+}
+
+// resolveGatewayURLs returns the APISIX sidecar URL for each mock node in
+// topology order, or a single-element slice when the sidecar is needed for
+// traffic/security/plugin nodes but there are no mock nodes.
+func resolveGatewayURLs(executionID string, suite *suites.Definition, profile string) []string {
+	if suite == nil || !sidecarNeeded(suite) {
 		return nil
 	}
+
+	if url := runner.SuiteSidecarURL(suite.ID, profile); url != "" {
+		mockCount := 0
+		for _, node := range suite.Topology {
+			if node.Kind == suites.NodeKindMock {
+				mockCount++
+			}
+		}
+		if mockCount == 0 {
+			return []string{url}
+		}
+		urls := make([]string, mockCount)
+		for i := range urls {
+			urls[i] = url
+		}
+		return urls
+	}
+
+	// Fallback: container-hostname URLs (works inside Docker networks for K8s / remote agents).
 	var urls []string
 	for _, node := range suite.Topology {
 		if node.Kind != suites.NodeKindMock {
@@ -738,12 +824,108 @@ func resolveGatewayURLs(executionID string, suite *suites.Definition) []string {
 	return urls
 }
 
-func resolveGatewayURL(executionID string, suite *suites.Definition) string {
-	urls := resolveGatewayURLs(executionID, suite)
+func resolveGatewayURL(executionID string, suite *suites.Definition, profile string) string {
+	urls := resolveGatewayURLs(executionID, suite, profile)
 	if len(urls) == 0 {
 		return ""
 	}
 	return urls[0]
+}
+
+var pluginHostPortPattern = regexp.MustCompile(`([a-zA-Z0-9_.-]+):(\d{2,5})`)
+
+// pluginHostPortRefs scans every plugin node's config for "<host>:<port>"
+// string values where host matches another node's name, and returns the set
+// of container ports (as "8082/tcp") each referenced node must publish to the
+// host. The shared APISIX sidecar never joins per-execution Docker networks
+// (see RemoveExecutionNetwork), so a plugin reaching a sibling service — e.g.
+// the consumer-lag plugin's "http://broker:8082" — has to go through a
+// host-published port instead of the service's in-network DNS alias.
+func pluginHostPortRefs(suite *suites.Definition) map[string][]string {
+	if suite == nil {
+		return nil
+	}
+	nodeNames := make(map[string]bool, len(suite.Topology))
+	for _, n := range suite.Topology {
+		nodeNames[n.Name] = true
+	}
+	refs := make(map[string][]string)
+	for _, n := range suite.Topology {
+		if n.Plugin == nil {
+			continue
+		}
+		cfg, ok := n.Plugin.Config.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, v := range cfg {
+			s, ok := v.(string)
+			if !ok {
+				continue
+			}
+			for _, m := range pluginHostPortPattern.FindAllStringSubmatch(s, -1) {
+				host, port := m[1], m[2]
+				if !nodeNames[host] {
+					continue
+				}
+				cport := port + "/tcp"
+				found := false
+				for _, existing := range refs[host] {
+					if existing == cport {
+						found = true
+						break
+					}
+				}
+				if !found {
+					refs[host] = append(refs[host], cport)
+				}
+			}
+		}
+	}
+	return refs
+}
+
+// rewritePluginConfigForHostAccess replaces "<host>:<port>" references to
+// sibling nodes inside a plugin's config with "host.docker.internal:<port>",
+// using the host port that node published via pluginHostPortRefs /
+// StepSpec.PublishPorts. Falls back to the original value when that node
+// hasn't published a matching port yet (e.g. not running, or no match).
+func rewritePluginConfigForHostAccess(executionID string, suite *suites.Definition, spec *suites.PluginSpec) *suites.PluginSpec {
+	if spec == nil || suite == nil {
+		return spec
+	}
+	cfg, ok := spec.Config.(map[string]any)
+	if !ok {
+		return spec
+	}
+	nodeIDByName := make(map[string]string, len(suite.Topology))
+	for _, n := range suite.Topology {
+		nodeIDByName[n.Name] = n.ID
+	}
+	newCfg := make(map[string]any, len(cfg))
+	for k, v := range cfg {
+		s, ok := v.(string)
+		if !ok {
+			newCfg[k] = v
+			continue
+		}
+		newCfg[k] = pluginHostPortPattern.ReplaceAllStringFunc(s, func(match string) string {
+			parts := pluginHostPortPattern.FindStringSubmatch(match)
+			host, port := parts[1], parts[2]
+			nodeID, found := nodeIDByName[host]
+			if !found {
+				return match
+			}
+			hostPort := runner.ContainerHostPort(executionID, nodeID, port+"/tcp")
+			if hostPort == "" {
+				return match
+			}
+			return "host.docker.internal:" + hostPort
+		})
+	}
+	clone := *spec
+	clone.Config = newCfg
+	return &clone
 }
 
 // sanitizeContainerID mirrors the runner's sanitizeID so container names match.

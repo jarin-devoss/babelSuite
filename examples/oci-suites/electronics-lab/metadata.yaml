@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: electronics-lab
+  title: Electronics Lab
+spec:
+  repository: localhost:5000/qa/electronics-lab
+  owner: Embedded Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Simulation suite demonstrating BabelSuite plugins for analog circuit (SPICE), digital logic (Verilog), and control system (scipy) verification. Simulation backends are mocked so the suite runs without real PySpice or Icarus Verilog installations.

@@ -90,6 +90,20 @@ func (c *client) post(ctx context.Context, path string, body any) (json.RawMessa
 	}, backoff.WithBackOff(newBackoff()), backoff.WithMaxElapsedTime(defaultMaxRetry))
 }
 
+func (c *client) delete(ctx context.Context, path string) (json.RawMessage, error) {
+	return backoff.Retry(ctx, func() (json.RawMessage, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
+		if err != nil {
+			return nil, backoff.Permanent(err)
+		}
+		result, err := c.do(req)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	}, backoff.WithBackOff(newBackoff()), backoff.WithMaxElapsedTime(defaultMaxRetry))
+}
+
 func (c *client) do(req *http.Request) (json.RawMessage, error) {
 	req.Header.Set("User-Agent", userAgent)
 	if c.token != "" {

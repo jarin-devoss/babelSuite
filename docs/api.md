@@ -72,6 +72,15 @@ The control plane API is grouped by responsibility.
 - `PUT /api/v1/platform-settings`
 - `POST /api/v1/platform-settings/registries/{registryId}/sync`
 
+## Plugins
+
+- `GET /api/v1/platform-settings/plugins`
+- `POST /api/v1/platform-settings/plugins`
+- `PUT /api/v1/platform-settings/plugins/{name}`
+- `DELETE /api/v1/platform-settings/plugins/{name}`
+- `GET /api/v1/platform-settings/plugins/{name}/check`
+- `POST /api/v1/platform-settings/plugins/{name}/validate`
+
 ## Environments
 
 The frontend route is `/environments`, but the backing API currently uses `/api/v1/sandboxes`:

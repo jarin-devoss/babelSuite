@@ -153,6 +153,30 @@ func (s *Service) loadPlatformSettings() (*platform.PlatformSettings, error) {
 	return s.platformSource.Load()
 }
 
+func (s *Service) loadRegisteredPlugins() []platform.CustomPlugin {
+	settings, err := s.loadPlatformSettings()
+	if err != nil || settings == nil {
+		return nil
+	}
+	return append([]platform.CustomPlugin{}, settings.Plugins...)
+}
+
+func (s *Service) pluginAwareModuleResolver() suites.ModuleResolver {
+	plugins := s.loadRegisteredPlugins()
+	base := s.suiteSource.ResolveModuleFiles
+	return func(name string) (map[string]string, error) {
+		for _, p := range plugins {
+			if p.Name == name && strings.TrimSpace(p.Star) != "" {
+				return map[string]string{"plugin.star": p.Star}, nil
+			}
+		}
+		if base != nil {
+			return base(name)
+		}
+		return nil, nil
+	}
+}
+
 func (s *Service) backendAvailable(backend runner.Backend) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

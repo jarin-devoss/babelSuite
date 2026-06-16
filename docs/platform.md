@@ -15,6 +15,12 @@ Platform settings define the physical execution environment for the control plan
 | `GET` | `/api/v1/platform-settings` | Read current settings — passwords and secrets are redacted |
 | `PUT` | `/api/v1/platform-settings` | Replace settings — requires admin session |
 | `POST` | `/api/v1/platform-settings/registries/{registryId}/sync` | Trigger a registry catalog sync |
+| `GET` | `/api/v1/platform-settings/plugins` | List all registered Lua plugins |
+| `POST` | `/api/v1/platform-settings/plugins` | Register a new plugin — admin only |
+| `PUT` | `/api/v1/platform-settings/plugins/{name}` | Update an existing plugin in-place — admin only |
+| `DELETE` | `/api/v1/platform-settings/plugins/{name}` | Remove a plugin — admin only |
+| `GET` | `/api/v1/platform-settings/plugins/{name}/check` | Static health check: validates trigger path and CUE schema |
+| `POST` | `/api/v1/platform-settings/plugins/{name}/validate` | Validate a step config object against the plugin's CUE schema |
 
 ## Settings Sections
 
@@ -114,6 +120,41 @@ The notifications section configures outbound channels used by cron job reports.
 
 Configure SMTP from the UI at **Settings → Notifications**, or edit `configuration.yaml` directly. See [Cron Jobs](cron-jobs.md) for how SMTP is used.
 
+### Plugins
+
+Lua plugins extend the suite runtime with custom verification steps that run inside the APISIX sidecar. Plugins are stored in `configuration.yaml` alongside the rest of the platform settings and are available to all suites without any package or image pull.
+
+| Field | Description |
+|-------|-------------|
+| `name` | Unique identifier — used as the load target in `suite.star` (e.g. `@plugins/spice-sim`) |
+| `trigger` | APISIX route path the plugin listens on (e.g. `/_babelsuite/plugins/spice-sim/start`) |
+| `version` | Semantic version string stored as-is — e.g. `1.0.0`. Not auto-bumped by the API. |
+| `kind` | Must be `plugin` |
+| `variants` | List of variant names the plugin registers as APISIX Lua extensions |
+| `operations` | Optional list of allowed operation names — the suite call must match one |
+| `lua` | Full Lua source embedded verbatim into the generated `apisix.yaml` |
+| `schema` | Optional CUE schema; step config is validated against it before dispatch |
+| `star` | Optional Starlark snippet that re-exports the plugin's call signatures to `suite.star` |
+| `deprecated` | When `true`, the plugin is flagged in health checks but still dispatched |
+
+#### Plugin response contract
+
+The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads the following fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `passed` | bool | Whether the step should be considered successful |
+| `findings` | array | List of finding objects — each should have at least `message` |
+| `summary` | string | One-line summary emitted as a log line at the level specified by `level` |
+| `level` | string | Log level for the summary line: `info`, `debug`, `warn`, or `error`. Defaults to `info` if omitted. |
+| `stderr` | string | Optional raw stderr from the plugin process, shown in the execution log |
+
+#### APISIX sidecar lifecycle
+
+Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's `apisix.yaml` at startup — the sidecar must be restarted (by removing its Docker container) for plugin changes to take effect on an already-running sidecar.
+
+The sidecar runs in standalone mode: `deployment.role: data_plane` with `config_provider: yaml`. No etcd is involved.
+
 ## UI Pages
 
 | Route | Description |
@@ -124,6 +165,7 @@ Configure SMTP from the UI at **Settings → Notifications**, or edit `configura
 | `/settings/registries` | Add, edit, remove, and sync OCI registries |
 | `/settings/secrets` | Configure secrets provider and global overrides |
 | `/settings/notifications` | Configure SMTP for cron job email reports |
+| `/settings/plugins` | Register, edit, and remove Lua plugins |
 
 All settings pages are admin-only.
 

@@ -1,0 +1,35 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/control-service/simulate.metadata.yaml
+    operationId: control-simulate
+    sourceArtifact: mock/control-service/simulate.cue
+    suite: electronics-lab
+spec:
+    adapter: rest
+    delayMillis: 60
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "500"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "CONTROL_SIM_ERROR",
+              "message": "Control simulation service unavailable."
+            }
+        headers: []
+    parameterConstraints:
+        - name: content-type
+          source: header
+          required: true
+          forward: false
+          pattern: (?i)^application/json
+    resolverUrl: /internal/mock-data/electronics-lab/control-service/control-simulate
+    runtimeUrl: /mocks/rest/electronics-lab/control-service/simulate
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []

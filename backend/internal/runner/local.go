@@ -139,6 +139,30 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Registered %d artifact export rules for this step.", step.Node.Name, len(step.ArtifactExports))))
 	}
 
+	if step.Node.Kind == "plugin" {
+		p, err := canUsePlugin(step, step.RegisteredPlugins)
+		if err != nil {
+			emitLine(line(step, "error", fmt.Sprintf("[%s] %v", step.Node.Name, err)))
+			return err
+		}
+		if p != nil {
+			if err := executePlugin(ctx, step, emitLine, p); err != nil {
+				emitLine(line(step, "error", fmt.Sprintf("[%s] Plugin execution failed: %v", step.Node.Name, err)))
+				return err
+			}
+			return nil
+		}
+		return fmt.Errorf("plugin step %q: no registered plugin named %q — add it to configuration.yaml", step.Node.Name, step.Plugin.Name)
+	}
+
+	if step.Node.Kind == "security" {
+		if err := executeSecurityStep(ctx, step, emitLine); err != nil {
+			emitLine(line(step, "error", fmt.Sprintf("[%s] Security step failed: %v", step.Node.Name, err)))
+			return err
+		}
+		return nil
+	}
+
 	if step.Node.Kind == "traffic" && step.Load != nil {
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Resolving %s assets from traffic/ before the run begins.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Applying the %s profile budgets for users, pacing, and latency thresholds.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))

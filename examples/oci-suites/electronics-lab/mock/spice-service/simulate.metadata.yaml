@@ -1,0 +1,35 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/spice-service/simulate.metadata.yaml
+    operationId: spice-simulate
+    sourceArtifact: mock/spice-service/simulate.cue
+    suite: electronics-lab
+spec:
+    adapter: rest
+    delayMillis: 80
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "500"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "SPICE_SIM_ERROR",
+              "message": "SPICE simulation service unavailable."
+            }
+        headers: []
+    parameterConstraints:
+        - name: content-type
+          source: header
+          required: true
+          forward: false
+          pattern: (?i)^application/json
+    resolverUrl: /internal/mock-data/electronics-lab/spice-service/spice-simulate
+    runtimeUrl: /mocks/rest/electronics-lab/spice-service/simulate
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []

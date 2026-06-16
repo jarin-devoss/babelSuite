@@ -87,6 +87,19 @@ export interface NotificationsConfig {
   smtp: SMTPNotificationsConfig
 }
 
+export interface CustomPlugin {
+  name: string
+  trigger: string
+  kind: string
+  variants: string[]
+  operations?: string[]
+  lua: string
+  schema?: string
+  star?: string
+  version?: string
+  deprecated?: boolean
+}
+
 export interface PlatformSettings {
   mode: string
   description: string
@@ -94,6 +107,7 @@ export interface PlatformSettings {
   registries: OCIRegistry[]
   secrets: SecretsConfig
   notifications: NotificationsConfig
+  plugins: CustomPlugin[]
   updatedAt: string
 }
 
@@ -653,6 +667,29 @@ export async function syncRegistry(registryId: string) {
   return request<PlatformSettings>(`/api/v1/platform-settings/registries/${encodeURIComponent(registryId)}/sync`, {
     method: 'POST',
   })
+}
+
+export async function listPlugins() {
+  return request<CustomPlugin[]>('/api/v1/platform-settings/plugins')
+}
+
+export async function createPlugin(plugin: CustomPlugin) {
+  return request<CustomPlugin>('/api/v1/platform-settings/plugins', {
+    method: 'POST',
+    body: JSON.stringify(plugin),
+  })
+}
+
+export async function deletePlugin(name: string) {
+  return request<void>(`/api/v1/platform-settings/plugins/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function checkPlugin(name: string) {
+  return request<{ name: string; ok: boolean; issues?: string[]; deprecated?: boolean }>(
+    `/api/v1/platform-settings/plugins/${encodeURIComponent(name)}/check`,
+  )
 }
 
 export async function listCatalogPackages() {

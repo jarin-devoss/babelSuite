@@ -126,7 +126,17 @@ func (r *catalogSuiteReader) buildDefinition(ctx context.Context, pkg catalog.Pa
 	def.Folders = buildFoldersFromFiles(files)
 	def.SourceFiles = buildSourceFilesFromMap(files)
 
-	if gatewayYAML := buildGatewayConfig(pkg.ID, files); gatewayYAML != "" {
+	// Parse mock surfaces: full suites.APISurface (with MockPath + MockMetadata) for
+	// the mock engine, and apisix.SurfaceConfig for the gateway YAML generator.
+	def.APISurfaces = parseOCISurfaces(files)
+	surfaces := parseAPISurfaces(pkg.ID, files)
+
+	plugins := r.loadCustomPlugins()
+	if gatewayYAML := apisix.RenderStandaloneConfig(apisix.SuiteConfig{
+		ID:            pkg.ID,
+		APISurfaces:   surfaces,
+		CustomPlugins: plugins,
+	}); gatewayYAML != "" {
 		def.SourceFiles = append(def.SourceFiles, suites.SourceFile{
 			Path:     "gateway/apisix.yaml",
 			Language: "yaml",
@@ -181,11 +191,208 @@ func (r *catalogSuiteReader) cachedCatalog() []suites.Definition {
 
 // ── APISIX gateway config generation ─────────────────────────────────────────
 
-func buildGatewayConfig(suiteID string, files map[string]string) string {
+// parseOCISurfaces builds fully-populated suites.APISurface objects from the OCI
+// file map. It reads mock/*.metadata.yaml for MockPath, MockMetadata (adapter,
+// fallback, constraints, delay) and api/*.yaml for method/path/summary/host.
+// This mirrors loadWorkspaceAPISurfaces in suites/workspace.go but reads from the
+// in-memory files map instead of the filesystem.
+func parseOCISurfaces(files map[string]string) []suites.APISurface {
+	type rawOp struct {
+		surfaceID string
+		op        suites.APIOperation
+	}
+
+	// Step 1 — parse mock/*.metadata.yaml for full operation metadata.
+	var ops []rawOp
+	for path, content := range files {
+		if !strings.HasPrefix(path, "mock/") || !strings.HasSuffix(path, ".metadata.yaml") {
+			continue
+		}
+		var doc struct {
+			Metadata struct {
+				OperationID    string `yaml:"operationId"`
+				SourceArtifact string `yaml:"sourceArtifact"`
+			} `yaml:"metadata"`
+			Spec struct {
+				Adapter              string                       `yaml:"adapter"`
+				DelayMillis          int                          `yaml:"delayMillis"`
+				ResolverURL          string                       `yaml:"resolverUrl"`
+				RuntimeURL           string                       `yaml:"runtimeUrl"`
+				ParameterConstraints []suites.ParameterConstraint `yaml:"parameterConstraints"`
+				Fallback             *suites.MockFallback         `yaml:"fallback"`
+				State                *suites.MockState            `yaml:"state"`
+			} `yaml:"spec"`
+		}
+		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+			continue
+		}
+		opID := strings.TrimSpace(doc.Metadata.OperationID)
+		resolverURL := strings.TrimSpace(doc.Spec.ResolverURL)
+		if opID == "" || resolverURL == "" {
+			continue
+		}
+		parts := strings.Split(strings.Trim(resolverURL, "/"), "/")
+		if len(parts) < 5 {
+			continue
+		}
+		ops = append(ops, rawOp{
+			surfaceID: parts[3],
+			op: suites.APIOperation{
+				ID:       opID,
+				MockPath: strings.TrimSpace(doc.Metadata.SourceArtifact),
+				MockMetadata: suites.MockOperationMetadata{
+					Adapter:              strings.ToLower(strings.TrimSpace(doc.Spec.Adapter)),
+					DelayMillis:          doc.Spec.DelayMillis,
+					ResolverURL:          resolverURL,
+					RuntimeURL:           strings.TrimSpace(doc.Spec.RuntimeURL),
+					ParameterConstraints: doc.Spec.ParameterConstraints,
+					Fallback:             doc.Spec.Fallback,
+					State:                doc.Spec.State,
+					MetadataPath:         path,
+				},
+			},
+		})
+	}
+	if len(ops) == 0 {
+		return nil
+	}
+
+	// Step 2 — parse api/*.yaml OpenAPI specs: operationId → {method, path, summary, host}.
+	type opDetail struct {
+		method  string
+		path    string
+		summary string
+		host    string
+	}
+	apiMap := make(map[string]opDetail)
+	globalHost := ""
+	for filePath, content := range files {
+		if !strings.HasPrefix(filePath, "api/") {
+			continue
+		}
+		low := strings.ToLower(filePath)
+		if !strings.HasSuffix(low, ".yaml") && !strings.HasSuffix(low, ".yml") {
+			continue
+		}
+		var doc struct {
+			Servers []struct {
+				URL string `yaml:"url"`
+			} `yaml:"servers"`
+			Paths map[string]map[string]struct {
+				OperationID string `yaml:"operationId"`
+				Summary     string `yaml:"summary"`
+			} `yaml:"paths"`
+		}
+		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+			continue
+		}
+		host := ""
+		if len(doc.Servers) > 0 {
+			host = strings.TrimSpace(doc.Servers[0].URL)
+			if globalHost == "" {
+				globalHost = host
+			}
+		}
+		for apiPath, methods := range doc.Paths {
+			for httpMethod, op := range methods {
+				key := normalizeOpKey(op.OperationID)
+				if key == "" {
+					continue
+				}
+				apiMap[key] = opDetail{
+					method:  strings.ToUpper(httpMethod),
+					path:    apiPath,
+					summary: strings.TrimSpace(op.Summary),
+					host:    host,
+				}
+			}
+		}
+	}
+
+	// Step 3 — apply method/path/summary from OpenAPI; fall back to runtimeUrl derivation.
+	for i := range ops {
+		detail := apiMap[normalizeOpKey(ops[i].op.ID)]
+		if detail.method != "" {
+			ops[i].op.Method = detail.method
+			ops[i].op.Name = detail.path
+			ops[i].op.Summary = detail.summary
+		} else {
+			ru := ops[i].op.MockMetadata.RuntimeURL
+			if idx := strings.Index(ru, "?"); idx >= 0 {
+				ru = ru[:idx]
+			}
+			parts := strings.SplitN(ru, "/", 6)
+			if len(parts) >= 6 {
+				ops[i].op.Name = "/" + parts[5]
+			}
+			ops[i].op.Method = "POST"
+		}
+	}
+
+	// Step 4 — group by surfaceID preserving first-seen order.
+	type surfaceGroup struct {
+		ops  []suites.APIOperation
+		host string
+	}
+	groupMap := make(map[string]*surfaceGroup)
+	var order []string
+	for _, raw := range ops {
+		if _, ok := groupMap[raw.surfaceID]; !ok {
+			groupMap[raw.surfaceID] = &surfaceGroup{}
+			order = append(order, raw.surfaceID)
+		}
+		grp := groupMap[raw.surfaceID]
+		grp.ops = append(grp.ops, raw.op)
+		if grp.host == "" {
+			if d := apiMap[normalizeOpKey(raw.op.ID)]; d.host != "" {
+				grp.host = d.host
+			}
+		}
+	}
+
+	// Step 5 — build surfaces.
+	result := make([]suites.APISurface, 0, len(order))
+	for _, surfaceID := range order {
+		grp := groupMap[surfaceID]
+		host := grp.host
+		if host == "" {
+			host = globalHost
+		}
+		result = append(result, suites.APISurface{
+			ID:         surfaceID,
+			Protocol:   "REST",
+			MockHost:   host,
+			Operations: grp.ops,
+		})
+	}
+	return result
+}
+
+func buildGatewayConfig(suiteID string, files map[string]string, plugins []apisix.CustomPluginConfig) string {
 	return apisix.RenderStandaloneConfig(apisix.SuiteConfig{
-		ID:          suiteID,
-		APISurfaces: parseAPISurfaces(suiteID, files),
+		ID:            suiteID,
+		APISurfaces:   parseAPISurfaces(suiteID, files),
+		CustomPlugins: plugins,
 	})
+}
+
+func (r *catalogSuiteReader) loadCustomPlugins() []apisix.CustomPluginConfig {
+	if r.settings == nil {
+		return nil
+	}
+	settings, err := r.settings.Load()
+	if err != nil || settings == nil {
+		return nil
+	}
+	out := make([]apisix.CustomPluginConfig, 0, len(settings.Plugins))
+	for _, p := range settings.Plugins {
+		out = append(out, apisix.CustomPluginConfig{
+			Name:    p.Name,
+			Trigger: p.Trigger,
+			Lua:     p.Lua,
+		})
+	}
+	return out
 }
 
 func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceConfig {

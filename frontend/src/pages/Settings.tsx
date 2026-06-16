@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FaAngleRight, FaBoxArchive, FaBell, FaGear, FaKey, FaServer } from 'react-icons/fa6'
+import { FaAngleRight, FaBoxArchive, FaBell, FaCubesStacked, FaGear, FaKey, FaServer } from 'react-icons/fa6'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, getPlatformSettings, type PlatformSettings } from '../lib/api'
 import AppShell from '../components/AppShell'
@@ -77,6 +77,14 @@ export default function Settings() {
       description: platform?.notifications?.smtp?.host
         ? `SMTP configured — ${platform.notifications.smtp.host}`
         : 'Configure outbound email for cron job reports.',
+    },
+    {
+      path: '/settings/plugins',
+      icon: FaCubesStacked,
+      title: 'Plugins',
+      description: platform
+        ? `${platform.plugins?.length ?? 0} registered plugin${(platform.plugins?.length ?? 0) !== 1 ? 's' : ''} — user-authored APISIX Lua extensions`
+        : 'Register Lua plugins that extend the APISIX gateway sidecar.',
     },
   ]
 

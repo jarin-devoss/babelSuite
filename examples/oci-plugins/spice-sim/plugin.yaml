@@ -1,0 +1,8 @@
+name: spice-sim
+version: 1.0.0
+trigger: /_babelsuite/plugins/spice-sim/start
+kind: plugin
+variants: [spice-sim]
+operations: [transient, dc_sweep, ac_analysis]
+schema: schema.cue
+lua: plugin.lua

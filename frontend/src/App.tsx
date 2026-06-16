@@ -18,6 +18,7 @@ import Agents from './pages/settings/Agents'
 import Registries from './pages/settings/Registries'
 import Secrets from './pages/settings/Secrets'
 import Notifications from './pages/settings/Notifications'
+import Plugins from './pages/settings/Plugins'
 import ResetPassword from './pages/ResetPassword'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/Signup'
@@ -73,6 +74,7 @@ export default function App() {
           <Route path='/settings/registries' element={<AdminGuard><Registries /></AdminGuard>} />
           <Route path='/settings/secrets' element={<AdminGuard><Secrets /></AdminGuard>} />
           <Route path='/settings/notifications' element={<AdminGuard><Notifications /></AdminGuard>} />
+          <Route path='/settings/plugins' element={<AdminGuard><Plugins /></AdminGuard>} />
           <Route path='/auth/callback' element={<AuthCallback />} />
           <Route path='/sign-in' element={<GuestOnly><SignIn /></GuestOnly>} />
           <Route path='/sign-up' element={<GuestOnly><SignUp /></GuestOnly>} />

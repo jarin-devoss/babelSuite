@@ -119,6 +119,10 @@ func sanitizeIdentifier(value string) string {
 	return strings.Trim(value, "_")
 }
 
+func ApisixSuiteConfig(suite Definition) apisix.SuiteConfig {
+	return apisixSuiteConfig(suite)
+}
+
 func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 	output := apisix.SuiteConfig{
 		ID:          suite.ID,

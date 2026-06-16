@@ -384,6 +384,21 @@ payments = suite.run(ref="payments-module", after=[db])
 
 For nested suite manifests, see [Dependency Manifests](dependencies.md).
 
+### `plugin`
+
+User-registered Lua plugins. Plugins are not part of the built-in runtime library — they are loaded with `load("@plugins/<name>", "<operation>")` and must be registered in platform settings before a suite that references them can run.
+
+```python
+load("@plugins/spice-sim", "transient")
+
+spice_mock = service.mock(name="spice-service")
+rc_filter  = transient(name="rc-filter", netlist="...", probe_node="2", after=[spice_mock])
+```
+
+The function call forwards its keyword arguments as the plugin config. The APISIX sidecar dispatches the request to the plugin's trigger path, and the returned `passed` / `findings` / `summary` / `level` fields drive the step outcome.
+
+For the full plugin reference, see [Platform Settings — Plugins](platform.md#plugins).
+
 ## Resolver Argument Extraction
 
 The parser extracts these topology fields from recognized statements:

@@ -13,9 +13,15 @@ func RenderStandaloneConfig(suite SuiteConfig) string {
 	resolvers := buildResolverBindings(suite)
 	pluginTemplates := buildProtocolTemplates(suite)
 
-	// Always include the traffic cannon so the sidecar is ready for load tests
-	// without any runtime Admin API calls.
+	// Always include the traffic cannon and attack scanner so the sidecar is
+	// ready for load and security steps without any runtime Admin API calls.
 	routes = append(routes, trafficTriggerRoute())
+	routes = append(routes, attackScannerTriggerRoute())
+
+	// Register trigger routes for every user-defined Lua plugin.
+	for _, p := range suite.CustomPlugins {
+		routes = append(routes, customPluginTriggerRoute(p))
+	}
 
 	document := routeDocument{
 		Deployment: deploymentBlock{
@@ -139,8 +145,11 @@ func buildResources(suite SuiteConfig) ([]routeBlock, []streamRouteBlock, []name
 
 func buildPluginCatalog(suite SuiteConfig) []pluginSpec {
 	seen := map[string]pluginSpec{
-		// Always register the traffic cannon so it is available on boot.
 		TrafficCannonPluginName: {Name: TrafficCannonPluginName},
+		AttackScannerPluginName: {Name: AttackScannerPluginName},
+	}
+	for _, p := range suite.CustomPlugins {
+		seen[p.Name] = pluginSpec{Name: p.Name}
 	}
 	for _, surface := range suite.APISurfaces {
 		for _, operation := range surface.Operations {
@@ -190,6 +199,40 @@ func trafficTriggerRoute() routeBlock {
 		Methods: []string{"POST"},
 		Plugins: map[string]any{
 			TrafficCannonPluginName: map[string]any{},
+		},
+		Upstream: upstreamBlock{
+			Type:  "roundrobin",
+			Nodes: map[string]int{"127.0.0.1:1": 1},
+		},
+	}
+}
+
+func attackScannerTriggerRoute() routeBlock {
+	return routeBlock{
+		ID:      "babelsuite-attack-trigger",
+		Name:    "babelsuite-attack-trigger",
+		Desc:    "BabelSuite security assessment trigger — handled entirely by the attack-scanner Lua plugin.",
+		URI:     AttackScannerTriggerRoute,
+		Methods: []string{"POST"},
+		Plugins: map[string]any{
+			AttackScannerPluginName: map[string]any{},
+		},
+		Upstream: upstreamBlock{
+			Type:  "roundrobin",
+			Nodes: map[string]int{"127.0.0.1:1": 1},
+		},
+	}
+}
+
+func customPluginTriggerRoute(p CustomPluginConfig) routeBlock {
+	return routeBlock{
+		ID:      "babelsuite-plugin-" + p.Name,
+		Name:    p.Name,
+		Desc:    "BabelSuite user plugin trigger for " + p.Name + ".",
+		URI:     p.Trigger,
+		Methods: []string{"POST"},
+		Plugins: map[string]any{
+			p.Name: map[string]any{},
 		},
 		Upstream: upstreamBlock{
 			Type:  "roundrobin",

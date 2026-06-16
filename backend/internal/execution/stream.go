@@ -88,6 +88,19 @@ func (s *Service) SubscribeLogs(ctx context.Context, executionID, workspaceID st
 	return s.logs.Subscribe(ctx, executionID, since)
 }
 
+func (s *Service) SnapshotLogs(executionID, workspaceID string) ([]logstream.Line, error) {
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil {
+		return nil, ErrExecutionNotFound
+	}
+	if workspaceID != "" && item.workspaceID != workspaceID {
+		return nil, ErrExecutionNotFound
+	}
+	return s.logs.Snapshot(executionID)
+}
+
 func (s *Service) publish(event StreamEvent, subscribers []chan StreamEvent) {
 	for _, subscriber := range subscribers {
 		select {

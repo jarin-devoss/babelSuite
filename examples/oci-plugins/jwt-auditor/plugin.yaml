@@ -1,0 +1,8 @@
+name: jwt-auditor
+version: 1.0.0
+trigger: /_babelsuite/plugins/jwt-auditor/start
+kind: plugin
+variants: [jwt-auditor]
+operations: [check_token, audit_endpoint]
+schema: schema.cue
+lua: plugin.lua

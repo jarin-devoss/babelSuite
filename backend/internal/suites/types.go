@@ -27,9 +27,11 @@ const (
 	NodeKindSuite    = "suite"
 	NodeKindSecurity = "security"
 	NodeKindLog      = "log"
+	NodeKindPlugin   = "plugin"
 
 	VariantServiceMock = "service.mock"
 )
+
 
 type ProfileOption struct {
 	FileName    string `json:"fileName"`
@@ -72,6 +74,7 @@ type TopologyNode struct {
 	Variant           string            `json:"variant,omitempty"`
 	Load              *LoadSpec         `json:"traffic,omitempty"`
 	Security          *SecuritySpec     `json:"security,omitempty"`
+	Plugin            *PluginSpec       `json:"plugin,omitempty"`
 	Message           string            `json:"message,omitempty"`
 	Image             string            `json:"image,omitempty"`
 	File              string            `json:"file,omitempty"`

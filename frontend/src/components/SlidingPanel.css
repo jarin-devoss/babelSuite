@@ -148,3 +148,44 @@
   min-height: auto;
   accent-color: #1f7ea8;
 }
+
+.bs-form-required {
+  color: #e96d76;
+  margin-left: 2px;
+}
+
+.bs-form-hint {
+  font-weight: 400;
+  color: #8fa3b3;
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bs-field--code {
+  font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.bs-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2d4456;
+  cursor: pointer;
+}
+
+.bs-checkbox-label input[type='checkbox'] {
+  width: auto;
+  min-height: auto;
+  accent-color: #1f7ea8;
+}
+
+.bs-form-row--danger {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f3e0e2;
+}

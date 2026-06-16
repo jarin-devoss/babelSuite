@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
+	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
@@ -55,6 +56,8 @@ type StepSpec struct {
 	LeaseTTL         time.Duration
 	Load             *suites.LoadSpec
 	Security         *suites.SecuritySpec
+	Plugin           *suites.PluginSpec
+	RegisteredPlugins []platform.CustomPlugin
 	Evaluation       *suites.StepEvaluation
 	OnFailure        []string
 	ArtifactExports  []ArtifactExport
@@ -69,6 +72,12 @@ type StepSpec struct {
 	GatewayURL string
 	// GatewayURLs contains one address per mock node in topology order.
 	GatewayURLs []string
+	// PublishPorts lists container ports (e.g. "8082/tcp") that must be bound
+	// to a host port so the shared APISIX sidecar can reach this node's
+	// service over host.docker.internal instead of the per-execution Docker
+	// network. Populated when another node's plugin config references this
+	// node by name — see pluginHostPortRefs in the execution package.
+	PublishPorts []string
 }
 
 // Executor is the minimal interface required to run a single step.

@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"net/url"
+
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -20,6 +22,8 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/go-connections/nat"
+	"github.com/babelsuite/babelsuite/internal/apisix"
 	"github.com/babelsuite/babelsuite/internal/logstream"
 )
 
@@ -71,7 +75,12 @@ func SetupExecutionNetwork(executionID string) {
 // RemoveExecutionNetwork stops and removes all containers for the execution,
 // then removes the per-execution bridge network. Service containers may still
 // be running when the execution finishes, so we force-remove them first to
-// avoid leaving orphaned networks that exhaust the Docker address pool.
+// avoid leaving orphaned networks that exhaust the Docker address pool. The
+// long-lived APISIX sidecar never joins this network (see EnsureSuiteSidecar
+// and SuiteSidecarURL — it is reached via its host-published port instead),
+// so the disconnect loop below is just a defensive fallback for any container
+// that the label-based removal above missed; Docker refuses to remove a
+// network with any endpoints still attached.
 func RemoveExecutionNetwork(executionID string) {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -90,7 +99,14 @@ func RemoveExecutionNetwork(executionID string) {
 		}
 	}
 
-	cli.NetworkRemove(ctx, executionNetworkName(executionID)) //nolint:errcheck
+	netName := executionNetworkName(executionID)
+	if info, err := cli.NetworkInspect(ctx, netName, network.InspectOptions{}); err == nil {
+		for containerID := range info.Containers {
+			cli.NetworkDisconnect(ctx, netName, containerID, true) //nolint:errcheck
+		}
+	}
+
+	cli.NetworkRemove(ctx, netName) //nolint:errcheck
 }
 
 var (
@@ -288,6 +304,16 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	if !isDetachedService(step) {
 		hostCfg.CapDrop = []string{"ALL"}
 		hostCfg.SecurityOpt = []string{"no-new-privileges:true"}
+	}
+
+	if len(step.PublishPorts) > 0 {
+		cfg.ExposedPorts = nat.PortSet{}
+		hostCfg.PortBindings = nat.PortMap{}
+		for _, p := range step.PublishPorts {
+			port := nat.Port(p)
+			cfg.ExposedPorts[port] = struct{}{}
+			hostCfg.PortBindings[port] = []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}}
+		}
 	}
 
 	netName := ensureExecutionNetwork(ctx, cli, step.ExecutionID)
@@ -500,27 +526,217 @@ func artifactTriggerMatchesStatus(trigger, status string) bool {
 func resolveStepImage(step StepSpec) string {
 	switch step.Node.Kind {
 	case "task":
-		return stepImageFromVariant(step.Node.Variant, "task")
+		return stepImageFromVariant(step.Node.Variant)
 	case "test":
-		return stepImageFromVariant(step.Node.Variant, "test")
+		return stepImageFromVariant(step.Node.Variant)
 	case "service":
-		return stepImageFromVariant(step.Node.Variant, "service")
-	case "mock":
-		return "wiremock/wiremock:3.10"
+		return stepImageFromVariant(step.Node.Variant)
 	}
 	return ""
 }
 
-func stepImageFromVariant(variant, _ string) string {
-	switch variant {
-	case "task.run", "test.run":
+func stepImageFromVariant(variant string) string {
+	if variant == "task.run" || variant == "test.run" {
 		return "alpine:3.19"
-	case "service.wiremock":
-		return "wiremock/wiremock:3.10"
-	case "service.prism":
-		return "stoplight/prism:5"
 	}
 	return ""
+}
+
+// SidecarContainerName returns the stable Docker container name for the
+// APISIX sidecar that serves a given suite+profile combination.
+// The sidecar is long-lived — one per suite, shared across executions.
+func SidecarContainerName(suiteID, profile string) string {
+	slug := strings.NewReplacer(".", "-", "/", "-", " ", "-").Replace(profile)
+	return "babel-sidecar-" + sanitizeID(suiteID) + "-" + sanitizeID(slug)
+}
+
+// SidecarConfDir returns the host directory where config files for the sidecar
+// are written. Both config.yaml (standalone mode) and apisix.yaml (routes) live here.
+func SidecarConfDir(suiteID, profile string) string {
+	slug := strings.NewReplacer(".", "-", "/", "-", " ", "-").Replace(profile)
+	return filepath.Join(os.TempDir(), "babel-sidecar", sanitizeID(suiteID)+"-"+sanitizeID(slug), "conf")
+}
+
+// EnsureSuiteSidecar starts the APISIX sidecar for a suite if it is not
+// already running. Idempotent — safe to call before every execution.
+// The sidecar is named babel-sidecar-{suiteID}-{profileSlug} and persists
+// across executions until explicitly stopped or the host restarts.
+func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, configMountPath string) error {
+	cli, ok := sharedDockerClient()
+	if !ok {
+		return nil // Docker not available — skip silently
+	}
+
+	suiteID := suiteConfig.ID
+	containerName := SidecarContainerName(suiteID, profile)
+
+	// Already running — nothing to do.
+	ctx2s, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	info, err := cli.ContainerInspect(ctx2s, containerName)
+	if err == nil && info.State != nil && info.State.Running {
+		return nil
+	}
+
+	confDir := SidecarConfDir(suiteID, profile)
+	if err := os.MkdirAll(confDir, 0755); err != nil {
+		return fmt.Errorf("sidecar conf dir: %w", err)
+	}
+
+	// config.yaml — override the image default (traditional/etcd) with standalone/yaml mode.
+	const standaloneCfg = "deployment:\n  role: data_plane\n  role_data_plane:\n    config_provider: yaml\n"
+	if err := os.WriteFile(filepath.Join(confDir, "config.yaml"), []byte(standaloneCfg), 0644); err != nil {
+		return fmt.Errorf("write config.yaml: %w", err)
+	}
+
+	// apisix.yaml — routes + plugins for this suite.
+	apisixYAML := apisix.RenderStandaloneConfig(suiteConfig)
+	if err := os.WriteFile(filepath.Join(confDir, "apisix.yaml"), []byte(apisixYAML), 0644); err != nil {
+		return fmt.Errorf("write apisix.yaml: %w", err)
+	}
+
+	// Lua plugin files bind-mounted alongside the config.
+	luaDir := filepath.Join(confDir, "..", "plugins")
+	if err := os.MkdirAll(luaDir, 0755); err != nil {
+		return fmt.Errorf("create lua dir: %w", err)
+	}
+	if err := apisix.WriteLuaPluginFiles(luaDir, suiteConfig.CustomPlugins...); err != nil {
+		return fmt.Errorf("write lua plugins: %w", err)
+	}
+
+	if sidecarImage == "" {
+		sidecarImage = "apache/apisix:latest"
+	}
+	if configMountPath == "" {
+		configMountPath = "/usr/local/apisix/conf/apisix.yaml"
+	}
+
+	portBindings := nat.PortMap{
+		"9080/tcp": []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}},
+	}
+	exposedPorts := nat.PortSet{"9080/tcp": struct{}{}}
+
+	containerCfg := &container.Config{
+		Image:        sidecarImage,
+		ExposedPorts: exposedPorts,
+		Env: []string{
+			"APISIX_STAND_ALONE=true",
+			"BABELSUITE_ENGINE_ADDR=host.docker.internal:8090",
+		},
+		Labels: map[string]string{
+			"babelsuite.suite":   suiteID,
+			"babelsuite.profile": profile,
+			"babelsuite.kind":    "apisix-sidecar",
+		},
+	}
+	// On Linux, host.docker.internal is not pre-seeded (unlike Mac/Windows which run
+	// Docker in a VM). Adding it via host-gateway makes BABELSUITE_ENGINE_ADDR resolve
+	// on all platforms — Docker replaces "host-gateway" with the actual host IP.
+	extraHosts := []string{"host.docker.internal:host-gateway"}
+	seen := map[string]bool{}
+	for _, surface := range suiteConfig.APISurfaces {
+		if u, err := url.Parse(surface.MockHost); err == nil {
+			if h := strings.TrimSpace(u.Host); h != "" && !seen[h] {
+				// Map mock surface hostname to 127.0.0.1 so Lua plugins calling
+				// e.g. spice-service.mock.internal:9080 loop back through APISIX's
+				// own proxy-rewrite route (which adds the Authorization header).
+				extraHosts = append(extraHosts, h+":127.0.0.1")
+				seen[h] = true
+			}
+		}
+	}
+
+	hostCfg := &container.HostConfig{
+		AutoRemove:   false,
+		PortBindings: portBindings,
+		ExtraHosts:   extraHosts,
+		Binds: []string{
+			// File-level mounts so APISIX can still write nginx.conf to its own conf dir.
+			filepath.Join(confDir, "config.yaml") + ":/usr/local/apisix/conf/config.yaml:ro",
+			filepath.Join(confDir, "apisix.yaml") + ":" + configMountPath + ":ro",
+			luaDir + ":" + apisix.LuaPluginMountPath + ":ro",
+		},
+	}
+
+	ctx30s, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel2()
+
+	// Remove any stopped container with the same name before recreating.
+	cli.ContainerRemove(ctx30s, containerName, container.RemoveOptions{Force: true}) //nolint:errcheck
+
+	created, err := cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
+	if errdefs.IsNotFound(err) {
+		pullOut, pullErr := cli.ImagePull(ctx30s, sidecarImage, image.PullOptions{})
+		if pullErr != nil {
+			return fmt.Errorf("pull apisix image: %w", pullErr)
+		}
+		io.Copy(io.Discard, pullOut) //nolint:errcheck
+		pullOut.Close()
+		created, err = cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
+	}
+	if err != nil {
+		return fmt.Errorf("create sidecar container: %w", err)
+	}
+
+	if err := cli.ContainerStart(ctx30s, created.ID, container.StartOptions{}); err != nil {
+		cli.ContainerRemove(context.Background(), created.ID, container.RemoveOptions{Force: true}) //nolint:errcheck
+		return fmt.Errorf("start sidecar container: %w", err)
+	}
+
+	// Brief window to catch immediate crash (bad config, wrong image, etc.).
+	crashCh, _ := cli.ContainerWait(ctx30s, created.ID, container.WaitConditionNotRunning)
+	select {
+	case result := <-crashCh:
+		return fmt.Errorf("apisix sidecar crashed on startup (code %d)", result.StatusCode)
+	case <-time.After(1500 * time.Millisecond):
+	}
+
+	return nil
+}
+
+// SuiteSidecarURL returns the host-accessible URL for the running APISIX sidecar
+// of a suite. Returns "" when the sidecar is not running.
+func SuiteSidecarURL(suiteID, profile string) string {
+	cli, ok := sharedDockerClient()
+	if !ok {
+		return ""
+	}
+	containerName := SidecarContainerName(suiteID, profile)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	info, err := cli.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return ""
+	}
+	bindings := info.NetworkSettings.Ports["9080/tcp"]
+	if len(bindings) == 0 || bindings[0].HostPort == "" {
+		return ""
+	}
+	return "http://127.0.0.1:" + bindings[0].HostPort
+}
+
+// ContainerHostPort returns the host-bound port for a given container port on
+// a per-execution node's container (e.g. "8082/tcp"), so the shared APISIX
+// sidecar — which never joins per-execution Docker networks, see
+// RemoveExecutionNetwork — can reach it via host.docker.internal instead.
+// Returns "" when the container isn't running or that port wasn't published.
+func ContainerHostPort(executionID, nodeID, containerPort string) string {
+	cli, ok := sharedDockerClient()
+	if !ok {
+		return ""
+	}
+	containerName := fmt.Sprintf("babel-%s-%s", sanitizeID(executionID), sanitizeID(nodeID))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	info, err := cli.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return ""
+	}
+	bindings := info.NetworkSettings.Ports[nat.Port(containerPort)]
+	if len(bindings) == 0 || bindings[0].HostPort == "" {
+		return ""
+	}
+	return bindings[0].HostPort
 }
 
 func sanitizeID(id string) string {
