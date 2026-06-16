@@ -64,6 +64,7 @@ The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`
 | `security` | `security.probe`, `security.fuzz`, `security.auth`, `security.flood`, `security.headers`, `security.verbs`, `security.graphql`, `security.cors` |
 | `log` | `log.info`, `log.warn`, `log.error`, `log.debug` |
 | `suite` | `suite.run` |
+| `plugin` | loaded via `load("@plugins/<name>", "<operation>")` — calls registered Lua plugins through the APISIX sidecar |
 
 Each node declares ordering with `after=[db, api]`.
 

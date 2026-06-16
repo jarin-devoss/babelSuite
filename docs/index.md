@@ -60,7 +60,7 @@ When a step fails, logs are live in the UI immediately — not buried in CI outp
 - [Architecture](architecture.md) — system layers, control plane composition, data flows, storage model
 - [Control Plane](control-plane.md) — middleware, request IDs, tracing, audit, health internals
 - [Configuration](configuration.md) — all environment variables, `configuration.yaml` fields, local defaults
-- [Platform Settings](platform.md) — agents, registries, secrets, notifications
+- [Platform Settings](platform.md) — agents, registries, secrets, notifications, Lua plugins
 
 ### Suites and Authoring
 
@@ -105,7 +105,7 @@ When a step fails, logs are live in the UI immediately — not buried in CI outp
 | `/executions/:executionId` | Live execution detail with event and log streams |
 | `/environments` | Runtime inventory — containers, networks, volumes |
 | `/cron-jobs` | Scheduled suite execution and notification rules |
-| `/settings/*` | Platform configuration — agents, registries, secrets, notifications (admin only) |
+| `/settings/*` | Platform configuration — agents, registries, secrets, notifications, Lua plugins (admin only) |
 | `/sign-in`, `/sign-up`, `/auth/callback` | Authentication |
 
 ## Repository Layout

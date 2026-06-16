@@ -121,6 +121,7 @@ smoke    = test.run(file="go/smoke_test.go", image="golang:1.24", after=[baselin
 | `security` | `security.probe`, `security.fuzz`, `security.auth`, `security.flood`, `security.headers`, `security.verbs`, `security.graphql`, `security.cors` |
 | `log` | `log.info`, `log.warn`, `log.error`, `log.debug` |
 | `suite` | `suite.run` |
+| `plugin` | loaded via `load("@plugins/<name>", "<operation>")` — user-registered Lua plugins; `traffic.*` and `security.*` are built-in plugins using the same mechanism — see [Plugins](plugins.md) |
 
 The only retained legacy bridge is `mock.serve`, which still maps to `service.mock` while older suites are being migrated.
 
@@ -265,6 +266,32 @@ services:
 ```
 
 The same `suite.star` runs with no GPU on a laptop (`local.yaml` omits `devices:`) and with GPU on a cluster (`perf.yaml` adds it). See [Profiles](profiles.md) for the full reference.
+
+## Lua Plugins
+
+Registered Lua plugins are loaded with `load("@plugins/<name>", "<operation>")`. Each exported name is a function that creates a topology node backed by the plugin's APISIX handler.
+
+```python
+load("@plugins/spice-sim",   "transient", "dc_sweep")
+load("@plugins/verilog-sim", "simulate")
+load("@plugins/control-sim", "monitor")
+
+spice_mock = service.mock(name="spice-service")
+
+rc_filter = transient(
+    name        = "rc-filter-step-response",
+    netlist     = "...",
+    probe_node  = "2",
+    max_rise_ms = 3.0,
+    after       = [spice_mock],
+)
+```
+
+Plugin nodes behave like any other topology node: they accept `after=`, `continue_on_failure=`, and `on_failure=`. The backend dispatches them to the APISIX sidecar at the plugin's registered trigger path and reads the `passed`, `findings`, `summary`, and `level` fields from the JSON response.
+
+Plugin variants (e.g. `transient`, `dc_sweep`) correspond to the `operations` list in the plugin definition. If a plugin defines `operations`, a step that requests an unlisted operation is rejected before dispatch.
+
+Plugins must be registered in platform settings before a suite that references them can run. See [Platform Settings — Plugins](platform.md#plugins) for the registration API and field reference.
 
 ## Authoring Tips
 

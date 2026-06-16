@@ -22,6 +22,7 @@ nav:
     - Profiles: profiles.md
     - Profile Runtime: profile-runtime.md
     - Modules: modules.md
+    - Plugins: plugins.md
     - Runtime Library: runtime-library.md
     - Mocking: mocking.md
     - Mocking Reference: mocking-reference.md
