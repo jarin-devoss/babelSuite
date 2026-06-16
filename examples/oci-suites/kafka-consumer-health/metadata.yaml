@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: kafka-consumer-health
+  title: Kafka Consumer Health
+spec:
+  repository: localhost:5000/qa/kafka-consumer-health
+  owner: Platform Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Demonstrates a module (kafka-checks) that internally loads the consumer-lag plugin to verify consumer group lag. This is a live example of module-to-plugin composition — the suite author never calls plugin.run() directly.

@@ -1,0 +1,15 @@
+kind: OCIExampleModule
+metadata:
+  id: stdlib-kafka-checks
+  title: "@babelsuite/kafka-checks"
+spec:
+  repository: localhost:5000/babelsuite/kafka-checks
+  provider: Stdlib
+  version: 1.0.0
+  entrypoint: module.star
+  tags:
+    - 1.0.0
+    - latest
+  description: Kafka consumer health checks that internally compose the consumer-lag plugin. Demonstrates module-to-plugin composition.
+  pullCommand: babelctl run localhost:5000/babelsuite/kafka-checks:1.0.0
+  forkCommand: babelctl fork localhost:5000/babelsuite/kafka-checks:1.0.0 ./stdlib-kafka-checks
