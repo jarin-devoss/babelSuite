@@ -75,7 +75,12 @@ func SetupExecutionNetwork(executionID string) {
 // RemoveExecutionNetwork stops and removes all containers for the execution,
 // then removes the per-execution bridge network. Service containers may still
 // be running when the execution finishes, so we force-remove them first to
-// avoid leaving orphaned networks that exhaust the Docker address pool.
+// avoid leaving orphaned networks that exhaust the Docker address pool. The
+// long-lived APISIX sidecar never joins this network (see EnsureSuiteSidecar
+// and SuiteSidecarURL — it is reached via its host-published port instead),
+// so the disconnect loop below is just a defensive fallback for any container
+// that the label-based removal above missed; Docker refuses to remove a
+// network with any endpoints still attached.
 func RemoveExecutionNetwork(executionID string) {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -94,7 +99,14 @@ func RemoveExecutionNetwork(executionID string) {
 		}
 	}
 
-	cli.NetworkRemove(ctx, executionNetworkName(executionID)) //nolint:errcheck
+	netName := executionNetworkName(executionID)
+	if info, err := cli.NetworkInspect(ctx, netName, network.InspectOptions{}); err == nil {
+		for containerID := range info.Containers {
+			cli.NetworkDisconnect(ctx, netName, containerID, true) //nolint:errcheck
+		}
+	}
+
+	cli.NetworkRemove(ctx, netName) //nolint:errcheck
 }
 
 var (
@@ -292,6 +304,16 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	if !isDetachedService(step) {
 		hostCfg.CapDrop = []string{"ALL"}
 		hostCfg.SecurityOpt = []string{"no-new-privileges:true"}
+	}
+
+	if len(step.PublishPorts) > 0 {
+		cfg.ExposedPorts = nat.PortSet{}
+		hostCfg.PortBindings = nat.PortMap{}
+		for _, p := range step.PublishPorts {
+			port := nat.Port(p)
+			cfg.ExposedPorts[port] = struct{}{}
+			hostCfg.PortBindings[port] = []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}}
+		}
 	}
 
 	netName := ensureExecutionNetwork(ctx, cli, step.ExecutionID)
@@ -691,6 +713,30 @@ func SuiteSidecarURL(suiteID, profile string) string {
 		return ""
 	}
 	return "http://127.0.0.1:" + bindings[0].HostPort
+}
+
+// ContainerHostPort returns the host-bound port for a given container port on
+// a per-execution node's container (e.g. "8082/tcp"), so the shared APISIX
+// sidecar — which never joins per-execution Docker networks, see
+// RemoveExecutionNetwork — can reach it via host.docker.internal instead.
+// Returns "" when the container isn't running or that port wasn't published.
+func ContainerHostPort(executionID, nodeID, containerPort string) string {
+	cli, ok := sharedDockerClient()
+	if !ok {
+		return ""
+	}
+	containerName := fmt.Sprintf("babel-%s-%s", sanitizeID(executionID), sanitizeID(nodeID))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	info, err := cli.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return ""
+	}
+	bindings := info.NetworkSettings.Ports[nat.Port(containerPort)]
+	if len(bindings) == 0 || bindings[0].HostPort == "" {
+		return ""
+	}
+	return bindings[0].HostPort
 }
 
 func sanitizeID(id string) string {

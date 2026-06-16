@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -427,7 +428,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		HealthySteps:     s.countHealthySteps(executionID),
 		LeaseTTL:         8 * time.Second,
 		Load:              suitesCloneLoadSpec(node.Load),
-		Plugin:            node.Plugin,
+		Plugin:            rewritePluginConfigForHostAccess(executionID, suite, node.Plugin),
 		RegisteredPlugins: s.loadRegisteredPlugins(),
 		Evaluation:       cloneNodeEvaluation(node.Evaluation),
 		OnFailure:        append([]string{}, node.OnFailure...),
@@ -437,8 +438,9 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 				collectedFiles[path] = content
 			}
 		},
-		GatewayURL:  resolveGatewayURL(executionID, suite, profile),
-		GatewayURLs: resolveGatewayURLs(executionID, suite, profile),
+		GatewayURL:   resolveGatewayURL(executionID, suite, profile),
+		GatewayURLs:  resolveGatewayURLs(executionID, suite, profile),
+		PublishPorts: pluginHostPortRefs(suite)[node.Name],
 		Node: runner.StepNode{
 			ID:          node.ID,
 			Name:        node.Name,
@@ -825,6 +827,102 @@ func resolveGatewayURL(executionID string, suite *suites.Definition, profile str
 		return ""
 	}
 	return urls[0]
+}
+
+var pluginHostPortPattern = regexp.MustCompile(`([a-zA-Z0-9_.-]+):(\d{2,5})`)
+
+// pluginHostPortRefs scans every plugin node's config for "<host>:<port>"
+// string values where host matches another node's name, and returns the set
+// of container ports (as "8082/tcp") each referenced node must publish to the
+// host. The shared APISIX sidecar never joins per-execution Docker networks
+// (see RemoveExecutionNetwork), so a plugin reaching a sibling service — e.g.
+// the consumer-lag plugin's "http://broker:8082" — has to go through a
+// host-published port instead of the service's in-network DNS alias.
+func pluginHostPortRefs(suite *suites.Definition) map[string][]string {
+	if suite == nil {
+		return nil
+	}
+	nodeNames := make(map[string]bool, len(suite.Topology))
+	for _, n := range suite.Topology {
+		nodeNames[n.Name] = true
+	}
+	refs := make(map[string][]string)
+	for _, n := range suite.Topology {
+		if n.Plugin == nil {
+			continue
+		}
+		cfg, ok := n.Plugin.Config.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, v := range cfg {
+			s, ok := v.(string)
+			if !ok {
+				continue
+			}
+			for _, m := range pluginHostPortPattern.FindAllStringSubmatch(s, -1) {
+				host, port := m[1], m[2]
+				if !nodeNames[host] {
+					continue
+				}
+				cport := port + "/tcp"
+				found := false
+				for _, existing := range refs[host] {
+					if existing == cport {
+						found = true
+						break
+					}
+				}
+				if !found {
+					refs[host] = append(refs[host], cport)
+				}
+			}
+		}
+	}
+	return refs
+}
+
+// rewritePluginConfigForHostAccess replaces "<host>:<port>" references to
+// sibling nodes inside a plugin's config with "host.docker.internal:<port>",
+// using the host port that node published via pluginHostPortRefs /
+// StepSpec.PublishPorts. Falls back to the original value when that node
+// hasn't published a matching port yet (e.g. not running, or no match).
+func rewritePluginConfigForHostAccess(executionID string, suite *suites.Definition, spec *suites.PluginSpec) *suites.PluginSpec {
+	if spec == nil || suite == nil {
+		return spec
+	}
+	cfg, ok := spec.Config.(map[string]any)
+	if !ok {
+		return spec
+	}
+	nodeIDByName := make(map[string]string, len(suite.Topology))
+	for _, n := range suite.Topology {
+		nodeIDByName[n.Name] = n.ID
+	}
+	newCfg := make(map[string]any, len(cfg))
+	for k, v := range cfg {
+		s, ok := v.(string)
+		if !ok {
+			newCfg[k] = v
+			continue
+		}
+		newCfg[k] = pluginHostPortPattern.ReplaceAllStringFunc(s, func(match string) string {
+			parts := pluginHostPortPattern.FindStringSubmatch(match)
+			host, port := parts[1], parts[2]
+			nodeID, found := nodeIDByName[host]
+			if !found {
+				return match
+			}
+			hostPort := runner.ContainerHostPort(executionID, nodeID, port+"/tcp")
+			if hostPort == "" {
+				return match
+			}
+			return "host.docker.internal:" + hostPort
+		})
+	}
+	clone := *spec
+	clone.Config = newCfg
+	return &clone
 }
 
 // sanitizeContainerID mirrors the runner's sanitizeID so container names match.
