@@ -35,6 +35,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	httpserver.HandleFunc(mux, "POST /api/v1/platform-settings/registries/{registryId}/sync", h.syncRegistry, admin)
 	httpserver.HandleFunc(mux, "GET /api/v1/platform-settings/plugins", h.listPlugins, protected)
 	httpserver.HandleFunc(mux, "POST /api/v1/platform-settings/plugins", h.createPlugin, admin)
+	httpserver.HandleFunc(mux, "PUT /api/v1/platform-settings/plugins/{name}", h.updatePlugin, admin)
 	httpserver.HandleFunc(mux, "DELETE /api/v1/platform-settings/plugins/{name}", h.deletePlugin, admin)
 	httpserver.HandleFunc(mux, "GET /api/v1/platform-settings/plugins/{name}/check", h.checkPlugin, protected)
 	httpserver.HandleFunc(mux, "POST /api/v1/platform-settings/plugins/{name}/validate", h.validatePluginConfig, protected)
@@ -157,6 +158,51 @@ func (h *Handler) createPlugin(w http.ResponseWriter, r *http.Request) {
 	}
 	httpserver.WriteJSON(w, http.StatusCreated, plugin)
 }
+
+func (h *Handler) updatePlugin(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.PathValue("name"))
+	if name == "" {
+		httpserver.WriteError(w, http.StatusBadRequest, "Plugin name is required.")
+		return
+	}
+	var plugin CustomPlugin
+	if err := json.NewDecoder(r.Body).Decode(&plugin); err != nil {
+		httpserver.WriteError(w, http.StatusBadRequest, "Invalid plugin payload.")
+		return
+	}
+	if strings.TrimSpace(plugin.Trigger) == "" {
+		httpserver.WriteError(w, http.StatusBadRequest, "Plugin trigger route is required.")
+		return
+	}
+	if strings.TrimSpace(plugin.Lua) == "" {
+		httpserver.WriteError(w, http.StatusBadRequest, "Plugin Lua source is required.")
+		return
+	}
+	settings, err := h.store.Load()
+	if err != nil {
+		httpserver.WriteError(w, http.StatusInternalServerError, "Could not load platform settings.")
+		return
+	}
+	idx := -1
+	for i, p := range settings.Plugins {
+		if p.Name == name {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		httpserver.WriteError(w, http.StatusNotFound, "Plugin not found.")
+		return
+	}
+	plugin.Name = name
+	settings.Plugins[idx] = plugin
+	if err := h.store.Save(settings); err != nil {
+		httpserver.WriteError(w, http.StatusInternalServerError, "Could not save plugin.")
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, plugin)
+}
+
 
 func (h *Handler) deletePlugin(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PathValue("name"))
