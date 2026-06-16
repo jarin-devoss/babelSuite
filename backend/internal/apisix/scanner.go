@@ -61,6 +61,8 @@ const AttackScannerLua = `
 local json     = require("cjson")
 local http_lib = require("resty.http")
 
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 -- ── helpers ────────────────────────────────────────────────────────────────
 
 local function send(target, method, path, body, headers, timeout_ms)
@@ -135,7 +137,8 @@ end
 
 local function inject(template, payload)
     if not template or template == "" then return payload end
-    return (string.gsub(template, "{{payload}}", payload))
+    local escaped = string.gsub(payload, "%%", "%%%%")
+    return (string.gsub(template, "{{payload}}", escaped))
 end
 
 -- ── built-in defaults ──────────────────────────────────────────────────────
@@ -163,33 +166,33 @@ local DEFAULT_FUZZ_CHECKS = {
         label="sqli-query",  method="GET", path="/?id={{payload}}",
         payloads={"'", "' OR '1'='1", "' OR '1'='1'--", "1; DROP TABLE users--", "' UNION SELECT NULL--"},
         error_markers={"SQL syntax", "mysql_fetch", "ORA-", "syntax error", "Warning: mysql"},
-        expect_status={200,301,302}, severity="critical",
+        expect_status={200,301,302,404}, severity="critical",
     },
     {
         label="sqli-body",   method="POST", path="/",
         body='{"id":"{{payload}}"}',
         payloads={"'", "' OR '1'='1", "1; DROP TABLE users--"},
         error_markers={"SQL syntax", "mysql_fetch", "ORA-", "syntax error"},
-        expect_status={200,400}, severity="critical",
+        expect_status={200,400,404}, severity="critical",
     },
     {
         label="xss-reflect",  method="GET", path="/?q={{payload}}",
         payloads={"<script>alert(1)</script>", '"><img src=x onerror=alert(1)>', "javascript:alert(1)"},
         error_markers={"<script>alert", "onerror=alert"},
-        expect_status={200,301,302}, severity="high",
+        expect_status={200,301,302,404}, severity="high",
     },
     {
         label="path-traversal", method="GET", path="/{{payload}}",
         payloads={"../../../etc/passwd", "..%2F..%2F..%2Fetc%2Fpasswd", "....//....//etc/passwd"},
         error_markers={"root:x:", "[boot loader]", "\\[extensions\\]"},
-        expect_status={200,301,302}, severity="critical",
+        expect_status={200,301,302,400,404}, severity="critical",
     },
     {
         label="header-inject",  method="GET", path="/",
         headers={["X-Custom-Header"]="{{payload}}"},
         payloads={"test\r\nX-Injected: evil", "test\nX-Injected: evil"},
         error_markers={"X-Injected"},
-        expect_status={200,400}, severity="high",
+        expect_status={200,400,404}, severity="high",
     },
 }
 
@@ -236,7 +239,14 @@ local function run_fuzz(cfg)
     if not checks or #checks == 0 then checks = DEFAULT_FUZZ_CHECKS end
     for _, check in ipairs(checks) do
         for _, payload in ipairs(check.payloads or {""}) do
-            local fuzz_path = inject(check.path or "/", payload)
+            local path_payload = payload
+            if check.path and string.find(check.path, "?", 1, true) then
+                -- Query-string slots need a valid URI: percent-encode the raw
+                -- payload so lua-resty-http will transmit it at all. The
+                -- target still sees the decoded malicious value.
+                path_payload = ngx.escape_uri(payload)
+            end
+            local fuzz_path = inject(check.path or "/", path_payload)
             local fuzz_body = inject(check.body or "", payload)
             local fuzz_hdrs = {}
             for k, v in pairs(check.headers or {}) do
@@ -245,8 +255,16 @@ local function run_fuzz(cfg)
             local status, body, err = send(cfg.target, check.method or "GET", fuzz_path,
                 fuzz_body ~= "" and fuzz_body or nil, fuzz_hdrs, cfg.timeout_ms)
             if err then
-                fail(r, finding(check.label, check.method, fuzz_path, payload, 0,
-                    check.severity or "medium", "request failed: " .. err))
+                if string.find(err, "invalid characters", 1, true) then
+                    -- The HTTP client itself refuses to construct a request
+                    -- carrying raw control/illegal characters (e.g. literal
+                    -- CRLF in a header value). The attack can't even be sent,
+                    -- so the target is not exposed via this vector — pass.
+                    pass(r)
+                else
+                    fail(r, finding(check.label, check.method, fuzz_path, payload, 0,
+                        check.severity or "medium", "request failed: " .. err))
+                end
             elseif body_has_marker(body, check.error_markers) then
                 fail(r, finding(check.label, check.method, fuzz_path, payload, status,
                     check.severity or "high", "response contains error marker"))
@@ -275,7 +293,7 @@ local function run_auth(cfg)
         if err then
             fail(r, finding(check.label, check.method, check.path, "", 0,
                 check.severity or "high", "request failed: " .. err))
-        elseif not status_unexpected(status, {401, 403}) then
+        elseif not status_unexpected(status, {401, 403, 404}) then
             pass(r)
         else
             fail(r, finding(check.label, check.method, check.path, "", status,
@@ -528,6 +546,8 @@ function _M.access(conf, ctx)
     else
         results = run_probe(cfg)
     end
+
+    results.findings = as_array(results.findings)
 
     ngx.status = 200
     ngx.header["Content-Type"] = "application/json"

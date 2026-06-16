@@ -431,6 +431,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		HealthySteps:     s.countHealthySteps(executionID),
 		LeaseTTL:         8 * time.Second,
 		Load:              suitesCloneLoadSpec(node.Load),
+		Security:          node.Security,
 		Plugin:            rewritePluginConfigForHostAccess(executionID, suite, node.Plugin),
 		RegisteredPlugins: s.loadRegisteredPlugins(),
 		Evaluation:       cloneNodeEvaluation(node.Evaluation),
