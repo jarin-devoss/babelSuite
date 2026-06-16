@@ -48,7 +48,7 @@ func examplesDir(t *testing.T) string {
 func TestBuildGatewayConfigPaymentSuiteRESTRoutes(t *testing.T) {
 	files := loadExampleSuite(t, filepath.Join(examplesDir(t), "oci-suites", "payment-suite"))
 
-	yaml := buildGatewayConfig("payment-suite", files)
+	yaml := buildGatewayConfig("payment-suite", files, nil)
 	if yaml == "" {
 		t.Fatal("expected gateway config, got empty string")
 	}
@@ -75,7 +75,7 @@ func TestBuildGatewayConfigPaymentSuiteRESTRoutes(t *testing.T) {
 func TestBuildGatewayConfigReturnsControlPlaneGRPC(t *testing.T) {
 	files := loadExampleSuite(t, filepath.Join(examplesDir(t), "oci-suites", "returns-control-plane"))
 
-	yaml := buildGatewayConfig("returns-control-plane", files)
+	yaml := buildGatewayConfig("returns-control-plane", files, nil)
 	if yaml == "" {
 		t.Fatal("expected gateway config for returns-control-plane")
 	}
@@ -94,7 +94,7 @@ func TestBuildGatewayConfigReturnsControlPlaneGRPC(t *testing.T) {
 func TestBuildGatewayConfigSOAPSuite(t *testing.T) {
 	files := loadExampleSuite(t, filepath.Join(examplesDir(t), "oci-suites", "soap-claims-hub"))
 
-	yaml := buildGatewayConfig("soap-claims-hub", files)
+	yaml := buildGatewayConfig("soap-claims-hub", files, nil)
 	if yaml == "" {
 		t.Fatal("expected gateway config for soap-claims-hub")
 	}
@@ -111,7 +111,7 @@ func TestBuildGatewayConfigAlwaysIncludesTrafficCannon(t *testing.T) {
 		"suite.star":          `api = service.run(name="api")`,
 		"profiles/local.yaml": "name: Local\ndefault: true\n",
 	}
-	result := buildGatewayConfig("no-meta-suite", files)
+	result := buildGatewayConfig("no-meta-suite", files, nil)
 	if result == "" {
 		t.Fatal("expected base gateway config even with no mock metadata")
 	}
