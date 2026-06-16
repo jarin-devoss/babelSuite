@@ -11,7 +11,7 @@
       
       
       
-        <link rel="prev" href="../modules/">
+        <link rel="prev" href="../plugins/">
       
       
         <link rel="next" href="../mocking/">
@@ -756,6 +756,27 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -932,6 +953,15 @@
   <a href="#suite" class="md-nav__link">
     <span class="md-ellipsis">
       suite
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      plugin
     </span>
   </a>
   
@@ -1557,6 +1587,15 @@
   <a href="#suite" class="md-nav__link">
     <span class="md-ellipsis">
       suite
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      plugin
     </span>
   </a>
   
@@ -2204,6 +2243,15 @@
 </span></code></pre></div>
 <p><code>suite(...)</code> is intentionally rejected. Use <code>suite.run(...)</code>.</p>
 <p>For nested suite manifests, see <a href="../dependencies/">Dependency Manifests</a>.</p>
+<h3 id="plugin"><code>plugin</code><a class="headerlink" href="#plugin" title="Permanent link">&para;</a></h3>
+<p>User-registered Lua plugins. Plugins are not part of the built-in runtime library — they are loaded with <code>load("@plugins/&lt;name&gt;", "&lt;operation&gt;")</code> and must be registered in platform settings before a suite that references them can run.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">)</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">rc_filter</span>  <span class="o">=</span> <span class="n">transient</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span> <span class="n">netlist</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">probe_node</span><span class="o">=</span><span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">spice_mock</span><span class="p">])</span>
+</span></code></pre></div>
+<p>The function call forwards its keyword arguments as the plugin config. The APISIX sidecar dispatches the request to the plugin's trigger path, and the returned <code>passed</code> / <code>findings</code> / <code>summary</code> / <code>level</code> fields drive the step outcome.</p>
+<p>For the full plugin reference, see <a href="../platform/#plugins">Platform Settings — Plugins</a>.</p>
 <h2 id="resolver-argument-extraction">Resolver Argument Extraction<a class="headerlink" href="#resolver-argument-extraction" title="Permanent link">&para;</a></h2>
 <p>The parser extracts these topology fields from recognized statements:</p>
 <table>
@@ -2299,10 +2347,10 @@
 <p>The variable name is the default node ID. Use <code>name=</code> or <code>id=</code> only when you need an explicit override.</p>
 <h2 id="artifact-exports">Artifact Exports<a class="headerlink" href="#artifact-exports" title="Permanent link">&para;</a></h2>
 <p>Nodes can attach artifact export rules with chained <code>.export(...)</code> calls:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">)</span> \
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;coverage/*.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-coverage&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;cobertura&quot;</span><span class="p">)</span> \
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;reports/junit.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-tests&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;junit&quot;</span><span class="p">)</span> \
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;logs/crash.dump&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;crash-debug&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">)</span> \
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;coverage/*.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-coverage&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;cobertura&quot;</span><span class="p">)</span> \
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;reports/junit.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-tests&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;junit&quot;</span><span class="p">)</span> \
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;logs/crash.dump&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;crash-debug&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;failure&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Supported export arguments:</p>
 <ul>
@@ -2328,13 +2376,13 @@
 </ul>
 <h2 id="evaluation-controls">Evaluation Controls<a class="headerlink" href="#evaluation-controls" title="Permanent link">&para;</a></h2>
 <p><code>task.run(...)</code>, <code>test.run(...)</code>, and other runnable nodes can declare explicit success/failure expectations:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">seed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">expect_exit</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">expect_logs</span><span class="o">=</span><span class="s2">&quot;Task completed successfully&quot;</span><span class="p">,</span>
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">fail_on_logs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;FATAL ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;panic:&quot;</span><span class="p">],</span>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">seed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">expect_exit</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">expect_logs</span><span class="o">=</span><span class="s2">&quot;Task completed successfully&quot;</span><span class="p">,</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="n">fail_on_logs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;FATAL ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;panic:&quot;</span><span class="p">],</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>Supported controls:</p>
 <ul>
@@ -2369,7 +2417,7 @@
 <li><strong>Script assembly</strong> — the runner builds a POSIX shell script from <code>commands=</code> entries, or writes the <code>file=</code> content to the shared execution workspace and prepends the appropriate interpreter call.</li>
 <li><strong>Encoding</strong> — the script is base64-encoded and injected as <code>BABELSUITE_SCRIPT</code> into the container environment.</li>
 <li><strong>Execution</strong> — the container entrypoint is overridden to:
-   <div class="language-text highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>/bin/sh -c &quot;echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e&quot;
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>/bin/sh -c &quot;echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e&quot;
 </span></code></pre></div></li>
 <li><strong>Exit code</strong> — the shell exits with the script's exit code, which the runner records as the step result.</li>
 </ol>
@@ -2444,30 +2492,30 @@
 <p>Hardware and networking are declared in the <strong>profile YAML</strong>, not in <code>suite.star</code>. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge) and a GPU cluster (with devices, execution network) by switching profiles.</p>
 <h3 id="servicesnamedevices"><code>services.&lt;name&gt;.devices</code><a class="headerlink" href="#servicesnamedevices" title="Permanent link">&para;</a></h3>
 <p>Attach hardware devices to a step's container:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># perf.yaml</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nt">services</span><span class="p">:</span>
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">seed-job</span><span class="p">:</span>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">        </span><span class="c1"># NVIDIA GPU (all)</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># camera</span>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">  </span><span class="nt">verify-hw</span><span class="p">:</span>
-</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/ttyUSB0&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># USB serial</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># perf.yaml</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">seed-job</span><span class="p">:</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">        </span><span class="c1"># NVIDIA GPU (all)</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># camera</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">verify-hw</span><span class="p">:</span>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/ttyUSB0&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># USB serial</span>
 </span></code></pre></div>
 <p>Device values translate automatically per backend — see <a href="../profiles/#servicesdevices">Profiles</a> for the full mapping table (Docker <code>DeviceRequest</code>/<code>DeviceMapping</code>, Kubernetes <code>nvidia.com/gpu</code> resource limits, remote agent capability matching).</p>
 <h3 id="networkmode"><code>network.mode</code><a class="headerlink" href="#networkmode" title="Permanent link">&para;</a></h3>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># staging.yaml</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">network</span><span class="p">:</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># isolated bridge — containers reach each other by node name</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># staging.yaml</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nt">network</span><span class="p">:</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># isolated bridge — containers reach each other by node name</span>
 </span></code></pre></div>
 <p>When <code>mode: execution</code> is set, every container in the execution joins a shared Docker bridge network. The node's <code>name</code> becomes its DNS hostname — a <code>service.run(name="redis")</code> is reachable at <code>redis:6379</code> from any <code>task.run</code> or <code>test.run</code> in the same execution. No <code>suite.star</code> changes required.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># suite.star — works the same regardless of network mode</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">redis</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;redis&quot;</span><span class="p">,</span>  <span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">)</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">api</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">redis</span><span class="p">])</span>
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">smoke</span>   <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">image</span>    <span class="o">=</span> <span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span>
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>    <span class="n">commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python test.py --host api --redis redis:6379&quot;</span><span class="p">],</span>
-</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>    <span class="n">after</span>    <span class="o">=</span> <span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># suite.star — works the same regardless of network mode</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">redis</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;redis&quot;</span><span class="p">,</span>  <span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">)</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">api</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">redis</span><span class="p">])</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">smoke</span>   <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="n">image</span>    <span class="o">=</span> <span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    <span class="n">commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python test.py --host api --redis redis:6379&quot;</span><span class="p">],</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>    <span class="n">after</span>    <span class="o">=</span> <span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The network is created at execution start and removed when the execution finishes, alongside the shared workspace directory.</p>
 <h2 id="authoring-rules">Authoring Rules<a class="headerlink" href="#authoring-rules" title="Permanent link">&para;</a></h2>
@@ -2529,7 +2577,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../modules/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Modules">
+          <a href="../plugins/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Plugins">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2539,7 +2587,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Modules
+                Plugins
               </div>
             </div>
           </a>

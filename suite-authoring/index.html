@@ -832,6 +832,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#lua-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lua Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-tips" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Tips
@@ -924,6 +933,27 @@
   
   <span class="md-ellipsis">
     Modules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
   </span>
   
 
@@ -1436,6 +1466,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#lua-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lua Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authoring-tips" class="md-nav__link">
     <span class="md-ellipsis">
       Authoring Tips
@@ -1652,6 +1691,10 @@
 <td><code>suite</code></td>
 <td><code>suite.run</code></td>
 </tr>
+<tr>
+<td><code>plugin</code></td>
+<td>loaded via <code>load("@plugins/&lt;name&gt;", "&lt;operation&gt;")</code> — user-registered Lua plugins; <code>traffic.*</code> and <code>security.*</code> are built-in plugins using the same mechanism — see <a href="../plugins/">Plugins</a></td>
+</tr>
 </tbody>
 </table>
 <p>The only retained legacy bridge is <code>mock.serve</code>, which still maps to <code>service.mock</code> while older suites are being migrated.</p>
@@ -1799,6 +1842,25 @@
 </span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># USB camera for hardware tests</span>
 </span></code></pre></div>
 <p>The same <code>suite.star</code> runs with no GPU on a laptop (<code>local.yaml</code> omits <code>devices:</code>) and with GPU on a cluster (<code>perf.yaml</code> adds it). See <a href="../profiles/">Profiles</a> for the full reference.</p>
+<h2 id="lua-plugins">Lua Plugins<a class="headerlink" href="#lua-plugins" title="Permanent link">&para;</a></h2>
+<p>Registered Lua plugins are loaded with <code>load("@plugins/&lt;name&gt;", "&lt;operation&gt;")</code>. Each exported name is a function that creates a topology node backed by the plugin's APISIX handler.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span>   <span class="s2">&quot;transient&quot;</span><span class="p">,</span> <span class="s2">&quot;dc_sweep&quot;</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/verilog-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;simulate&quot;</span><span class="p">)</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/control-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;monitor&quot;</span><span class="p">)</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="n">rc_filter</span> <span class="o">=</span> <span class="n">transient</span><span class="p">(</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;rc-filter-step-response&quot;</span><span class="p">,</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>    <span class="n">netlist</span>     <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="n">probe_node</span>  <span class="o">=</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">spice_mock</span><span class="p">],</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Plugin nodes behave like any other topology node: they accept <code>after=</code>, <code>continue_on_failure=</code>, and <code>on_failure=</code>. The backend dispatches them to the APISIX sidecar at the plugin's registered trigger path and reads the <code>passed</code>, <code>findings</code>, <code>summary</code>, and <code>level</code> fields from the JSON response.</p>
+<p>Plugin variants (e.g. <code>transient</code>, <code>dc_sweep</code>) correspond to the <code>operations</code> list in the plugin definition. If a plugin defines <code>operations</code>, a step that requests an unlisted operation is rejected before dispatch.</p>
+<p>Plugins must be registered in platform settings before a suite that references them can run. See <a href="../platform/#plugins">Platform Settings — Plugins</a> for the registration API and field reference.</p>
 <h2 id="authoring-tips">Authoring Tips<a class="headerlink" href="#authoring-tips" title="Permanent link">&para;</a></h2>
 <ul>
 <li>keep <code>suite.star</code> focused on orchestration instead of large inline data blobs</li>

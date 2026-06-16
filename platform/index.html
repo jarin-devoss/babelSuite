@@ -706,6 +706,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plugin-response-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin response contract
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apisix-sidecar-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      APISIX sidecar lifecycle
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -876,6 +909,27 @@
   
   <span class="md-ellipsis">
     Modules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
   </span>
   
 
@@ -1325,6 +1379,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plugin-response-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin response contract
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apisix-sidecar-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      APISIX sidecar lifecycle
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1393,6 +1480,36 @@
 <td><code>POST</code></td>
 <td><code>/api/v1/platform-settings/registries/{registryId}/sync</code></td>
 <td>Trigger a registry catalog sync</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/platform-settings/plugins</code></td>
+<td>List all registered Lua plugins</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/platform-settings/plugins</code></td>
+<td>Register a new plugin — admin only</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}</code></td>
+<td>Update an existing plugin in-place — admin only</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}</code></td>
+<td>Remove a plugin — admin only</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}/check</code></td>
+<td>Static health check: validates trigger path and CUE schema</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}/validate</code></td>
+<td>Validate a step config object against the plugin's CUE schema</td>
 </tr>
 </tbody>
 </table>
@@ -1676,6 +1793,99 @@
 </tbody>
 </table>
 <p>Configure SMTP from the UI at <strong>Settings → Notifications</strong>, or edit <code>configuration.yaml</code> directly. See <a href="../cron-jobs/">Cron Jobs</a> for how SMTP is used.</p>
+<h3 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
+<p>Lua plugins extend the suite runtime with custom verification steps that run inside the APISIX sidecar. Plugins are stored in <code>configuration.yaml</code> alongside the rest of the platform settings and are available to all suites without any package or image pull.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Unique identifier — used as the load target in <code>suite.star</code> (e.g. <code>@plugins/spice-sim</code>)</td>
+</tr>
+<tr>
+<td><code>trigger</code></td>
+<td>APISIX route path the plugin listens on (e.g. <code>/_babelsuite/plugins/spice-sim/start</code>)</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>Semantic version string stored as-is — e.g. <code>1.0.0</code>. Not auto-bumped by the API.</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td>Must be <code>plugin</code></td>
+</tr>
+<tr>
+<td><code>variants</code></td>
+<td>List of variant names the plugin registers as APISIX Lua extensions</td>
+</tr>
+<tr>
+<td><code>operations</code></td>
+<td>Optional list of allowed operation names — the suite call must match one</td>
+</tr>
+<tr>
+<td><code>lua</code></td>
+<td>Full Lua source embedded verbatim into the generated <code>apisix.yaml</code></td>
+</tr>
+<tr>
+<td><code>schema</code></td>
+<td>Optional CUE schema; step config is validated against it before dispatch</td>
+</tr>
+<tr>
+<td><code>star</code></td>
+<td>Optional Starlark snippet that re-exports the plugin's call signatures to <code>suite.star</code></td>
+</tr>
+<tr>
+<td><code>deprecated</code></td>
+<td>When <code>true</code>, the plugin is flagged in health checks but still dispatched</td>
+</tr>
+</tbody>
+</table>
+<h4 id="plugin-response-contract">Plugin response contract<a class="headerlink" href="#plugin-response-contract" title="Permanent link">&para;</a></h4>
+<p>The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads the following fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>passed</code></td>
+<td>bool</td>
+<td>Whether the step should be considered successful</td>
+</tr>
+<tr>
+<td><code>findings</code></td>
+<td>array</td>
+<td>List of finding objects — each should have at least <code>message</code></td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>string</td>
+<td>One-line summary emitted as a log line at the level specified by <code>level</code></td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td>string</td>
+<td>Log level for the summary line: <code>info</code>, <code>debug</code>, <code>warn</code>, or <code>error</code>. Defaults to <code>info</code> if omitted.</td>
+</tr>
+<tr>
+<td><code>stderr</code></td>
+<td>string</td>
+<td>Optional raw stderr from the plugin process, shown in the execution log</td>
+</tr>
+</tbody>
+</table>
+<h4 id="apisix-sidecar-lifecycle">APISIX sidecar lifecycle<a class="headerlink" href="#apisix-sidecar-lifecycle" title="Permanent link">&para;</a></h4>
+<p>Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's <code>apisix.yaml</code> at startup — the sidecar must be restarted (by removing its Docker container) for plugin changes to take effect on an already-running sidecar.</p>
+<p>The sidecar runs in standalone mode: <code>deployment.role: data_plane</code> with <code>config_provider: yaml</code>. No etcd is involved.</p>
 <h2 id="ui-pages">UI Pages<a class="headerlink" href="#ui-pages" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1708,6 +1918,10 @@
 <tr>
 <td><code>/settings/notifications</code></td>
 <td>Configure SMTP for cron job email reports</td>
+</tr>
+<tr>
+<td><code>/settings/plugins</code></td>
+<td>Register, edit, and remove Lua plugins</td>
 </tr>
 </tbody>
 </table>

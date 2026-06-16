@@ -754,6 +754,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../runtime-library/" class="md-nav__link">
         
   
@@ -1101,6 +1122,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environments" class="md-nav__link">
     <span class="md-ellipsis">
       Environments
@@ -1379,6 +1409,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environments" class="md-nav__link">
     <span class="md-ellipsis">
       Environments
@@ -1515,6 +1554,15 @@
 <li><code>GET /api/v1/platform-settings</code></li>
 <li><code>PUT /api/v1/platform-settings</code></li>
 <li><code>POST /api/v1/platform-settings/registries/{registryId}/sync</code></li>
+</ul>
+<h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>GET /api/v1/platform-settings/plugins</code></li>
+<li><code>POST /api/v1/platform-settings/plugins</code></li>
+<li><code>PUT /api/v1/platform-settings/plugins/{name}</code></li>
+<li><code>DELETE /api/v1/platform-settings/plugins/{name}</code></li>
+<li><code>GET /api/v1/platform-settings/plugins/{name}/check</code></li>
+<li><code>POST /api/v1/platform-settings/plugins/{name}/validate</code></li>
 </ul>
 <h2 id="environments">Environments<a class="headerlink" href="#environments" title="Permanent link">&para;</a></h2>
 <p>The frontend route is <code>/environments</code>, but the backing API currently uses <code>/api/v1/sandboxes</code>:</p>

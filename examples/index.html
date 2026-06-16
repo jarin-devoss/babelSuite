@@ -754,6 +754,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../runtime-library/" class="md-nav__link">
         
   
@@ -1088,6 +1109,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#example-modules" class="md-nav__link">
     <span class="md-ellipsis">
       Example Modules
@@ -1233,6 +1263,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#example-modules" class="md-nav__link">
     <span class="md-ellipsis">
       Example Modules
@@ -1335,6 +1374,11 @@
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/composite-readiness"><code>composite-readiness</code></a></td>
 <td><code>suite.run</code> cross-suite orchestration, all log levels, dynamic topology from dict</td>
 </tr>
+<tr>
+<td>10</td>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/electronics-lab"><code>electronics-lab</code></a></td>
+<td>Lua plugins (<code>plugin.run</code>): analog (SPICE), digital (Verilog), and control-system (scipy) verification via APISIX-hosted Lua handlers</td>
+</tr>
 </tbody>
 </table>
 <h3 id="feature-quick-reference">Feature quick-reference<a class="headerlink" href="#feature-quick-reference" title="Permanent link">&para;</a></h3>
@@ -1418,8 +1462,120 @@
 <td><code>suite.run</code></td>
 <td>composite-readiness</td>
 </tr>
+<tr>
+<td><code>load("@plugins/...")</code>, <code>plugin.run()</code></td>
+<td>electronics-lab</td>
+</tr>
 </tbody>
 </table>
+<h2 id="example-plugins">Example Plugins<a class="headerlink" href="#example-plugins" title="Permanent link">&para;</a></h2>
+<p>The example plugin packages under <a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins"><code>examples/oci-plugins/</code></a> show how to author, package, and register Lua plugins.</p>
+<p>The built-in <code>traffic.*</code> and <code>security.*</code> nodes already cover load generation and HTTP-layer security scanning (fuzz, headers, CORS, auth bypass, GraphQL, verbs, flood). Example plugins should cover things those built-ins don't — domain-specific simulation, application-level token security, event-streaming infrastructure, and deployment validation.</p>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Operations</th>
+<th>Domain</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/spice-sim"><code>spice-sim</code></a></td>
+<td><code>transient</code>, <code>dc_sweep</code>, <code>ac_analysis</code></td>
+<td>Hardware simulation</td>
+<td>Analog circuit simulation via a SPICE backend. Checks rise time, voltage bounds, and frequency response.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/verilog-sim"><code>verilog-sim</code></a></td>
+<td><code>simulate</code>, <code>strict</code></td>
+<td>Hardware simulation</td>
+<td>Digital logic simulation via an Icarus Verilog backend. Checks compile success and assertion counts.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/control-sim"><code>control-sim</code></a></td>
+<td><code>step_response</code>, <code>monitor</code></td>
+<td>Hardware simulation</td>
+<td>Control-system simulation via a scipy backend. Checks settling time, overshoot, and DC gain.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/jwt-auditor"><code>jwt-auditor</code></a></td>
+<td><code>check_token</code>, <code>audit_endpoint</code></td>
+<td>Application security</td>
+<td>JWT token auditing: algorithm strength, claim completeness, lifetime, and endpoint signature enforcement. Not covered by the built-in attack scanner.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/consumer-lag"><code>consumer-lag</code></a></td>
+<td><code>check_lag</code>, <code>watch_lag</code></td>
+<td>Event streaming</td>
+<td>Kafka consumer group lag check via REST Proxy.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/dlq-inspector"><code>dlq-inspector</code></a></td>
+<td><code>inspect</code>, <code>watch_dlq</code></td>
+<td>Event streaming</td>
+<td>Kafka DLQ message count check via REST Proxy.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/schema-compat"><code>schema-compat</code></a></td>
+<td><code>check_compat</code>, <code>enforce</code></td>
+<td>Event streaming</td>
+<td>Avro schema compatibility check against a Confluent Schema Registry.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/canary-validator"><code>canary-validator</code></a></td>
+<td><code>validate</code>, <code>watch_ratio</code></td>
+<td>Deployment validation</td>
+<td>Validates that a canary deployment receives the correct traffic split ratio.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/pii-scanner"><code>pii-scanner</code></a></td>
+<td><code>scan</code>, <code>probe</code></td>
+<td>Data quality</td>
+<td>Scans API response bodies for PII leakage (credit card, SSN, email, private key patterns).</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/shadow-diff"><code>shadow-diff</code></a></td>
+<td><code>diff</code>, <code>check</code></td>
+<td>Deployment validation</td>
+<td>Deep JSON diff of primary vs shadow service responses for migration validation.</td>
+</tr>
+</tbody>
+</table>
+<p>Each plugin folder contains:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugin.yaml</code></td>
+<td>Plugin manifest — name, version, trigger, operations, schema, and lua file references</td>
+</tr>
+<tr>
+<td><code>plugin.lua</code></td>
+<td>Lua source embedded into the APISIX sidecar</td>
+</tr>
+<tr>
+<td><code>schema.cue</code></td>
+<td>CUE schema for validating step config before dispatch</td>
+</tr>
+</tbody>
+</table>
+<p>To register a plugin from its manifest:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># read the lua source into the API payload</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nv">lua</span><span class="o">=</span><span class="k">$(</span>cat<span class="w"> </span>examples/oci-plugins/spice-sim/plugin.lua<span class="k">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nv">schema</span><span class="o">=</span><span class="k">$(</span>cat<span class="w"> </span>examples/oci-plugins/spice-sim/schema.cue<span class="k">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;{\&quot;name\&quot;:\&quot;spice-sim\&quot;,\&quot;version\&quot;:\&quot;1.0.0\&quot;,\&quot;trigger\&quot;:\&quot;/_babelsuite/plugins/spice-sim/start\&quot;,\&quot;kind\&quot;:\&quot;plugin\&quot;,\&quot;variants\&quot;:[\&quot;spice-sim\&quot;],\&quot;operations\&quot;:[\&quot;transient\&quot;,\&quot;dc_sweep\&quot;,\&quot;ac_analysis\&quot;],\&quot;lua\&quot;:</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$lua</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-Rs<span class="w"> </span>.<span class="k">)</span><span class="s2">,\&quot;schema\&quot;:</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$schema</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-Rs<span class="w"> </span>.<span class="k">)</span><span class="s2">}&quot;</span>
+</span></code></pre></div>
 <h2 id="example-modules">Example Modules<a class="headerlink" href="#example-modules" title="Permanent link">&para;</a></h2>
 <p>The example module folders under <a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-modules"><code>examples/oci-modules/</code></a>:</p>
 <table>
@@ -1454,8 +1610,8 @@
 </table>
 <p>These are pure Starlark module examples built on top of the built-in runtime primitives.</p>
 <h2 id="syncing-example-content">Syncing Example Content<a class="headerlink" href="#syncing-example-content" title="Permanent link">&para;</a></h2>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd </span><span class="n">backend</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="nb">sync-examples</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd </span><span class="n">backend</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="nb">sync-examples</span>
 </span></code></pre></div>
 <h2 id="why-the-examples-matter">Why The Examples Matter<a class="headerlink" href="#why-the-examples-matter" title="Permanent link">&para;</a></h2>
 <p>The examples act as runnable reference suites, UI inspection data, catalog enrichment sources, and authoring guides for new suites and modules.</p>

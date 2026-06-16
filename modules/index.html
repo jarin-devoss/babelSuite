@@ -14,7 +14,7 @@
         <link rel="prev" href="../profile-runtime/">
       
       
-        <link rel="next" href="../runtime-library/">
+        <link rel="next" href="../plugins/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -1054,6 +1054,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../runtime-library/" class="md-nav__link">
         
   
@@ -1715,6 +1736,7 @@
 </tbody>
 </table>
 <p>This page covers OCI module packages. For the built-in runtime primitives, see <a href="../runtime-library/">Runtime Library</a>.</p>
+<p><strong>Modules vs Plugins:</strong> both are loaded with <code>load()</code> but solve different problems. Modules spin up infrastructure your services need while they run (a Kafka broker, a Postgres cluster). Plugins run Lua code inside the APISIX sidecar — this includes the built-in <code>traffic.*</code> and <code>security.*</code> nodes as well as user-registered plugins for custom checks. Modules can load and re-export plugins internally, bundling infrastructure setup and verification helpers in one package. See <a href="../plugins/">Plugins</a> for details.</p>
 <hr />
 <h2 id="how-modules-work">How Modules Work<a class="headerlink" href="#how-modules-work" title="Permanent link">&para;</a></h2>
 <p>A module is a Starlark package with a public entrypoint (<code>module.star</code>) that exports helper functions. You load it with a <code>load()</code> statement at the top of your <code>suite.star</code>:</p>
@@ -1790,29 +1812,29 @@
 </thead>
 <tbody>
 <tr>
-<td><code>kafka()</code></td>
+<td><code>kafka(name, image, port, after, env)</code></td>
 <td>node</td>
-<td>Start a Kafka broker cluster</td>
+<td>Start a Kafka broker. KRaft mode — no ZooKeeper required.</td>
 </tr>
 <tr>
-<td><code>create_topic(name, partitions, after)</code></td>
+<td><code>create_topic(broker, topic, partitions, replication_factor, configs, after)</code></td>
 <td>node</td>
-<td>Create a topic; waits on <code>after</code></td>
+<td>Create a topic if it doesn't exist. Waits for the broker to be ready before running.</td>
 </tr>
 <tr>
-<td><code>delete_topic(name, after)</code></td>
+<td><code>delete_topic(broker, topic, after)</code></td>
 <td>node</td>
-<td>Delete a topic</td>
+<td>Delete a topic.</td>
 </tr>
 <tr>
-<td><code>set_group_offset(group, topic, offset, after)</code></td>
+<td><code>set_group_offset(broker, group, topic, offset, partition, after)</code></td>
 <td>node</td>
-<td>Reposition a consumer group</td>
+<td>Reset a consumer group's offset on a specific partition.</td>
 </tr>
 <tr>
-<td><code>disconnect(after)</code></td>
+<td><code>disconnect(broker, after)</code></td>
 <td>node</td>
-<td>Gracefully shut down the connection</td>
+<td>Gracefully stop the broker.</td>
 </tr>
 </tbody>
 </table>
@@ -1852,39 +1874,39 @@
 </thead>
 <tbody>
 <tr>
-<td><code>pg()</code></td>
+<td><code>pg(name, image, database, username, password, port, after, env)</code></td>
 <td>node</td>
-<td>Start a Postgres cluster</td>
+<td>Start a Postgres cluster.</td>
 </tr>
 <tr>
-<td><code>connect(after)</code></td>
+<td><code>connect(db, after)</code></td>
 <td>node</td>
-<td>Open a connection to the cluster</td>
+<td>Probe the cluster with <code>SELECT 1</code> until it responds (up to 30 retries).</td>
 </tr>
 <tr>
-<td><code>query(sql, after)</code></td>
+<td><code>query(db, sql, name, after)</code></td>
 <td>node</td>
-<td>Execute a raw SQL statement</td>
+<td>Execute a raw SQL statement with <code>psql</code>. Fails on error.</td>
 </tr>
 <tr>
-<td><code>insert(table, rows, after)</code></td>
+<td><code>insert(db, table, values, after)</code></td>
 <td>node</td>
-<td>Insert one or more rows</td>
+<td>Insert a single row from a dict of column→value pairs.</td>
 </tr>
 <tr>
-<td><code>select(table, where, after)</code></td>
+<td><code>select(db, table, columns, where, after)</code></td>
 <td>node</td>
-<td>Select rows matching a condition</td>
+<td>Run a <code>SELECT</code> with an optional <code>WHERE</code> clause.</td>
 </tr>
 <tr>
-<td><code>delete(table, where, after)</code></td>
+<td><code>delete(db, table, where, after)</code></td>
 <td>node</td>
-<td>Delete matching rows</td>
+<td>Run a <code>DELETE</code> with a <code>WHERE</code> clause.</td>
 </tr>
 <tr>
-<td><code>upsert(table, rows, conflict, after)</code></td>
+<td><code>upsert(db, table, values, conflict_columns, after)</code></td>
 <td>node</td>
-<td>Insert or update on conflict</td>
+<td><code>INSERT … ON CONFLICT … DO UPDATE SET</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -1928,39 +1950,39 @@
 </thead>
 <tbody>
 <tr>
-<td><code>redis(name, port, password, max_memory, max_memory_policy)</code></td>
+<td><code>redis(name, image, port, password, max_memory, max_memory_policy, persistence, databases, after, env)</code></td>
 <td>node</td>
-<td>Start a Redis cache</td>
+<td>Start a Redis cache. Set <code>persistence=True</code> for AOF + RDB.</td>
 </tr>
 <tr>
-<td><code>wait_ready(cluster, after)</code></td>
+<td><code>wait_ready(cache, after)</code></td>
 <td>node</td>
-<td>Wait until the cache accepts connections</td>
+<td>Poll <code>PING</code> until the cache responds with <code>PONG</code>.</td>
 </tr>
 <tr>
-<td><code>set_key(cluster, key, value, ttl_seconds, after)</code></td>
+<td><code>set_key(cache, key, value, ttl_seconds, after)</code></td>
 <td>node</td>
-<td>Set a single key</td>
+<td><code>SET key value [EX ttl]</code>.</td>
 </tr>
 <tr>
-<td><code>set_keys(cluster, mapping, ttl_seconds, after)</code></td>
+<td><code>set_keys(cache, mapping, ttl_seconds, after)</code></td>
 <td>node</td>
-<td>Set multiple keys from a dict</td>
+<td>Set multiple keys from a dict in one task.</td>
 </tr>
 <tr>
-<td><code>delete_key(cluster, key, after)</code></td>
+<td><code>delete_key(cache, key, after)</code></td>
 <td>node</td>
-<td>Delete a key</td>
+<td><code>DEL key</code>.</td>
 </tr>
 <tr>
-<td><code>flush_db(cluster, db, after)</code></td>
+<td><code>flush_db(cache, db, after)</code></td>
 <td>node</td>
-<td>Flush one logical database</td>
+<td><code>FLUSHDB</code> on a specific logical database number.</td>
 </tr>
 <tr>
-<td><code>flush_all(cluster, after)</code></td>
+<td><code>flush_all(cache, after)</code></td>
 <td>node</td>
-<td>Flush all databases</td>
+<td><code>FLUSHALL</code> — wipes every database.</td>
 </tr>
 </tbody>
 </table>
@@ -2004,34 +2026,34 @@
 </thead>
 <tbody>
 <tr>
-<td><code>mongodb(name, port, username, password, wired_tiger_cache_gb)</code></td>
+<td><code>mongodb(name, image, port, username, password, replica_set, wired_tiger_cache_gb, after, env)</code></td>
 <td>node</td>
-<td>Start a MongoDB cluster</td>
+<td>Start a MongoDB cluster. Pass <code>replica_set</code> to enable replica set mode.</td>
 </tr>
 <tr>
 <td><code>create_collection(cluster, db, collection, after)</code></td>
 <td>node</td>
-<td>Create a collection</td>
+<td>Create a collection if it doesn't exist.</td>
 </tr>
 <tr>
 <td><code>create_index(cluster, db, collection, keys, unique, after)</code></td>
 <td>node</td>
-<td>Create an index</td>
+<td>Create an index. <code>keys</code> is a dict of field→direction (e.g. <code>{"sku": 1}</code>).</td>
 </tr>
 <tr>
 <td><code>insert_documents(cluster, db, collection, documents, after)</code></td>
 <td>node</td>
-<td>Insert documents</td>
+<td>Insert a list of documents.</td>
 </tr>
 <tr>
 <td><code>drop_collection(cluster, db, collection, after)</code></td>
 <td>node</td>
-<td>Drop a collection</td>
+<td>Drop a collection and all its documents.</td>
 </tr>
 <tr>
 <td><code>run_script(cluster, db, script_path, after)</code></td>
 <td>node</td>
-<td>Execute a JS migration script</td>
+<td>Execute a <code>mongosh</code> JS script for complex migrations.</td>
 </tr>
 </tbody>
 </table>
@@ -2073,19 +2095,19 @@
 </thead>
 <tbody>
 <tr>
-<td><code>browser_test(spec, base_url, browsers, devices, after, env)</code></td>
+<td><code>browser_test(spec, base_url, browsers, devices, after, env, collect_traces, collect_video, extra_exports)</code></td>
 <td>list of nodes</td>
-<td>Run a Playwright spec across a browser/device matrix</td>
+<td>Run a Playwright spec across a browser × device matrix. Returns one node per combination. Supported browsers: <code>chromium</code>, <code>firefox</code>, <code>webkit</code>. Supported devices: <code>desktop</code>, <code>mobile</code>, <code>tablet</code>.</td>
 </tr>
 <tr>
 <td><code>a11y_audit(url, after, wcag_level, fail_on_critical)</code></td>
 <td>node</td>
-<td>WCAG accessibility audit against a live URL</td>
+<td>WCAG accessibility audit using axe-core. <code>wcag_level</code> can be <code>A</code>, <code>AA</code>, or <code>AAA</code>. Exports JUnit and JSON reports.</td>
 </tr>
 <tr>
 <td><code>visual_diff(spec, base_url, browsers, threshold, after)</code></td>
-<td>node</td>
-<td>Visual regression snapshot comparison</td>
+<td>list of nodes</td>
+<td>Screenshot snapshot comparison. Fails if pixel diff exceeds <code>threshold</code> (default <code>0.01</code> = 1%). Exports snapshots on every run, diffs on failure only.</td>
 </tr>
 </tbody>
 </table>
@@ -2161,15 +2183,23 @@
 <tbody>
 <tr>
 <td>Runtime library</td>
-<td>Built-in topology primitives (<code>service</code>, <code>task</code>, <code>test</code>, <code>traffic</code>)</td>
+<td>Built-in topology primitives: <code>service</code>, <code>task</code>, <code>test</code>, <code>log</code>, <code>suite</code></td>
+</tr>
+<tr>
+<td>Built-in plugins</td>
+<td><code>traffic.*</code> and <code>security.*</code> — Lua code (<code>babelsuite-traffic-cannon</code>, <code>babelsuite-attack-scanner</code>) running inside the APISIX sidecar; no container</td>
 </tr>
 <tr>
 <td>OCI module</td>
 <td>Reusable Starlark helpers for specific infrastructure (Kafka, Postgres, Redis, MongoDB, Playwright, …)</td>
 </tr>
 <tr>
+<td>User plugin</td>
+<td>Custom Lua verification steps registered in <code>configuration.yaml</code> — same sidecar dispatch as built-in plugins</td>
+</tr>
+<tr>
 <td>Suite</td>
-<td>Runnable topology — assembles primitives and modules into a full environment</td>
+<td>Runnable topology — assembles all of the above into a full environment</td>
 </tr>
 <tr>
 <td>Suite dependency</td>
@@ -2227,13 +2257,13 @@
         
         
           
-          <a href="../runtime-library/" class="md-footer__link md-footer__link--next" aria-label="Next: Runtime Library">
+          <a href="../plugins/" class="md-footer__link md-footer__link--next" aria-label="Next: Plugins">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Runtime Library
+                Plugins
               </div>
             </div>
             <div class="md-footer__button md-icon">

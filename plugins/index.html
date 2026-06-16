@@ -1,0 +1,2562 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Control plane, suite model, execution, CLI, API, and operations documentation for BabelSuite.">
+      
+      
+      
+      
+        <link rel="prev" href="../modules/">
+      
+      
+        <link rel="next" href="../runtime-library/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+    
+    
+      
+        <title>Plugins - BabelSuite</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#plugins" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="BabelSuite" class="md-header__button md-logo" aria-label="BabelSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            BabelSuite
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Plugins
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jarin-devoss/babelSuite" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jarin-devoss/babelSuite
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../philosophy/" class="md-tabs__link">
+        
+  
+    
+  
+  Philosophy
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  Core
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../auth/" class="md-tabs__link">
+          
+  
+  Interfaces
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../examples/" class="md-tabs__link">
+        
+  
+    
+  
+  Examples
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../development/" class="md-tabs__link">
+        
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../operations/" class="md-tabs__link">
+        
+  
+    
+  
+  Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../troubleshooting/" class="md-tabs__link">
+        
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="BabelSuite" class="md-nav__button md-logo" aria-label="BabelSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    BabelSuite
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jarin-devoss/babelSuite" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jarin-devoss/babelSuite
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../philosophy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Philosophy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Core
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Core
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-plane/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Control Plane
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../platform/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Platform Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Catalog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suites/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Suites
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suite-authoring/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Suite Authoring
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dependencies/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dependency Manifests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Profiles
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profile-runtime/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Profile Runtime
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#plugins-vs-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins vs Modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How It Works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-plugin-in-a-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a Plugin in a Suite
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-user-plugins-should-not-duplicate" class="md-nav__link">
+    <span class="md-ellipsis">
+      What User Plugins Should NOT Duplicate
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Plugins
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spice-sim-analog-circuit-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      spice-sim — Analog Circuit Simulation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verilog-sim-digital-logic-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      verilog-sim — Digital Logic Simulation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-sim-control-system-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      control-sim — Control System Simulation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jwt-auditor-jwt-token-and-endpoint-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      jwt-auditor — JWT Token and Endpoint Security
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canary-validator-canary-deployment-traffic-ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      canary-validator — Canary Deployment Traffic Ratio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consumer-lag-kafka-consumer-group-lag" class="md-nav__link">
+    <span class="md-ellipsis">
+      consumer-lag — Kafka Consumer Group Lag
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlq-inspector-dead-letter-queue-inspector" class="md-nav__link">
+    <span class="md-ellipsis">
+      dlq-inspector — Dead Letter Queue Inspector
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pii-scanner-pii-leak-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      pii-scanner — PII Leak Detection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-compat-avro-schema-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      schema-compat — Avro Schema Compatibility
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shadow-diff-shadow-traffic-response-diffing" class="md-nav__link">
+    <span class="md-ellipsis">
+      shadow-diff — Shadow Traffic Response Diffing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-response-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Response Contract
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      API
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#register" class="md-nav__link">
+    <span class="md-ellipsis">
+      Register
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update-in-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      Update in-place
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apisix-sidecar-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      APISIX Sidecar Lifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-plugins-inside-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Plugins Inside Modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-starlark-wrapper-pluginstar" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Starlark Wrapper (plugin.star)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin Starlark Wrapper (plugin.star)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-its-used-in-a-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      How it's used in a suite
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationship-to-pluginyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relationship to plugin.yaml
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#writing-a-pluginstar" class="md-nav__link">
+    <span class="md-ellipsis">
+      Writing a plugin.star
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-definition-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Definition Files
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtime-library/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Runtime Library
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mocking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mocking
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mocking-reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mocking Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../execution/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Execution
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agents/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Agents
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../environments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Environments
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cron-jobs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron Jobs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Interfaces
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Interfaces
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Authentication
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Examples
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Development
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#plugins-vs-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugins vs Modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How It Works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-plugin-in-a-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a Plugin in a Suite
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-user-plugins-should-not-duplicate" class="md-nav__link">
+    <span class="md-ellipsis">
+      What User Plugins Should NOT Duplicate
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Plugins
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spice-sim-analog-circuit-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      spice-sim — Analog Circuit Simulation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verilog-sim-digital-logic-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      verilog-sim — Digital Logic Simulation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-sim-control-system-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      control-sim — Control System Simulation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jwt-auditor-jwt-token-and-endpoint-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      jwt-auditor — JWT Token and Endpoint Security
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canary-validator-canary-deployment-traffic-ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      canary-validator — Canary Deployment Traffic Ratio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consumer-lag-kafka-consumer-group-lag" class="md-nav__link">
+    <span class="md-ellipsis">
+      consumer-lag — Kafka Consumer Group Lag
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlq-inspector-dead-letter-queue-inspector" class="md-nav__link">
+    <span class="md-ellipsis">
+      dlq-inspector — Dead Letter Queue Inspector
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pii-scanner-pii-leak-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      pii-scanner — PII Leak Detection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-compat-avro-schema-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      schema-compat — Avro Schema Compatibility
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shadow-diff-shadow-traffic-response-diffing" class="md-nav__link">
+    <span class="md-ellipsis">
+      shadow-diff — Shadow Traffic Response Diffing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Fields
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-response-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Response Contract
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      API
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#register" class="md-nav__link">
+    <span class="md-ellipsis">
+      Register
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update-in-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      Update in-place
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apisix-sidecar-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      APISIX Sidecar Lifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-plugins-inside-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Plugins Inside Modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-starlark-wrapper-pluginstar" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Starlark Wrapper (plugin.star)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin Starlark Wrapper (plugin.star)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-its-used-in-a-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      How it's used in a suite
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationship-to-pluginyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relationship to plugin.yaml
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#writing-a-pluginstar" class="md-nav__link">
+    <span class="md-ellipsis">
+      Writing a plugin.star
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-definition-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plugin Definition Files
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h1>
+<p><a href="../">Back to index</a></p>
+<p>Plugins are Lua functions that run inside the APISIX sidecar — no extra container, no image pull. BabelSuite ships two built-in plugins: <code>babelsuite-traffic-cannon</code> (all <code>traffic.*</code> nodes) and <code>babelsuite-attack-scanner</code> (all <code>security.*</code> nodes). User plugins follow exactly the same dispatch pattern and run in the same sidecar process — they are just Lua code registered in <code>configuration.yaml</code> instead of being bundled with BabelSuite.</p>
+<h2 id="plugins-vs-modules">Plugins vs Modules<a class="headerlink" href="#plugins-vs-modules" title="Permanent link">&para;</a></h2>
+<p>There are actually <strong>three kinds of topology nodes</strong> in BabelSuite, not two:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Modules (<code>@babelsuite/kafka</code>, …)</th>
+<th>Built-in plugins (<code>traffic.*</code>, <code>security.*</code>)</th>
+<th>User plugins (<code>@plugins/spice-sim</code>, …)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>What it is</strong></td>
+<td>A Starlark package that returns topology nodes</td>
+<td>Lua code bundled with BabelSuite, running inside the APISIX sidecar</td>
+<td>Lua code you write and register, running in the same sidecar</td>
+</tr>
+<tr>
+<td><strong>Where the code runs</strong></td>
+<td>Parsed at suite load time — wires up Docker containers</td>
+<td>Inside the APISIX process at execution time — no container</td>
+<td>Same as built-in plugins — inside APISIX</td>
+</tr>
+<tr>
+<td><strong>How it's delivered</strong></td>
+<td>OCI artifact pulled from a registry</td>
+<td>Bundled with BabelSuite — always available</td>
+<td>Lua source registered in <code>configuration.yaml</code></td>
+</tr>
+<tr>
+<td><strong>What it produces</strong></td>
+<td><code>service</code>, <code>task</code>, <code>test</code> nodes — full containers</td>
+<td>A lightweight step: POST config → read JSON verdict</td>
+<td>Same pattern as built-in plugins</td>
+</tr>
+<tr>
+<td><strong>Startup cost</strong></td>
+<td>Container pull + boot</td>
+<td>Zero — sidecar already running</td>
+<td>Zero — same sidecar</td>
+</tr>
+<tr>
+<td><strong>Use it when</strong></td>
+<td>Spin up infrastructure: broker, database, cache</td>
+<td>Load test or security scan a running service</td>
+<td>Custom verification: domain-specific checks, external simulators</td>
+</tr>
+</tbody>
+</table>
+<p><code>traffic.*</code> and <code>security.*</code> <strong>are plugins</strong> — they are Lua code (<code>babelsuite-traffic-cannon</code> and <code>babelsuite-attack-scanner</code>) that runs inside the APISIX sidecar, exactly like a user plugin. The only difference is they ship bundled with BabelSuite instead of being registered manually. User plugins follow the exact same dispatch pattern: the backend POSTs a config payload to the sidecar, and reads <code>passed</code> / <code>findings</code> / <code>summary</code> / <code>level</code> back.</p>
+<p><strong>Rule of thumb:</strong> if the answer to "does my service need this running while tests execute?" is yes — it's a module. If the answer is "does my pipeline need to verify or probe something?" — it's a plugin (built-in or user-defined).</p>
+<p>Examples:
+- <code>@babelsuite/kafka</code> is a <strong>module</strong> — starts a Kafka broker your services publish to
+- <code>traffic.baseline(target=...)</code> is a <strong>built-in plugin</strong> — runs load against a service via <code>babelsuite-traffic-cannon</code> in the sidecar
+- <code>security.fuzz(target=...)</code> is a <strong>built-in plugin</strong> — fuzzes endpoints via <code>babelsuite-attack-scanner</code> in the sidecar
+- <code>@plugins/consumer-lag</code> is a <strong>user plugin</strong> — asserts the consumer group has caught up after the test
+- <code>@plugins/pii-scanner</code> is a <strong>user plugin</strong> — scans your API's response for PII</p>
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Register a plugin via the API or UI (<code>Settings → Plugins</code>). The plugin's Lua source is embedded into the settings file.</li>
+<li>When a suite that references the plugin runs, BabelSuite generates an <code>apisix.yaml</code> for the sidecar that includes the plugin's Lua code as a serverless function at the registered trigger path.</li>
+<li>The APISIX sidecar starts once per (suite, profile) pair and stays up across all executions of that combination.</li>
+<li>For each <code>plugin.run()</code> step the backend POSTs the step config to the trigger URL on the sidecar and reads the JSON response back.</li>
+</ol>
+<h2 id="using-a-plugin-in-a-suite">Using a Plugin in a Suite<a class="headerlink" href="#using-a-plugin-in-a-suite" title="Permanent link">&para;</a></h2>
+<p>Plugins are loaded with <code>load("@plugins/&lt;name&gt;", "&lt;operation&gt;")</code>. Each exported name is a function that creates a topology node.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span>   <span class="s2">&quot;transient&quot;</span><span class="p">,</span> <span class="s2">&quot;dc_sweep&quot;</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/verilog-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;simulate&quot;</span><span class="p">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/control-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;monitor&quot;</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">spice_mock</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">verilog_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;verilog-service&quot;</span><span class="p">)</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">control_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;control-service&quot;</span><span class="p">)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">rc_filter</span> <span class="o">=</span> <span class="n">transient</span><span class="p">(</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;rc-filter-step-response&quot;</span><span class="p">,</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">netlist</span>     <span class="o">=</span> <span class="s2">&quot;RC Filter</span><span class="se">\n</span><span class="s2">...&quot;</span><span class="p">,</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">probe_node</span>  <span class="o">=</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">max_voltage</span> <span class="o">=</span> <span class="mf">5.5</span><span class="p">,</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">spice_mock</span><span class="p">],</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">counter_check</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">name</span>       <span class="o">=</span> <span class="s2">&quot;4bit-counter-correctness&quot;</span><span class="p">,</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="n">top_module</span> <span class="o">=</span> <span class="s2">&quot;tb_counter&quot;</span><span class="p">,</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="n">verilog</span>    <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">testbench</span>  <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="n">timeout_ns</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="n">after</span>      <span class="o">=</span> <span class="p">[</span><span class="n">verilog_mock</span><span class="p">],</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="p">)</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">damper_watch</span> <span class="o">=</span> <span class="n">monitor</span><span class="p">(</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;mass-spring-damper-response&quot;</span><span class="p">,</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="n">numerator</span>   <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    <span class="n">denominator</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>    <span class="n">time_end</span>    <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">control_mock</span><span class="p">],</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Plugin nodes accept <code>after=</code>, <code>continue_on_failure=</code>, and <code>on_failure=</code> just like any other topology node.</p>
+<h2 id="what-user-plugins-should-not-duplicate">What User Plugins Should NOT Duplicate<a class="headerlink" href="#what-user-plugins-should-not-duplicate" title="Permanent link">&para;</a></h2>
+<p>Before writing a user plugin, check whether the built-in plugins already cover it:</p>
+<table>
+<thead>
+<tr>
+<th>If you need to…</th>
+<th>Use built-in…</th>
+<th>NOT a user plugin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Load-test an endpoint</td>
+<td><code>traffic.baseline</code>, <code>traffic.stress</code>, <code>traffic.spike</code>, …</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Check for SQLi / XSS / path traversal</td>
+<td><code>security.fuzz</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Verify auth bypass / open endpoints</td>
+<td><code>security.auth</code>, <code>security.probe</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Audit security response headers</td>
+<td><code>security.headers</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Find CORS misconfigurations</td>
+<td><code>security.cors</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Test rate limiting</td>
+<td><code>security.flood</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Detect exposed GraphQL introspection</td>
+<td><code>security.graphql</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Test dangerous HTTP verbs</td>
+<td><code>security.verbs</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>User plugins are the right tool when the check is <strong>domain-specific</strong> and not covered by the built-ins: hardware simulation, token/claim auditing, schema registry compatibility, Kafka infrastructure assertions, database state checks, etc.</p>
+<h2 id="example-plugins">Example Plugins<a class="headerlink" href="#example-plugins" title="Permanent link">&para;</a></h2>
+<p>Ten plugins ship under <code>examples/oci-plugins/</code>. They cover four domains: hardware simulation, application security, event-streaming health, and deployment validation.</p>
+<hr />
+<h3 id="spice-sim-analog-circuit-simulation"><code>spice-sim</code> — Analog Circuit Simulation<a class="headerlink" href="#spice-sim-analog-circuit-simulation" title="Permanent link">&para;</a></h3>
+<p>POSTs a SPICE netlist to a simulation backend and checks the resulting waveform against threshold rules. Useful for electronics teams that run automated analog circuit checks as part of a CI pipeline.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transient</code></td>
+<td>Runs a time-domain simulation. Checks peak voltage, minimum voltage, and rise time (10%→90%) against configured limits.</td>
+</tr>
+<tr>
+<td><code>dc_sweep</code></td>
+<td>Runs a DC operating-point sweep. Checks peak and minimum voltage at the probe node.</td>
+</tr>
+<tr>
+<td><code>ac_analysis</code></td>
+<td>Runs a small-signal AC analysis. Checks the gain in dB at the probe node against a minimum threshold.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>sim_url</code>, <code>netlist</code>. Optional: <code>probe_node</code>, <code>max_voltage</code>, <code>min_voltage</code>, <code>max_rise_ms</code>, <code>min_gain_db</code>, <code>severity</code>.</p>
+<hr />
+<h3 id="verilog-sim-digital-logic-simulation"><code>verilog-sim</code> — Digital Logic Simulation<a class="headerlink" href="#verilog-sim-digital-logic-simulation" title="Permanent link">&para;</a></h3>
+<p>Sends Verilog source and a testbench to an Icarus-compatible simulation backend and inspects the results for compile errors, runtime assertion failures, and undefined (X-state) signals.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>simulate</code></td>
+<td>Runs the testbench. Fails if compile errors exceed zero or simulation errors exceed <code>max_errors</code>. X-state assertion is configurable via <code>assert_no_x</code>.</td>
+</tr>
+<tr>
+<td><code>strict</code></td>
+<td>Same as <code>simulate</code> but zero-tolerance: any X-state signal, any compile error, any simulation error fails the step immediately.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>sim_url</code>, <code>top_module</code>. Optional: <code>verilog</code>, <code>testbench</code>, <code>timeout_ns</code>, <code>max_errors</code>, <code>assert_no_x</code>, <code>severity</code>.</p>
+<hr />
+<h3 id="control-sim-control-system-simulation"><code>control-sim</code> — Control System Simulation<a class="headerlink" href="#control-sim-control-system-simulation" title="Permanent link">&para;</a></h3>
+<p>Sends a transfer function (numerator/denominator polynomial coefficients) to a scipy-backed simulation service and checks stability and transient response metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step_response</code></td>
+<td>Runs a step response simulation. Checks stability (poles in right-half plane), settling time, overshoot percentage, and DC gain. Fails the step on violation.</td>
+</tr>
+<tr>
+<td><code>monitor</code></td>
+<td>Same checks, but always emits <code>warn</code>-level findings — never blocks the suite. Use this for passive observability of control system health.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>sim_url</code>, <code>numerator</code>, <code>denominator</code>. Optional: <code>time_end</code>, <code>max_settling_time</code>, <code>max_overshoot_pct</code>, <code>min_dc_gain</code>, <code>max_dc_gain</code>, <code>severity</code>.</p>
+<hr />
+<h3 id="jwt-auditor-jwt-token-and-endpoint-security"><code>jwt-auditor</code> — JWT Token and Endpoint Security<a class="headerlink" href="#jwt-auditor-jwt-token-and-endpoint-security" title="Permanent link">&para;</a></h3>
+<p>Application-level JWT security checks. The built-in <code>security.*</code> modes check HTTP-layer concerns (headers, CORS, verbs, fuzz payloads). <code>jwt-auditor</code> checks what's <em>inside</em> the token and whether the endpoint actually enforces signature validation — neither of which the attack scanner covers.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>check_token</code></td>
+<td>POSTs credentials to <code>auth_url</code>, extracts the JWT from the response, decodes the header and payload, and audits: algorithm (<code>none</code> is critical, HMAC symmetric is a warning), missing <code>exp</code> claim, token lifetime exceeding <code>max_lifetime_hours</code>, and missing required claims (<code>sub</code>, <code>iss</code>, <code>exp</code>, <code>iat</code> by default).</td>
+</tr>
+<tr>
+<td><code>audit_endpoint</code></td>
+<td>Gets a valid token first, then probes <code>endpoint</code> three ways: no Authorization header (must be 401/403), tampered signature (must be 401/403), and valid token (must be 2xx). Flags any case where the endpoint accepts what it shouldn't.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>auth_url</code>, <code>username</code>, <code>password</code>. Optional: <code>token_field</code> (default <code>token</code>), <code>endpoint</code> (required for <code>audit_endpoint</code>), <code>max_lifetime_hours</code> (default <code>24</code>), <code>required_claims</code>, <code>severity</code>.</p>
+<hr />
+<h3 id="canary-validator-canary-deployment-traffic-ratio"><code>canary-validator</code> — Canary Deployment Traffic Ratio<a class="headerlink" href="#canary-validator-canary-deployment-traffic-ratio" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>Note:</strong> this plugin makes HTTP requests to check traffic routing. The built-in <code>traffic.*</code> nodes handle load generation — this plugin is specifically for validating that the <em>split ratio</em> itself is correct, which is a different concern.</p>
+</blockquote>
+<p>Sends N requests to a target URL and counts how many responses carry a canary header. Checks that the observed ratio matches the expected split within a tolerance band. Useful for validating that a canary deployment is receiving exactly the right percentage of traffic.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>validate</code></td>
+<td>Checks the observed canary ratio against <code>expected_ratio ± tolerance</code>. Fails if out of range.</td>
+</tr>
+<tr>
+<td><code>watch_ratio</code></td>
+<td>Same check but with a wider default tolerance and <code>warn</code>-level findings — passive monitoring mode.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>target</code>. Optional: <code>canary_header</code> (default <code>X-Canary</code>), <code>expected_ratio</code> (default <code>0.1</code>), <code>tolerance</code> (default <code>0.05</code>), <code>sample_size</code> (default <code>100</code>), <code>severity</code>.</p>
+<hr />
+<h3 id="consumer-lag-kafka-consumer-group-lag"><code>consumer-lag</code> — Kafka Consumer Group Lag<a class="headerlink" href="#consumer-lag-kafka-consumer-group-lag" title="Permanent link">&para;</a></h3>
+<p>Queries a Kafka REST Proxy for a consumer group's partition offsets and checks whether any partition's lag exceeds a threshold. Useful after a load test or data ingestion task to confirm the consumer has fully caught up.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>check_lag</code></td>
+<td>Checks every partition in the group. Fails with <code>critical</code> if any partition lag exceeds <code>max_lag</code>.</td>
+</tr>
+<tr>
+<td><code>watch_lag</code></td>
+<td>Same check but always <code>warn</code>-level — use for continuous observability.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>kafka_rest_url</code>, <code>group</code>. Optional: <code>max_lag</code> (default <code>1000</code>), <code>severity</code>.</p>
+<hr />
+<h3 id="dlq-inspector-dead-letter-queue-inspector"><code>dlq-inspector</code> — Dead Letter Queue Inspector<a class="headerlink" href="#dlq-inspector-dead-letter-queue-inspector" title="Permanent link">&para;</a></h3>
+<p>Checks the latest offset of a Kafka DLQ topic via the REST Proxy. A non-zero (or above-threshold) offset means messages were dead-lettered during the test run.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inspect</code></td>
+<td>Fails the step if the DLQ topic has more messages than <code>max_messages</code>.</td>
+</tr>
+<tr>
+<td><code>watch_dlq</code></td>
+<td>Same check but always <code>warn</code>-level — never blocks the suite.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>kafka_rest_url</code>, <code>topic</code>. Optional: <code>max_messages</code> (default <code>0</code>), <code>severity</code>.</p>
+<hr />
+<h3 id="pii-scanner-pii-leak-detection"><code>pii-scanner</code> — PII Leak Detection<a class="headerlink" href="#pii-scanner-pii-leak-detection" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>Note:</strong> this plugin makes an HTTP GET to a URL and scans the body. The built-in <code>security.probe</code> checks for <em>access control</em> on sensitive paths — <code>pii-scanner</code> checks for <em>data leakage</em> in the response body, which is a different concern.</p>
+</blockquote>
+<p>Fetches a URL and scans the response body for PII patterns using regex. Ships with built-in patterns for credit card numbers, SSNs, email addresses, and private keys. Additional patterns can be provided per-step.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scan</code></td>
+<td>Fetches <code>target</code> and fails if any PII pattern matches. Use this as a hard gate in your pipeline.</td>
+</tr>
+<tr>
+<td><code>probe</code></td>
+<td>Same scan but always <code>warn</code>-level — passive auditing mode.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>target</code>. Optional: <code>patterns</code> (list of extra regex strings), <code>severity</code>.</p>
+<hr />
+<h3 id="schema-compat-avro-schema-compatibility"><code>schema-compat</code> — Avro Schema Compatibility<a class="headerlink" href="#schema-compat-avro-schema-compatibility" title="Permanent link">&para;</a></h3>
+<p>Posts a new schema to a Confluent-compatible Schema Registry compatibility endpoint and checks whether it is compatible with the current version for a given subject.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>check_compat</code></td>
+<td>Checks compatibility using the mode in <code>mode</code> (<code>BACKWARD</code>, <code>FORWARD</code>, <code>FULL</code>, etc.).</td>
+</tr>
+<tr>
+<td><code>enforce</code></td>
+<td>Always checks <code>FULL</code> compatibility (both backward and forward). Use this as a hard gate before publishing a new schema version.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>registry_url</code>, <code>subject</code>, <code>new_schema</code>. Optional: <code>mode</code> (default <code>BACKWARD</code>), <code>severity</code>.</p>
+<hr />
+<h3 id="shadow-diff-shadow-traffic-response-diffing"><code>shadow-diff</code> — Shadow Traffic Response Diffing<a class="headerlink" href="#shadow-diff-shadow-traffic-response-diffing" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>Note:</strong> this plugin makes HTTP requests to two targets. The built-in <code>traffic.*</code> nodes generate load — <code>shadow-diff</code> is for <em>migration validation</em>, comparing the response payloads of an old and new implementation, which traffic nodes don't do.</p>
+</blockquote>
+<p>Fetches the same endpoint from two targets — a primary and a shadow — and compares the JSON responses field by field. Useful for validating a new service version before switching traffic.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>diff</code></td>
+<td>Fails the step if the number of field-level differences exceeds <code>threshold</code>. Useful as a hard gate during migration.</td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td>Same diff but always <code>warn</code>-level — passive shadow monitoring.</td>
+</tr>
+</tbody>
+</table>
+<p>Required config: <code>primary</code>, <code>shadow</code>. Optional: <code>ignore_fields</code> (list of field paths to skip), <code>threshold</code> (default <code>0</code>), <code>severity</code>.</p>
+<hr />
+<h2 id="plugin-fields">Plugin Fields<a class="headerlink" href="#plugin-fields" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Unique identifier — used as the load target in <code>suite.star</code> (e.g. <code>@plugins/spice-sim</code>)</td>
+</tr>
+<tr>
+<td><code>trigger</code></td>
+<td>APISIX route path the plugin listens on (e.g. <code>/_babelsuite/plugins/spice-sim/start</code>)</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>Semantic version string stored as-is — e.g. <code>1.0.0</code>. Not auto-bumped by the API.</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td>Must be <code>plugin</code></td>
+</tr>
+<tr>
+<td><code>variants</code></td>
+<td>List of variant names the plugin registers as APISIX Lua extensions</td>
+</tr>
+<tr>
+<td><code>operations</code></td>
+<td>Optional list of allowed operation names — the suite call must match one</td>
+</tr>
+<tr>
+<td><code>lua</code></td>
+<td>Full Lua source embedded verbatim into the generated <code>apisix.yaml</code></td>
+</tr>
+<tr>
+<td><code>schema</code></td>
+<td>Optional CUE schema; step config is validated against it before dispatch</td>
+</tr>
+<tr>
+<td><code>star</code></td>
+<td>Starlark wrapper source — defines the typed functions suite authors call via <code>load("@plugins/&lt;name&gt;", ...)</code>. See <a href="#plugin-starlark-wrapper-pluginstar">Plugin Starlark Wrapper</a>.</td>
+</tr>
+<tr>
+<td><code>deprecated</code></td>
+<td>When <code>true</code>, the plugin is flagged in health checks but still dispatched</td>
+</tr>
+</tbody>
+</table>
+<h2 id="plugin-response-contract">Plugin Response Contract<a class="headerlink" href="#plugin-response-contract" title="Permanent link">&para;</a></h2>
+<p>The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads these fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>passed</code></td>
+<td>bool</td>
+<td>Whether the step should be considered successful</td>
+</tr>
+<tr>
+<td><code>findings</code></td>
+<td>array</td>
+<td>List of finding objects — each should have at least <code>message</code></td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>string</td>
+<td>One-line summary emitted as a log line at the level set by <code>level</code></td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td>string</td>
+<td>Log level for the summary: <code>info</code>, <code>debug</code>, <code>warn</code>, or <code>error</code>. Defaults to <code>info</code> if omitted.</td>
+</tr>
+<tr>
+<td><code>stderr</code></td>
+<td>string</td>
+<td>Optional raw stderr from the plugin process, shown in the execution log</td>
+</tr>
+</tbody>
+</table>
+<p>Minimal compliant Lua return:</p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">#</span><span class="nv">findings</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kr">return</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nv">passed</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">findings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">findings</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nv">summary</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">&quot;All checks passed.&quot;</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">string.format</span><span class="p">(</span><span class="s2">&quot;%d finding(s).&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">#</span><span class="nv">findings</span><span class="p">),</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nv">level</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">&quot;info&quot;</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;warn&quot;</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
+</span></code></pre></div>
+<h2 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
+<p>All plugin endpoints require an admin session except <code>check</code> and <code>validate</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/platform-settings/plugins</code></td>
+<td>List all registered plugins</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/platform-settings/plugins</code></td>
+<td>Register a new plugin</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}</code></td>
+<td>Update an existing plugin in-place</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}</code></td>
+<td>Remove a plugin</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}/check</code></td>
+<td>Static health check: validates trigger path and CUE schema</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/platform-settings/plugins/{name}/validate</code></td>
+<td>Validate a step config object against the plugin's CUE schema</td>
+</tr>
+</tbody>
+</table>
+<h3 id="register">Register<a class="headerlink" href="#register" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="s1">    &quot;name&quot;:       &quot;spice-sim&quot;,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="s1">    &quot;version&quot;:    &quot;1.0.0&quot;,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="s1">    &quot;trigger&quot;:    &quot;/_babelsuite/plugins/spice-sim/start&quot;,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="s1">    &quot;kind&quot;:       &quot;plugin&quot;,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="s1">    &quot;variants&quot;:   [&quot;spice-sim&quot;],</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="s1">    &quot;operations&quot;: [&quot;transient&quot;, &quot;dc_sweep&quot;, &quot;ac_analysis&quot;],</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="s1">    &quot;lua&quot;:        &quot;&lt;lua source&gt;&quot;,</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="s1">    &quot;schema&quot;:     &quot;&lt;cue schema&gt;&quot;</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="s1">  }&#39;</span>
+</span></code></pre></div>
+<h3 id="update-in-place">Update in-place<a class="headerlink" href="#update-in-place" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins/spice-sim<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{ &quot;trigger&quot;: &quot;/_babelsuite/plugins/spice-sim/start&quot;, &quot;lua&quot;: &quot;&lt;updated lua&gt;&quot;, ... }&#39;</span>
+</span></code></pre></div>
+<p>The plugin name is taken from the URL — the <code>name</code> field in the body is ignored.</p>
+<h2 id="apisix-sidecar-lifecycle">APISIX Sidecar Lifecycle<a class="headerlink" href="#apisix-sidecar-lifecycle" title="Permanent link">&para;</a></h2>
+<p>Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua code is embedded into the sidecar's <code>apisix.yaml</code> at startup — removing the sidecar container forces it to restart with the latest plugin code on the next execution.</p>
+<p>The sidecar runs in <strong>standalone mode</strong>: <code>deployment.role: data_plane</code> with <code>config_provider: yaml</code>. No etcd is involved.</p>
+<h2 id="using-plugins-inside-modules">Using Plugins Inside Modules<a class="headerlink" href="#using-plugins-inside-modules" title="Permanent link">&para;</a></h2>
+<p>Modules can load and re-export plugins just like they load <code>@babelsuite/runtime</code>. The <code>@plugins/&lt;name&gt;</code> path is resolved through the same mechanism inside module <code>.star</code> files, so a module can bundle both infrastructure setup <strong>and</strong> plugin-backed verification helpers in one package.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># examples/oci-modules/kafka/admin.star</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span>    <span class="s2">&quot;task&quot;</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/consumer-lag&quot;</span><span class="p">,</span>  <span class="s2">&quot;check_lag&quot;</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/dlq-inspector&quot;</span><span class="p">,</span> <span class="s2">&quot;inspect&quot;</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_consumer_health</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>                          <span class="n">max_lag</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">lag</span> <span class="o">=</span> <span class="n">check_lag</span><span class="p">(</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        <span class="n">name</span>             <span class="o">=</span> <span class="n">broker</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-lag-&quot;</span> <span class="o">+</span> <span class="n">group</span><span class="p">,</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="n">kafka_rest_url</span>   <span class="o">=</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>        <span class="n">group</span>            <span class="o">=</span> <span class="n">group</span><span class="p">,</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>        <span class="n">max_lag</span>          <span class="o">=</span> <span class="n">max_lag</span><span class="p">,</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>        <span class="n">after</span>            <span class="o">=</span> <span class="p">[</span><span class="n">broker</span><span class="p">]</span> <span class="o">+</span> <span class="n">after</span><span class="p">,</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="p">)</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="n">dlq</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">(</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>        <span class="n">name</span>           <span class="o">=</span> <span class="n">broker</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-dlq-&quot;</span> <span class="o">+</span> <span class="n">topic</span><span class="p">,</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>        <span class="n">kafka_rest_url</span> <span class="o">=</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>        <span class="n">topic</span>          <span class="o">=</span> <span class="n">topic</span> <span class="o">+</span> <span class="s2">&quot;.DLQ&quot;</span><span class="p">,</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>        <span class="n">max_messages</span>   <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>        <span class="n">after</span>          <span class="o">=</span> <span class="p">[</span><span class="n">lag</span><span class="p">],</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>    <span class="p">)</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>    <span class="k">return</span> <span class="n">lag</span><span class="p">,</span> <span class="n">dlq</span>
+</span></code></pre></div>
+<p>A suite then gets both the infrastructure and the verification checks from a single module load:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/kafka&quot;</span><span class="p">,</span> <span class="s2">&quot;kafka&quot;</span><span class="p">,</span> <span class="s2">&quot;create_topic&quot;</span><span class="p">,</span> <span class="s2">&quot;check_consumer_health&quot;</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">broker</span>  <span class="o">=</span> <span class="n">kafka</span><span class="p">()</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">topic</span>   <span class="o">=</span> <span class="n">create_topic</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="s2">&quot;orders&quot;</span><span class="p">,</span> <span class="n">partitions</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">app</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">topic</span><span class="p">])</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">lag</span><span class="p">,</span> <span class="n">dlq</span> <span class="o">=</span> <span class="n">check_consumer_health</span><span class="p">(</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">broker</span><span class="p">,</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">group</span>          <span class="o">=</span> <span class="s2">&quot;orders-consumer&quot;</span><span class="p">,</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">topic</span>          <span class="o">=</span> <span class="s2">&quot;orders&quot;</span><span class="p">,</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">kafka_rest_url</span> <span class="o">=</span> <span class="s2">&quot;http://kafka:8082&quot;</span><span class="p">,</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">after</span>          <span class="o">=</span> <span class="p">[</span><span class="n">app</span><span class="p">],</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>The plugins referenced inside a module must still be registered in platform settings before any suite that loads the module can run — the module provides the Starlark API, but the Lua code runs in the APISIX sidecar at execution time.</p>
+<h2 id="plugin-starlark-wrapper-pluginstar">Plugin Starlark Wrapper (<code>plugin.star</code>)<a class="headerlink" href="#plugin-starlark-wrapper-pluginstar" title="Permanent link">&para;</a></h2>
+<p>Every plugin ships a <code>plugin.star</code> file alongside its Lua source. This file is the <strong>Starlark API surface</strong> of the plugin — it defines the named functions that suite authors call in <code>suite.star</code>, with typed parameters and defaults, and forwards them to the underlying plugin dispatcher.</p>
+<p>Without <code>plugin.star</code>, a suite would have to call the plugin with raw keyword arguments and remember every field name and default. With it, the suite just calls <code>transient(name=..., netlist=..., max_rise_ms=3.0)</code> — the wrapper handles the rest.</p>
+<h3 id="structure">Structure<a class="headerlink" href="#structure" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;spice-sim&quot;</span><span class="p">)</span>          <span class="c1"># bind to the registered plugin by name</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">transient</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">netlist</span><span class="p">,</span>         <span class="c1"># typed, documented parameters</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>              <span class="n">probe_node</span> <span class="o">=</span> <span class="s2">&quot;out&quot;</span><span class="p">,</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>              <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>              <span class="n">max_voltage</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>              <span class="n">sim_url</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>              <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>              <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">transient</span><span class="p">(</span>           <span class="c1"># forward to the dispatcher</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>        <span class="n">name</span>        <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>        <span class="n">after</span>       <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>        <span class="n">netlist</span>     <span class="o">=</span> <span class="n">netlist</span><span class="p">,</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>        <span class="n">probe_node</span>  <span class="o">=</span> <span class="n">probe_node</span><span class="p">,</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>        <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="n">max_rise_ms</span><span class="p">,</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>        <span class="n">max_voltage</span> <span class="o">=</span> <span class="n">max_voltage</span><span class="p">,</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>        <span class="n">sim_url</span>     <span class="o">=</span> <span class="n">sim_url</span><span class="p">,</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>        <span class="n">severity</span>    <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>    <span class="p">)</span>
+</span></code></pre></div>
+<p>Each exported function corresponds to one operation in the plugin's <code>operations</code> list. The function name must match the operation name exactly — that is how the backend knows which operation to pass to the Lua handler.</p>
+<h3 id="how-its-used-in-a-suite">How it's used in a suite<a class="headerlink" href="#how-its-used-in-a-suite" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">,</span> <span class="s2">&quot;dc_sweep&quot;</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">rc_filter</span> <span class="o">=</span> <span class="n">transient</span><span class="p">(</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">netlist</span>     <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">probe_node</span>  <span class="o">=</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">spice_mock</span><span class="p">],</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>The <code>load("@plugins/spice-sim", "transient")</code> resolves the <code>plugin.star</code> file for <code>spice-sim</code> and imports the <code>transient</code> function from it.</p>
+<h3 id="relationship-to-pluginyaml">Relationship to <code>plugin.yaml</code><a class="headerlink" href="#relationship-to-pluginyaml" title="Permanent link">&para;</a></h3>
+<p>The <code>plugin.yaml</code> field <code>star: plugin.star</code> tells BabelSuite where the Starlark wrapper lives. When the registration API receives it (via the <code>star</code> field on <code>CustomPlugin</code>), the content is stored alongside the Lua source and served to suite authors via the <code>@plugins/&lt;name&gt;</code> load path.</p>
+<h3 id="writing-a-pluginstar">Writing a <code>plugin.star</code><a class="headerlink" href="#writing-a-pluginstar" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Load <code>plugin</code> from <code>@babelsuite/runtime</code> and bind it to your plugin name.</li>
+<li>Define one function per operation. Parameter names must match the config keys your Lua handler reads from <code>payload.config</code>.</li>
+<li>Always forward <code>name=</code> and <code>after=</code> — these are topology fields, not config fields.</li>
+<li>Set sensible defaults so callers only have to specify what they care about.</li>
+</ol>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;my-checker&quot;</span><span class="p">)</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">check</span><span class="p">(</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="n">name</span>      <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>        <span class="n">after</span>     <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>        <span class="n">target</span>    <span class="o">=</span> <span class="n">target</span><span class="p">,</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>        <span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span><span class="p">,</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>        <span class="n">severity</span>  <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="p">)</span>
+</span></code></pre></div>
+<h2 id="plugin-definition-files">Plugin Definition Files<a class="headerlink" href="#plugin-definition-files" title="Permanent link">&para;</a></h2>
+<p>The example plugins under <a href="../examples/#example-plugins"><code>examples/oci-plugins/</code></a> each ship four files:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugin.yaml</code></td>
+<td>Manifest — name, version, trigger, operations, and references to the other files</td>
+</tr>
+<tr>
+<td><code>plugin.lua</code></td>
+<td>Lua source embedded into the APISIX sidecar</td>
+</tr>
+<tr>
+<td><code>plugin.star</code></td>
+<td>Starlark wrapper — typed functions for <code>suite.star</code> authors</td>
+</tr>
+<tr>
+<td><code>schema.cue</code></td>
+<td>CUE schema for validating step config before dispatch</td>
+</tr>
+</tbody>
+</table>
+<p><code>plugin.yaml</code> example:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">spice-sim</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0.0</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/_babelsuite/plugins/spice-sim/start</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nt">variants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">spice-sim</span><span class="p p-Indicator">]</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="nt">operations</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">transient</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">dc_sweep</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ac_analysis</span><span class="p p-Indicator">]</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="nt">schema</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">schema.cue</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="nt">lua</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin.lua</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="nt">star</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin.star</span>
+</span></code></pre></div>
+<p>The <code>schema</code>, <code>lua</code>, and <code>star</code> fields are file references — the registration script reads them and sends the content inline to the API. Versions live in the definition file and are not auto-bumped by the backend.</p>
+<h2 id="ui">UI<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
+<p>Plugins are managed at <strong>Settings → Plugins</strong> (<code>/settings/plugins</code>). The page lists all registered plugins, shows their version and operations, and lets admins register, edit, or delete them.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../modules/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Modules">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Modules
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../runtime-library/" class="md-footer__link md-footer__link--next" aria-label="Next: Runtime Library">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Runtime Library
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.instant", "navigation.tracking", "navigation.footer", "content.code.copy", "search.highlight", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>
