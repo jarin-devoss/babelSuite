@@ -44,7 +44,15 @@ func canUsePlugin(step StepSpec, plugins []platform.CustomPlugin) (*platform.Cus
 func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line), plugin *platform.CustomPlugin) error {
 	gatewayURL := strings.TrimSuffix(strings.TrimSpace(step.GatewayURL), "/")
 
-	emit(line(step, "info", fmt.Sprintf("[%s] Dispatching to plugin %q at %s.", step.Node.Name, plugin.Name, gatewayURL)))
+	op := ""
+	if step.Plugin != nil {
+		op = strings.TrimSpace(step.Plugin.Op)
+	}
+	if op != "" {
+		emit(line(step, "debug", fmt.Sprintf("[%s] Dispatching to plugin %q op=%s at %s.", step.Node.Name, plugin.Name, op, gatewayURL)))
+	} else {
+		emit(line(step, "debug", fmt.Sprintf("[%s] Dispatching to plugin %q at %s.", step.Node.Name, plugin.Name, gatewayURL)))
+	}
 
 	// Profile env provides defaults; suite-call kwargs (Plugin.Config) override per-step.
 	config := make(map[string]any, len(step.Env))
@@ -109,7 +117,15 @@ func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line)
 		emit(line(step, level, fmt.Sprintf("[%s] Finding [%s] severity=%s — %s.", step.Node.Name, f.Label, f.Severity, f.Detail)))
 	}
 
-	emit(line(step, "info", fmt.Sprintf("[%s] Plugin complete: passed=%v findings=%d.", step.Node.Name, result.Passed, len(result.Findings))))
+	if s := strings.TrimSpace(result.Summary); s != "" {
+		lvl := strings.TrimSpace(result.Level)
+		if lvl == "" {
+			lvl = "info"
+		}
+		emit(line(step, lvl, fmt.Sprintf("[%s] %s", step.Node.Name, s)))
+	}
+
+	emit(line(step, "debug", fmt.Sprintf("[%s] Plugin complete: passed=%v findings=%d.", step.Node.Name, result.Passed, len(result.Findings))))
 
 	if !result.Passed {
 		return fmt.Errorf("plugin %s: %d finding(s) exceeded thresholds", plugin.Name, len(result.Findings))
@@ -121,6 +137,8 @@ type pluginResult struct {
 	Passed   bool            `json:"passed"`
 	Findings []pluginFinding `json:"findings"`
 	Stderr   string          `json:"stderr,omitempty"`
+	Summary  string          `json:"summary,omitempty"`
+	Level    string          `json:"level,omitempty"` // log level for summary: info, debug, warn, error
 }
 
 type pluginFinding struct {

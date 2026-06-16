@@ -152,14 +152,12 @@ plugins:
     - name: spice-sim
       trigger: /_babelsuite/plugins/spice-sim/start
       kind: plugin
-      variants: [spice-sim]
-      operations: [transient, dc_sweep, ac_analysis]
-      star: |
-        load("@babelsuite/runtime", "plugin")
-        _ref        = plugin("spice-sim")
-        transient   = _ref.transient
-        dc_sweep    = _ref.dc_sweep
-        ac_analysis = _ref.ac_analysis
+      variants:
+        - spice-sim
+      operations:
+        - transient
+        - dc_sweep
+        - ac_analysis
       lua: |
         local json = require("cjson")
         local http = require("resty.http")
@@ -238,7 +236,14 @@ plugins:
             if err then return nil, err end
             local findings = {}
             check_voltage_thresholds(cfg, data.times or {}, data.voltages or {}, findings)
-            return {passed=#findings==0, findings=as_array(findings), sample_count=#(data.times or {})}, nil
+            local times = data.times or {}
+            local volts = data.voltages or {}
+            local peak = 0
+            for _, v in ipairs(volts) do if v > peak then peak = v end end
+            local summary = string.format("transient: samples=%d peak=%.3fV probe=%s",
+                #times, peak, cfg.probe_node or "out")
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings), sample_count=#times, summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         local function run_dc_sweep(cfg, sim_url)
@@ -247,7 +252,13 @@ plugins:
             if err then return nil, err end
             local findings = {}
             check_voltage_thresholds(cfg, data.sweep or {}, data.voltages or {}, findings)
-            return {passed=#findings==0, findings=as_array(findings), sample_count=#(data.voltages or {})}, nil
+            local volts = data.voltages or {}
+            local peak = 0
+            for _, v in ipairs(volts) do if v > peak then peak = v end end
+            local summary = string.format("dc_sweep: samples=%d peak=%.3fV probe=%s",
+                #volts, peak, cfg.probe_node or "out")
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings), sample_count=#volts, summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         local function run_ac_analysis(cfg, sim_url)
@@ -255,8 +266,8 @@ plugins:
             local data, err = sim_request(sim_url, body)
             if err then return nil, err end
             local findings = {}
+            local gain = tonumber(data.gain_db)
             if cfg.min_gain_db then
-                local gain = tonumber(data.gain_db)
                 local min_g = tonumber(cfg.min_gain_db)
                 if gain and min_g and gain < min_g then
                     table.insert(findings, {label="spice.ac.gain "..(cfg.probe_node or "out"),
@@ -264,7 +275,10 @@ plugins:
                         detail=string.format("gain=%.2fdB min=%.2fdB", gain, min_g)})
                 end
             end
-            return {passed=#findings==0, findings=as_array(findings)}, nil
+            local gain_str = gain and string.format("%.2fdB", gain) or "n/a"
+            local summary = string.format("ac_analysis: gain=%s probe=%s", gain_str, cfg.probe_node or "out")
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings), summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         function _M.access(conf, ctx)
@@ -286,17 +300,20 @@ plugins:
         end
 
         return _M
-
+      star: |
+        load("@babelsuite/runtime", "plugin")
+        _ref        = plugin("spice-sim")
+        transient   = _ref.transient
+        dc_sweep    = _ref.dc_sweep
+        ac_analysis = _ref.ac_analysis
     - name: verilog-sim
       trigger: /_babelsuite/plugins/verilog-sim/start
       kind: plugin
-      variants: [verilog-sim]
-      operations: [simulate, strict]
-      star: |
-        load("@babelsuite/runtime", "plugin")
-        _ref     = plugin("verilog-sim")
-        simulate = _ref.simulate
-        strict   = _ref.strict
+      variants:
+        - verilog-sim
+      operations:
+        - simulate
+        - strict
       lua: |
         local json = require("cjson")
         local http = require("resty.http")
@@ -349,9 +366,14 @@ plugins:
             local data, err = sim_request(sim_url, body)
             if err then return nil, err end
             local findings = build_findings(cfg, data, cfg.assert_no_x~=false, tonumber(cfg.max_errors) or 0)
-            return {passed=#findings==0, findings=as_array(findings),
-                compile_ok=#(data.compile_errors or {})==0, sim_errors=tonumber(data.sim_errors) or 0,
-                stdout=data.stdout or ""}, nil
+            local compile_ok = #(data.compile_errors or {})==0
+            local sim_errors = tonumber(data.sim_errors) or 0
+            local summary = string.format("simulate: module=%s compile_ok=%s sim_errors=%d",
+                cfg.top_module or "?", tostring(compile_ok), sim_errors)
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings),
+                compile_ok=compile_ok, sim_errors=sim_errors,
+                stdout=data.stdout or "", summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         local function run_strict(cfg, sim_url)
@@ -360,9 +382,14 @@ plugins:
             local data, err = sim_request(sim_url, body)
             if err then return nil, err end
             local findings = build_findings(cfg, data, true, 0)
-            return {passed=#findings==0, findings=as_array(findings),
-                compile_ok=#(data.compile_errors or {})==0, sim_errors=tonumber(data.sim_errors) or 0,
-                stdout=data.stdout or ""}, nil
+            local compile_ok = #(data.compile_errors or {})==0
+            local sim_errors = tonumber(data.sim_errors) or 0
+            local summary = string.format("strict: module=%s compile_ok=%s sim_errors=%d",
+                cfg.top_module or "?", tostring(compile_ok), sim_errors)
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings),
+                compile_ok=compile_ok, sim_errors=sim_errors,
+                stdout=data.stdout or "", summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         function _M.access(conf, ctx)
@@ -383,17 +410,19 @@ plugins:
         end
 
         return _M
-
+      star: |
+        load("@babelsuite/runtime", "plugin")
+        _ref     = plugin("verilog-sim")
+        simulate = _ref.simulate
+        strict   = _ref.strict
     - name: control-sim
       trigger: /_babelsuite/plugins/control-sim/start
       kind: plugin
-      variants: [control-sim]
-      operations: [step_response, monitor]
-      star: |
-        load("@babelsuite/runtime", "plugin")
-        _ref          = plugin("control-sim")
-        step_response = _ref.step_response
-        monitor       = _ref.monitor
+      variants:
+        - control-sim
+      operations:
+        - step_response
+        - monitor
       lua: |
         local json = require("cjson")
         local http = require("resty.http")
@@ -463,9 +492,14 @@ plugins:
             if err then return nil, err end
             local findings = {}
             check_stability_thresholds(cfg, data, cfg.severity or "critical", findings)
-            return {passed=#findings==0, findings=as_array(findings), stable=data.stable or false,
-                settling_s=tonumber(data.settling_time), overshoot_pct=tonumber(data.overshoot_pct),
-                dc_gain=tonumber(data.dc_gain)}, nil
+            local settling = tonumber(data.settling_time)
+            local overshoot = tonumber(data.overshoot_pct)
+            local dc_gain = tonumber(data.dc_gain)
+            local summary = string.format("step_response: stable=%s settling=%.3fs overshoot=%.2f%% dc_gain=%.4f",
+                tostring(data.stable or false), settling or 0, overshoot or 0, dc_gain or 0)
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings), stable=data.stable or false,
+                settling_s=settling, overshoot_pct=overshoot, dc_gain=dc_gain, summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         local function run_monitor(cfg, sim_url)
@@ -475,9 +509,14 @@ plugins:
             if err then return nil, err end
             local findings = {}
             check_stability_thresholds(cfg, data, "warn", findings)
-            return {passed=#findings==0, findings=as_array(findings), stable=data.stable or false,
-                settling_s=tonumber(data.settling_time), overshoot_pct=tonumber(data.overshoot_pct),
-                dc_gain=tonumber(data.dc_gain)}, nil
+            local settling = tonumber(data.settling_time)
+            local overshoot = tonumber(data.overshoot_pct)
+            local dc_gain = tonumber(data.dc_gain)
+            local summary = string.format("monitor: stable=%s settling=%.3fs overshoot=%.2f%% dc_gain=%.4f",
+                tostring(data.stable or false), settling or 0, overshoot or 0, dc_gain or 0)
+            local ok=#findings==0
+            return {passed=ok, findings=as_array(findings), stable=data.stable or false,
+                settling_s=settling, overshoot_pct=overshoot, dc_gain=dc_gain, summary=summary, level=ok and "info" or "warn"}, nil
         end
 
         function _M.access(conf, ctx)
@@ -498,6 +537,145 @@ plugins:
         end
 
         return _M
+      star: |
+        load("@babelsuite/runtime", "plugin")
+        _ref          = plugin("control-sim")
+        step_response = _ref.step_response
+        monitor       = _ref.monitor
+    - name: consumer-lag
+      trigger: /_babelsuite/plugins/consumer-lag/start
+      kind: plugin
+      variants:
+        - consumer-lag
+      operations:
+        - check_lag
+        - watch_lag
+      lua: |
+        local json = require("cjson")
+        local http = require("resty.http")
 
-updatedAt: 2026-06-08T19:28:14.4494342Z
+        local function as_array(t) return #t == 0 and json.empty_array or t end
+
+        local _M = {}
+        _M.version  = 0.1
+        _M.priority = 10
+        _M.name     = "consumer-lag"
+        _M.schema   = {type = "object", properties = {}, additionalProperties = false}
+
+        local function fetch_offsets(rest_url, group)
+            local httpc = http.new()
+            httpc:set_timeout(10000)
+            local res, err = httpc:request_uri(rest_url .. "/consumers/" .. group .. "/offsets", {
+                method  = "GET",
+                headers = {["Accept"] = "application/vnd.kafka.v2+json"},
+            })
+            if err then return nil, "kafka rest proxy error: " .. err end
+            local ok, data = pcall(json.decode, res.body or "{}")
+            if not ok then return nil, "parse offsets failed" end
+            return data, nil
+        end
+
+        local function build_lag_findings(data, group, max_lag, severity)
+            local findings, total_lag = {}, 0
+            if data and data.offsets then
+                for _, offset in ipairs(data.offsets) do
+                    local lag = (offset.end_offset or 0) - (offset.offset or 0)
+                    total_lag = total_lag + lag
+                    if lag > max_lag then
+                        table.insert(findings, {
+                            label    = "consumer.lag " .. (offset.topic or "?") .. "/" .. tostring(offset.partition or 0),
+                            severity = severity,
+                            detail   = string.format("lag=%d max=%d group=%s", lag, max_lag, group),
+                        })
+                    end
+                end
+            end
+            return findings, total_lag
+        end
+
+        local function run_check_lag(cfg, rest_url)
+            local group    = cfg.group or ""
+            local max_lag  = tonumber(cfg.max_lag) or 1000
+            local severity = cfg.severity or "critical"
+            local data, err = fetch_offsets(rest_url, group)
+            if err then return nil, err end
+            local findings, total_lag = build_lag_findings(data, group, max_lag, severity)
+            return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
+        end
+
+        local function run_watch_lag(cfg, rest_url)
+            local group    = cfg.group or ""
+            local max_lag  = tonumber(cfg.max_lag) or 1000
+            local data, err = fetch_offsets(rest_url, group)
+            if err then return nil, err end
+            -- watch_lag: always warn, never fails the suite
+            local findings, total_lag = build_lag_findings(data, group, max_lag, "warn")
+            return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
+        end
+
+        function _M.access(conf, ctx)
+            if ngx.var.uri ~= "/_babelsuite/plugins/consumer-lag/start" then return ngx.exit(404) end
+            if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
+
+            ngx.req.read_body()
+            local ok, payload = pcall(json.decode, ngx.req.get_body_data() or "{}")
+            if not ok then ngx.status = 400; ngx.say(json.encode({error = "invalid json"})); return ngx.exit(400) end
+
+            local op       = payload.op or "check_lag"
+            local cfg      = payload.config or {}
+            local rest_url = (cfg.kafka_rest_url or ""):gsub("/$", "")
+
+            if rest_url == "" or (cfg.group or "") == "" then
+                ngx.status = 400; ngx.say(json.encode({error = "kafka_rest_url and group are required"})); return ngx.exit(400)
+            end
+
+            local result, err
+            if op == "watch_lag" then
+                result, err = run_watch_lag(cfg, rest_url)
+            else
+                result, err = run_check_lag(cfg, rest_url)
+            end
+
+            if err then ngx.status = 500; ngx.say(json.encode({error = err})); return ngx.exit(500) end
+
+            ngx.status = 200
+            ngx.header["Content-Type"] = "application/json"
+            ngx.say(json.encode(result))
+            return ngx.exit(200)
+        end
+
+        return _M
+      schema: |
+        // Kafka consumer lag monitor plugin config schema.
+        // Validates configuration passed to plugin.run(plugin="babelsuite-consumer-lag", config={...}).
+
+        kafka_rest_url: string
+        group:          string
+        max_lag:        int & >=0 | *1000
+        severity:       "warn" | "critical" | *"critical"
+      star: |
+        load("@babelsuite/runtime", "plugin")
+
+        _ref = plugin("consumer-lag")
+
+        def check_lag(name, group, max_lag = 1000, kafka_rest_url = "", severity = "critical", after = []):
+            return _ref.check_lag(
+                name          = name,
+                after         = after,
+                group         = group,
+                max_lag       = max_lag,
+                kafka_rest_url = kafka_rest_url,
+                severity      = severity,
+            )
+
+        def watch_lag(name, group, max_lag = 1000, kafka_rest_url = "", after = []):
+            return _ref.watch_lag(
+                name           = name,
+                after          = after,
+                group          = group,
+                max_lag        = max_lag,
+                kafka_rest_url = kafka_rest_url,
+            )
+      version: 1.0.0
+updatedAt: 2026-06-15T22:16:39.0245194Z
 description: Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials.

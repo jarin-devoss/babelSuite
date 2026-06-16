@@ -1,4 +1,5 @@
 name: verilog-sim
+version: 1.0.0
 trigger: /_babelsuite/plugins/verilog-sim/start
 kind: plugin
 variants: [verilog-sim]

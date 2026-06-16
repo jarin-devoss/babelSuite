@@ -93,9 +93,16 @@ local function run_step_response(cfg, sim_url)
     if err then return nil, err end
     local findings = {}
     check_stability_thresholds(cfg, data, cfg.severity or "critical", findings)
-    return {passed = #findings == 0, findings = as_array(findings),
-            stable = data.stable or false, settling_s = tonumber(data.settling_time),
-            overshoot_pct = tonumber(data.overshoot_pct), dc_gain = tonumber(data.dc_gain)}, nil
+    local settling  = tonumber(data.settling_time)
+    local overshoot = tonumber(data.overshoot_pct)
+    local dc_gain   = tonumber(data.dc_gain)
+    local summary = string.format("step_response: stable=%s settling=%.3fs overshoot=%.2f%% dc_gain=%.4f",
+        tostring(data.stable or false),
+        settling or 0, overshoot or 0, dc_gain or 0)
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings),
+            stable = data.stable or false, settling_s = settling,
+            overshoot_pct = overshoot, dc_gain = dc_gain, summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 local function run_monitor(cfg, sim_url)
@@ -110,9 +117,16 @@ local function run_monitor(cfg, sim_url)
     -- monitor: always warn severity, never blocks the suite
     local findings = {}
     check_stability_thresholds(cfg, data, "warn", findings)
-    return {passed = #findings == 0, findings = as_array(findings),
-            stable = data.stable or false, settling_s = tonumber(data.settling_time),
-            overshoot_pct = tonumber(data.overshoot_pct), dc_gain = tonumber(data.dc_gain)}, nil
+    local settling  = tonumber(data.settling_time)
+    local overshoot = tonumber(data.overshoot_pct)
+    local dc_gain   = tonumber(data.dc_gain)
+    local summary = string.format("monitor: stable=%s settling=%.3fs overshoot=%.2f%% dc_gain=%.4f",
+        tostring(data.stable or false),
+        settling or 0, overshoot or 0, dc_gain or 0)
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings),
+            stable = data.stable or false, settling_s = settling,
+            overshoot_pct = overshoot, dc_gain = dc_gain, summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 function _M.access(conf, ctx)

@@ -1,6 +1,8 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -45,7 +47,7 @@ local function run_check_lag(cfg, rest_url)
     local data, err = fetch_offsets(rest_url, group)
     if err then return nil, err end
     local findings, total_lag = build_lag_findings(data, group, max_lag, severity)
-    return {passed = #findings == 0, findings = findings, total_lag = total_lag}, nil
+    return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
 end
 
 local function run_watch_lag(cfg, rest_url)
@@ -55,7 +57,7 @@ local function run_watch_lag(cfg, rest_url)
     if err then return nil, err end
     -- watch_lag: always warn, never fails the suite
     local findings, total_lag = build_lag_findings(data, group, max_lag, "warn")
-    return {passed = #findings == 0, findings = findings, total_lag = total_lag}, nil
+    return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
 end
 
 function _M.access(conf, ctx)

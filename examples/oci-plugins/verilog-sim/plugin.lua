@@ -68,9 +68,14 @@ local function run_simulate(cfg, sim_url)
     local max_errors = tonumber(cfg.max_errors) or 0
     local assert_x   = cfg.assert_no_x ~= false
     local findings = build_findings(cfg, data, assert_x, max_errors)
-    return {passed = #findings == 0, findings = as_array(findings),
-            compile_ok = (#(data.compile_errors or {}) == 0), sim_errors = tonumber(data.sim_errors) or 0,
-            stdout = data.stdout or ""}, nil
+    local compile_ok = #(data.compile_errors or {}) == 0
+    local sim_errors = tonumber(data.sim_errors) or 0
+    local summary = string.format("simulate: module=%s compile_ok=%s sim_errors=%d",
+        cfg.top_module or "?", tostring(compile_ok), sim_errors)
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings),
+            compile_ok = compile_ok, sim_errors = sim_errors,
+            stdout = data.stdout or "", summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 local function run_strict(cfg, sim_url)
@@ -84,9 +89,14 @@ local function run_strict(cfg, sim_url)
     if err then return nil, err end
     -- strict: zero tolerance — any x-state, any error, any warning fails
     local findings = build_findings(cfg, data, true, 0)
-    return {passed = #findings == 0, findings = as_array(findings),
-            compile_ok = (#(data.compile_errors or {}) == 0), sim_errors = tonumber(data.sim_errors) or 0,
-            stdout = data.stdout or ""}, nil
+    local compile_ok = #(data.compile_errors or {}) == 0
+    local sim_errors = tonumber(data.sim_errors) or 0
+    local summary = string.format("strict: module=%s compile_ok=%s sim_errors=%d",
+        cfg.top_module or "?", tostring(compile_ok), sim_errors)
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings),
+            compile_ok = compile_ok, sim_errors = sim_errors,
+            stdout = data.stdout or "", summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 function _M.access(conf, ctx)

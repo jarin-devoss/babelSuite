@@ -91,7 +91,14 @@ local function run_transient(cfg, sim_url)
     if err then return nil, err end
     local findings = {}
     check_voltage_thresholds(cfg, data.times or {}, data.voltages or {}, findings)
-    return {passed = #findings == 0, findings = as_array(findings), sample_count = #(data.times or {})}, nil
+    local times = data.times or {}
+    local volts = data.voltages or {}
+    local peak = 0
+    for _, v in ipairs(volts) do if v > peak then peak = v end end
+    local summary = string.format("transient: samples=%d peak=%.3fV probe=%s",
+        #times, peak, cfg.probe_node or "out")
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings), sample_count = #times, summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 local function run_dc_sweep(cfg, sim_url)
@@ -104,7 +111,13 @@ local function run_dc_sweep(cfg, sim_url)
     if err then return nil, err end
     local findings = {}
     check_voltage_thresholds(cfg, data.sweep or {}, data.voltages or {}, findings)
-    return {passed = #findings == 0, findings = as_array(findings), sample_count = #(data.voltages or {})}, nil
+    local volts = data.voltages or {}
+    local peak = 0
+    for _, v in ipairs(volts) do if v > peak then peak = v end end
+    local summary = string.format("dc_sweep: samples=%d peak=%.3fV probe=%s",
+        #volts, peak, cfg.probe_node or "out")
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings), sample_count = #volts, summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 local function run_ac_analysis(cfg, sim_url)
@@ -116,8 +129,8 @@ local function run_ac_analysis(cfg, sim_url)
     local data, err = sim_request(sim_url, body)
     if err then return nil, err end
     local findings = {}
+    local gain = tonumber(data.gain_db)
     if cfg.min_gain_db then
-        local gain = tonumber(data.gain_db)
         local min_g = tonumber(cfg.min_gain_db)
         if gain and min_g and gain < min_g then
             table.insert(findings, {
@@ -127,7 +140,10 @@ local function run_ac_analysis(cfg, sim_url)
             })
         end
     end
-    return {passed = #findings == 0, findings = as_array(findings)}, nil
+    local gain_str = gain and string.format("%.2fdB", gain) or "n/a"
+    local summary = string.format("ac_analysis: gain=%s probe=%s", gain_str, cfg.probe_node or "out")
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings), summary = summary, level = ok and "info" or "warn"}, nil
 end
 
 function _M.access(conf, ctx)
