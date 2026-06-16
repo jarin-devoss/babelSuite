@@ -914,6 +914,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hardening-and-security-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hardening and security.* checks
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1548,6 +1563,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hardening-and-security-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hardening and security.* checks
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1825,6 +1855,20 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>service.mock</code> is the runtime entrypoint for mocks backed by the suite's <code>api/</code> and <code>mock/</code> folders.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>harden=True</code></td>
+<td>opts the APISIX sidecar into gateway-provided defenses — see <a href="#hardening-and-security-checks">Hardening and <code>security.*</code> checks</a> below</td>
+</tr>
+</tbody>
+</table>
 <p>Compatibility aliases still parse:</p>
 <ul>
 <li><code>mock.serve</code></li>
@@ -2123,6 +2167,14 @@
 </table>
 <p>The APISIX sidecar is provisioned automatically alongside every <code>service.mock</code> node, so <code>security.*</code> nodes derive their gateway URL from the mock's sidecar without a separate <code>target=</code> argument.</p>
 <p>Each security step POSTs to <code>/_babelsuite/attack/start</code> and returns a synchronous JSON findings report: <code>{"total":N,"passed":N,"failed":N,"findings":[...]}</code>.</p>
+<h4 id="hardening-and-security-checks">Hardening and <code>security.*</code> checks<a class="headerlink" href="#hardening-and-security-checks" title="Permanent link">&para;</a></h4>
+<p>By default the gateway adds nothing on top of your backend: <code>security.headers</code> and <code>security.flood</code> observe whatever your real API actually returns, so a backend that's genuinely missing security headers or rate-limiting will genuinely fail those checks.</p>
+<p>Pass <code>harden=True</code> to <code>service.mock(...)</code> to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:</p>
+<ul>
+<li>a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s</li>
+<li>a synthetic rate-limited route at <code>/api/v1/resource</code> (HTTP 429 after 20 requests/second) for <code>security.flood</code> to validate against when the suite has no rate-limited surface of its own</li>
+</ul>
+<p>This is opt-in and suite-scoped — a suite that doesn't set <code>harden=True</code> gets none of this, so <code>headers</code>/<code>flood</code> checks stay genuine signals about that suite's own backend.</p>
 <p>Security threshold metrics (analogous to traffic thresholds):</p>
 <table>
 <thead>
