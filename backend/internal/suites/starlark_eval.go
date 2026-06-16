@@ -352,6 +352,9 @@ func loadModuleDir(suffix string, reg *starlarkRegistry, resolve ModuleResolver)
 		if mod == "@babelsuite/runtime" {
 			return buildRuntimeModule(reg)
 		}
+		if strings.HasPrefix(mod, "@plugins/") {
+			return loadModuleDir(strings.TrimPrefix(mod, "@plugins/"), reg, resolve)
+		}
 		content, err := fs.ReadFile(moduleFS, mod)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load %q: %w", mod, err)
@@ -380,7 +383,7 @@ func loadModuleDir(suffix string, reg *starlarkRegistry, resolve ModuleResolver)
 		t.SetMaxExecutionSteps(starlarkMaxSteps)
 		globals, err := starlark.ExecFileOptions(starlarkFileOptions, t, name, content, modulePredeclared)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("module @babelsuite/%s: error in %s: %w", suffix, name, err)
 		}
 		for symName, val := range globals {
 			if !strings.HasPrefix(symName, "_") {
