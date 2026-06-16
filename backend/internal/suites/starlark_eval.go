@@ -41,6 +41,7 @@ type starlarkNode struct {
 	rps             float64
 	arrivalRate     float64
 	message         string
+	harden          bool
 	after           []*starlarkNode
 	resetMocks      []*starlarkNode
 	onFailure       []*starlarkNode
@@ -743,6 +744,13 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 					return nil, fmt.Errorf("%s: expect_throttle must be a bool", variant)
 				}
 				node.floodThrottle = bool(b)
+
+			case "harden":
+				b, ok := val.(starlark.Bool)
+				if !ok {
+					return nil, fmt.Errorf("%s: harden must be a bool", variant)
+				}
+				node.harden = bool(b)
 			}
 		}
 
@@ -1026,6 +1034,7 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			FloodDuration:     node.floodDuration,
 			FloodThrottle:     node.floodThrottle,
 			Message:           node.message,
+			Harden:            node.harden,
 			Arguments:         buildStarlarkArguments(node),
 			ContinueOnFailure: node.continueOnFail,
 			Evaluation:        node.evaluation,

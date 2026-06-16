@@ -76,6 +76,7 @@ type TopologyNode struct {
 	Security          *SecuritySpec     `json:"security,omitempty"`
 	Plugin            *PluginSpec       `json:"plugin,omitempty"`
 	Message           string            `json:"message,omitempty"`
+	Harden            bool              `json:"harden,omitempty"`
 	Image             string            `json:"image,omitempty"`
 	File              string            `json:"file,omitempty"`
 	Commands          []string          `json:"commands,omitempty"`

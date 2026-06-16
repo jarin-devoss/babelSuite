@@ -86,6 +86,10 @@ orders = service.mock(after=[api])
 
 `service.mock` is the runtime entrypoint for mocks backed by the suite's `api/` and `mock/` folders.
 
+| Argument | Used for |
+|----------|---------|
+| `harden=True` | opts the APISIX sidecar into gateway-provided defenses — see [Hardening and `security.*` checks](#hardening-and-security-checks) below |
+
 Compatibility aliases still parse:
 
 - `mock.serve`
@@ -301,6 +305,17 @@ Arguments specific to `security.*` nodes:
 The APISIX sidecar is provisioned automatically alongside every `service.mock` node, so `security.*` nodes derive their gateway URL from the mock's sidecar without a separate `target=` argument.
 
 Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronous JSON findings report: `{"total":N,"passed":N,"failed":N,"findings":[...]}`.
+
+#### Hardening and `security.*` checks
+
+By default the gateway adds nothing on top of your backend: `security.headers` and `security.flood` observe whatever your real API actually returns, so a backend that's genuinely missing security headers or rate-limiting will genuinely fail those checks.
+
+Pass `harden=True` to `service.mock(...)` to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:
+
+- a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s
+- a synthetic rate-limited route at `/api/v1/resource` (HTTP 429 after 20 requests/second) for `security.flood` to validate against when the suite has no rate-limited surface of its own
+
+This is opt-in and suite-scoped — a suite that doesn't set `harden=True` gets none of this, so `headers`/`flood` checks stay genuine signals about that suite's own backend.
 
 Security threshold metrics (analogous to traffic thresholds):
 

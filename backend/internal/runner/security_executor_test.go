@@ -178,7 +178,7 @@ func TestBuildScannerConfigFlood(t *testing.T) {
 		FloodDuration: 10,
 		FloodThrottle: true,
 	}
-	cfg := buildScannerConfig(spec, "http://gw:9080")
+	cfg := buildScannerConfig(spec)
 	if cfg.Mode != "flood" {
 		t.Fatalf("mode = %q, want flood", cfg.Mode)
 	}

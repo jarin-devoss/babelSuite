@@ -7,7 +7,13 @@ load("@babelsuite/runtime", "service", "task", "security", "log")
 # The mock is set up with network.mode: execution so the APISIX sidecar
 # can reach the mock API by name.
 
-api = service.mock(name="api")
+
+# harden=True opts this suite into gateway-provided defenses (security
+# response headers, rate-limiting on /api/v1/resource) so the headers/flood
+# checks below have something real to validate. Suites that omit this flag
+# get no gateway-level protection, so those same checks observe their actual
+# backend and can genuinely fail.
+api = service.mock(name="api", harden=True)
 
 log.info("APISIX sidecar provisioned — starting passive surface checks", after=[api])
 

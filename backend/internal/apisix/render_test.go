@@ -114,6 +114,34 @@ func TestRenderStandaloneConfigIncludesRESTRoutes(t *testing.T) {
 	}
 }
 
+func TestRenderStandaloneConfigOmitsHardeningByDefault(t *testing.T) {
+	body := RenderStandaloneConfig(SuiteConfig{ID: "payment-suite"})
+
+	if strings.Contains(body, "babelsuite-flood-target") {
+		t.Fatalf("expected no synthetic flood target without Harden, got:\n%s", body)
+	}
+	if strings.Contains(body, "global_rules") {
+		t.Fatalf("expected no global security-header rule without Harden, got:\n%s", body)
+	}
+	if strings.Contains(body, "name: response-rewrite") || strings.Contains(body, "name: limit-count") || strings.Contains(body, "name: echo") {
+		t.Fatalf("expected hardening plugins absent from catalog without Harden, got:\n%s", body)
+	}
+}
+
+func TestRenderStandaloneConfigAppliesHardeningWhenRequested(t *testing.T) {
+	body := RenderStandaloneConfig(SuiteConfig{ID: "security-suite", Harden: true})
+
+	if !strings.Contains(body, "babelsuite-flood-target") {
+		t.Fatalf("expected synthetic flood target with Harden, got:\n%s", body)
+	}
+	if !strings.Contains(body, "global_rules") {
+		t.Fatalf("expected global security-header rule with Harden, got:\n%s", body)
+	}
+	if !strings.Contains(body, "name: response-rewrite") || !strings.Contains(body, "name: limit-count") || !strings.Contains(body, "name: echo") {
+		t.Fatalf("expected hardening plugins present in catalog with Harden, got:\n%s", body)
+	}
+}
+
 func TestRenderStandaloneConfigPromotesGRPCAndKafkaToActiveConfig(t *testing.T) {
 	body := RenderStandaloneConfig(SuiteConfig{
 		ID: "returns-control-plane",

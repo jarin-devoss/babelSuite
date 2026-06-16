@@ -92,7 +92,7 @@ func executeSecurityStep(ctx context.Context, step StepSpec, emit func(logstream
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Starting %s assessment via APISIX sidecar at %s.", step.Node.Name, mode, gatewayURL)))
 
-	cfg := buildScannerConfig(step.Security, gatewayURL)
+	cfg := buildScannerConfig(step.Security)
 	cfgJSON, err := json.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("security: marshal config: %w", err)
@@ -114,11 +114,18 @@ func executeSecurityStep(ctx context.Context, step StepSpec, emit func(logstream
 	return evaluateSecurityThresholds(step, result)
 }
 
-func buildScannerConfig(spec *suites.SecuritySpec, gatewayURL string) scannerConfig {
+// sidecarInternalURL is the APISIX sidecar's address as seen from inside its
+// own container, where the attack-scanner Lua plugin actually runs. gatewayURL
+// is the host-published address (e.g. http://127.0.0.1:57387) used by this Go
+// process to reach the sidecar from outside — it is not reachable from the
+// Lua plugin's own network namespace, so it can't be used as the probe target.
+const sidecarInternalURL = "http://127.0.0.1:9080"
+
+func buildScannerConfig(spec *suites.SecuritySpec) scannerConfig {
 	mode := strings.TrimPrefix(spec.Variant, "security.")
 	target := spec.Target
 	if target == "" {
-		target = gatewayURL
+		target = sidecarInternalURL
 	}
 	cfg := scannerConfig{
 		Target:    target,

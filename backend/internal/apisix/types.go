@@ -17,6 +17,13 @@ type SuiteConfig struct {
 	ID            string
 	APISurfaces   []SurfaceConfig
 	CustomPlugins []CustomPluginConfig
+	// Harden opts the rendered gateway into platform-provided defenses
+	// (baseline security response headers, a rate-limited synthetic probe
+	// target) on top of the suite's real backend. It must stay opt-in: a
+	// suite's security/load checks should observe the real backend by
+	// default, not a gateway-injected stand-in, or a genuinely broken
+	// backend could never fail them.
+	Harden bool
 }
 
 // CustomPluginConfig carries the registration data for a user-defined Lua plugin.
@@ -59,6 +66,12 @@ type routeDocument struct {
 	Upstreams       []namedUpstreamBlock `yaml:"upstreams,omitempty"`
 	Routes          []routeBlock         `yaml:"routes,omitempty"`
 	StreamRoutes    []streamRouteBlock   `yaml:"stream_routes,omitempty"`
+	GlobalRules     []globalRuleBlock    `yaml:"global_rules,omitempty"`
+}
+
+type globalRuleBlock struct {
+	ID      string         `yaml:"id"`
+	Plugins map[string]any `yaml:"plugins,omitempty"`
 }
 
 type luaPluginBlock struct {

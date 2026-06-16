@@ -17,6 +17,9 @@ func RenderStandaloneConfig(suite SuiteConfig) string {
 	// ready for load and security steps without any runtime Admin API calls.
 	routes = append(routes, trafficTriggerRoute())
 	routes = append(routes, attackScannerTriggerRoute())
+	if suite.Harden {
+		routes = append(routes, floodTargetRoute())
+	}
 
 	// Register trigger routes for every user-defined Lua plugin.
 	for _, p := range suite.CustomPlugins {
@@ -35,6 +38,9 @@ func RenderStandaloneConfig(suite SuiteConfig) string {
 		Upstreams:    upstreams,
 		Routes:       routes,
 		StreamRoutes: streamRoutes,
+	}
+	if suite.Harden {
+		document.GlobalRules = []globalRuleBlock{securityHeadersGlobalRule()}
 	}
 
 	body, err := yaml.Marshal(document)
@@ -143,10 +149,39 @@ func buildResources(suite SuiteConfig) ([]routeBlock, []streamRouteBlock, []name
 	return routes, streamRoutes, upstreams, protos, deferred
 }
 
+// securityHeadersGlobalRule applies a baseline set of security response
+// headers to every response the sidecar produces, including 404s for
+// routes that don't exist — global rules run regardless of whether a
+// route matched, unlike per-route plugins.
+func securityHeadersGlobalRule() globalRuleBlock {
+	return globalRuleBlock{
+		ID: "babelsuite-security-headers",
+		Plugins: map[string]any{
+			"response-rewrite": map[string]any{
+				"headers": map[string]any{
+					"set": map[string]any{
+						"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+						"X-Content-Type-Options":    "nosniff",
+						"X-Frame-Options":           "DENY",
+						"Content-Security-Policy":   "default-src 'self'",
+						"Referrer-Policy":           "strict-origin-when-cross-origin",
+						"Permissions-Policy":        "geolocation=(), microphone=(), camera=()",
+					},
+				},
+			},
+		},
+	}
+}
+
 func buildPluginCatalog(suite SuiteConfig) []pluginSpec {
 	seen := map[string]pluginSpec{
 		TrafficCannonPluginName: {Name: TrafficCannonPluginName},
 		AttackScannerPluginName: {Name: AttackScannerPluginName},
+	}
+	if suite.Harden {
+		seen["response-rewrite"] = pluginSpec{Name: "response-rewrite"}
+		seen["limit-count"] = pluginSpec{Name: "limit-count"}
+		seen["echo"] = pluginSpec{Name: "echo"}
 	}
 	for _, p := range suite.CustomPlugins {
 		seen[p.Name] = pluginSpec{Name: p.Name}
@@ -216,6 +251,36 @@ func attackScannerTriggerRoute() routeBlock {
 		Methods: []string{"POST"},
 		Plugins: map[string]any{
 			AttackScannerPluginName: map[string]any{},
+		},
+		Upstream: upstreamBlock{
+			Type:  "roundrobin",
+			Nodes: map[string]int{"127.0.0.1:1": 1},
+		},
+	}
+}
+
+// floodTargetRoute is a synthetic, always-present resource that
+// security.flood() checks can target to validate rate-limit (HTTP 429)
+// behavior. Suites' mock surfaces rarely configure rate-limiting
+// themselves, so the sidecar ships one well-known rate-limited path —
+// scoped to this single URI, it never affects requests to any other path.
+func floodTargetRoute() routeBlock {
+	return routeBlock{
+		ID:   "babelsuite-flood-target",
+		Name: "babelsuite-flood-target",
+		Desc: "Synthetic rate-limited resource for security.flood() checks to validate 429 throttling against.",
+		URI:  "/api/v1/resource",
+		Plugins: map[string]any{
+			"limit-count": map[string]any{
+				"count":         20,
+				"time_window":   1,
+				"rejected_code": 429,
+				"key_type":      "var",
+				"key":           "remote_addr",
+			},
+			"echo": map[string]any{
+				"body": "ok",
+			},
 		},
 		Upstream: upstreamBlock{
 			Type:  "roundrobin",
