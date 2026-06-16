@@ -653,7 +653,7 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		Binds: []string{
 			// File-level mounts so APISIX can still write nginx.conf to its own conf dir.
 			filepath.Join(confDir, "config.yaml") + ":/usr/local/apisix/conf/config.yaml:ro",
-			filepath.Join(confDir, "apisix.yaml") + ":/usr/local/apisix/conf/apisix.yaml:ro",
+			filepath.Join(confDir, "apisix.yaml") + ":" + configMountPath + ":ro",
 			luaDir + ":" + apisix.LuaPluginMountPath + ":ro",
 		},
 	}
