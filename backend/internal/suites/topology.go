@@ -48,6 +48,7 @@ type rawTopologyNode struct {
 	FloodDuration     float64
 	FloodThrottle     bool
 	Message           string
+	Harden            bool
 	DependsOn         []string
 	ResetMocks        []string
 	OnFailure         []string
@@ -246,6 +247,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			File:              raw.File,
 			Commands:          append([]string{}, raw.Commands...),
 			Message:           raw.Message,
+			Harden:            raw.Harden,
 			RuntimeEnv:        cloneStringMap(raw.Env),
 			DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
 			ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),

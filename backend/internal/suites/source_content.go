@@ -127,6 +127,7 @@ func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 	output := apisix.SuiteConfig{
 		ID:          suite.ID,
 		APISurfaces: make([]apisix.SurfaceConfig, 0, len(suite.APISurfaces)),
+		Harden:      suiteRequestsHardening(suite),
 	}
 	for _, surface := range suite.APISurfaces {
 		convertedSurface := apisix.SurfaceConfig{
@@ -155,6 +156,20 @@ func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 		output.APISurfaces = append(output.APISurfaces, convertedSurface)
 	}
 	return output
+}
+
+// suiteRequestsHardening reports whether any mock node in the suite's
+// topology opted into gateway-level hardening (e.g. service.mock(harden=True)
+// in suite.star). Hardening is opt-in: without it, security/load checks
+// observe the real backend, so a genuinely broken backend can still fail
+// them.
+func suiteRequestsHardening(suite Definition) bool {
+	for _, node := range suite.Topology {
+		if node.Kind == "mock" && node.Harden {
+			return true
+		}
+	}
+	return false
 }
 
 func contractSourceContent(suite Definition, contractPath string) string {
