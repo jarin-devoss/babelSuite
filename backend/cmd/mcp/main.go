@@ -427,8 +427,10 @@ func main() {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			var configMap map[string]any
-			if err := json.Unmarshal([]byte(configStr), &configMap); err != nil {
-				return mcp.NewToolResultError("config must be a valid JSON object: " + err.Error()), nil
+			err = json.Unmarshal([]byte(configStr), &configMap)
+			if err != nil {
+				err = fmt.Errorf("config must be a valid JSON object: %w", err)
+				return mcp.NewToolResultError(err.Error()), nil
 			}
 			return callPost(ctx, c, "/api/v1/platform-settings/plugins/"+name+"/validate", map[string]any{"config": configMap})
 		},

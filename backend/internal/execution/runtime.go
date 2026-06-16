@@ -317,7 +317,10 @@ func (s *Service) ensureSuiteSidecar(suite *suites.Definition, profile string) e
 	}
 
 	settings, err := s.loadPlatformSettings()
-	if err != nil || settings == nil {
+	if err != nil {
+		return fmt.Errorf("load platform settings: %w", err)
+	}
+	if settings == nil {
 		return nil
 	}
 
