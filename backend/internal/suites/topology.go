@@ -238,55 +238,18 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			continue
 		}
 
-		node := TopologyNode{
-			ID:                raw.ID,
-			Name:              raw.Name,
-			Kind:              raw.Kind,
-			Variant:           raw.Variant,
-			Image:             raw.Image,
-			File:              raw.File,
-			Commands:          append([]string{}, raw.Commands...),
-			Message:           raw.Message,
-			Harden:            raw.Harden,
-			RuntimeEnv:        cloneStringMap(raw.Env),
-			DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
-			ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),
-			OnFailure:         expandImportedDependencies(raw.OnFailure, imports),
-			ContinueOnFailure: raw.ContinueOnFailure,
-			Evaluation:        cloneStepEvaluation(raw.Evaluation),
-			ArtifactExports:   append([]ArtifactExport{}, raw.Exports...),
-			SourceSuiteID:     suite.ID,
-			SourceSuiteTitle:  suite.Title,
-			SourceRepository:  suite.Repository,
-			SourceVersion:     suite.Version,
-		}
-		if raw.Kind == "traffic" {
-			spec, err := resolveLoadSpec(raw, suite.SourceFiles)
-			if err != nil {
-				return resolvedTopology{}, err
-			}
-			node.Load = spec
-		}
-		if raw.Kind == "security" {
-			node.Security = &SecuritySpec{
-				Variant:       raw.Variant,
-				Target:        raw.Target,
-				Technique:     raw.Technique,
-				FloodPath:     raw.FloodPath,
-				FloodRate:     raw.FloodRate,
-				FloodDuration: raw.FloodDuration,
-				FloodThrottle: raw.FloodThrottle,
-			}
-		}
-		if raw.Kind == NodeKindPlugin {
-			node.Plugin = &PluginSpec{
-				Name:   raw.Variant,
-				Op:     raw.PluginOp,
-				Config: raw.PluginConfig,
-			}
+		node, err := topologyNodeFromRaw(raw, suite, imports)
+		if err != nil {
+			return resolvedTopology{}, err
 		}
 		final = append(final, node)
 	}
+
+	preHook, err := resolvePreHookNodes(suite, r.moduleResolver)
+	if err != nil {
+		return resolvedTopology{}, err
+	}
+	final = prependPreHookNodes(final, preHook)
 
 	for index := range final {
 		final[index].Order = index
@@ -302,6 +265,57 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 	}
 	r.cached[id] = cloneResolvedTopology(result)
 	return cloneResolvedTopology(result), nil
+}
+
+func topologyNodeFromRaw(raw rawTopologyNode, suite Definition, imports map[string]topologyImport) (TopologyNode, error) {
+	node := TopologyNode{
+		ID:                raw.ID,
+		Name:              raw.Name,
+		Kind:              raw.Kind,
+		Variant:           raw.Variant,
+		Image:             raw.Image,
+		File:              raw.File,
+		Commands:          append([]string{}, raw.Commands...),
+		Message:           raw.Message,
+		Harden:            raw.Harden,
+		RuntimeEnv:        cloneStringMap(raw.Env),
+		DependsOn:         expandImportedDependencies(append(append([]string{}, raw.DependsOn...), raw.OnFailure...), imports),
+		ResetMocks:        expandImportedMockTargets(raw.ResetMocks, imports),
+		OnFailure:         expandImportedDependencies(raw.OnFailure, imports),
+		ContinueOnFailure: raw.ContinueOnFailure,
+		Evaluation:        cloneStepEvaluation(raw.Evaluation),
+		ArtifactExports:   append([]ArtifactExport{}, raw.Exports...),
+		SourceSuiteID:     suite.ID,
+		SourceSuiteTitle:  suite.Title,
+		SourceRepository:  suite.Repository,
+		SourceVersion:     suite.Version,
+	}
+	if raw.Kind == "traffic" {
+		spec, err := resolveLoadSpec(raw, suite.SourceFiles)
+		if err != nil {
+			return TopologyNode{}, err
+		}
+		node.Load = spec
+	}
+	if raw.Kind == "security" {
+		node.Security = &SecuritySpec{
+			Variant:       raw.Variant,
+			Target:        raw.Target,
+			Technique:     raw.Technique,
+			FloodPath:     raw.FloodPath,
+			FloodRate:     raw.FloodRate,
+			FloodDuration: raw.FloodDuration,
+			FloodThrottle: raw.FloodThrottle,
+		}
+	}
+	if raw.Kind == NodeKindPlugin {
+		node.Plugin = &PluginSpec{
+			Name:   raw.Variant,
+			Op:     raw.PluginOp,
+			Config: raw.PluginConfig,
+		}
+	}
+	return node, nil
 }
 
 func (r *topologyResolver) resolveDependency(alias string, entry dependencyEntry, lock dependencyLockEntry) (ResolvedDependency, Definition, error) {

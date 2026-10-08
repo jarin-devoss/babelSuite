@@ -26,6 +26,7 @@ my-suite/
   README.md
   metadata.yaml
   suite.star
+  pre-hook.star      # optional readiness gate, runs before suite.star
   dependencies.yaml
   dependencies.lock.yaml
   profiles/
@@ -47,6 +48,7 @@ my-suite/
 | File | Required | Purpose |
 |------|----------|---------|
 | `suite.star` | Yes | Topology entrypoint |
+| `pre-hook.star` | No | Readiness gate that runs before `suite.star` |
 | `README.md` | No | Title and description |
 | `metadata.yaml` | No | Suite labels, tags, and metadata |
 | `dependencies.yaml` | No | Nested suite dependency manifest |
@@ -109,6 +111,35 @@ api      = service.run(after=[db, stripe, migrate])
 baseline = traffic.baseline(target="http://api:8080", after=[api])
 smoke    = test.run(file="go/smoke_test.go", image="golang:1.24", after=[baseline])
 ```
+
+## Pre-Hook
+
+A suite may ship a `pre-hook.star` next to `suite.star`. When present, its steps run to completion **before any `suite.star` step starts** — use it to verify the environment is ready, or to let a user set up whatever their suite assumes exists.
+
+It is written exactly like `suite.star` and has the same runtime surface:
+
+```python
+load("@babelsuite/runtime", "task")
+
+environment_ready = task.run(
+    name="environment-ready",
+    image="busybox",
+    commands=[
+        "test -w /tmp || (echo 'workspace is not writable' && exit 1)",
+    ],
+)
+```
+
+Behaviour:
+
+- **No file, no change.** A suite without `pre-hook.star` resolves and runs exactly as before.
+- **The gate blocks everything.** Every `suite.star` step that would otherwise start immediately waits on the pre-hook's final steps, so the whole suite is gated transitively.
+- **A failed gate skips the suite.** If any pre-hook step fails, the suite steps are reported as skipped rather than run against an environment that was never ready.
+- **Steps are namespaced.** Pre-hook step ids are prefixed `pre-hook/`, so they can never collide with a `suite.star` step of the same name.
+- **No suite imports.** `suite.run(...)` is rejected inside a pre-hook; it is a readiness gate, not a composition point.
+- **Nested suites keep their own gate.** When a suite is imported as a dependency, its pre-hook travels with it and runs before its steps.
+
+Because pre-hook steps are ordinary topology nodes, they stream logs, report status, and appear in the topology view like any other step.
 
 ## Recognized Topology Families
 

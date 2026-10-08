@@ -15,6 +15,7 @@ const (
 
 var allowedSuiteRootFiles = map[string]struct{}{
 	"suite.star":             {},
+	PreHookFile:              {},
 	"metadata.yaml":          {},
 	"metadata.yml":           {},
 	"README.md":              {},
