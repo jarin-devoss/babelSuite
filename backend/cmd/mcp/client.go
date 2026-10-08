@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
@@ -21,6 +23,14 @@ const (
 	watchPollInitial  = 2 * time.Second
 	watchPollMax      = 30 * time.Second
 	watchDefaultLimit = 30 * time.Minute
+
+	// Mirrors httpserver.CSRFCookieName / CSRFHeaderName.
+	csrfCookieName = "csrf_token"
+	csrfHeaderName = "X-CSRF-Token"
+
+	// Any safe method is enough to be issued a CSRF cookie; this one is
+	// reachable without a token.
+	csrfPrimePath = "/api/v1/auth/config"
 )
 
 type clientOption func(*client) error
@@ -34,20 +44,82 @@ func withTimeout(d time.Duration) clientOption {
 
 type client struct {
 	baseURL string
-	token   string
 	http    *http.Client
+
+	// The stdio server dispatches tool calls on worker goroutines, so the
+	// sign_in tool can be storing a token while another call is reading it.
+	authMu sync.RWMutex
+	token  string
+	// startupAuthErr records why the automatic sign-in failed, so a later
+	// "Sign in required" can name the real cause instead of looking like
+	// rejected credentials.
+	startupAuthErr error
+}
+
+// setToken stores the bearer token used by subsequent requests.
+func (c *client) setToken(token string) {
+	c.authMu.Lock()
+	defer c.authMu.Unlock()
+	c.token = token
+}
+
+// setStartupAuthErr records why the automatic sign-in failed.
+func (c *client) setStartupAuthErr(err error) {
+	c.authMu.Lock()
+	defer c.authMu.Unlock()
+	c.startupAuthErr = err
+}
+
+// authState returns the current token and the startup failure together so a
+// caller sees a consistent pair.
+func (c *client) authState() (string, error) {
+	c.authMu.RLock()
+	defer c.authMu.RUnlock()
+	return c.token, c.startupAuthErr
 }
 
 func newClient(baseURL, token string, opts ...clientOption) *client {
+	// The jar keeps the CSRF cookie the control plane issues on safe methods so
+	// it can be echoed back on unauthenticated writes.
+	jar, _ := cookiejar.New(nil)
 	c := &client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   token,
-		http:    &http.Client{Timeout: defaultTimeout},
+		http:    &http.Client{Timeout: defaultTimeout, Jar: jar},
 	}
 	for _, opt := range opts {
 		_ = opt(c)
 	}
 	return c
+}
+
+// csrfToken returns the CSRF cookie the control plane issued for u, if any.
+func (c *client) csrfToken(u *url.URL) string {
+	if c.http.Jar == nil || u == nil {
+		return ""
+	}
+	for _, cookie := range c.http.Jar.Cookies(u) {
+		if cookie.Name == csrfCookieName {
+			return cookie.Value
+		}
+	}
+	return ""
+}
+
+// ensureCSRFCookie fetches a CSRF cookie when the next request will be a write
+// that carries no bearer token. Requests that do carry one are exempt from the
+// CSRF check, so this is only ever needed for sign-in.
+func (c *client) ensureCSRFCookie(ctx context.Context) {
+	if token, _ := c.authState(); token != "" {
+		return
+	}
+	u, err := url.Parse(c.baseURL + csrfPrimePath)
+	if err != nil || c.csrfToken(u) != "" {
+		return
+	}
+	// A failure here is not fatal: the write still goes out and reports the
+	// real error from the control plane rather than a misleading one.
+	_, _ = c.get(ctx, csrfPrimePath, nil)
 }
 
 func (c *client) get(ctx context.Context, path string, queryParams map[string]string) (json.RawMessage, error) {
@@ -80,6 +152,8 @@ func (c *client) post(ctx context.Context, path string, body any) (json.RawMessa
 	}
 	raw := buf.Bytes()
 
+	c.ensureCSRFCookie(ctx)
+
 	return backoff.Retry(ctx, func() (json.RawMessage, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(raw))
 		if err != nil {
@@ -90,7 +164,30 @@ func (c *client) post(ctx context.Context, path string, body any) (json.RawMessa
 	}, backoff.WithBackOff(newBackoff()), backoff.WithMaxElapsedTime(defaultMaxRetry))
 }
 
+func (c *client) put(ctx context.Context, path string, body any) (json.RawMessage, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(body); err != nil {
+		return nil, err
+	}
+	raw := buf.Bytes()
+
+	c.ensureCSRFCookie(ctx)
+
+	return backoff.Retry(ctx, func() (json.RawMessage, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+path, bytes.NewReader(raw))
+		if err != nil {
+			return nil, backoff.Permanent(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return c.do(req)
+	}, backoff.WithBackOff(newBackoff()), backoff.WithMaxElapsedTime(defaultMaxRetry))
+}
+
 func (c *client) delete(ctx context.Context, path string) (json.RawMessage, error) {
+	c.ensureCSRFCookie(ctx)
+
 	return backoff.Retry(ctx, func() (json.RawMessage, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
 		if err != nil {
@@ -106,8 +203,14 @@ func (c *client) delete(ctx context.Context, path string) (json.RawMessage, erro
 
 func (c *client) do(req *http.Request) (json.RawMessage, error) {
 	req.Header.Set("User-Agent", userAgent)
-	if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
+	token, startupAuthErr := c.authState()
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	} else if req.Method != http.MethodGet && req.Method != http.MethodHead {
+		// Unauthenticated writes have to echo the CSRF cookie back in a header.
+		if token := c.csrfToken(req.URL); token != "" {
+			req.Header.Set(csrfHeaderName, token)
+		}
 	}
 
 	resp, err := c.http.Do(req)
@@ -123,8 +226,21 @@ func (c *client) do(req *http.Request) (json.RawMessage, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(tee)
 		msg := extractErrorMessage(data, resp.StatusCode)
+
+		// Being told to sign in when the startup sign-in itself failed reads as
+		// bad credentials unless the original reason comes with it.
+		if resp.StatusCode == http.StatusUnauthorized && token == "" && startupAuthErr != nil {
+			msg = fmt.Sprintf("%s (automatic sign-in at startup failed: %v)", msg, startupAuthErr)
+		}
+
 		apiErr := fmt.Errorf("%s", msg)
-		// 4xx are permanent: retrying won't help.
+
+		// Rate limiting is transient, so let the backoff ride it out rather
+		// than reporting it as a permanent failure.
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return nil, apiErr
+		}
+		// Other 4xx are permanent: retrying won't help.
 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 			return nil, backoff.Permanent(apiErr)
 		}
@@ -161,11 +277,11 @@ func (c *client) watchExecution(ctx context.Context, id string, timeout time.Dur
 		var record struct {
 			Status string `json:"status"`
 		}
-		if json.Unmarshal(data, &record) == nil {
-			switch record.Status {
-			case "healthy", "failed":
-				return data, nil
-			}
+		// The control plane reports "Healthy"/"Failed"; match without regard to
+		// case so the watch ends when the run does instead of polling to its
+		// deadline.
+		if json.Unmarshal(data, &record) == nil && isTerminalStatus(record.Status) {
+			return data, nil
 		}
 
 		if time.Now().After(deadline) {
@@ -183,6 +299,16 @@ func (c *client) watchExecution(ctx context.Context, id string, timeout time.Dur
 		case <-time.After(wait):
 		}
 	}
+}
+
+// isTerminalStatus reports whether an execution has finished. Status casing has
+// differed between the API and this client before, so compare case-insensitively.
+func isTerminalStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "healthy", "failed":
+		return true
+	}
+	return false
 }
 
 func (c *client) signIn(ctx context.Context, email, password string) (string, error) {
