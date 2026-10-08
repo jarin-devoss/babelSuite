@@ -34,6 +34,7 @@ nav:
     - Authentication: auth.md
     - API: api.md
     - CLI: cli.md
+    - MCP Server: mcp.md
   - Examples: examples.md
   - Development: development.md
   - Operations: operations.md

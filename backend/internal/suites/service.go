@@ -17,7 +17,6 @@ func NewService() *Service {
 	return &Service{suites: map[string]Definition{}}
 }
 
-
 func (s *Service) List() []Definition {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -128,7 +127,6 @@ func suiteCatalog(items map[string]Definition) []Definition {
 	return result
 }
 
-
 func (s *Service) Register(req RegisterRequest) (Definition, error) {
 	id := strings.TrimSpace(req.ID)
 	if id == "" {
@@ -160,6 +158,13 @@ func (s *Service) Register(req RegisterRequest) (Definition, error) {
 	if owner == "" {
 		owner = "Workspace"
 	}
+	sourceFiles := append([]SourceFile{}, req.SourceFiles...)
+	for index := range sourceFiles {
+		if strings.TrimSpace(sourceFiles[index].Language) == "" {
+			sourceFiles[index].Language = DetectSourceLanguage(sourceFiles[index].Path)
+		}
+	}
+
 	definition := Definition{
 		ID:          id,
 		Title:       title,
@@ -172,6 +177,12 @@ func (s *Service) Register(req RegisterRequest) (Definition, error) {
 		Status:      "Installed",
 		SuiteStar:   suiteStar,
 		Contracts:   extractLoadContracts(suiteStar),
+		SourceFiles: sourceFiles,
+		Profiles:    ProfilesFromSourceFiles(sourceFiles),
+	}
+
+	if err := ValidateDefinition(definition); err != nil {
+		return Definition{}, err
 	}
 
 	s.suites[id] = definition
@@ -189,7 +200,6 @@ func isValidSuiteID(id string) bool {
 	}
 	return true
 }
-
 
 var loadStmtRe = regexp.MustCompile(`(?m)^\s*load\s*\(\s*"([^"]+)"`)
 

@@ -34,9 +34,12 @@ func main() {
 		if email != "" && password != "" {
 			tok, err := c.signIn(startCtx, email, password)
 			if err != nil {
+				// Stderr is invisible to an MCP client, so keep the reason on
+				// the client to report with the first call that needs auth.
+				c.setStartupAuthErr(err)
 				fmt.Fprintf(os.Stderr, "babelsuite-mcp: auto sign-in failed: %v\n", err)
 			} else {
-				c.token = tok
+				c.setToken(tok)
 			}
 		}
 	}
@@ -47,9 +50,18 @@ func main() {
 		server.WithToolCapabilities(true),
 	)
 
+	// Read-only mode withholds every tool that changes state — launching runs,
+	// writing suites and profiles, deleting plugins, reaping sandboxes. The
+	// tools are not registered at all rather than failing when called.
+	readOnly := boolEnv("BABELSUITE_MCP_READONLY", false)
+	add := toolRegistrar(s, readOnly)
+	if readOnly {
+		fmt.Fprintln(os.Stderr, "babelsuite-mcp: read-only mode — state-changing tools are not exposed")
+	}
+
 	// ── Auth ──────────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("sign_in",
 			mcp.WithDescription("Sign in to BabelSuite and obtain a JWT token. Subsequent tool calls use the token automatically."),
 			mcp.WithString("email", mcp.Required(), mcp.Description("User email address")),
@@ -68,14 +80,14 @@ func main() {
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			c.token = tok
+			c.setToken(tok)
 			return mcp.NewToolResultText(fmt.Sprintf(`{"token":%q,"note":"Token stored — subsequent calls use it automatically."}`, tok)), nil
 		},
 	)
 
 	// ── Suites ────────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_suites",
 			mcp.WithDescription("List all available test suites with their profiles and backend options, ready to launch."),
 		),
@@ -84,7 +96,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolWrite,
 		mcp.NewTool("create_suite",
 			mcp.WithDescription("Create a new test suite from a Starlark suite.star definition. The suite is persisted to the workspace and available immediately."),
 			mcp.WithString("id", mcp.Required(), mcp.Description("Unique suite ID (lowercase letters, digits, hyphens, underscores only)")),
@@ -92,6 +104,13 @@ func main() {
 			mcp.WithString("title", mcp.Description("Human-readable suite title. Defaults to a humanized version of the ID.")),
 			mcp.WithString("description", mcp.Description("Short description of what the suite tests.")),
 			mcp.WithString("owner", mcp.Description("Team or person that owns the suite.")),
+			mcp.WithArray("source_files",
+				mcp.Description("The rest of the package: the task, test and profile files suite.star refers to. A step declaring file=\"smoke.py\" needs a source file at tests/smoke.py, and a profiles/local.yaml entry becomes a launchable profile. Without these the suite is only a topology shell."),
+				mcp.Items(map[string]any{"type": "object", "properties": map[string]any{
+					"path":    map[string]any{"type": "string", "description": "Suite-relative path, e.g. tests/smoke.py, tasks/migrate.py, profiles/local.yaml"},
+					"content": map[string]any{"type": "string", "description": "Full file contents"},
+				}}),
+			),
 		),
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			id, err := req.RequireString("id")
@@ -102,8 +121,12 @@ func main() {
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			body := map[string]string{
-				"id":       id,
+			sourceFiles, err := sourceFilesArgument(req)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			body := map[string]any{
+				"id":        id,
 				"suiteStar": suiteStar,
 			}
 			if v := req.GetString("title", ""); v != "" {
@@ -115,11 +138,14 @@ func main() {
 			if v := req.GetString("owner", ""); v != "" {
 				body["owner"] = v
 			}
+			if len(sourceFiles) > 0 {
+				body["sourceFiles"] = sourceFiles
+			}
 			return callPost(ctx, c, "/api/v1/suites", body)
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("resolve_suite_ref",
 			mcp.WithDescription("Resolve an OCI reference (e.g. 'payment-suite' or 'ghcr.io/org/repo:tag') to a full suite definition."),
 			mcp.WithString("ref", mcp.Required(), mcp.Description("OCI ref or suite ID to resolve")),
@@ -135,7 +161,7 @@ func main() {
 
 	// ── Executions ────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_executions",
 			mcp.WithDescription("List recent suite executions, most recent first."),
 		),
@@ -144,7 +170,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolWrite,
 		mcp.NewTool("launch_execution",
 			mcp.WithDescription("Launch a new suite execution. Returns the execution record with an ID. Use watch_execution to block until it completes — it handles polling automatically. Use validate_plugin_config before launching if the suite uses plugin.run() steps."),
 			mcp.WithString("suite_id", mcp.Required(), mcp.Description("Suite ID to execute")),
@@ -167,7 +193,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("get_execution",
 			mcp.WithDescription("Get full execution details: status, step snapshots, events, and test/coverage artifacts."),
 			mcp.WithString("execution_id", mcp.Required(), mcp.Description("Execution ID")),
@@ -181,7 +207,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("watch_execution",
 			mcp.WithDescription("Block until an execution reaches a terminal state (healthy or failed), then return its full record. Poll interval grows automatically from 2s up to 30s. Use this after launch_execution to wait for results without spinning."),
 			mcp.WithString("execution_id", mcp.Required(), mcp.Description("Execution ID to watch")),
@@ -206,7 +232,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("get_execution_overview",
 			mcp.WithDescription("Get the live execution dashboard: all active executions with step counts and progress ratios."),
 		),
@@ -217,7 +243,7 @@ func main() {
 
 	// ── Catalog ───────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_packages",
 			mcp.WithDescription("List all packages in the OCI catalog (suites, tasks, mocks, etc.) across configured registries."),
 		),
@@ -226,7 +252,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("get_package",
 			mcp.WithDescription("Get metadata for a specific catalog package."),
 			mcp.WithString("package_id", mcp.Required(), mcp.Description("Package ID")),
@@ -240,7 +266,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_favorites",
 			mcp.WithDescription("List the current user's starred catalog packages."),
 		),
@@ -251,7 +277,7 @@ func main() {
 
 	// ── Platform ──────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("get_platform_settings",
 			mcp.WithDescription("Get the platform configuration: execution agents, OCI registries, and secrets provider settings."),
 		),
@@ -262,7 +288,7 @@ func main() {
 
 	// ── Sandboxes ─────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_sandboxes",
 			mcp.WithDescription("List active Docker/Kubernetes sandboxes: running containers, networks, volumes, and resource usage."),
 		),
@@ -271,7 +297,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolDestructive,
 		mcp.NewTool("reap_sandbox",
 			mcp.WithDescription("Clean up a specific sandbox (containers, networks, volumes) by its execution ID."),
 			mcp.WithString("sandbox_id", mcp.Required(), mcp.Description("Sandbox/execution ID to clean up")),
@@ -285,7 +311,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolDestructive,
 		mcp.NewTool("reap_all_sandboxes",
 			mcp.WithDescription("Clean up ALL BabelSuite-managed sandboxes. Use with care — removes all running test environments."),
 		),
@@ -296,7 +322,7 @@ func main() {
 
 	// ── Plugins ───────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_plugins",
 			mcp.WithDescription("List all registered APISIX Lua plugins. Each plugin can be used in a suite with plugin.run()."),
 		),
@@ -305,7 +331,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolWrite,
 		mcp.NewTool("create_plugin",
 			mcp.WithDescription("Register a new APISIX Lua plugin. The plugin becomes available immediately as a plugin.run() step in any suite. The Lua source is embedded into the APISIX sidecar config at execution time. After creating, call check_plugin to verify the schema and trigger are valid."),
 			mcp.WithString("name", mcp.Required(), mcp.Description("Unique plugin name, e.g. babelsuite-pii-scanner")),
@@ -351,7 +377,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolDestructive,
 		mcp.NewTool("delete_plugin",
 			mcp.WithDescription("Remove a registered plugin by name. Suites that reference it will fail until a replacement is registered."),
 			mcp.WithString("name", mcp.Required(), mcp.Description("Plugin name to remove")),
@@ -374,7 +400,7 @@ func main() {
 
 	// ── Modules ───────────────────────────────────────────────────────────────
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("list_modules",
 			mcp.WithDescription("List all OCI module packages available in the catalog (e.g. @babelsuite/kafka, @babelsuite/postgres). Modules are loaded in suite.star with load()."),
 		),
@@ -383,7 +409,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("get_module",
 			mcp.WithDescription("Get metadata and exported symbols for a specific OCI module package."),
 			mcp.WithString("module_id", mcp.Required(), mcp.Description("Module package ID, e.g. stdlib-kafka")),
@@ -397,7 +423,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("check_plugin",
 			mcp.WithDescription("Verify a registered plugin's static configuration: confirms the plugin exists, the trigger path is valid, and the CUE schema (if provided) parses without errors. Call this after create_plugin before using the plugin in a suite."),
 			mcp.WithString("name", mcp.Required(), mcp.Description("Plugin name to check")),
@@ -411,7 +437,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("validate_plugin_config",
 			mcp.WithDescription("Validate a config dict against a plugin's CUE schema without executing anything. Returns valid=true or a detailed CUE validation error. Use before launch_execution to catch config mistakes early."),
 			mcp.WithString("name", mcp.Required(), mcp.Description("Plugin name whose schema to validate against")),
@@ -436,7 +462,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
+	add(toolRead,
 		mcp.NewTool("get_execution_logs",
 			mcp.WithDescription("Return a snapshot of all log lines emitted so far for an execution. Plugin findings, step output, and error messages are all included. Useful after watch_execution to inspect what each plugin step reported."),
 			mcp.WithString("execution_id", mcp.Required(), mcp.Description("Execution ID")),
@@ -449,6 +475,11 @@ func main() {
 			return callGet(ctx, c, "/api/v1/executions/"+id+"/logs/snapshot", nil)
 		},
 	)
+
+	registerExtendedTools(add, c)
+	if err := registerSkillTool(add); err != nil {
+		fmt.Fprintf(os.Stderr, "babelsuite-mcp: skills unavailable: %v\n", err)
+	}
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Fprintf(os.Stderr, "babelsuite-mcp: %v\n", err)
@@ -463,6 +494,17 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
+func boolEnv(key string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
 func callGet(ctx context.Context, c *client, path string, params map[string]string) (*mcp.CallToolResult, error) {
 	data, err := c.get(ctx, path, params)
 	if err != nil {
@@ -475,6 +517,25 @@ func callPost(ctx context.Context, c *client, path string, body any) (*mcp.CallT
 	data, err := c.post(ctx, path, body)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(prettyJSON(data)), nil
+}
+
+func callPut(ctx context.Context, c *client, path string, body any) (*mcp.CallToolResult, error) {
+	data, err := c.put(ctx, path, body)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(prettyJSON(data)), nil
+}
+
+func callDelete(ctx context.Context, c *client, path string) (*mcp.CallToolResult, error) {
+	data, err := c.delete(ctx, path)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if len(data) == 0 {
+		return mcp.NewToolResultText("Deleted."), nil
 	}
 	return mcp.NewToolResultText(prettyJSON(data)), nil
 }
