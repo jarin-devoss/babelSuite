@@ -16,6 +16,10 @@ type RegisterRequest struct {
 	Description string `json:"description"`
 	Owner       string `json:"owner,omitempty"`
 	SuiteStar   string `json:"suiteStar"`
+	// SourceFiles carries the rest of the package — the task, test and profile
+	// files suite.star refers to. Without them a registered suite is only a
+	// topology shell whose steps have nothing to run.
+	SourceFiles []SourceFile `json:"sourceFiles,omitempty"`
 }
 
 const (
@@ -31,7 +35,6 @@ const (
 
 	VariantServiceMock = "service.mock"
 )
-
 
 type ProfileOption struct {
 	FileName    string `json:"fileName"`

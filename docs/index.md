@@ -90,6 +90,7 @@ When a step fails, logs are live in the UI immediately — not buried in CI outp
 - [Authentication](auth.md) — local auth, OIDC SSO, JWT session model
 - [API](api.md) — full HTTP API route reference
 - [CLI](cli.md) — `babelctl` commands and usage
+- [MCP Server](mcp.md) — expose suites, executions, and plugins to AI agents
 - [Examples](examples.md) — example suite packages and local registry setup
 - [Development](development.md) — local dev commands, tests, seed, sync
 - [Operations](operations.md) — health probes, telemetry, cache, datastores
