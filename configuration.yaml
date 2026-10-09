@@ -600,7 +600,19 @@ plugins:
             local data, err = fetch_offsets(rest_url, group)
             if err then return nil, err end
             local findings, total_lag = build_lag_findings(data, group, max_lag, severity)
-            return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
+            return {
+                passed    = #findings == 0,
+                findings  = as_array(findings),
+                total_lag = total_lag,
+                -- Added to this step's runner.run trace span. Group and thresholds are
+                -- bounded; partition offsets would not be, so they stay out.
+                attributes = {
+                    ["lag.group"]   = group,
+                    ["lag.total"]   = tostring(total_lag),
+                    ["lag.max"]     = tostring(max_lag),
+                    ["lag.breached"] = tostring(#findings),
+                },
+            }, nil
         end
 
         local function run_watch_lag(cfg, rest_url)
@@ -610,7 +622,18 @@ plugins:
             if err then return nil, err end
             -- watch_lag: always warn, never fails the suite
             local findings, total_lag = build_lag_findings(data, group, max_lag, "warn")
-            return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
+            return {
+                passed    = #findings == 0,
+                findings  = as_array(findings),
+                total_lag = total_lag,
+                attributes = {
+                    ["lag.group"]    = group,
+                    ["lag.total"]    = tostring(total_lag),
+                    ["lag.max"]      = tostring(max_lag),
+                    ["lag.breached"] = tostring(#findings),
+                    ["lag.mode"]     = "watch",
+                },
+            }, nil
         end
 
         function _M.access(conf, ctx)
@@ -676,6 +699,6 @@ plugins:
                 max_lag        = max_lag,
                 kafka_rest_url = kafka_rest_url,
             )
-      version: 1.0.0
-updatedAt: 2026-06-15T22:16:39.0245194Z
+      version: 1.1.0
+updatedAt: 2026-10-08T22:38:07.8988288Z
 description: Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials.

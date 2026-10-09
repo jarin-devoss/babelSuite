@@ -71,7 +71,17 @@ local function compare(primary_url, shadow_url, ignored, threshold, severity)
     end
 
     local passed = #findings <= (threshold or 0)
-    return {passed = passed, findings = findings}, nil
+    return {
+        passed   = passed,
+        findings = findings,
+        -- Added to this step's runner.run trace span. Counts and statuses are
+        -- bounded; the differing field paths are not, so they stay in findings.
+        attributes = {
+            ["shadow.diffs"]     = tostring(#findings),
+            ["shadow.threshold"] = tostring(threshold or 0),
+            ["shadow.status"]    = string.format("%d/%d", status_p, status_s),
+        },
+    }, nil
 end
 
 local function run_diff(cfg)

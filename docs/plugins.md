@@ -267,6 +267,29 @@ The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads these fi
 | `summary` | string | One-line summary emitted as a log line at the level set by `level` |
 | `level` | string | Log level for the summary: `info`, `debug`, `warn`, or `error`. Defaults to `info` if omitted. |
 | `stderr` | string | Optional raw stderr from the plugin process, shown in the execution log |
+| `attributes` | object | Optional string map recorded on the step's OpenTelemetry span, prefixed `runner.plugin.` |
+
+### Reporting to the trace
+
+The runner opens a `runner.run` span per step carrying what the runner knows — execution, suite, node and backend. `attributes` is how a plugin adds what it actually did, so the detail reaches your collector alongside everything else BabelSuite traces.
+
+```lua
+return {
+    passed     = ok,
+    findings   = findings,
+    attributes = {
+        ["lag.max"]   = tostring(max_lag),
+        ["lag.group"] = group,
+    },
+}, nil
+```
+
+Those arrive on the span as `runner.plugin.lag.max` and `runner.plugin.lag.group`.
+
+The shipped `consumer-lag` and `shadow-diff` plugins report this way — lag totals and thresholds, diff counts and upstream statuses.
+
+!!! warning "Keep attribute values low-cardinality"
+    Trace backends index span attributes, so a value that is unique per call — a request id, a full prompt — multiplies the index. Report scores, counts, modes and names; never per-call identifiers. BabelSuite caps each step at 24 attributes and truncates values at 256 characters, but the cap is a backstop, not a licence.
 
 Minimal compliant Lua return:
 

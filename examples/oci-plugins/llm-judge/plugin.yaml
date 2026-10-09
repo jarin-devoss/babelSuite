@@ -1,0 +1,6 @@
+name: llm-judge
+trigger: /_babelsuite/plugins/llm-judge/start
+kind: plugin
+variants: [llm-judge]
+schema: schema.cue
+lua: plugin.lua

@@ -47,7 +47,19 @@ local function run_check_lag(cfg, rest_url)
     local data, err = fetch_offsets(rest_url, group)
     if err then return nil, err end
     local findings, total_lag = build_lag_findings(data, group, max_lag, severity)
-    return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
+    return {
+        passed    = #findings == 0,
+        findings  = as_array(findings),
+        total_lag = total_lag,
+        -- Added to this step's runner.run trace span. Group and thresholds are
+        -- bounded; partition offsets would not be, so they stay out.
+        attributes = {
+            ["lag.group"]   = group,
+            ["lag.total"]   = tostring(total_lag),
+            ["lag.max"]     = tostring(max_lag),
+            ["lag.breached"] = tostring(#findings),
+        },
+    }, nil
 end
 
 local function run_watch_lag(cfg, rest_url)
@@ -57,7 +69,18 @@ local function run_watch_lag(cfg, rest_url)
     if err then return nil, err end
     -- watch_lag: always warn, never fails the suite
     local findings, total_lag = build_lag_findings(data, group, max_lag, "warn")
-    return {passed = #findings == 0, findings = as_array(findings), total_lag = total_lag}, nil
+    return {
+        passed    = #findings == 0,
+        findings  = as_array(findings),
+        total_lag = total_lag,
+        attributes = {
+            ["lag.group"]    = group,
+            ["lag.total"]    = tostring(total_lag),
+            ["lag.max"]      = tostring(max_lag),
+            ["lag.breached"] = tostring(#findings),
+            ["lag.mode"]     = "watch",
+        },
+    }, nil
 end
 
 function _M.access(conf, ctx)

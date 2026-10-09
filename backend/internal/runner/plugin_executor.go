@@ -105,6 +105,8 @@ func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line)
 		return fmt.Errorf("plugin %s: parse response: %w", plugin.Name, err)
 	}
 
+	recordPluginSpanAttributes(ctx, result.Attributes)
+
 	if result.Stderr != "" {
 		emit(line(step, "warn", fmt.Sprintf("[%s] Plugin stderr: %s", step.Node.Name, strings.TrimSpace(result.Stderr))))
 	}
@@ -139,6 +141,11 @@ type pluginResult struct {
 	Stderr   string          `json:"stderr,omitempty"`
 	Summary  string          `json:"summary,omitempty"`
 	Level    string          `json:"level,omitempty"` // log level for summary: info, debug, warn, error
+	// Attributes are added to the runner.run span for this step. A plugin
+	// knows what it just did — which tool it called, which model answered — and
+	// this is the only way that detail reaches the trace. See
+	// recordPluginSpanAttributes for the cardinality limits.
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 type pluginFinding struct {
