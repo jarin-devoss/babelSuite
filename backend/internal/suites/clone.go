@@ -1,5 +1,13 @@
 package suites
 
+// CloneDefinition deep-copies a definition for handing to a caller outside the
+// package. Besides unsharing the backing arrays it leaves every slice the JSON
+// contract declares as an array non-nil: Go marshals a nil slice as null, and a
+// client that trusts the declared type then calls an array method on null.
+func CloneDefinition(input Definition) Definition {
+	return cloneDefinition(input)
+}
+
 func cloneDefinition(input Definition) Definition {
 	output := input
 	output.Labels = cloneStringMap(input.Labels)
