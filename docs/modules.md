@@ -81,8 +81,8 @@ load("@babelsuite/runtime", "service", "task")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 
 broker         = kafka()
-orders_topic   = create_topic("orders",   partitions=3, after=[broker])
-payments_topic = create_topic("payments", partitions=1, after=[broker])
+orders_topic   = create_topic(broker, "orders",   partitions=3)
+payments_topic = create_topic(broker, "payments", partitions=1)
 
 worker = service.run(after=[orders_topic, payments_topic])
 ```
@@ -129,11 +129,12 @@ load("@babelsuite/runtime",  "task", "service")
 load("@babelsuite/postgres", "pg", "connect", "insert")
 
 db   = pg()
-conn = connect(after=[db])
+conn = connect(db)
 
 seed = insert(
+    db,
     table="merchants",
-    rows=[{"id": "m1", "name": "Acme"}, {"id": "m2", "name": "Globex"}],
+    values={"id": "m1", "name": "Acme"},
     after=[conn],
 )
 

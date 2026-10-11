@@ -35,9 +35,41 @@ Examples:
 ## How It Works
 
 1. Register a plugin via the API or UI (`Settings → Plugins`). The plugin's Lua source is embedded into the settings file.
-2. When a suite that references the plugin runs, BabelSuite generates an `apisix.yaml` for the sidecar that includes the plugin's Lua code as a serverless function at the registered trigger path.
+2. When a suite that references the plugin runs, BabelSuite writes each plugin's
+   Lua to a file and bind-mounts it into the sidecar at
+   `/usr/local/openresty/site/lualib/apisix/plugins`, so APISIX loads it **by
+   name as a native plugin** — not as a serverless function. It then generates
+   an `apisix.yaml` naming the plugin in the top-level `plugins:` list and
+   attaching it to a route at the plugin's path.
 3. The APISIX sidecar starts once per (suite, profile) pair and stays up across all executions of that combination.
-4. For each `plugin.run()` step the backend POSTs the step config to the trigger URL on the sidecar and reads the JSON response back.
+4. For each plugin step the backend POSTs the step config to that route on the sidecar and reads the JSON response back.
+
+### The generated route
+
+A plugin called `llm-judge` produces this block, which is worth recognising when
+reading a sidecar's config:
+
+```yaml
+- id: babelsuite-plugin-llm-judge
+  name: llm-judge
+  uri: /_babelsuite/plugins/llm-judge/start
+  methods: [POST]
+  plugins:
+    llm-judge: {}
+  upstream:
+    type: roundrobin
+    nodes:
+      127.0.0.1:1: 1
+```
+
+The upstream is deliberately unroutable. APISIX requires every route to declare
+one, but the request must never reach it: the plugin answers during the `access`
+phase and calls `ngx.exit`, so nothing is proxied. If a plugin ever falls
+through without responding, the connection fails loudly at `127.0.0.1:1` rather
+than silently reaching something real.
+
+The path itself is derived from the plugin name, so it is stated once — see
+[Plugin Fields](#plugin-fields).
 
 ## Using a Plugin in a Suite
 
@@ -100,7 +132,7 @@ User plugins are the right tool when the check is **domain-specific** and not co
 
 ## Example Plugins
 
-Ten plugins ship under `examples/oci-plugins/`. They cover four domains: hardware simulation, application security, event-streaming health, and deployment validation.
+Eleven plugins ship under `examples/oci-plugins/`. They cover five domains: hardware simulation, application security, event-streaming health, deployment validation, and output grading.
 
 ---
 
@@ -241,17 +273,52 @@ Required config: `primary`, `shadow`. Optional: `ignore_fields` (list of field p
 
 ---
 
+### `llm-judge` — Grading Text Against Criteria
+
+Sends a block of text and a list of criteria to any OpenAI-compatible
+chat-completions endpoint, and asks the model to answer each criterion `yes` or
+`no` independently. The score is the fraction answered `yes`, so a partial pass
+is visible instead of collapsing into one opaque rating, and every `no` carries
+the model's own reason into a finding.
+
+Grade either text supplied inline with `output`, or the body of a URL named by
+`target`.
+
+| Operation | What it does |
+|-----------|--------------|
+| `judge` | Fails the step when the score falls below `threshold`. Use as a gate. |
+| `monitor` | Reports the same verdicts at `warn` level without failing the suite. |
+
+Required config: `model_url`, `criteria`. One of `output` or `target`. Optional:
+`model` (default `gpt-4o-mini`), `api_key`, `threshold` (default `1.0`),
+`timeout_ms` (default `30000`), `severity`, `structured` (default `true`).
+
+!!! warning "Keep `structured` on unless the endpoint rejects it"
+    It asks the server to constrain decoding to a JSON object. Instructions
+    alone are not enough — models wrap the answer in prose or stop mid-object,
+    and the reply is then unparseable. Turn it off only for an endpoint that
+    returns an error for `response_format`.
+
+Reports `judge.score`, `judge.passed`, `judge.total`, `judge.threshold`,
+`judge.model` and `judge.status` to the step's trace span. When the model cannot
+be reached or answers unusably, the step reports a `judge.unavailable` finding
+with `judge.status=unavailable` rather than failing as a transport error, so the
+reason survives into the run and the trace — and `monitor` keeps its promise not
+to block the suite.
+
+---
+
 ## Plugin Fields
 
 | Field | Description |
 |-------|-------------|
 | `name` | Unique identifier — used as the load target in `suite.star` (e.g. `@plugins/spice-sim`) |
-| `trigger` | APISIX route path the plugin listens on (e.g. `/_babelsuite/plugins/spice-sim/start`) |
+| `trigger` | Read-only. The sidecar route the plugin answers on, derived from `name` as `/_babelsuite/plugins/<name>/start`. A plugin package does not declare it and a value sent to the API is ignored. |
 | `version` | Semantic version string stored as-is — e.g. `1.0.0`. Not auto-bumped by the API. |
 | `kind` | Must be `plugin` |
 | `variants` | List of variant names the plugin registers as APISIX Lua extensions |
 | `operations` | Optional list of allowed operation names — the suite call must match one |
-| `lua` | Full Lua source embedded verbatim into the generated `apisix.yaml` |
+| `lua` | Full Lua source. Written to a file and bind-mounted into the sidecar's plugin directory, where APISIX loads it by name as a native plugin |
 | `schema` | Optional CUE schema; step config is validated against it before dispatch |
 | `star` | Starlark wrapper source — defines the typed functions suite authors call via `load("@plugins/<name>", ...)`. See [Plugin Starlark Wrapper](#plugin-starlark-wrapper-pluginstar). |
 | `deprecated` | When `true`, the plugin is flagged in health checks but still dispatched |
@@ -263,7 +330,7 @@ The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads these fi
 | Field | Type | Description |
 |-------|------|-------------|
 | `passed` | bool | Whether the step should be considered successful |
-| `findings` | array | List of finding objects — each should have at least `message` |
+| `findings` | array | List of finding objects, each with `label`, `severity` and `detail` |
 | `summary` | string | One-line summary emitted as a log line at the level set by `level` |
 | `level` | string | Log level for the summary: `info`, `debug`, `warn`, or `error`. Defaults to `info` if omitted. |
 | `stderr` | string | Optional raw stderr from the plugin process, shown in the execution log |
@@ -305,6 +372,10 @@ return {
 
 ## API
 
+Registered plugins are listed under **Settings → Plugins**, each with its trigger route and the operations it exposes to suite steps.
+
+![The plugins settings page listing six registered Lua plugins with their trigger routes and operations](images/plugins.png)
+
 All plugin endpoints require an admin session except `check` and `validate`.
 
 | Method | Path | Description |
@@ -325,7 +396,6 @@ curl -s -X POST http://localhost:8090/api/v1/platform-settings/plugins \
   -d '{
     "name":       "spice-sim",
     "version":    "1.0.0",
-    "trigger":    "/_babelsuite/plugins/spice-sim/start",
     "kind":       "plugin",
     "variants":   ["spice-sim"],
     "operations": ["transient", "dc_sweep", "ac_analysis"],
@@ -340,14 +410,16 @@ curl -s -X POST http://localhost:8090/api/v1/platform-settings/plugins \
 curl -s -X PUT http://localhost:8090/api/v1/platform-settings/plugins/spice-sim \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "trigger": "/_babelsuite/plugins/spice-sim/start", "lua": "<updated lua>", ... }'
+  -d '{ "lua": "<updated lua>", ... }'
 ```
 
 The plugin name is taken from the URL — the `name` field in the body is ignored.
 
 ## APISIX Sidecar Lifecycle
 
-Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua code is embedded into the sidecar's `apisix.yaml` at startup — removing the sidecar container forces it to restart with the latest plugin code on the next execution.
+Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua is bind-mounted and the generated `apisix.yaml` names each plugin, both read at sidecar startup — so removing the sidecar container is what forces it to pick up changed plugin code on the next execution.
+
+Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component: it never joins the per-execution network and is reached over its host-published port.
 
 The sidecar runs in **standalone mode**: `deployment.role: data_plane` with `config_provider: yaml`. No etcd is involved.
 
@@ -481,7 +553,7 @@ The example plugins under [`examples/oci-plugins/`](examples.md#example-plugins)
 
 | File | Purpose |
 |------|---------|
-| `plugin.yaml` | Manifest — name, version, trigger, operations, and references to the other files |
+| `plugin.yaml` | Manifest — name, version, operations, and references to the other files |
 | `plugin.lua` | Lua source embedded into the APISIX sidecar |
 | `plugin.star` | Starlark wrapper — typed functions for `suite.star` authors |
 | `schema.cue` | CUE schema for validating step config before dispatch |
@@ -491,7 +563,6 @@ The example plugins under [`examples/oci-plugins/`](examples.md#example-plugins)
 ```yaml
 name: spice-sim
 version: 1.0.0
-trigger: /_babelsuite/plugins/spice-sim/start
 kind: plugin
 variants: [spice-sim]
 operations: [transient, dc_sweep, ac_analysis]

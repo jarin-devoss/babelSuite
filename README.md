@@ -27,6 +27,10 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="docs/images/topology-graph.png" alt="The topology graph of a running suite: Postgres, migrations, a Stripe mock, the gateway, a fraud worker and a traffic phase, wired by their dependencies" width="100%" />
+</p>
+
 ---
 
 ## What It Does
@@ -126,6 +130,51 @@ broker ────┬── orders_topic ┐                 │
                                                      │
                                                checkout_smoke
 ```
+
+### In the UI
+
+Every screenshot below is of the bundled `examples/` suites running on a laptop — nothing staged.
+
+**Logs and step status stream while the environment boots.** The topology panel groups steps into the waves they can start in, and the counters track healthy, running, failed, skipped and pending steps.
+
+![Live execution: logs streaming from a booting payment suite, with the topology panel and step counters](docs/images/live-execution.png)
+
+**The topology graph is the same dependency graph, drawn.** Click a node to filter the logs to that step; Ctrl/⌘ + scroll to zoom, drag or use the arrow keys to pan a graph that is wider than the screen.
+
+![The topology graph of composite-readiness, around seventy nodes across four imported suites](docs/images/topology-graph-composite.png)
+
+**Suites come from an OCI registry, not a folder on disk.** Pull, fork or inspect any version in the catalog.
+
+![The catalog listing fourteen suites discovered from a Zot registry, with filters by kind, registry and capability](docs/images/catalog.png)
+
+**Inspect a suite without running it** — its `suite.star`, every generated source file, its profiles and its node count.
+
+![The payment-suite package: suite.star with its profiles, tags, node count and generated mock sources](docs/images/suite-detail.png)
+
+**Launching asks three questions: which suite, which profile, which backend.**
+
+![The new execution dialog: suite, profile and backend selection over the recent runs list](docs/images/new-execution.png)
+
+<details>
+<summary>More views</summary>
+
+**Recent runs**, with duration and step counts.
+
+![Executions and runs: three healthy runs with durations and step counts](docs/images/executions.png)
+
+**Profiles** are per-suite, inherit from each other, and decide what a run gets.
+
+![Profiles and configuration for the notification-hub suite](docs/images/profiles.png)
+
+**User-defined Lua plugins** register against a trigger route and expose named operations to suite steps.
+
+![The plugins settings page listing six registered Lua plugins with their trigger routes and operations](docs/images/plugins.png)
+
+**A finished run.**
+
+![A healthy gateway-check run with its logs and topology](docs/images/live-execution-healthy.png)
+
+</details>
 
 ---
 

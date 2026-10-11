@@ -10,6 +10,7 @@ nav:
   - Home: index.md
   - Philosophy: philosophy.md
   - Getting Started: getting-started.md
+  - Demo: demo.md
   - Core:
     - Architecture: architecture.md
     - Control Plane: control-plane.md

@@ -26,7 +26,7 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 |----------|---------|-------------|
 | `PORT` | `8090` | Control plane HTTP listen port |
 | `FRONTEND_URL` | `http://localhost:5173` | CORS allowed origin — must match the browser-facing URL |
-| `VITE_API_URL` | `http://localhost:8090` | API base URL baked into the frontend bundle at build time |
+| `VITE_API_URL` | `http://localhost:8090` | API base URL baked into the frontend bundle at build time. Set it to `/` for local development — see the note below. |
 | `PUBLIC_API_URL` | *(same as VITE_API_URL)* | Override for the public-facing API URL when behind a proxy |
 | `JWT_SECRET` | **required** | Cryptographic secret for JWT signing — must be a secure random value |
 | `HTTP_READ_HEADER_TIMEOUT` | `5s` | Maximum time to read request headers |
@@ -34,6 +34,13 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 | `HTTP_WRITE_TIMEOUT` | `2m` | Maximum time to write a response |
 | `HTTP_IDLE_TIMEOUT` | `2m` | Keep-alive idle connection timeout |
 | `TRUSTED_PROXIES` | *(empty)* | Comma-separated CIDR ranges whose `X-Forwarded-*` headers are trusted |
+
+!!! warning "Use a relative `VITE_API_URL` locally"
+    Setting it to an absolute URL such as `http://localhost:8090` makes the
+    browser's API calls cross-origin from the Vite dev server on port 5173. The
+    `csrf_token` cookie is then discarded, and sign-in fails with
+    `403 CSRF token missing.` Set `VITE_API_URL=/` so requests go through the
+    Vite proxy and stay same-origin.
 
 ### Authentication
 
@@ -47,6 +54,12 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 | `AGENT_SHARED_SECRET` | *(empty)* | Shared secret used to authenticate remote agent workers |
 
 ### SSO / OIDC
+
+!!! warning "Not wired up yet"
+    An OIDC service and its routes exist, but the server builds its auth
+    configuration without an OIDC section, so none of the variables below are
+    read and SSO cannot currently be enabled. They are listed as the intended
+    contract, not as working configuration.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -70,10 +83,14 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DB_DRIVER` | `mongo` | Primary datastore: `mongo` or `postgres` |
 | `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `MONGO_DB` | `babelsuite` | MongoDB database name |
-| `POSTGRES_DSN` | *(empty)* | PostgreSQL connection string (required when `DB_DRIVER=postgres`) |
+
+!!! note "MongoDB is the only datastore the server selects"
+    A PostgreSQL store exists under `internal/store/postgres`, but the server
+    entrypoint reads no driver-selection variable, so there is currently no way
+    to switch to it. `DB_DRIVER`, `POSTGRES_DSN` and `DATABASE_URL` are not
+    read.
 
 ### Cache (Redis)
 
@@ -116,11 +133,10 @@ Relative paths are resolved first from the working directory, then from the pare
 
 ### Demo Mode
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BABELSUITE_ENABLE_DEMO` | `false` | Use bundled demo data instead of a live workspace |
-
-When demo mode is on, suites and platform settings come from the `demo/` directory rather than from `configuration.yaml` and `examples/`.
+!!! warning "Not wired up yet"
+    `BABELSUITE_ENABLE_DEMO` is not read by the server. Suites and platform
+    settings always come from the workspace — `configuration.yaml` and
+    `examples/` — regardless of what this is set to.
 
 ---
 
@@ -182,7 +198,7 @@ Each entry in `agents` defines one execution target.
 | `targetNamespace` | Kubernetes namespace to dispatch steps into |
 | `serviceAccountToken` | Kubernetes service account token |
 | `apisixSidecar.image` | APISIX container image used for the mock gateway sidecar |
-| `apisixSidecar.configMountPath` | Path where APISIX reads its configuration |
+| `apisixSidecar.configMountPath` | Path of the **file** APISIX reads its routes from. The suite's generated `apisix.yaml` is bind-mounted onto exactly this path, so it must name a file, not a directory. Default `/usr/local/apisix/conf/apisix.yaml`. |
 | `apisixSidecar.listenPort` | Port APISIX listens on for proxied traffic |
 | `apisixSidecar.adminPort` | Port APISIX exposes for configuration updates |
 | `apisixSidecar.capabilities` | Protocols the sidecar handles — e.g. `rest`, `grpc`, `kafka`, `async` |
@@ -252,12 +268,14 @@ For a local workstation:
 # .env
 PORT=8090
 FRONTEND_URL=http://localhost:5173
-VITE_API_URL=http://localhost:8090
+
+# Relative on purpose — see the VITE_API_URL note above.
+VITE_API_URL=/
+
 JWT_SECRET=change-me-to-a-secure-random-value
 ADMIN_EMAIL=admin@babelsuite.test
 ADMIN_PASSWORD=admin
 
-DB_DRIVER=mongo
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=babelsuite
 
@@ -280,7 +298,7 @@ agents:
     dockerSocket: /var/run/docker.sock
     apisixSidecar:
       image: apache/apisix:3.9.0-debian
-      configMountPath: /usr/local/apisix/conf
+      configMountPath: /usr/local/apisix/conf/apisix.yaml
       listenPort: 9080
       adminPort: 9180
       capabilities: [rest, grpc, async]

@@ -39,7 +39,7 @@ graph TB
     end
 
     subgraph Storage["Storage"]
-        DB[("MongoDB / PostgreSQL")]
+        DB[("MongoDB")]
         Redis[("Redis (optional)")]
         YAML["YAML files\n(platform, profiles)"]
     end
@@ -81,7 +81,7 @@ The control plane is assembled in:
 
 - `backend/cmd/server/main.go`
 - `backend/cmd/server/app.go`
-- `backend/cmd/server/health.go`
+- `backend/cmd/server/support.go`
 
 The server wires together:
 
@@ -163,9 +163,14 @@ sequenceDiagram
 | `internal/profiles` | Suite profile CRUD and validation |
 | `internal/execution` | Launch, orchestration, runtime state, SSE streams |
 | `internal/agent` | Worker registry, coordinator, worker control APIs |
-| `internal/sandbox` | Environment inventory and cleanup APIs |
+| `internal/environments` | Environment inventory and cleanup APIs (served under `/api/v1/sandboxes`) |
+| `internal/engine` | Rolling execution overview and its SSE stream |
+| `internal/cronjobs` | Scheduled suite runs, reports, and notifications |
+| `internal/mocking` | Mock surface resolution and the REST/gRPC/async handlers |
+| `internal/queue` | Dependency-ordered step scheduling |
+| `internal/telemetry` | OpenTelemetry tracer and meter setup |
 | `internal/httpserver` | Middleware: request IDs, audit hooks, tracing context |
-| `internal/store` | Datastore and cache abstractions (MongoDB, PostgreSQL, Redis) |
+| `internal/store` | Datastore and cache abstractions (MongoDB, Redis) |
 
 ## Frontend Surface
 
@@ -184,12 +189,10 @@ The React app currently exposes:
 
 ### Primary store
 
-The control plane uses either:
+The control plane uses MongoDB, configured with `MONGO_URI` and `MONGO_DB`.
 
-- MongoDB (default)
-- PostgreSQL
-
-Configured via `DB_DRIVER` environment variable.
+A PostgreSQL store exists under `internal/store/postgres`, but the server
+entrypoint reads no driver-selection variable, so it cannot be selected today.
 
 ### Cache layer
 
@@ -215,7 +218,8 @@ Both are optionally cached in Redis.
 The server wraps all API traffic with shared middleware in this order:
 
 ```
-CORS → Request IDs → Auth Session → OTel Trace → HTTP Metrics → Audit
+Recovery → Security Headers → CORS → CSRF → Body Limit (10 MB) →
+Request IDs → Auth Session → OTel Trace → Trace Context → HTTP Metrics → Audit
 ```
 
 This keeps system-wide concerns centralized rather than re-implemented in each handler.

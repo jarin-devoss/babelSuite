@@ -69,7 +69,8 @@ go test ./internal/cronjobs/...
 
 ### Test coverage
 
-The backend has unit tests in the packages below. All tests are table-driven and use `t.Parallel()`.
+Tests live beside the code they cover, in most `internal/` packages. They are
+table-driven and use `t.Parallel()`. Some highlights rather than a full list:
 
 | Package | What is tested |
 |---------|----------------|
@@ -77,24 +78,26 @@ The backend has unit tests in the packages below. All tests are table-driven and
 | `internal/cronjobs` | CRUD lifecycle, scheduler start/stop, suite execution dispatch, Slack and email notifications, result formatting |
 | `internal/logstream` | Subscribe, snapshot, live fan-out to multiple subscribers, context cancellation, race-free concurrent appends |
 | `internal/eventstream` | Subscribe, length tracking, since-filtering, live fan-out, context cancellation |
-| `internal/runner` | Step expectation evaluation — exit code, log presence/absence, multi-rule combinations |
+| `internal/runner` | Step expectation evaluation, the `file=` resolution guard, plugin response decoding, span attribute truncation, and the eight native security checks via `httptest.NewServer` |
+| `internal/execution` | Profile runtime overlays, per-step memory parsing, contested service names across composed suites, dependency package file resolution |
 | `internal/httpserver` | CSRF middleware — cookie issuance, token validation, Bearer exemption |
-| `internal/runner` (native security) | All six native OWASP check variants via httptest.NewServer |
+| `internal/platform` | Plugin registration, and that a plugin's sidecar route is derived from its name |
+| `internal/suites` | Starlark evaluation, topology resolution, nested suite expansion |
+
+Note that `internal/execution` tests drive real Docker containers, so they are
+slower than the rest and need a working daemon.
 
 When adding a new package, follow the same pattern: table-driven cases in `*_test.go`, fakes inline in the test file, no network or database access.
 
 ## Useful Backend Commands
 
-Sync example content:
-
-```powershell
-go run ./cmd/sync-examples
-```
-
-Seed the local registry:
+Publish example suites, modules and plugins to the local registry. The control
+plane serves suites from the OCI catalog, so an edit under `examples/` does not
+reach a run until it is pushed and the backend restarted:
 
 ```bash
 python scripts/push-to-zot.py
+python scripts/push-to-zot.py --suite payment-suite
 ```
 
 ## CLI

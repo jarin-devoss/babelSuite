@@ -148,7 +148,7 @@ Paths follow the package layout in [Suite Authoring](suite-authoring.md): `file=
 | `list_modules` | — | OCI module packages in the catalog |
 | `get_module` | `module_id` | Metadata and exported symbols for one module |
 | `list_plugins` | — | Registered APISIX Lua plugins |
-| `create_plugin` | `name`, `trigger`, `lua` | Register a Lua plugin |
+| `create_plugin` | `name`, `lua` | Register a Lua plugin — its route is derived from the name |
 | `delete_plugin` | `name` | Remove a registered plugin |
 | `check_plugin` | `name` | Verify a plugin exists, its trigger is valid, and its CUE schema parses |
 | `validate_plugin_config` | `name`, `config` | Validate a config against a plugin's CUE schema without running it |
@@ -186,4 +186,4 @@ Read-only mode is on, and the tool changes state. Unset `BABELSUITE_MCP_READONLY
 It was created without `source_files`, so the files its steps name do not exist. Suites are not updated in place — recreate it with the files included.
 
 **A step exits with code 127**
-The file's interpreter is missing from the image: `.sh` runs under `bash` and `.py` under `python`. Match the image to the file type — `busybox` has no bash.
+The file's interpreter is missing from the image: `.py` runs under `python`, `.js` under `node`, `.bash` under `bash`. Match the image to the file type. `.sh` runs under `sh`, which any image with a shell provides.

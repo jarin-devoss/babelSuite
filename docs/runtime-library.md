@@ -14,15 +14,28 @@ This is separate from the checked-in example OCI modules such as `kafka` or `pos
 
 ## How The Parser Works
 
-`suite.star` is processed by an assignment-based topology scanner, not a full Starlark interpreter. The parser scans each logical statement for this shape:
+`suite.star` is evaluated by a real Starlark interpreter, so the file is a
+program rather than a list of declarations. Control flow runs:
 
-```text
-<variable> = <family>(<arguments>)
+```python
+for region in REGIONS:                    # loops build nodes
+    test.run(name="smoke-" + region, ...)
+
+if FRAUD_STRATEGY == "shadow":            # conditionals apply
+    log.warn("shadow mode")
+
+def fan_out(prefix, count):               # functions are available
+    return [service.run(name=prefix + str(i)) for i in range(count)]
 ```
 
-Only statements that match this assignment shape are recognized as topology nodes. `load()` statements, comments, and blank lines are ignored by the topology resolver.
+A node is registered when a `service.*`, `task.*`, `test.*`, `traffic.*`,
+`security.*`, `log.*`, `suite.*` or plugin function is **called**. Assigning the
+result to a variable is the normal style because the variable name becomes the
+node's default id and lets other nodes reference it in `after=[...]`, but the
+call is what creates the node.
 
-Backslash continuations are supported for chained `.export(...)` calls, but the parser still follows the same assignment-driven model.
+Evaluation errors are reported as Starlark errors naming the file and line, so
+a typo fails the suite at resolution time rather than silently dropping a node.
 
 ## `load()` Statements
 
@@ -32,13 +45,42 @@ Backslash continuations are supported for chained `.export(...)` calls, but the 
 load("@babelsuite/runtime", "service", "task", "test", "traffic", "security", "suite")
 ```
 
-The topology parser ignores these lines. Their job is different:
+These are real imports: the names they bind are what the rest of the file calls,
+and loading a module or plugin that cannot be resolved is an error rather than a
+comment. The workspace loader additionally reads the module path strings to
+populate the suite's contracts/module references.
 
-- the workspace loader reads `load("...")` lines to extract module path strings such as `@babelsuite/runtime` and `@babelsuite/kafka`
-- those paths are stored as the suite's contracts/module references
-- the imported names are a documentation and authoring convention, not parse-time bindings
+!!! warning "`env.get()` does not read the profile"
+    The `env` global is an empty, frozen mapping during evaluation, so
+    `env.get("NAME", "fallback")` always returns the fallback — in every
+    profile, with no way to populate it.
 
-In short: write `load()` lines to declare intent and populate the contracts surface. The topology resolver does not need them to recognize node calls.
+    The consequence is about **graph shape**, and it is easy to miss. A loop or
+    conditional over an `env.get()` value is decided once, at author time:
+
+    ```python
+    BROWSERS = env.get("BROWSERS", "chromium").split(",")   # always ["chromium"]
+
+    for b in BROWSERS:              # always one iteration
+        test.run(name="checkout-" + b, ...)
+
+    if len(BROWSERS) > 1:           # always false
+        log.error("multi-browser run")
+    ```
+
+    A profile setting `BROWSERS: chromium,firefox,webkit` changes none of that.
+    So a profile can change **what a step does**, never **which steps exist**.
+
+    What does read the active profile:
+
+    - a step's `env=`, profile `env:` and `services.<step>.env:` — injected into
+      the container, so your script reads them normally
+    - a dependency's `inputs:` — injected into the imported suite's steps
+    - `{{ env.NAME }}` inside a `log.*` message — resolved at runtime
+
+    Treat `env.get()` as a named constant with a default. If a profile must
+    drive something, have a step read it as an environment variable at runtime
+    rather than branching on it here.
 
 ## Core Families
 
@@ -465,7 +507,7 @@ Current behavior:
 
 - export rules are parsed into topology metadata
 - export rules flow into execution step payloads
-- the local (Docker) runner bind-mounts a host directory into every container at `$BABELSUITE_ARTIFACTS_DIR`; files written there are harvested after the container exits
+- the local (Docker) runner bind-mounts the shared execution workspace into every container and reads each declared export path from it after the container exits, so a step writes `reports/junit.xml` relative to its working directory
 - glob patterns in `path=` (e.g. `"coverage/*.xml"`) are expanded on the host mount — the first lexically-ordered match is collected
 - the Kubernetes runner copies files from the artifact sidecar volume using the busybox helper after the step container exits
 - `format="junit"` exports are summarized into pass/fail counts in the live execution view; real XML from the container is parsed when present, synthetic otherwise
@@ -536,20 +578,58 @@ The interpreter is inferred from the file extension when `file=` is used:
 
 | Extension | Interpreter |
 |-----------|-------------|
-| `.sh`, `.bash` | `/bin/sh` |
+| `.sh` | `sh` |
+| `.bash` | `bash` |
 | `.py` | `python` |
 | `.js` | `node` |
 | `.rb` | `ruby` |
-| `.ts` | `ts-node` |
+| `.ts` | `node --experimental-strip-types`, falling back to `npx ts-node` |
 | other | `/bin/sh` (treated as shell script) |
+
+`.sh` runs under `sh`, not `bash`. A step picks its image for the tool it needs
+— `curlimages/curl`, `redis`, `node:22-alpine` — and most of those are Alpine
+based with no bash at all, so the shell this runner can actually promise is
+`sh`. Write POSIX shell in a `.sh` file; name it `.bash` when it genuinely needs
+bash, and pick an image that has it.
+
+`.ts` is run by the image's own Node when it can strip type annotations itself,
+which Node does from 22.6 on. Only an older runtime falls back to
+`npx ts-node`, which downloads ts-node from the registry on first use — so a
+`.ts` step on current Node needs no network at all.
+
+!!! warning "The image must carry the inferred interpreter"
+    The step runs `<interpreter> <file>` inside the container, so the image has
+    to provide that interpreter on `PATH`. If it does not, the shell cannot find
+    it and the step exits **127** — the same code for every row of the table, so
+    a `.py` file in an image without `python` fails exactly like a `.bash` file
+    in one without `bash`.
+
+    Two ways out:
+
+    - match the image to the file type — `python:3.12` for `.py`, `node:22` for
+      `.js`, `bash:5.2` for `.bash`
+    - use `commands=` instead of `file=`, which always runs through `/bin/sh`
+      and so works in any image with a shell
 
 ### Environment variables available inside the container
 
 | Variable | Value |
 |----------|-------|
 | `BABELSUITE_SCRIPT` | base64-encoded script (consumed automatically by the entrypoint) |
-| `BABELSUITE_WORKSPACE` | path to the shared execution workspace bind-mounted into the container |
-| `BABELSUITE_ARTIFACTS_DIR` | path to the artifacts directory; files written here are harvested after exit |
+| `BABELSUITE_WORKSPACE_DIR` | path to the shared execution workspace bind-mounted into the container |
+| `BABELSUITE_GATEWAY_URL` | the APISIX sidecar address this step can reach, when the suite has a mock surface |
+| `BABELSUITE_GATEWAY_URLS` | comma-separated address per mock node, in topology order |
+| `BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only — path to the artifacts sidecar mount |
+
+`BABELSUITE_GATEWAY_URL` is how a `task.run` or `test.run` reaches a mock
+surface without hardcoding a host and port. It is set only when the suite has
+one, so a step can tell the difference between "no gateway" and "wrong address".
+
+!!! note "`BABELSUITE_ARTIFACTS_DIR` is Kubernetes-only"
+    The Docker backend does not set it. There, `.export(...)` paths are read
+    from the shared workspace mount after the container exits, so write exports
+    to a path relative to the working directory (`reports/junit.xml`) and the
+    runner collects them.
 
 ### Detached services
 
@@ -562,7 +642,7 @@ The interpreter is inferred from the file extension when `file=` is used:
 
 ## Profile-Controlled Step Config
 
-Hardware and networking are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge) and a GPU cluster (with devices, execution network) by switching profiles.
+Hardware, memory and networking are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge, modest memory) and a GPU cluster (with devices, execution network, a larger ceiling) by switching profiles.
 
 ### `services.<name>.devices`
 
@@ -579,7 +659,26 @@ services:
     devices: ["/dev/ttyUSB0"] # USB serial
 ```
 
-Device values translate automatically per backend — see [Profiles](profiles.md#servicesdevices) for the full mapping table (Docker `DeviceRequest`/`DeviceMapping`, Kubernetes `nvidia.com/gpu` resource limits, remote agent capability matching).
+Device values translate automatically per backend — see [Profiles](profiles.md#servicesnamedevices) for the full mapping table (Docker `DeviceRequest`/`DeviceMapping`, Kubernetes `nvidia.com/gpu` resource limits, remote agent capability matching).
+
+### `services.<name>.memory`
+
+Raise one step's container memory ceiling above the 512 MB default:
+
+```yaml
+# local.yaml
+services:
+  ollama:
+    memory: 2Gi
+```
+
+Accepts the Kubernetes quantity grammar — binary units (`2Gi`, `512Mi`),
+decimal units (`2G`, `512M`), fractions (`1.5Gi`), or a plain byte count.
+Suffixes are case-sensitive, and `2GB`/`512MB` are not valid. It is a ceiling
+rather than a reservation, so the step still uses only what it touches, and
+every other step keeps the default. A step whose process dies with
+`signal: killed` during start-up has hit this limit — see
+[Profiles](profiles.md#servicesnamememory).
 
 ### `network.mode`
 
@@ -589,7 +688,15 @@ network:
   mode: execution   # isolated bridge — containers reach each other by node name
 ```
 
-When `mode: execution` is set, every container in the execution joins a shared Docker bridge network. The node's `name` becomes its DNS hostname — a `service.run(name="redis")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required.
+Every container in the execution joins a shared Docker bridge network, and the node's `name` becomes its DNS hostname — a `service.run(name="redis")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required.
+
+!!! warning "`network.mode` is read but not yet acted on"
+    The Docker backend creates and joins the per-execution network
+    unconditionally, because the shipped modules address other steps by name in
+    every profile — `connect()` dials `<db name>:5432` whether or not a profile
+    opted in. `host` and `none` are parsed and stored but change nothing today,
+    so treat the three values as the intended contract rather than working
+    configuration.
 
 ```python
 # suite.star — works the same regardless of network mode
@@ -603,6 +710,27 @@ smoke   = test.run(
 ```
 
 The network is created at execution start and removed when the execution finishes, alongside the shared workspace directory.
+
+### Service names when suites are composed
+
+Node ids are namespaced when a suite is imported (`identity-broker/db`), but a
+hostname has no namespace — the network is flat. Three dependencies that each
+call `pg()` would otherwise all answer to `db`, and Docker lets them share that
+alias, so `psql ... @db:5432` reaches whichever one DNS returned.
+
+A contested name therefore has exactly one publisher:
+
+| Node | Answers to |
+|------|-----------|
+| A service in the suite being run | its bare name — `db` |
+| A service in an imported suite, name uncontested | its bare name — `broker-api` |
+| A service in an imported suite, name contested | `<suite>-<service>` — `identity-broker-db` |
+
+The suite being run keeps the bare name, so its own steps are unaffected. Point
+an imported suite at its own service with `inputs:` in `dependencies.yaml` —
+see [Dependency Manifests](dependencies.md#contested-service-names). Left
+unwired, the bare name resolves to nothing and the step fails saying so, rather
+than silently reading another suite's database.
 
 ## Authoring Rules
 

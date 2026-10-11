@@ -97,7 +97,7 @@ babelctl create my-suite
 babelctl create payment-flow ./suites/payment-flow
 ```
 
-Scaffolds a starter suite layout on disk. Creates `suite.star`, `README.md`, and a `mocks/` directory. Use `--force` to overwrite an existing destination.
+Scaffolds a starter suite layout on disk. Creates `suite.star`, `README.md`, and a `mock/` directory. Use `--force` to overwrite an existing destination.
 
 ### `suites list`
 

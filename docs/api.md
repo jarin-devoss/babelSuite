@@ -24,10 +24,18 @@ The control plane API is grouped by responsibility.
 - `GET /api/v1/auth/config`
 - `POST /api/v1/auth/sign-up`
 - `POST /api/v1/auth/sign-in`
+- `POST /api/v1/auth/sign-out`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
 - `GET /api/v1/auth/me`
 - `GET /api/v1/auth/sso/providers`
 - `GET /api/v1/auth/oidc/login`
 - `GET /api/v1/auth/oidc/callback`
+- `GET /api/v1/auth/oidc/exchange`
+
+The `oidc/*` routes are registered but SSO cannot currently be enabled — see
+[Authentication](auth.md#oidc-single-sign-on).
 
 ## Catalog
 
@@ -41,6 +49,12 @@ The control plane API is grouped by responsibility.
 
 - `GET /api/v1/suites`
 - `GET /api/v1/suites/{suiteId}`
+- `POST /api/v1/suites`
+
+!!! note
+    `POST /api/v1/suites` validates `suiteStar` with no module resolver, so a
+    suite that `load()`s an OCI module or a `@plugins/*` entry is rejected at
+    registration. Suites using those must come from a registry instead.
 
 ## Profiles
 
@@ -54,12 +68,14 @@ The control plane API is grouped by responsibility.
 ## Executions
 
 - `GET /api/v1/executions/launch-suites`
+- `GET /api/v1/executions/resolve-ref`
 - `GET /api/v1/executions/overview`
 - `GET /api/v1/executions`
 - `POST /api/v1/executions`
 - `GET /api/v1/executions/{executionId}`
 - `GET /api/v1/executions/{executionId}/events`
 - `GET /api/v1/executions/{executionId}/logs`
+- `GET /api/v1/executions/{executionId}/logs/snapshot`
 
 ## Engine
 

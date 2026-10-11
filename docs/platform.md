@@ -49,7 +49,7 @@ The `apisixSidecar` object:
 | Field | Description |
 |-------|-------------|
 | `image` | APISIX container image (e.g. `apache/apisix:3.9.0-debian`) |
-| `configMountPath` | Path where APISIX reads its config inside the container |
+| `configMountPath` | Path of the file APISIX reads its routes from — the generated `apisix.yaml` is mounted onto this exact path, so it must be a file (default `/usr/local/apisix/conf/apisix.yaml`) |
 | `listenPort` | Port APISIX listens on for proxied requests |
 | `adminPort` | Port APISIX exposes for runtime configuration |
 | `capabilities` | Protocols this sidecar handles — e.g. `rest`, `grpc`, `kafka`, `async`, `websocket` |
@@ -127,12 +127,12 @@ Lua plugins extend the suite runtime with custom verification steps that run ins
 | Field | Description |
 |-------|-------------|
 | `name` | Unique identifier — used as the load target in `suite.star` (e.g. `@plugins/spice-sim`) |
-| `trigger` | APISIX route path the plugin listens on (e.g. `/_babelsuite/plugins/spice-sim/start`) |
+| `trigger` | Read-only. Derived from `name` as `/_babelsuite/plugins/<name>/start`; not declared by a plugin package, and ignored if sent. |
 | `version` | Semantic version string stored as-is — e.g. `1.0.0`. Not auto-bumped by the API. |
 | `kind` | Must be `plugin` |
 | `variants` | List of variant names the plugin registers as APISIX Lua extensions |
 | `operations` | Optional list of allowed operation names — the suite call must match one |
-| `lua` | Full Lua source embedded verbatim into the generated `apisix.yaml` |
+| `lua` | Full Lua source. Bind-mounted into the sidecar's plugin directory and loaded by name as a native plugin |
 | `schema` | Optional CUE schema; step config is validated against it before dispatch |
 | `star` | Optional Starlark snippet that re-exports the plugin's call signatures to `suite.star` |
 | `deprecated` | When `true`, the plugin is flagged in health checks but still dispatched |
@@ -144,10 +144,15 @@ The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads the foll
 | Field | Type | Description |
 |-------|------|-------------|
 | `passed` | bool | Whether the step should be considered successful |
-| `findings` | array | List of finding objects — each should have at least `message` |
+| `findings` | array | List of finding objects, each with `label`, `severity` and `detail` |
 | `summary` | string | One-line summary emitted as a log line at the level specified by `level` |
 | `level` | string | Log level for the summary line: `info`, `debug`, `warn`, or `error`. Defaults to `info` if omitted. |
 | `stderr` | string | Optional raw stderr from the plugin process, shown in the execution log |
+| `attributes` | object | Optional string map recorded on the step's OpenTelemetry span, prefixed `runner.plugin.` — see [Plugins](plugins.md#reporting-to-the-trace) |
+
+`findings` is read as an array. An empty one may be sent as either `[]` or `{}`,
+because Lua's `cjson` serialises an empty table as an object; both are accepted
+as "no findings".
 
 #### APISIX sidecar lifecycle
 
