@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
 
 psql "$DATABASE_URL" <<'SQL'
 CREATE TABLE IF NOT EXISTS notification_templates (

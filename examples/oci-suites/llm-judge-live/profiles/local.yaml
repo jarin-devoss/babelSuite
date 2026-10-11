@@ -1,0 +1,27 @@
+name: Local
+description: Runs the model on the host CPU inside the execution network.
+default: true
+
+# No network block: every step already joins the execution network, which is
+# what lets the judge steps reach the model at http://ollama:11434 by name.
+# The profile key `network.mode` is read but acted on nowhere, so setting it
+# here would only suggest this suite needs something it does not.
+
+services:
+  # The model server needs ~335 MB resident before it loads anything, and the
+  # weights add ~935 MB on top. The default step ceiling is 512 MB, which gets
+  # the loader OOM-killed, so this step is granted more — and only this step.
+  ollama:
+    memory: 2Gi
+
+env:
+  # The model name lives in suite.star as a literal, not here: env.get() in
+  # suite.star cannot read profile env (the `env` global is a frozen empty dict
+  # at resolution time), so setting it here would have no effect.
+
+  # The platform's secrets.globalOverrides inject HTTPS_PROXY into every step,
+  # and global overrides win over profile env — so the proxy itself cannot be
+  # unset from here. NO_PROXY is not overridden, so setting it is the way to
+  # make the model download bypass a proxy that does not resolve.
+  NO_PROXY: "*"
+  no_proxy: "*"

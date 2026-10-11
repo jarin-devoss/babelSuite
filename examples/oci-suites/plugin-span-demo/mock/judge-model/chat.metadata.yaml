@@ -1,0 +1,37 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/judge-model/chat.metadata.yaml
+    operationId: judge-chat-completions
+    sourceArtifact: mock/judge-model/chat.cue
+    suite: plugin-span-demo
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "500"
+        mediatype: application/json
+        body: |-
+            {
+              "error": {
+                "message": "judge model mock unavailable",
+                "type": "api_error"
+              }
+            }
+        headers: []
+    parameterConstraints:
+        - name: content-type
+          source: header
+          required: true
+          forward: false
+          pattern: (?i)^application/json
+    resolverUrl: /internal/mock-data/plugin-span-demo/judge-model/judge-chat-completions
+    runtimeUrl: /mocks/rest/plugin-span-demo/judge-model/v1/chat/completions
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []

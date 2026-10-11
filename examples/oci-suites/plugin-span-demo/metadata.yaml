@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: plugin-span-demo
+  title: Plugin Span Demo
+spec:
+  repository: localhost:5000/qa/plugin-span-demo
+  owner: Platform Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Two plugin steps that report span attributes from their Lua response — llm-judge contributes judge.* and shadow-diff contributes shadow.*, both landing on the step's runner.run span as runner.plugin.* keys.

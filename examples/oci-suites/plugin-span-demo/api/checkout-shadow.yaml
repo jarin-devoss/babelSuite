@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: Checkout shadow
+  version: v1.0.0
+  description: >-
+    One side of the pair shadow-diff compares. The two surfaces agree on every
+    field except total, which is the difference the plugin is meant to find.
+servers:
+  - url: https://checkout-shadow
+paths:
+  /quote:
+    get:
+      operationId: checkout-shadow-quote
+      summary: Return a checkout quote.
+      responses:
+        "200":
+          description: Successful mock response
