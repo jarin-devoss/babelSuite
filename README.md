@@ -73,6 +73,7 @@ Teams running integration tests without BabelSuite usually have a shell script a
 | Service mocks | Separate mock servers, manual wiring | Built-in, with state machines and request routing |
 | Reusable infrastructure | Copy-paste Compose snippets | OCI modules — load Kafka or Postgres with one line |
 | Scheduled regression runs | Cron shell scripts | Built-in cron jobs with email and Slack reports |
+| Traceability | None | OpenTelemetry traces and audit logs |
 
 **BabelSuite is the right fit if you:**
 
@@ -132,21 +133,6 @@ composes four other suites into about seventy nodes — click a node to filter t
 logs to that step, `Ctrl`/`⌘` + scroll to zoom, drag or use the arrow keys to pan:
 
 ![The topology graph of composite-readiness, around seventy nodes across four imported suites](docs/images/topology-graph-composite.png)
-
----
-
-## Why BabelSuite
-
-| | Shell scripts + Compose | BabelSuite |
-|---|---|---|
-| **Dependency ordering** | Manual, error-prone | Automatic from `after=[]` declarations |
-| **Parallel execution** | Not built in | Independent branches run concurrently |
-| **Live visibility** | Tail logs, guess state | Real-time event and log streams in the UI |
-| **Environment parity** | Different scripts per target | One suite, swap backends with a profile |
-| **Mocking** | Separate mock servers, manual wiring | First-class service mocks with state machines |
-| **OCI reuse** | Copy-paste | Load Kafka, Postgres, Redis with one line |
-| **Scheduling** | Cron shell scripts | Built-in cron jobs with suite execution and report delivery |
-| **Traceability** | None | Full OpenTelemetry traces and audit logs |
 
 ---
 
