@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -1112,10 +1149,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1126,8 +1163,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1614,7 +1651,7 @@
 </tr>
 <tr>
 <td><code>configMountPath</code></td>
-<td>Path where APISIX reads its config inside the container</td>
+<td>Path of the file APISIX reads its routes from — the generated <code>apisix.yaml</code> is mounted onto this exact path, so it must be a file (default <code>/usr/local/apisix/conf/apisix.yaml</code>)</td>
 </tr>
 <tr>
 <td><code>listenPort</code></td>
@@ -1830,7 +1867,7 @@
 </tr>
 <tr>
 <td><code>trigger</code></td>
-<td>APISIX route path the plugin listens on (e.g. <code>/_babelsuite/plugins/spice-sim/start</code>)</td>
+<td>Read-only. Derived from <code>name</code> as <code>/_babelsuite/plugins/&lt;name&gt;/start</code>; not declared by a plugin package, and ignored if sent.</td>
 </tr>
 <tr>
 <td><code>version</code></td>
@@ -1850,7 +1887,7 @@
 </tr>
 <tr>
 <td><code>lua</code></td>
-<td>Full Lua source embedded verbatim into the generated <code>apisix.yaml</code></td>
+<td>Full Lua source. Bind-mounted into the sidecar's plugin directory and loaded by name as a native plugin</td>
 </tr>
 <tr>
 <td><code>schema</code></td>
@@ -1885,7 +1922,7 @@
 <tr>
 <td><code>findings</code></td>
 <td>array</td>
-<td>List of finding objects — each should have at least <code>message</code></td>
+<td>List of finding objects, each with <code>label</code>, <code>severity</code> and <code>detail</code></td>
 </tr>
 <tr>
 <td><code>summary</code></td>
@@ -1902,8 +1939,16 @@
 <td>string</td>
 <td>Optional raw stderr from the plugin process, shown in the execution log</td>
 </tr>
+<tr>
+<td><code>attributes</code></td>
+<td>object</td>
+<td>Optional string map recorded on the step's OpenTelemetry span, prefixed <code>runner.plugin.</code> — see <a href="../plugins/#reporting-to-the-trace">Plugins</a></td>
+</tr>
 </tbody>
 </table>
+<p><code>findings</code> is read as an array. An empty one may be sent as either <code>[]</code> or <code>{}</code>,
+because Lua's <code>cjson</code> serialises an empty table as an object; both are accepted
+as "no findings".</p>
 <h4 id="apisix-sidecar-lifecycle">APISIX sidecar lifecycle<a class="headerlink" href="#apisix-sidecar-lifecycle" title="Permanent link">&para;</a></h4>
 <p>Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's <code>apisix.yaml</code> at startup — the sidecar must be restarted (by removing its Docker container) for plugin changes to take effect on an already-running sidecar.</p>
 <p>The sidecar runs in standalone mode: <code>deployment.role: data_plane</code> with <code>config_provider: yaml</code>. No etcd is involved.</p>

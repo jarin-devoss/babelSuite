@@ -263,6 +263,23 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
     
       <li class="md-tabs__item">
@@ -482,6 +499,26 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -495,10 +532,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -509,8 +546,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -946,10 +983,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -960,8 +997,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1528,11 +1565,18 @@
 <li><code>GET /api/v1/auth/config</code></li>
 <li><code>POST /api/v1/auth/sign-up</code></li>
 <li><code>POST /api/v1/auth/sign-in</code></li>
+<li><code>POST /api/v1/auth/sign-out</code></li>
+<li><code>POST /api/v1/auth/refresh</code></li>
+<li><code>POST /api/v1/auth/forgot-password</code></li>
+<li><code>POST /api/v1/auth/reset-password</code></li>
 <li><code>GET /api/v1/auth/me</code></li>
 <li><code>GET /api/v1/auth/sso/providers</code></li>
 <li><code>GET /api/v1/auth/oidc/login</code></li>
 <li><code>GET /api/v1/auth/oidc/callback</code></li>
+<li><code>GET /api/v1/auth/oidc/exchange</code></li>
 </ul>
+<p>The <code>oidc/*</code> routes are registered but SSO cannot currently be enabled — see
+<a href="../auth/#oidc-single-sign-on">Authentication</a>.</p>
 <h2 id="catalog">Catalog<a class="headerlink" href="#catalog" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>GET /api/v1/catalog/packages</code></li>
@@ -1545,7 +1589,14 @@
 <ul>
 <li><code>GET /api/v1/suites</code></li>
 <li><code>GET /api/v1/suites/{suiteId}</code></li>
+<li><code>POST /api/v1/suites</code></li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>POST /api/v1/suites</code> validates <code>suiteStar</code> with no module resolver, so a
+suite that <code>load()</code>s an OCI module or a <code>@plugins/*</code> entry is rejected at
+registration. Suites using those must come from a registry instead.</p>
+</div>
 <h2 id="profiles">Profiles<a class="headerlink" href="#profiles" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>GET /api/v1/profiles/suites</code></li>
@@ -1558,12 +1609,14 @@
 <h2 id="executions">Executions<a class="headerlink" href="#executions" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>GET /api/v1/executions/launch-suites</code></li>
+<li><code>GET /api/v1/executions/resolve-ref</code></li>
 <li><code>GET /api/v1/executions/overview</code></li>
 <li><code>GET /api/v1/executions</code></li>
 <li><code>POST /api/v1/executions</code></li>
 <li><code>GET /api/v1/executions/{executionId}</code></li>
 <li><code>GET /api/v1/executions/{executionId}/events</code></li>
 <li><code>GET /api/v1/executions/{executionId}/logs</code></li>
+<li><code>GET /api/v1/executions/{executionId}/logs/snapshot</code></li>
 </ul>
 <h2 id="engine">Engine<a class="headerlink" href="#engine" title="Permanent link">&para;</a></h2>
 <ul>

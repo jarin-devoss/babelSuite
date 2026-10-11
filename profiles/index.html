@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -791,6 +828,15 @@
   <a href="#servicesnamedevices" class="md-nav__link">
     <span class="md-ellipsis">
       services.&lt;name&gt;.devices
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#servicesnamememory" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.memory
     </span>
   </a>
   
@@ -1082,10 +1128,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1096,8 +1142,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1355,6 +1401,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#servicesnamememory" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.memory
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1422,11 +1477,12 @@
 <ul>
 <li>set environment variables for the run</li>
 <li>select module hints and observability settings</li>
-<li>override individual service env vars — including <code>devices:</code> for hardware passthrough</li>
+<li>override individual service env vars — including <code>devices:</code> for hardware passthrough and <code>memory:</code> for a per-step memory ceiling</li>
 <li>configure the execution network mode (<code>network.mode</code>)</li>
 <li>declare secret-backed env vars with <code>secretRefs</code></li>
 <li>inherit from another profile via <code>extendsId</code></li>
 </ul>
+<p><img alt="Profiles and configuration for the notification-hub suite: a default local debug profile and a CI profile" src="../images/profiles.png" /></p>
 <h2 id="profile-sources">Profile Sources<a class="headerlink" href="#profile-sources" title="Permanent link">&para;</a></h2>
 <p>BabelSuite has two profile representations:</p>
 <table>
@@ -1558,6 +1614,7 @@
 </span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">           </span><span class="c1"># nvidia GPU (all)</span>
 </span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="c1"># devices: [&quot;gpu:2&quot;]       # exactly 2 GPUs</span>
 </span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="c1"># devices: [&quot;/dev/ttyUSB0&quot;] # USB serial device</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2Gi</span><span class="w">                </span><span class="c1"># container memory ceiling for this step</span>
 </span></code></pre></div>
 <h3 id="networkmode"><code>network.mode</code><a class="headerlink" href="#networkmode" title="Permanent link">&para;</a></h3>
 <table>
@@ -1582,6 +1639,16 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition warning">
+<p class="admonition-title">Read but not yet acted on</p>
+<p>The Docker backend creates and joins the per-execution network in every
+profile, because the shipped modules address other steps by name whether or
+not a profile opted in — <code>connect()</code> dials <code>&lt;db name&gt;:5432</code> regardless. The
+value is parsed and stored, but <code>host</code> and <code>none</code> change nothing today.</p>
+</div>
+<p>When suites are composed, a service name that more than one of them declares
+gets a single publisher rather than being shared — see
+<a href="../runtime-library/#service-names-when-suites-are-composed">Runtime Library</a>.</p>
 <h3 id="servicesnamedevices"><code>services.&lt;name&gt;.devices</code><a class="headerlink" href="#servicesnamedevices" title="Permanent link">&para;</a></h3>
 <p>Hardware devices to pass through into the step's container. The profile controls which hardware each step gets; <code>suite.star</code> stays portable.</p>
 <table>
@@ -1624,6 +1691,58 @@
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">BATCH_SIZE</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;50000&quot;</span>
 </span></code></pre></div>
+<h3 id="servicesnamememory"><code>services.&lt;name&gt;.memory</code><a class="headerlink" href="#servicesnamememory" title="Permanent link">&para;</a></h3>
+<p>Container memory ceiling for one step. Step containers default to 512 MB, which
+is ample for a script but not for a step that hosts a process with a large
+working set — a model server, a JVM, an in-memory fixture. Raising it per step
+keeps that default, and the protection it gives, for every other step.</p>
+<p>Values use the same quantity grammar as Kubernetes, so the Docker and
+Kubernetes backends agree on what a profile means. The suffixes are
+<strong>case-sensitive</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>2Gi</code>, <code>512Mi</code>, <code>1Ki</code></td>
+<td>Binary units — 1024-based</td>
+</tr>
+<tr>
+<td><code>2G</code>, <code>512M</code>, <code>2k</code></td>
+<td>Decimal units — 1000-based (note the lower-case <code>k</code>)</td>
+</tr>
+<tr>
+<td><code>1.5Gi</code></td>
+<td>Fractions are allowed</td>
+</tr>
+<tr>
+<td><code>2147483648</code></td>
+<td>A plain byte count</td>
+</tr>
+<tr>
+<td>omitted, zero, negative, or unparseable</td>
+<td>Default ceiling, currently 512 MB</td>
+</tr>
+</tbody>
+</table>
+<p><code>2GB</code>, <code>512MB</code> and an upper-case <code>2K</code> are <strong>not</strong> valid suffixes and are
+ignored, leaving the step on the default. Values below the 6 MB floor Docker
+enforces fail the step with a named error rather than an opaque daemon
+rejection.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># local.yaml — only the model server gets more</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">ollama</span><span class="p">:</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2Gi</span>
+</span></code></pre></div>
+<p>It is a ceiling, not a reservation: the step consumes only what it touches, and
+is OOM-killed if it exceeds this. A step whose process dies with
+<code>signal: killed</code> part-way through start-up is the signature of this limit being
+too low.</p>
+<p>Like <code>devices:</code>, the entry may be keyed by either the node id or the node name.</p>
 <h2 id="default-selection">Default Selection<a class="headerlink" href="#default-selection" title="Permanent link">&para;</a></h2>
 <p>At launch time:</p>
 <ol>
@@ -1633,11 +1752,11 @@
 </ol>
 <h2 id="suite-dependency-profiles">Suite Dependency Profiles<a class="headerlink" href="#suite-dependency-profiles" title="Permanent link">&para;</a></h2>
 <p>Nested suite dependencies can declare their own runtime profile in <code>dependencies.yaml</code>:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">dependencies</span><span class="p">:</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">auth-module</span><span class="p">:</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">ref</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">localhost:5000/core-platform/identity-broker</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.2.0</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary.yaml</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">dependencies</span><span class="p">:</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">auth-module</span><span class="p">:</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">ref</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">localhost:5000/core-platform/identity-broker</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.2.0</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary.yaml</span>
 </span></code></pre></div>
 <p>That selected profile travels with the imported suite's resolved topology and step specs. The resolver reads the child suite's <code>profiles/canary.yaml</code> and applies its <code>env:</code> and per-service <code>services.&lt;step&gt;.env:</code> overlays to imported nodes before execution.</p>
 <h2 id="managed-profile-endpoints">Managed Profile Endpoints<a class="headerlink" href="#managed-profile-endpoints" title="Permanent link">&para;</a></h2>

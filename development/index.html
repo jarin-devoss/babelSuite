@@ -263,6 +263,23 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
     
       <li class="md-tabs__item">
@@ -482,6 +499,26 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -495,10 +532,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -509,8 +546,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -941,10 +978,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -955,8 +992,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1447,7 +1484,8 @@
 <div class="language-powershell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">go</span> <span class="n">test</span> <span class="p">./</span><span class="n">internal</span><span class="p">/</span><span class="n">cronjobs</span><span class="p">/...</span>
 </span></code></pre></div>
 <h3 id="test-coverage">Test coverage<a class="headerlink" href="#test-coverage" title="Permanent link">&para;</a></h3>
-<p>The backend has unit tests in the packages below. All tests are table-driven and use <code>t.Parallel()</code>.</p>
+<p>Tests live beside the code they cover, in most <code>internal/</code> packages. They are
+table-driven and use <code>t.Parallel()</code>. Some highlights rather than a full list:</p>
 <table>
 <thead>
 <tr>
@@ -1474,25 +1512,35 @@
 </tr>
 <tr>
 <td><code>internal/runner</code></td>
-<td>Step expectation evaluation — exit code, log presence/absence, multi-rule combinations</td>
+<td>Step expectation evaluation, the <code>file=</code> resolution guard, plugin response decoding, span attribute truncation, and the eight native security checks via <code>httptest.NewServer</code></td>
+</tr>
+<tr>
+<td><code>internal/execution</code></td>
+<td>Profile runtime overlays, per-step memory parsing, contested service names across composed suites, dependency package file resolution</td>
 </tr>
 <tr>
 <td><code>internal/httpserver</code></td>
 <td>CSRF middleware — cookie issuance, token validation, Bearer exemption</td>
 </tr>
 <tr>
-<td><code>internal/runner</code> (native security)</td>
-<td>All six native OWASP check variants via httptest.NewServer</td>
+<td><code>internal/platform</code></td>
+<td>Plugin registration, and that a plugin's sidecar route is derived from its name</td>
+</tr>
+<tr>
+<td><code>internal/suites</code></td>
+<td>Starlark evaluation, topology resolution, nested suite expansion</td>
 </tr>
 </tbody>
 </table>
+<p>Note that <code>internal/execution</code> tests drive real Docker containers, so they are
+slower than the rest and need a working daemon.</p>
 <p>When adding a new package, follow the same pattern: table-driven cases in <code>*_test.go</code>, fakes inline in the test file, no network or database access.</p>
 <h2 id="useful-backend-commands">Useful Backend Commands<a class="headerlink" href="#useful-backend-commands" title="Permanent link">&para;</a></h2>
-<p>Sync example content:</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="nb">sync-examples</span>
-</span></code></pre></div>
-<p>Seed the local registry:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>scripts/push-to-zot.py
+<p>Publish example suites, modules and plugins to the local registry. The control
+plane serves suites from the OCI catalog, so an edit under <code>examples/</code> does not
+reach a run until it is pushed and the backend restarted:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>python<span class="w"> </span>scripts/push-to-zot.py
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>python<span class="w"> </span>scripts/push-to-zot.py<span class="w"> </span>--suite<span class="w"> </span>payment-suite
 </span></code></pre></div>
 <h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
 <p>Build or run the CLI from:</p>
@@ -1500,12 +1548,12 @@
 <li><code>backend/cmd/ctl</code></li>
 </ul>
 <p>Example:</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="n">ctl</span> <span class="p">--</span> <span class="n">version</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">go</span> <span class="n">run</span> <span class="p">./</span><span class="n">cmd</span><span class="p">/</span><span class="n">ctl</span> <span class="p">--</span> <span class="n">version</span>
 </span></code></pre></div>
 <h2 id="frontend-quality-checks">Frontend Quality Checks<a class="headerlink" href="#frontend-quality-checks" title="Permanent link">&para;</a></h2>
 <p>From <code>frontend/</code>:</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">npm</span> <span class="n">run</span> <span class="n">typecheck</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">npm</span> <span class="n">run</span> <span class="n">build</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">npm</span> <span class="n">run</span> <span class="n">typecheck</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">npm</span> <span class="n">run</span> <span class="n">build</span>
 </span></code></pre></div>
 <h2 id="docs-deployment">Docs Deployment<a class="headerlink" href="#docs-deployment" title="Permanent link">&para;</a></h2>
 <p>The repository now includes:</p>

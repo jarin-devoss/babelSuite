@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -1058,10 +1095,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1072,8 +1109,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1372,7 +1409,8 @@
 <p>BabelSuite currently has two profile representations:</p>
 <ol>
 <li>workspace profile files under <code>profiles/*.yaml</code></li>
-<li>managed profile records in <code>backend/suite-profiles.yaml</code> or the profile store API</li>
+<li>managed profile records in the file named by <code>PROFILES_FILE</code> (default
+   <code>babelsuite-profiles.yaml</code>), or the profile store API</li>
 </ol>
 <p>Workspace files drive suite discovery, runtime env overlays, and inline <code>secretRefs</code>. Managed profiles support UI/API management, inheritance, defaults, and secret references.</p>
 <h2 id="workspace-profile-shape">Workspace Profile Shape<a class="headerlink" href="#workspace-profile-shape" title="Permanent link">&para;</a></h2>
@@ -1411,7 +1449,7 @@
 <li><code>runtime.profileFile</code></li>
 <li><code>modules</code></li>
 </ul>
-<p>Profile loading and execution also consume optional <code>env</code>, <code>services.&lt;step&gt;.env</code>, <code>services.&lt;step&gt;.devices</code>, <code>network.mode</code>, and <code>secretRefs</code> blocks from the same YAML body.</p>
+<p>Profile loading and execution also consume optional <code>env</code>, <code>services.&lt;step&gt;.env</code>, <code>services.&lt;step&gt;.devices</code>, <code>services.&lt;step&gt;.memory</code>, <code>network.mode</code>, and <code>secretRefs</code> blocks from the same YAML body.</p>
 <h2 id="managed-profile-record-shape">Managed Profile Record Shape<a class="headerlink" href="#managed-profile-record-shape" title="Permanent link">&para;</a></h2>
 <p>Managed profiles stored through the API expose fields such as:</p>
 <ul>
@@ -1456,6 +1494,8 @@
 </span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># NVIDIA GPU attached to this step</span>
 </span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
 </span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># specific /dev path</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">  </span><span class="nt">model-server</span><span class="p">:</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2Gi</span><span class="w">               </span><span class="c1"># raises this step&#39;s 512 MB default ceiling</span>
 </span></code></pre></div>
 <h2 id="defaults-and-selection">Defaults And Selection<a class="headerlink" href="#defaults-and-selection" title="Permanent link">&para;</a></h2>
 <p>At launch time:</p>

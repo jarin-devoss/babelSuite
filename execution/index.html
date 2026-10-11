@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -940,6 +977,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Live Streams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#topology-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      Topology Graph
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1085,10 +1137,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1099,8 +1151,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1355,6 +1407,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Live Streams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#topology-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      Topology Graph
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1498,7 +1565,7 @@
 <li>full node definition</li>
 </ul>
 <h2 id="execution-workspace">Execution Workspace<a class="headerlink" href="#execution-workspace" title="Permanent link">&para;</a></h2>
-<p>Every execution gets a shared Docker volume that is mounted into every container in that run at a fixed path. The volume is created before the first step starts and removed when the execution environment is reaped.</p>
+<p>Every execution gets a host directory that is bind-mounted into every container in that run at a fixed path. It is created before the first step starts and removed when the execution environment is reaped.</p>
 <p>Inside each container two paths are available:</p>
 <table>
 <thead>
@@ -1514,11 +1581,11 @@
 </tr>
 <tr>
 <td><code>$BABELSUITE_ARTIFACTS_DIR</code></td>
-<td>Per-step mount — files written here are harvested and stored by BabelSuite after the step exits</td>
+<td>Kubernetes backend only. On Docker, <code>.export(...)</code> paths are read from the workspace mount after the step exits</td>
 </tr>
 </tbody>
 </table>
-<p>The workspace volume is isolated per execution. Two concurrent runs never share a volume. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.</p>
+<p>The workspace is isolated per execution. Two concurrent runs never share one. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.</p>
 <h2 id="live-streams">Live Streams<a class="headerlink" href="#live-streams" title="Permanent link">&para;</a></h2>
 <p>Executions expose two SSE endpoints:</p>
 <table>
@@ -1540,10 +1607,14 @@
 </tbody>
 </table>
 <p>The live execution page subscribes to both streams so the UI updates without polling.</p>
+<p><img alt="Live execution: logs streaming from a booting payment suite, with the topology panel grouping steps into waves and counters for healthy, running, failed, skipped and pending steps" src="../images/live-execution.png" /></p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>SSE connections pass the session token as a query parameter (<code>?token=...</code>) because the browser <code>EventSource</code> API does not support custom request headers.</p>
 </div>
+<h3 id="topology-graph">Topology Graph<a class="headerlink" href="#topology-graph" title="Permanent link">&para;</a></h3>
+<p>The <strong>Graph</strong> button draws the same dependency graph the engine executes. Clicking a node filters the logs to that step; <code>Ctrl</code>/<code>⌘</code> + scroll zooms, and dragging or the arrow keys pan a graph wider than the screen.</p>
+<p><img alt="The topology graph of composite-readiness, around seventy nodes across four imported suites" src="../images/topology-graph-composite.png" /></p>
 <h2 id="execution-overview">Execution Overview<a class="headerlink" href="#execution-overview" title="Permanent link">&para;</a></h2>
 <p>The engine maintains a rolling in-memory overview of recent and active executions:</p>
 <ul>
@@ -1551,6 +1622,7 @@
 <li><code>GET /api/v1/engine/overview/stream</code> — SSE stream of overview updates</li>
 </ul>
 <p>The home dashboard uses the SSE stream to display live execution status.</p>
+<p><img alt="Executions and runs: three healthy runs with their profile, trigger, duration and step counts" src="../images/executions.png" /></p>
 <h2 id="remote-agents">Remote Agents<a class="headerlink" href="#remote-agents" title="Permanent link">&para;</a></h2>
 <p>When the selected backend is <code>remote-agent</code>, the coordinator assigns work to registered workers:</p>
 <ol>
@@ -1567,11 +1639,11 @@
 <h2 id="health-and-readiness">Health And Readiness<a class="headerlink" href="#health-and-readiness" title="Permanent link">&para;</a></h2>
 <p>The control plane exposes readiness checks around execution dependencies:</p>
 <ul>
-<li><code>datastore</code> — primary store availability</li>
+<li><code>database</code> — primary store availability</li>
 <li><code>cache</code> — Redis availability (optional)</li>
-<li><code>platform-settings</code> — at least one backend configured</li>
+<li><code>platform</code> — platform settings readable</li>
 <li><code>profiles</code> — profile store available</li>
-<li><code>launchable-suites</code> — at least one suite is launchable</li>
+<li><code>agents</code> — at least one registered agent, when agent backends are configured</li>
 </ul>
 <p>See <a href="../operations/">Operations</a> for the full health endpoint reference.</p>
 <h2 id="related-pages">Related Pages<a class="headerlink" href="#related-pages" title="Permanent link">&para;</a></h2>

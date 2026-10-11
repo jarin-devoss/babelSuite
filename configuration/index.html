@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -1166,10 +1203,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1180,8 +1217,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1637,7 +1674,7 @@
 <tr>
 <td><code>VITE_API_URL</code></td>
 <td><code>http://localhost:8090</code></td>
-<td>API base URL baked into the frontend bundle at build time</td>
+<td>API base URL baked into the frontend bundle at build time. Set it to <code>/</code> for local development — see the note below.</td>
 </tr>
 <tr>
 <td><code>PUBLIC_API_URL</code></td>
@@ -1676,6 +1713,14 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition warning">
+<p class="admonition-title">Use a relative <code>VITE_API_URL</code> locally</p>
+<p>Setting it to an absolute URL such as <code>http://localhost:8090</code> makes the
+browser's API calls cross-origin from the Vite dev server on port 5173. The
+<code>csrf_token</code> cookie is then discarded, and sign-in fails with
+<code>403 CSRF token missing.</code> Set <code>VITE_API_URL=/</code> so requests go through the
+Vite proxy and stay same-origin.</p>
+</div>
 <h3 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1719,6 +1764,13 @@
 </tbody>
 </table>
 <h3 id="sso-oidc">SSO / OIDC<a class="headerlink" href="#sso-oidc" title="Permanent link">&para;</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Not wired up yet</p>
+<p>An OIDC service and its routes exist, but the server builds its auth
+configuration without an OIDC section, so none of the variables below are
+read and SSO cannot currently be enabled. They are listed as the intended
+contract, not as working configuration.</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1816,11 +1868,6 @@
 </thead>
 <tbody>
 <tr>
-<td><code>DB_DRIVER</code></td>
-<td><code>mongo</code></td>
-<td>Primary datastore: <code>mongo</code> or <code>postgres</code></td>
-</tr>
-<tr>
 <td><code>MONGO_URI</code></td>
 <td><code>mongodb://localhost:27017</code></td>
 <td>MongoDB connection string</td>
@@ -1830,13 +1877,15 @@
 <td><code>babelsuite</code></td>
 <td>MongoDB database name</td>
 </tr>
-<tr>
-<td><code>POSTGRES_DSN</code></td>
-<td><em>(empty)</em></td>
-<td>PostgreSQL connection string (required when <code>DB_DRIVER=postgres</code>)</td>
-</tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">MongoDB is the only datastore the server selects</p>
+<p>A PostgreSQL store exists under <code>internal/store/postgres</code>, but the server
+entrypoint reads no driver-selection variable, so there is currently no way
+to switch to it. <code>DB_DRIVER</code>, <code>POSTGRES_DSN</code> and <code>DATABASE_URL</code> are not
+read.</p>
+</div>
 <h3 id="cache-redis">Cache (Redis)<a class="headerlink" href="#cache-redis" title="Permanent link">&para;</a></h3>
 <p>Redis is optional. When <code>REDIS_ADDR</code> is unset, BabelSuite operates without a cache.</p>
 <table>
@@ -1967,23 +2016,12 @@
 </tbody>
 </table>
 <h3 id="demo-mode">Demo Mode<a class="headerlink" href="#demo-mode" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Variable</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>BABELSUITE_ENABLE_DEMO</code></td>
-<td><code>false</code></td>
-<td>Use bundled demo data instead of a live workspace</td>
-</tr>
-</tbody>
-</table>
-<p>When demo mode is on, suites and platform settings come from the <code>demo/</code> directory rather than from <code>configuration.yaml</code> and <code>examples/</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Not wired up yet</p>
+<p><code>BABELSUITE_ENABLE_DEMO</code> is not read by the server. Suites and platform
+settings always come from the workspace — <code>configuration.yaml</code> and
+<code>examples/</code> — regardless of what this is set to.</p>
+</div>
 <hr />
 <h2 id="configurationyaml"><code>configuration.yaml</code><a class="headerlink" href="#configurationyaml" title="Permanent link">&para;</a></h2>
 <p>The platform settings file defines the physical execution environment. It is read and written by the control plane at runtime — changes take effect without restarting the server. Edit it directly or use the <strong>Settings</strong> UI at <code>/settings</code>.</p>
@@ -2104,7 +2142,7 @@
 </tr>
 <tr>
 <td><code>apisixSidecar.configMountPath</code></td>
-<td>Path where APISIX reads its configuration</td>
+<td>Path of the <strong>file</strong> APISIX reads its routes from. The suite's generated <code>apisix.yaml</code> is bind-mounted onto exactly this path, so it must name a file, not a directory. Default <code>/usr/local/apisix/conf/apisix.yaml</code>.</td>
 </tr>
 <tr>
 <td><code>apisixSidecar.listenPort</code></td>
@@ -2282,20 +2320,22 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># .env</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nv">PORT</span><span class="o">=</span><span class="m">8090</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nv">FRONTEND_URL</span><span class="o">=</span>http://localhost:5173
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nv">VITE_API_URL</span><span class="o">=</span>http://localhost:8090
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">JWT_SECRET</span><span class="o">=</span>change-me-to-a-secure-random-value
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nv">ADMIN_EMAIL</span><span class="o">=</span>admin@babelsuite.test
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nv">ADMIN_PASSWORD</span><span class="o">=</span>admin
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nv">DB_DRIVER</span><span class="o">=</span>mongo
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nv">MONGO_URI</span><span class="o">=</span>mongodb://localhost:27017
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nv">MONGO_DB</span><span class="o">=</span>babelsuite
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="nv">PLATFORM_SETTINGS_FILE</span><span class="o">=</span>configuration.yaml
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nv">PROFILES_FILE</span><span class="o">=</span>babelsuite-profiles.yaml
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="nv">AUTH_PASSWORD_LOGIN_ENABLED</span><span class="o">=</span><span class="nb">true</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="nv">AUTH_SIGNUP_ENABLED</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Relative on purpose — see the VITE_API_URL note above.</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nv">VITE_API_URL</span><span class="o">=</span>/
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nv">JWT_SECRET</span><span class="o">=</span>change-me-to-a-secure-random-value
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nv">ADMIN_EMAIL</span><span class="o">=</span>admin@babelsuite.test
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nv">ADMIN_PASSWORD</span><span class="o">=</span>admin
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="nv">MONGO_URI</span><span class="o">=</span>mongodb://localhost:27017
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="nv">MONGO_DB</span><span class="o">=</span>babelsuite
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="nv">PLATFORM_SETTINGS_FILE</span><span class="o">=</span>configuration.yaml
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="nv">PROFILES_FILE</span><span class="o">=</span>babelsuite-profiles.yaml
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="nv">AUTH_PASSWORD_LOGIN_ENABLED</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="nv">AUTH_SIGNUP_ENABLED</span><span class="o">=</span><span class="nb">true</span>
 </span></code></pre></div>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># configuration.yaml</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span>
@@ -2308,7 +2348,7 @@
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">dockerSocket</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/run/docker.sock</span>
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">apisixSidecar</span><span class="p">:</span>
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apache/apisix:3.9.0-debian</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">configMountPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/usr/local/apisix/conf</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">configMountPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/usr/local/apisix/conf/apisix.yaml</span>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">      </span><span class="nt">listenPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">9080</span>
 </span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">      </span><span class="nt">adminPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">9180</span>
 </span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">      </span><span class="nt">capabilities</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">rest</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">grpc</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">async</span><span class="p p-Indicator">]</span>

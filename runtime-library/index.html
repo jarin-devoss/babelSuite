@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -1085,9 +1122,27 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#servicesnamememory" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.memory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#networkmode" class="md-nav__link">
     <span class="md-ellipsis">
       network.mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#service-names-when-suites-are-composed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Service names when suites are composed
     </span>
   </a>
   
@@ -1277,10 +1332,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1291,8 +1346,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1755,9 +1810,27 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#servicesnamememory" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.memory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#networkmode" class="md-nav__link">
     <span class="md-ellipsis">
       network.mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#service-names-when-suites-are-composed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Service names when suites are composed
     </span>
   </a>
   
@@ -1810,22 +1883,60 @@
 <p>The runtime library is BabelSuite's built-in topology surface. It defines the node families that <code>suite.star</code> can assemble into a topology graph.</p>
 <p>This is separate from the checked-in example OCI modules such as <code>kafka</code> or <code>postgres</code>.</p>
 <h2 id="how-the-parser-works">How The Parser Works<a class="headerlink" href="#how-the-parser-works" title="Permanent link">&para;</a></h2>
-<p><code>suite.star</code> is processed by an assignment-based topology scanner, not a full Starlark interpreter. The parser scans each logical statement for this shape:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;variable&gt; = &lt;family&gt;(&lt;arguments&gt;)
+<p><code>suite.star</code> is evaluated by a real Starlark interpreter, so the file is a
+program rather than a list of declarations. Control flow runs:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">REGIONS</span><span class="p">:</span>                    <span class="c1"># loops build nodes</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;smoke-&quot;</span> <span class="o">+</span> <span class="n">region</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">if</span> <span class="n">FRAUD_STRATEGY</span> <span class="o">==</span> <span class="s2">&quot;shadow&quot;</span><span class="p">:</span>            <span class="c1"># conditionals apply</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;shadow mode&quot;</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">fan_out</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>               <span class="c1"># functions are available</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="k">return</span> <span class="p">[</span><span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">prefix</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">)]</span>
 </span></code></pre></div>
-<p>Only statements that match this assignment shape are recognized as topology nodes. <code>load()</code> statements, comments, and blank lines are ignored by the topology resolver.</p>
-<p>Backslash continuations are supported for chained <code>.export(...)</code> calls, but the parser still follows the same assignment-driven model.</p>
+<p>A node is registered when a <code>service.*</code>, <code>task.*</code>, <code>test.*</code>, <code>traffic.*</code>,
+<code>security.*</code>, <code>log.*</code>, <code>suite.*</code> or plugin function is <strong>called</strong>. Assigning the
+result to a variable is the normal style because the variable name becomes the
+node's default id and lets other nodes reference it in <code>after=[...]</code>, but the
+call is what creates the node.</p>
+<p>Evaluation errors are reported as Starlark errors naming the file and line, so
+a typo fails the suite at resolution time rather than silently dropping a node.</p>
 <h2 id="load-statements"><code>load()</code> Statements<a class="headerlink" href="#load-statements" title="Permanent link">&para;</a></h2>
 <p><code>load()</code> statements appear at the top of every example <code>suite.star</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;traffic&quot;</span><span class="p">,</span> <span class="s2">&quot;security&quot;</span><span class="p">,</span> <span class="s2">&quot;suite&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p>The topology parser ignores these lines. Their job is different:</p>
+<p>These are real imports: the names they bind are what the rest of the file calls,
+and loading a module or plugin that cannot be resolved is an error rather than a
+comment. The workspace loader additionally reads the module path strings to
+populate the suite's contracts/module references.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>env.get()</code> does not read the profile</p>
+<p>The <code>env</code> global is an empty, frozen mapping during evaluation, so
+<code>env.get("NAME", "fallback")</code> always returns the fallback — in every
+profile, with no way to populate it.</p>
+<p>The consequence is about <strong>graph shape</strong>, and it is easy to miss. A loop or
+conditional over an <code>env.get()</code> value is decided once, at author time:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">BROWSERS</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BROWSERS&quot;</span><span class="p">,</span> <span class="s2">&quot;chromium&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>   <span class="c1"># always [&quot;chromium&quot;]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">BROWSERS</span><span class="p">:</span>              <span class="c1"># always one iteration</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;checkout-&quot;</span> <span class="o">+</span> <span class="n">b</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">BROWSERS</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>           <span class="c1"># always false</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;multi-browser run&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>A profile setting <code>BROWSERS: chromium,firefox,webkit</code> changes none of that.
+So a profile can change <strong>what a step does</strong>, never <strong>which steps exist</strong>.</p>
+<p>What does read the active profile:</p>
 <ul>
-<li>the workspace loader reads <code>load("...")</code> lines to extract module path strings such as <code>@babelsuite/runtime</code> and <code>@babelsuite/kafka</code></li>
-<li>those paths are stored as the suite's contracts/module references</li>
-<li>the imported names are a documentation and authoring convention, not parse-time bindings</li>
+<li>a step's <code>env=</code>, profile <code>env:</code> and <code>services.&lt;step&gt;.env:</code> — injected into
+  the container, so your script reads them normally</li>
+<li>a dependency's <code>inputs:</code> — injected into the imported suite's steps</li>
+<li><code>{{ env.NAME }}</code> inside a <code>log.*</code> message — resolved at runtime</li>
 </ul>
-<p>In short: write <code>load()</code> lines to declare intent and populate the contracts surface. The topology resolver does not need them to recognize node calls.</p>
+<p>Treat <code>env.get()</code> as a named constant with a default. If a profile must
+drive something, have a step read it as an environment variable at runtime
+rather than branching on it here.</p>
+</div>
 <h2 id="core-families">Core Families<a class="headerlink" href="#core-families" title="Permanent link">&para;</a></h2>
 <h3 id="service"><code>service</code><a class="headerlink" href="#service" title="Permanent link">&para;</a></h3>
 <p>Long-lived background infrastructure in the suite graph.</p>
@@ -1843,17 +1954,17 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">db</span>  <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">db</span>  <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p>Use <code>service.run</code> for first-party background dependencies such as databases, APIs, caches, and workers.</p>
 <p>When <code>image=</code> is provided, <code>service.run</code> starts a real Docker container and runs it <strong>detached</strong> — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">cache</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">worker</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;./worker --queue jobs&quot;</span><span class="p">],</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cache</span><span class="p">],</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">cache</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">worker</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;./worker --queue jobs&quot;</span><span class="p">],</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cache</span><span class="p">],</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>commands=</code> is available as an inline alternative to a separate <code>file=</code> script — the commands are encoded into a <code>BABELSUITE_SCRIPT</code> environment variable and executed inside the container via <code>/bin/sh -e</code>. See the <a href="#ci_script-injection">CI_SCRIPT injection</a> section below.</p>
 <p><code>service(...)</code> is intentionally rejected. Use one of the explicit <code>service.*</code> forms.</p>
@@ -1873,7 +1984,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>service.mock</code> is the runtime entrypoint for mocks backed by the suite's <code>api/</code> and <code>mock/</code> folders.</p>
 <table>
@@ -1910,15 +2021,15 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">migrate</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;migrate.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">seed</span>    <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">migrate</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;migrate.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">seed</span>    <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
 </span></code></pre></div>
 <p>Use <code>file=</code> to reference a script bundled in the suite artifact, or <code>commands=</code> for inline shell commands:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">build</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;node:22-alpine&quot;</span><span class="p">,</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;npm ci&quot;</span><span class="p">,</span> <span class="s2">&quot;npm run build&quot;</span><span class="p">],</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">],</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">build</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;node:22-alpine&quot;</span><span class="p">,</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;npm ci&quot;</span><span class="p">,</span> <span class="s2">&quot;npm run build&quot;</span><span class="p">],</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">],</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>task(...)</code> is intentionally rejected. Use <code>task.run(...)</code>.</p>
 <p><code>task.run</code> resolves <code>file=</code> relative to <code>tasks/</code>, so <code>file="seed.sh"</code> means <code>./tasks/seed.sh</code>.</p>
@@ -1939,14 +2050,14 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span></code></pre></div>
 <p>Use <code>file=</code> to reference a test script from the suite artifact, or <code>commands=</code> for inline assertions:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">ping</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;curlimages/curl:8&quot;</span><span class="p">,</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;curl -sf http://api:8080/health&quot;</span><span class="p">],</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">ping</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;curlimages/curl:8&quot;</span><span class="p">,</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">commands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;curl -sf http://api:8080/health&quot;</span><span class="p">],</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>test(...)</code> is intentionally rejected. Use <code>test.run(...)</code>.</p>
 <p><code>test.run</code> resolves <code>file=</code> relative to <code>tests/</code>, so <code>file="go/smoke_test.go"</code> means <code>./tests/go/smoke_test.go</code>.</p>
@@ -2011,10 +2122,10 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">perf</span> <span class="o">=</span> <span class="n">traffic</span><span class="o">.</span><span class="n">smoke</span><span class="p">(</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">perf</span> <span class="o">=</span> <span class="n">traffic</span><span class="o">.</span><span class="n">smoke</span><span class="p">(</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>traffic(...)</code> is intentionally rejected. Use one of the explicit <code>traffic.*</code> forms.</p>
 <p>Each <code>traffic.*</code> node must declare:</p>
@@ -2134,14 +2245,14 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/probe.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/fuzz.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">flood</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">flood</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;flood&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/api/v1/resource&quot;</span><span class="p">,</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">rate</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">expect_throttle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/flood.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/probe.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/fuzz.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">flood</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">flood</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;flood&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/api/v1/resource&quot;</span><span class="p">,</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">rate</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">expect_throttle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/flood.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
 </span></code></pre></div>
 <p><code>security(...)</code> is intentionally rejected. Use one of the explicit <code>security.*</code> forms.</p>
 <p>Mode reference:</p>
@@ -2244,17 +2355,17 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">checkpoint</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;schema migrated — starting API warmup&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">checkpoint</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">checkpoint</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;schema migrated — starting API warmup&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">checkpoint</span><span class="p">])</span>
 </span></code></pre></div>
 <p>The message can be passed as a positional argument or via <code>message=</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;feature flag disabled — skipping canary step&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;feature flag disabled — skipping canary step&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>log.*</code> nodes are valid anywhere in the graph, including inside OCI modules:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">pg</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;db&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">cluster</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">ready</span>   <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;postgres cluster ready at &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;:5432&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cluster</span><span class="p">])</span>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="p">,</span> <span class="s2">&quot;ready&quot;</span><span class="p">:</span> <span class="n">ready</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">}</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">pg</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;db&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">cluster</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">ready</span>   <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;postgres cluster ready at &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;:5432&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cluster</span><span class="p">])</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="p">,</span> <span class="s2">&quot;ready&quot;</span><span class="p">:</span> <span class="n">ready</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">}</span>
 </span></code></pre></div>
 <h4 id="template-placeholders">Template placeholders<a class="headerlink" href="#template-placeholders" title="Permanent link">&para;</a></h4>
 <p>Messages support <code>{{ ... }}</code> placeholders that are resolved at runtime from live execution state:</p>
@@ -2288,10 +2399,10 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">infra_ready</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="s2">&quot;{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy, FRAUD_STRATEGY={{ env.FRAUD_STRATEGY }}&quot;</span><span class="p">,</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">broker</span><span class="p">,</span> <span class="n">stripe_mock</span><span class="p">],</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">infra_ready</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="s2">&quot;{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy, FRAUD_STRATEGY={{ env.FRAUD_STRATEGY }}&quot;</span><span class="p">,</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">broker</span><span class="p">,</span> <span class="n">stripe_mock</span><span class="p">],</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="p">)</span>
 </span></code></pre></div>
 <h4 id="live-terminal-rendering">Live terminal rendering<a class="headerlink" href="#live-terminal-rendering" title="Permanent link">&para;</a></h4>
 <p><code>log.*</code> nodes render inline in the live execution terminal as the graph runs — no container pull, no queue wait. Template placeholders are resolved at the moment the node executes, so <code>{{ healthy }}</code> and <code>{{ total }}</code> reflect real-time graph state.</p>
@@ -2312,16 +2423,16 @@
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">payments</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ref</span><span class="o">=</span><span class="s2">&quot;payments-module&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">payments</span> <span class="o">=</span> <span class="n">suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ref</span><span class="o">=</span><span class="s2">&quot;payments-module&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>suite(...)</code> is intentionally rejected. Use <code>suite.run(...)</code>.</p>
 <p>For nested suite manifests, see <a href="../dependencies/">Dependency Manifests</a>.</p>
 <h3 id="plugin"><code>plugin</code><a class="headerlink" href="#plugin" title="Permanent link">&para;</a></h3>
 <p>User-registered Lua plugins. Plugins are not part of the built-in runtime library — they are loaded with <code>load("@plugins/&lt;name&gt;", "&lt;operation&gt;")</code> and must be registered in platform settings before a suite that references them can run.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">)</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">rc_filter</span>  <span class="o">=</span> <span class="n">transient</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span> <span class="n">netlist</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">probe_node</span><span class="o">=</span><span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">spice_mock</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">)</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">rc_filter</span>  <span class="o">=</span> <span class="n">transient</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span> <span class="n">netlist</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">probe_node</span><span class="o">=</span><span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">spice_mock</span><span class="p">])</span>
 </span></code></pre></div>
 <p>The function call forwards its keyword arguments as the plugin config. The APISIX sidecar dispatches the request to the plugin's trigger path, and the returned <code>passed</code> / <code>findings</code> / <code>summary</code> / <code>level</code> fields drive the step outcome.</p>
 <p>For the full plugin reference, see <a href="../platform/#plugins">Platform Settings — Plugins</a>.</p>
@@ -2420,10 +2531,10 @@
 <p>The variable name is the default node ID. Use <code>name=</code> or <code>id=</code> only when you need an explicit override.</p>
 <h2 id="artifact-exports">Artifact Exports<a class="headerlink" href="#artifact-exports" title="Permanent link">&para;</a></h2>
 <p>Nodes can attach artifact export rules with chained <code>.export(...)</code> calls:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">)</span> \
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;coverage/*.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-coverage&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;cobertura&quot;</span><span class="p">)</span> \
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;reports/junit.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-tests&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;junit&quot;</span><span class="p">)</span> \
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;logs/crash.dump&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;crash-debug&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">smoke</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">)</span> \
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;coverage/*.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-coverage&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;cobertura&quot;</span><span class="p">)</span> \
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;reports/junit.xml&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;go-tests&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;junit&quot;</span><span class="p">)</span> \
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>  <span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">&quot;logs/crash.dump&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;crash-debug&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;failure&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Supported export arguments:</p>
 <ul>
@@ -2436,7 +2547,7 @@
 <ul>
 <li>export rules are parsed into topology metadata</li>
 <li>export rules flow into execution step payloads</li>
-<li>the local (Docker) runner bind-mounts a host directory into every container at <code>$BABELSUITE_ARTIFACTS_DIR</code>; files written there are harvested after the container exits</li>
+<li>the local (Docker) runner bind-mounts the shared execution workspace into every container and reads each declared export path from it after the container exits, so a step writes <code>reports/junit.xml</code> relative to its working directory</li>
 <li>glob patterns in <code>path=</code> (e.g. <code>"coverage/*.xml"</code>) are expanded on the host mount — the first lexically-ordered match is collected</li>
 <li>the Kubernetes runner copies files from the artifact sidecar volume using the busybox helper after the step container exits</li>
 <li><code>format="junit"</code> exports are summarized into pass/fail counts in the live execution view; real XML from the container is parsed when present, synthetic otherwise</li>
@@ -2449,13 +2560,13 @@
 </ul>
 <h2 id="evaluation-controls">Evaluation Controls<a class="headerlink" href="#evaluation-controls" title="Permanent link">&para;</a></h2>
 <p><code>task.run(...)</code>, <code>test.run(...)</code>, and other runnable nodes can declare explicit success/failure expectations:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">seed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">expect_exit</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">expect_logs</span><span class="o">=</span><span class="s2">&quot;Task completed successfully&quot;</span><span class="p">,</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="n">fail_on_logs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;FATAL ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;panic:&quot;</span><span class="p">],</span>
-</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">seed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="n">expect_exit</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>    <span class="n">expect_logs</span><span class="o">=</span><span class="s2">&quot;Task completed successfully&quot;</span><span class="p">,</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="n">fail_on_logs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;FATAL ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;panic:&quot;</span><span class="p">],</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>Supported controls:</p>
 <ul>
@@ -2490,7 +2601,7 @@
 <li><strong>Script assembly</strong> — the runner builds a POSIX shell script from <code>commands=</code> entries, or writes the <code>file=</code> content to the shared execution workspace and prepends the appropriate interpreter call.</li>
 <li><strong>Encoding</strong> — the script is base64-encoded and injected as <code>BABELSUITE_SCRIPT</code> into the container environment.</li>
 <li><strong>Execution</strong> — the container entrypoint is overridden to:
-   <div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>/bin/sh -c &quot;echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e&quot;
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>/bin/sh -c &quot;echo $BABELSUITE_SCRIPT | base64 -d | /bin/sh -e&quot;
 </span></code></pre></div></li>
 <li><strong>Exit code</strong> — the shell exits with the script's exit code, which the runner records as the step result.</li>
 </ol>
@@ -2505,8 +2616,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>.sh</code>, <code>.bash</code></td>
-<td><code>/bin/sh</code></td>
+<td><code>.sh</code></td>
+<td><code>sh</code></td>
+</tr>
+<tr>
+<td><code>.bash</code></td>
+<td><code>bash</code></td>
 </tr>
 <tr>
 <td><code>.py</code></td>
@@ -2522,7 +2637,7 @@
 </tr>
 <tr>
 <td><code>.ts</code></td>
-<td><code>ts-node</code></td>
+<td><code>node --experimental-strip-types</code>, falling back to <code>npx ts-node</code></td>
 </tr>
 <tr>
 <td>other</td>
@@ -2530,6 +2645,30 @@
 </tr>
 </tbody>
 </table>
+<p><code>.sh</code> runs under <code>sh</code>, not <code>bash</code>. A step picks its image for the tool it needs
+— <code>curlimages/curl</code>, <code>redis</code>, <code>node:22-alpine</code> — and most of those are Alpine
+based with no bash at all, so the shell this runner can actually promise is
+<code>sh</code>. Write POSIX shell in a <code>.sh</code> file; name it <code>.bash</code> when it genuinely needs
+bash, and pick an image that has it.</p>
+<p><code>.ts</code> is run by the image's own Node when it can strip type annotations itself,
+which Node does from 22.6 on. Only an older runtime falls back to
+<code>npx ts-node</code>, which downloads ts-node from the registry on first use — so a
+<code>.ts</code> step on current Node needs no network at all.</p>
+<div class="admonition warning">
+<p class="admonition-title">The image must carry the inferred interpreter</p>
+<p>The step runs <code>&lt;interpreter&gt; &lt;file&gt;</code> inside the container, so the image has
+to provide that interpreter on <code>PATH</code>. If it does not, the shell cannot find
+it and the step exits <strong>127</strong> — the same code for every row of the table, so
+a <code>.py</code> file in an image without <code>python</code> fails exactly like a <code>.bash</code> file
+in one without <code>bash</code>.</p>
+<p>Two ways out:</p>
+<ul>
+<li>match the image to the file type — <code>python:3.12</code> for <code>.py</code>, <code>node:22</code> for
+  <code>.js</code>, <code>bash:5.2</code> for <code>.bash</code></li>
+<li>use <code>commands=</code> instead of <code>file=</code>, which always runs through <code>/bin/sh</code>
+  and so works in any image with a shell</li>
+</ul>
+</div>
 <h3 id="environment-variables-available-inside-the-container">Environment variables available inside the container<a class="headerlink" href="#environment-variables-available-inside-the-container" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2544,15 +2683,33 @@
 <td>base64-encoded script (consumed automatically by the entrypoint)</td>
 </tr>
 <tr>
-<td><code>BABELSUITE_WORKSPACE</code></td>
+<td><code>BABELSUITE_WORKSPACE_DIR</code></td>
 <td>path to the shared execution workspace bind-mounted into the container</td>
 </tr>
 <tr>
+<td><code>BABELSUITE_GATEWAY_URL</code></td>
+<td>the APISIX sidecar address this step can reach, when the suite has a mock surface</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_GATEWAY_URLS</code></td>
+<td>comma-separated address per mock node, in topology order</td>
+</tr>
+<tr>
 <td><code>BABELSUITE_ARTIFACTS_DIR</code></td>
-<td>path to the artifacts directory; files written here are harvested after exit</td>
+<td>Kubernetes backend only — path to the artifacts sidecar mount</td>
 </tr>
 </tbody>
 </table>
+<p><code>BABELSUITE_GATEWAY_URL</code> is how a <code>task.run</code> or <code>test.run</code> reaches a mock
+surface without hardcoding a host and port. It is set only when the suite has
+one, so a step can tell the difference between "no gateway" and "wrong address".</p>
+<div class="admonition note">
+<p class="admonition-title"><code>BABELSUITE_ARTIFACTS_DIR</code> is Kubernetes-only</p>
+<p>The Docker backend does not set it. There, <code>.export(...)</code> paths are read
+from the shared workspace mount after the container exits, so write exports
+to a path relative to the working directory (<code>reports/junit.xml</code>) and the
+runner collects them.</p>
+</div>
 <h3 id="detached-services">Detached services<a class="headerlink" href="#detached-services" title="Permanent link">&para;</a></h3>
 <p><code>service.run(image="...")</code> runs the container detached:</p>
 <ul>
@@ -2562,35 +2719,91 @@
 <li>The container is stopped and removed when the execution context is cancelled (execution end or failure).</li>
 </ul>
 <h2 id="profile-controlled-step-config">Profile-Controlled Step Config<a class="headerlink" href="#profile-controlled-step-config" title="Permanent link">&para;</a></h2>
-<p>Hardware and networking are declared in the <strong>profile YAML</strong>, not in <code>suite.star</code>. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge) and a GPU cluster (with devices, execution network) by switching profiles.</p>
+<p>Hardware, memory and networking are declared in the <strong>profile YAML</strong>, not in <code>suite.star</code>. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge, modest memory) and a GPU cluster (with devices, execution network, a larger ceiling) by switching profiles.</p>
 <h3 id="servicesnamedevices"><code>services.&lt;name&gt;.devices</code><a class="headerlink" href="#servicesnamedevices" title="Permanent link">&para;</a></h3>
 <p>Attach hardware devices to a step's container:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># perf.yaml</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">services</span><span class="p">:</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">seed-job</span><span class="p">:</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">        </span><span class="c1"># NVIDIA GPU (all)</span>
-</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
-</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># camera</span>
-</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">verify-hw</span><span class="p">:</span>
-</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/ttyUSB0&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># USB serial</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># perf.yaml</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">seed-job</span><span class="p">:</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span><span class="w">        </span><span class="c1"># NVIDIA GPU (all)</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">capture</span><span class="p">:</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/video0&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># camera</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">verify-hw</span><span class="p">:</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;/dev/ttyUSB0&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># USB serial</span>
 </span></code></pre></div>
-<p>Device values translate automatically per backend — see <a href="../profiles/#servicesdevices">Profiles</a> for the full mapping table (Docker <code>DeviceRequest</code>/<code>DeviceMapping</code>, Kubernetes <code>nvidia.com/gpu</code> resource limits, remote agent capability matching).</p>
+<p>Device values translate automatically per backend — see <a href="../profiles/#servicesnamedevices">Profiles</a> for the full mapping table (Docker <code>DeviceRequest</code>/<code>DeviceMapping</code>, Kubernetes <code>nvidia.com/gpu</code> resource limits, remote agent capability matching).</p>
+<h3 id="servicesnamememory"><code>services.&lt;name&gt;.memory</code><a class="headerlink" href="#servicesnamememory" title="Permanent link">&para;</a></h3>
+<p>Raise one step's container memory ceiling above the 512 MB default:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># local.yaml</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">ollama</span><span class="p">:</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">    </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2Gi</span>
+</span></code></pre></div>
+<p>Accepts the Kubernetes quantity grammar — binary units (<code>2Gi</code>, <code>512Mi</code>),
+decimal units (<code>2G</code>, <code>512M</code>), fractions (<code>1.5Gi</code>), or a plain byte count.
+Suffixes are case-sensitive, and <code>2GB</code>/<code>512MB</code> are not valid. It is a ceiling
+rather than a reservation, so the step still uses only what it touches, and
+every other step keeps the default. A step whose process dies with
+<code>signal: killed</code> during start-up has hit this limit — see
+<a href="../profiles/#servicesnamememory">Profiles</a>.</p>
 <h3 id="networkmode"><code>network.mode</code><a class="headerlink" href="#networkmode" title="Permanent link">&para;</a></h3>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># staging.yaml</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nt">network</span><span class="p">:</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># isolated bridge — containers reach each other by node name</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># staging.yaml</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="nt">network</span><span class="p">:</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># isolated bridge — containers reach each other by node name</span>
 </span></code></pre></div>
-<p>When <code>mode: execution</code> is set, every container in the execution joins a shared Docker bridge network. The node's <code>name</code> becomes its DNS hostname — a <code>service.run(name="redis")</code> is reachable at <code>redis:6379</code> from any <code>task.run</code> or <code>test.run</code> in the same execution. No <code>suite.star</code> changes required.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># suite.star — works the same regardless of network mode</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">redis</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;redis&quot;</span><span class="p">,</span>  <span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">)</span>
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">api</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">redis</span><span class="p">])</span>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">smoke</span>   <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="n">image</span>    <span class="o">=</span> <span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span>
-</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    <span class="n">commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python test.py --host api --redis redis:6379&quot;</span><span class="p">],</span>
-</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>    <span class="n">after</span>    <span class="o">=</span> <span class="p">[</span><span class="n">api</span><span class="p">],</span>
-</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="p">)</span>
+<p>Every container in the execution joins a shared Docker bridge network, and the node's <code>name</code> becomes its DNS hostname — a <code>service.run(name="redis")</code> is reachable at <code>redis:6379</code> from any <code>task.run</code> or <code>test.run</code> in the same execution. No <code>suite.star</code> changes required.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>network.mode</code> is read but not yet acted on</p>
+<p>The Docker backend creates and joins the per-execution network
+unconditionally, because the shipped modules address other steps by name in
+every profile — <code>connect()</code> dials <code>&lt;db name&gt;:5432</code> whether or not a profile
+opted in. <code>host</code> and <code>none</code> are parsed and stored but change nothing today,
+so treat the three values as the intended contract rather than working
+configuration.</p>
+</div>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># suite.star — works the same regardless of network mode</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">redis</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;redis&quot;</span><span class="p">,</span>  <span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">)</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">api</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">,</span>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">redis</span><span class="p">])</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">smoke</span>   <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>    <span class="n">image</span>    <span class="o">=</span> <span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span>
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="n">commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python test.py --host api --redis redis:6379&quot;</span><span class="p">],</span>
+</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>    <span class="n">after</span>    <span class="o">=</span> <span class="p">[</span><span class="n">api</span><span class="p">],</span>
+</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The network is created at execution start and removed when the execution finishes, alongside the shared workspace directory.</p>
+<h3 id="service-names-when-suites-are-composed">Service names when suites are composed<a class="headerlink" href="#service-names-when-suites-are-composed" title="Permanent link">&para;</a></h3>
+<p>Node ids are namespaced when a suite is imported (<code>identity-broker/db</code>), but a
+hostname has no namespace — the network is flat. Three dependencies that each
+call <code>pg()</code> would otherwise all answer to <code>db</code>, and Docker lets them share that
+alias, so <code>psql ... @db:5432</code> reaches whichever one DNS returned.</p>
+<p>A contested name therefore has exactly one publisher:</p>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Answers to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A service in the suite being run</td>
+<td>its bare name — <code>db</code></td>
+</tr>
+<tr>
+<td>A service in an imported suite, name uncontested</td>
+<td>its bare name — <code>broker-api</code></td>
+</tr>
+<tr>
+<td>A service in an imported suite, name contested</td>
+<td><code>&lt;suite&gt;-&lt;service&gt;</code> — <code>identity-broker-db</code></td>
+</tr>
+</tbody>
+</table>
+<p>The suite being run keeps the bare name, so its own steps are unaffected. Point
+an imported suite at its own service with <code>inputs:</code> in <code>dependencies.yaml</code> —
+see <a href="../dependencies/#contested-service-names">Dependency Manifests</a>. Left
+unwired, the bare name resolves to nothing and the step fails saying so, rather
+than silently reading another suite's database.</p>
 <h2 id="authoring-rules">Authoring Rules<a class="headerlink" href="#authoring-rules" title="Permanent link">&para;</a></h2>
 <ul>
 <li>one node assignment per logical statement</li>

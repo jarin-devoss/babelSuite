@@ -11,7 +11,7 @@
       
       
       
-        <link rel="prev" href="../getting-started/">
+        <link rel="prev" href="../demo/">
       
       
         <link rel="next" href="../control-plane/">
@@ -262,6 +262,23 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../demo/" class="md-tabs__link">
+        
+  
+    
+  
+  Demo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -480,6 +497,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Demo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -500,10 +537,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -514,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Core
           </label>
@@ -1115,10 +1152,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1129,8 +1166,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Interfaces
           </label>
@@ -1513,7 +1550,7 @@
     end
 
     subgraph Storage["Storage"]
-        DB[("MongoDB / PostgreSQL")]
+        DB[("MongoDB")]
         Redis[("Redis (optional)")]
         YAML["YAML files\n(platform, profiles)"]
     end
@@ -1552,7 +1589,7 @@
 <ul>
 <li><code>backend/cmd/server/main.go</code></li>
 <li><code>backend/cmd/server/app.go</code></li>
-<li><code>backend/cmd/server/health.go</code></li>
+<li><code>backend/cmd/server/support.go</code></li>
 </ul>
 <p>The server wires together:</p>
 <ul>
@@ -1648,8 +1685,28 @@
 <td>Worker registry, coordinator, worker control APIs</td>
 </tr>
 <tr>
-<td><code>internal/sandbox</code></td>
-<td>Environment inventory and cleanup APIs</td>
+<td><code>internal/environments</code></td>
+<td>Environment inventory and cleanup APIs (served under <code>/api/v1/sandboxes</code>)</td>
+</tr>
+<tr>
+<td><code>internal/engine</code></td>
+<td>Rolling execution overview and its SSE stream</td>
+</tr>
+<tr>
+<td><code>internal/cronjobs</code></td>
+<td>Scheduled suite runs, reports, and notifications</td>
+</tr>
+<tr>
+<td><code>internal/mocking</code></td>
+<td>Mock surface resolution and the REST/gRPC/async handlers</td>
+</tr>
+<tr>
+<td><code>internal/queue</code></td>
+<td>Dependency-ordered step scheduling</td>
+</tr>
+<tr>
+<td><code>internal/telemetry</code></td>
+<td>OpenTelemetry tracer and meter setup</td>
 </tr>
 <tr>
 <td><code>internal/httpserver</code></td>
@@ -1657,7 +1714,7 @@
 </tr>
 <tr>
 <td><code>internal/store</code></td>
-<td>Datastore and cache abstractions (MongoDB, PostgreSQL, Redis)</td>
+<td>Datastore and cache abstractions (MongoDB, Redis)</td>
 </tr>
 </tbody>
 </table>
@@ -1675,12 +1732,9 @@
 </ul>
 <h2 id="storage-model">Storage Model<a class="headerlink" href="#storage-model" title="Permanent link">&para;</a></h2>
 <h3 id="primary-store">Primary store<a class="headerlink" href="#primary-store" title="Permanent link">&para;</a></h3>
-<p>The control plane uses either:</p>
-<ul>
-<li>MongoDB (default)</li>
-<li>PostgreSQL</li>
-</ul>
-<p>Configured via <code>DB_DRIVER</code> environment variable.</p>
+<p>The control plane uses MongoDB, configured with <code>MONGO_URI</code> and <code>MONGO_DB</code>.</p>
+<p>A PostgreSQL store exists under <code>internal/store/postgres</code>, but the server
+entrypoint reads no driver-selection variable, so it cannot be selected today.</p>
 <h3 id="cache-layer">Cache layer<a class="headerlink" href="#cache-layer" title="Permanent link">&para;</a></h3>
 <p>Redis is optional and accelerates:</p>
 <ul>
@@ -1698,7 +1752,8 @@
 <p>Both are optionally cached in Redis.</p>
 <h2 id="middleware-stack">Middleware Stack<a class="headerlink" href="#middleware-stack" title="Permanent link">&para;</a></h2>
 <p>The server wraps all API traffic with shared middleware in this order:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>CORS → Request IDs → Auth Session → OTel Trace → HTTP Metrics → Audit
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Recovery → Security Headers → CORS → CSRF → Body Limit (10 MB) →
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Request IDs → Auth Session → OTel Trace → Trace Context → HTTP Metrics → Audit
 </span></code></pre></div>
 <p>This keeps system-wide concerns centralized rather than re-implemented in each handler.</p>
 <p>For full middleware details, see <a href="../control-plane/">Control Plane Reference</a>.</p>
@@ -1734,7 +1789,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting Started">
+          <a href="../demo/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Demo">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1744,7 +1799,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Getting Started
+                Demo
               </div>
             </div>
           </a>
