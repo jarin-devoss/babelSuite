@@ -37,8 +37,66 @@
   color: #243d50;
 }
 
-.dag-close {
+/* Pushed to the right so the zoom group and Close sit together, with the zoom
+   controls first because they are used far more often than Close. */
+.dag-zoom {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dag-zoom__btn,
+.dag-zoom__level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #5a7a8e;
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.dag-zoom__btn {
+  width: 28px;
+  font-size: 0.8rem;
+}
+
+/* Fixed width so stepping through 25% → 100% → 300% does not shift the
+   buttons either side of it. */
+.dag-zoom__level {
+  min-width: 52px;
+  padding: 0 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dag-zoom__btn:hover:not(:disabled),
+.dag-zoom__level:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #c8dce8;
+}
+
+.dag-zoom__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.dag-zoom__btn:focus-visible,
+.dag-zoom__level:focus-visible {
+  outline: 2px solid #0DADEA;
+  outline-offset: 1px;
+}
+
+.dag-close {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -67,6 +125,20 @@
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: #162636 transparent;
+  /* The pointer-capture drag would otherwise be interrupted by the browser's
+     own touch panning and image/text drag behaviour. */
+  touch-action: none;
+}
+
+/* Only advertise dragging when there is something off-screen to reach. */
+.dag-scroll--pannable {
+  cursor: grab;
+}
+
+.dag-scroll--panning {
+  cursor: grabbing;
+  /* Stops the drag selecting node labels as it sweeps across them. */
+  user-select: none;
 }
 
 .dag-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
