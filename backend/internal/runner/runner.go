@@ -20,6 +20,9 @@ type StepNode struct {
 	Commands    []string
 	FileContent string
 	Devices     []string
+	// MemoryBytes overrides the runner's default container memory ceiling for
+	// this step. Zero keeps the default.
+	MemoryBytes int64
 	DependsOn   []string
 }
 
@@ -31,43 +34,51 @@ type ArtifactExport struct {
 }
 
 type StepSpec struct {
-	ExecutionID      string
-	SuiteID          string
-	SuiteTitle       string
-	SuiteRepository  string
-	Profile          string
-	RuntimeProfile   string
-	Env              map[string]string
-	Headers          map[string]string
-	Trigger          string
-	BackendID        string
-	BackendLabel     string
-	BackendKind      string
-	SourceSuiteID    string
-	SourceSuiteTitle string
-	SourceRepository string
-	SourceVersion    string
-	ResolvedRef      string
-	Digest           string
-	DependencyAlias  string
-	StepIndex        int
-	TotalSteps       int
-	HealthySteps     int
-	LeaseTTL         time.Duration
-	Load             *suites.LoadSpec
-	Security         *suites.SecuritySpec
-	Plugin           *suites.PluginSpec
+	ExecutionID       string
+	SuiteID           string
+	SuiteTitle        string
+	SuiteRepository   string
+	Profile           string
+	RuntimeProfile    string
+	Env               map[string]string
+	Headers           map[string]string
+	Trigger           string
+	BackendID         string
+	BackendLabel      string
+	BackendKind       string
+	SourceSuiteID     string
+	SourceSuiteTitle  string
+	SourceRepository  string
+	SourceVersion     string
+	ResolvedRef       string
+	Digest            string
+	DependencyAlias   string
+	StepIndex         int
+	TotalSteps        int
+	HealthySteps      int
+	LeaseTTL          time.Duration
+	Load              *suites.LoadSpec
+	Security          *suites.SecuritySpec
+	Plugin            *suites.PluginSpec
 	RegisteredPlugins []platform.CustomPlugin
-	Evaluation       *suites.StepEvaluation
-	OnFailure        []string
-	ArtifactExports  []ArtifactExport
+	Evaluation        *suites.StepEvaluation
+	OnFailure         []string
+	ArtifactExports   []ArtifactExport
 	// OnArtifact is called once per collected artifact file, with its container path and raw bytes.
 	// May be nil when the backend does not support container-level file collection.
 	OnArtifact func(path string, content []byte)
-	Node             StepNode
+	Node       StepNode
 	// NetworkName is the Docker network all step containers in this execution share.
 	// Empty means no dedicated network (default Docker bridge).
 	NetworkName string
+	// NetworkAliases are the hostnames this step answers to on the execution
+	// network. Empty falls back to the step's own name.
+	//
+	// It is set by the caller because deciding the name needs the whole
+	// topology: node names are scoped to the suite that declared them while the
+	// network is flat, so two composed suites can each contribute a "db". The
+	// caller resolves that to one publisher per name.
+	NetworkAliases []string
 	// GatewayURL is the primary APISIX sidecar address (first mock node).
 	GatewayURL string
 	// GatewayURLs contains one address per mock node in topology order.

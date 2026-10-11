@@ -236,10 +236,26 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 			state.stepStatus[node.ID] = "pending"
 		}
 		state.record.Suite = buildExecutionSuite(*suite)
+		// Computed once from the whole resolved topology, because deciding
+		// whether a service name is contested needs every node, not just one.
+		state.networks = buildNetworkPlan(resolved.Nodes, suite.ID)
 	}
 	s.mu.Unlock()
+
 	if state == nil {
 		return
+	}
+
+	if contested := s.networkPlan(executionID).contestedNames(); len(contested) > 0 {
+		s.appendEvent(executionID, ExecutionEvent{
+			ID:        "contested-service-names",
+			Source:    "boot",
+			Timestamp: s.nextTimestamp(executionID),
+			Text: "More than one composed suite declares " + strings.Join(contested, ", ") +
+				". This suite keeps the bare name; an imported suite's service answers to " +
+				"<suite>-<service> instead. Point a dependency at its own with inputs: in dependencies.yaml.",
+			Level: "info",
+		})
 	}
 
 	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700) //nolint:errcheck
@@ -289,7 +305,13 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 		})
 	}
 
-	runner.SetupExecutionNetwork(executionID)
+	// Unconditional: every step container joins this network so one step can
+	// reach another by node name, which only works on a user-defined network.
+	if err := runner.SetupExecutionNetwork(executionID); err != nil {
+		s.noteRejectedLaunch(context.Background(), suite.ID, "network_setup_failed")
+		s.failBootedExecution(executionID, err)
+		return
+	}
 	if err := s.ensureSuiteSidecar(suite, profile); err != nil {
 		s.failBootedExecution(executionID, fmt.Errorf("APISIX sidecar failed to start: %w", err))
 		return
@@ -359,6 +381,27 @@ func (s *Service) failBootedExecution(executionID string, err error) {
 		item.record.UpdatedAt = time.Now().UTC()
 	}
 	s.mu.Unlock()
+
+	// Boot fails before any step exists, so without this the run shows as
+	// "Failed" with no events, no logs and no message — the reason is known
+	// here and nowhere else. Record it as an event so whatever went wrong
+	// (topology, profile, secrets, network) is readable in the execution.
+	//
+	// Appended after the status change on purpose: appendEvent stamps the
+	// execution's current status onto what it publishes, so emitting first
+	// would leave every subscriber holding an error that claims the run is
+	// still booting. The status change itself publishes nothing.
+	if err != nil {
+		s.appendEvent(executionID, ExecutionEvent{
+			ID:        "boot-failed",
+			Source:    "boot",
+			Timestamp: s.nextTimestamp(executionID),
+			Text:      "Execution could not start: " + err.Error(),
+			Status:    "failed",
+			Level:     "error",
+		})
+	}
+
 	s.finishExecutionObservation(executionID, err)
 }
 
@@ -407,44 +450,45 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 	collectedFiles := make(map[string][]byte)
 
 	err := backend.Run(stepCtx, runner.StepSpec{
-		ExecutionID:      executionID,
-		SuiteID:          suite.ID,
-		SuiteTitle:       suite.Title,
-		SuiteRepository:  suite.Repository,
-		Profile:          profile,
-		RuntimeProfile:   strutil.FirstNonEmpty(node.RuntimeProfile, profile),
-		Env:              s.resolveNodeRuntimeEnv(executionID, node),
-		Headers:          cloneRuntimeMap(node.RuntimeHeaders),
-		Trigger:          s.executionTrigger(executionID),
-		BackendID:        s.executionBackendID(executionID),
-		BackendLabel:     s.executionBackendLabel(executionID),
-		BackendKind:      backend.Kind(),
-		SourceSuiteID:    strutil.FirstNonEmpty(node.SourceSuiteID, suite.ID),
-		SourceSuiteTitle: strutil.FirstNonEmpty(node.SourceSuiteTitle, suite.Title),
-		SourceRepository: strutil.FirstNonEmpty(node.SourceRepository, suite.Repository),
-		SourceVersion:    strutil.FirstNonEmpty(node.SourceVersion, suite.Version),
-		ResolvedRef:      node.ResolvedRef,
-		Digest:           node.Digest,
-		DependencyAlias:  node.DependencyAlias,
-		StepIndex:        node.Order,
-		TotalSteps:       len(suite.Topology),
-		HealthySteps:     s.countHealthySteps(executionID),
-		LeaseTTL:         8 * time.Second,
+		ExecutionID:       executionID,
+		SuiteID:           suite.ID,
+		SuiteTitle:        suite.Title,
+		SuiteRepository:   suite.Repository,
+		Profile:           profile,
+		RuntimeProfile:    strutil.FirstNonEmpty(node.RuntimeProfile, profile),
+		Env:               s.resolveNodeRuntimeEnv(executionID, node),
+		Headers:           cloneRuntimeMap(node.RuntimeHeaders),
+		Trigger:           s.executionTrigger(executionID),
+		BackendID:         s.executionBackendID(executionID),
+		BackendLabel:      s.executionBackendLabel(executionID),
+		BackendKind:       backend.Kind(),
+		SourceSuiteID:     strutil.FirstNonEmpty(node.SourceSuiteID, suite.ID),
+		SourceSuiteTitle:  strutil.FirstNonEmpty(node.SourceSuiteTitle, suite.Title),
+		SourceRepository:  strutil.FirstNonEmpty(node.SourceRepository, suite.Repository),
+		SourceVersion:     strutil.FirstNonEmpty(node.SourceVersion, suite.Version),
+		ResolvedRef:       node.ResolvedRef,
+		Digest:            node.Digest,
+		DependencyAlias:   node.DependencyAlias,
+		StepIndex:         node.Order,
+		TotalSteps:        len(suite.Topology),
+		HealthySteps:      s.countHealthySteps(executionID),
+		LeaseTTL:          8 * time.Second,
 		Load:              suitesCloneLoadSpec(node.Load),
 		Security:          node.Security,
 		Plugin:            rewritePluginConfigForHostAccess(executionID, suite, node.Plugin),
 		RegisteredPlugins: s.loadRegisteredPlugins(),
-		Evaluation:       cloneNodeEvaluation(node.Evaluation),
-		OnFailure:        append([]string{}, node.OnFailure...),
-		ArtifactExports:  cloneNodeArtifactExports(node.ArtifactExports),
+		Evaluation:        cloneNodeEvaluation(node.Evaluation),
+		OnFailure:         append([]string{}, node.OnFailure...),
+		ArtifactExports:   cloneNodeArtifactExports(node.ArtifactExports),
 		OnArtifact: func(path string, content []byte) {
 			if len(content) > 0 {
 				collectedFiles[path] = content
 			}
 		},
-		GatewayURL:   resolveGatewayURL(executionID, suite, profile),
-		GatewayURLs:  resolveGatewayURLs(executionID, suite, profile),
-		PublishPorts: pluginHostPortRefs(suite)[node.Name],
+		NetworkAliases: s.networkPlan(executionID).aliasesForNode(node, suite.ID),
+		GatewayURL:     resolveGatewayURL(executionID, suite, profile),
+		GatewayURLs:    resolveGatewayURLs(executionID, suite, profile),
+		PublishPorts:   pluginHostPortRefs(suite)[node.Name],
 		Node: runner.StepNode{
 			ID:          node.ID,
 			Name:        node.Name,
@@ -454,7 +498,9 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 			Message:     node.Message,
 			File:        node.File,
 			Commands:    append([]string{}, node.Commands...),
-			FileContent: resolveNodeFileContent(node.File, suite),
+			FileContent: resolveNodeFileContent(node, suite),
+			Devices:     s.resolveNodeDevices(executionID, node),
+			MemoryBytes: s.resolveNodeMemory(executionID, node),
 			DependsOn:   append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {
@@ -585,12 +631,35 @@ func (s *Service) appendEvent(executionID string, event ExecutionEvent) {
 	s.syncObservers(executionID)
 }
 
-func resolveNodeFileContent(file string, suite *suites.Definition) string {
+// nodeSourceFiles returns the package a node's file= should be resolved
+// against. A step pulled in through a suite dependency carries its own
+// package, and its script lives there rather than in the suite being run —
+// identity-broker's seed-realms names tasks/seed_realms.sh, which exists in
+// identity-broker and not in the composite suite that depends on it. Searching
+// only the parent meant every dependency step's file= resolved to nothing.
+func nodeSourceFiles(node topologyNode, suite *suites.Definition) []suites.SourceFile {
+	owner := strutil.FirstNonEmpty(node.SourceSuiteID, suite.ID)
+	if owner == suite.ID {
+		return suite.SourceFiles
+	}
+	for _, dependency := range suite.ResolvedDependencies {
+		if dependency.SuiteID == owner && len(dependency.SourceFiles) > 0 {
+			return dependency.SourceFiles
+		}
+	}
+	// An unresolved dependency has no package to search. Fall back to the
+	// parent rather than returning nil, so a node that merely carries a stale
+	// SourceSuiteID still behaves as it did.
+	return suite.SourceFiles
+}
+
+func resolveNodeFileContent(node topologyNode, suite *suites.Definition) string {
+	file := node.File
 	if file == "" || suite == nil {
 		return ""
 	}
 	candidates := []string{file, "tasks/" + file, "tests/" + file}
-	for _, sf := range suite.SourceFiles {
+	for _, sf := range nodeSourceFiles(node, suite) {
 		for _, candidate := range candidates {
 			if sf.Path == candidate {
 				return sf.Content

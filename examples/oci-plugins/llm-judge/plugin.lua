@@ -1,6 +1,16 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+-- cjson encodes an empty Lua table as {}, which the runner cannot decode into
+-- a findings array — so a step where everything passed is exactly the case
+-- that breaks. Same guard the consumer-lag plugin uses.
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
+-- One copy of the default, because it is both sent to the endpoint and
+-- reported as a span attribute. Two literals would eventually disagree and the
+-- trace would name a model the plugin never called. Matches schema.cue.
+local DEFAULT_MODEL = "gpt-4o-mini"
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -10,12 +20,21 @@ _M.schema   = {type = "object", properties = {}, additionalProperties = false}
 -- The model answers each criterion independently rather than emitting one
 -- overall score. Small yes/no judgements are far more repeatable than a 1-10
 -- rating, and each "no" carries its own reason straight into a finding.
+-- The shape is shown as a filled-in example, not a template with placeholders.
+-- Small models copy a literal "yes|no" or "<one sentence>" straight through
+-- into their answer, which scores every criterion as a failure.
 local SYSTEM_PROMPT = [[
 You grade text against criteria. Answer each criterion independently.
-Reply with JSON only, no prose and no markdown fences, in exactly this shape:
-{"verdicts":[{"criterion":"<verbatim criterion>","verdict":"yes|no","reason":"<one sentence>"}]}
-Answer "yes" only when the text clearly satisfies the criterion. When it is
-ambiguous or unsupported, answer "no" and say why.
+Reply with JSON only: no prose, no markdown fences.
+Return one object with a "verdicts" array holding one entry per criterion.
+Each entry has "criterion" (copied exactly from the list), "verdict", and
+"reason". The "verdict" field must be the word yes or the word no, nothing else.
+
+Example of a well-formed reply:
+{"verdicts":[{"criterion":"mentions a price","verdict":"yes","reason":"it quotes $40"},{"criterion":"names a courier","verdict":"no","reason":"no carrier is named"}]}
+
+Answer yes only when the text clearly satisfies the criterion. When it is
+ambiguous or unsupported, answer no and say why.
 ]]
 
 local function fetch_body(target, timeout_ms)
@@ -49,14 +68,24 @@ local function call_model(cfg, prompt)
         headers["Authorization"] = "Bearer " .. cfg.api_key
     end
 
-    local body = json.encode({
-        model = cfg.model or "gpt-4o-mini",
+    local request = {
+        model = cfg.model or DEFAULT_MODEL,
         messages = {
             {role = "system", content = SYSTEM_PROMPT},
             {role = "user",   content = prompt},
         },
         temperature = 0,
-    })
+    }
+
+    -- Ask the server to constrain decoding to JSON. Instructions alone are not
+    -- enough: models wrap the object in prose or stop mid-string, and the reply
+    -- is then unparseable. Set structured=false for an endpoint that rejects
+    -- the field.
+    if cfg.structured ~= false then
+        request.response_format = {type = "json_object"}
+    end
+
+    local body = json.encode(request)
 
     local httpc = http.new()
     httpc:set_timeout(cfg.timeout_ms or 30000)
@@ -83,7 +112,12 @@ local function call_model(cfg, prompt)
 
     local parsed_ok, parsed = pcall(json.decode, strip_fences(content))
     if not parsed_ok or type(parsed) ~= "table" or type(parsed.verdicts) ~= "table" then
-        return nil, "judge model did not return the expected verdicts shape"
+        -- Quote what actually came back. Without it the only way to tell a
+        -- prose preamble from a truncated object from a renamed field is to
+        -- reproduce the call by hand against the same model.
+        local snippet = tostring(content):gsub("%s+", " ")
+        if #snippet > 300 then snippet = snippet:sub(1, 300) .. "..." end
+        return nil, "judge model did not return the expected verdicts shape; got: " .. snippet
     end
     return parsed.verdicts, nil
 end
@@ -149,7 +183,7 @@ local function run_judge(cfg, severity)
 
     return {
         passed   = passed,
-        findings = findings,
+        findings = as_array(findings),
         summary  = string.format(
             "judge scored %.2f (%d/%d criteria) against a threshold of %.2f",
             score, passed_count, total, threshold
@@ -158,17 +192,18 @@ local function run_judge(cfg, severity)
         -- Added to this step's runner.run trace span. Keep these low-cardinality:
         -- the score and the model, never the prompt or a per-call id.
         attributes = {
+            ["judge.status"]    = "scored",
             ["judge.score"]     = string.format("%.2f", score),
             ["judge.passed"]    = tostring(passed_count),
             ["judge.total"]     = tostring(total),
             ["judge.threshold"] = string.format("%.2f", threshold),
-            ["judge.model"]     = tostring(cfg.model or "gpt-4o-mini"),
+            ["judge.model"]     = tostring(cfg.model or DEFAULT_MODEL),
         },
     }, nil
 end
 
 function _M.access(conf, ctx)
-    if ngx.var.uri ~= "/_babelsuite/plugins/llm-judge/start" then return ngx.exit(404) end
+    if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()
@@ -189,7 +224,27 @@ function _M.access(conf, ctx)
     local severity = (op == "monitor") and "warn" or (cfg.severity or "critical")
 
     local result, err = run_judge(cfg, severity)
-    if err then ngx.status = 500; ngx.say(json.encode({error = err})); return ngx.exit(500) end
+    if err then
+        -- A model that is unreachable, or that answers unusably, is a step
+        -- outcome rather than a transport fault. Reporting it as a 200 with
+        -- passed=false lets the finding, the summary and the span attributes
+        -- all reach the run; a 500 discards every one of them, and it also
+        -- broke monitor's promise never to block the suite.
+        result = {
+            passed   = (op == "monitor"),
+            findings = {{
+                label    = "judge.unavailable",
+                severity = (op == "monitor") and "warn" or "critical",
+                detail   = err,
+            }},
+            summary = "judge did not produce a score: " .. err,
+            level   = (op == "monitor") and "warn" or "error",
+            attributes = {
+                ["judge.status"] = "unavailable",
+                ["judge.model"]  = tostring(cfg.model or DEFAULT_MODEL),
+            },
+        }
+    end
 
     ngx.status = 200
     ngx.header["Content-Type"] = "application/json"

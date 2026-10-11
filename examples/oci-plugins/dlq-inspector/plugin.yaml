@@ -1,6 +1,8 @@
 name: dlq-inspector
-trigger: /_babelsuite/plugins/dlq-inspector/start
+version: 1.0.0
 kind: plugin
 variants: [dlq-inspector]
+operations: [inspect, watch_dlq]
 schema: schema.cue
 lua: plugin.lua
+star: plugin.star

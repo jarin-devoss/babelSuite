@@ -1,6 +1,8 @@
 name: schema-compat
-trigger: /_babelsuite/plugins/schema-compat/start
+version: 1.0.0
 kind: plugin
 variants: [schema-compat]
+operations: [check_compat, enforce]
 schema: schema.cue
 lua: plugin.lua
+star: plugin.star

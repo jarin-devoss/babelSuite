@@ -84,7 +84,7 @@ local function run_watch_lag(cfg, rest_url)
 end
 
 function _M.access(conf, ctx)
-    if ngx.var.uri ~= "/_babelsuite/plugins/consumer-lag/start" then return ngx.exit(404) end
+    if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()

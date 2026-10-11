@@ -127,6 +127,15 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		return nil
 	}
 
+	// A step that names a file the package does not contain used to be treated
+	// as a step with nothing to run: no container was started and the simulated
+	// path reported it healthy. A missing script is the one failure that must
+	// not pass quietly, so it is reported here instead.
+	if err := requireResolvedStepFile(step); err != nil {
+		emitLine(line(step, "error", fmt.Sprintf("[%s] %s", step.Node.Name, err.Error())))
+		return err
+	}
+
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner claimed the step on the host worker.", step.Node.Name)))
 	emitLine(line(step, "info", bootMessage(step)))
 	if len(step.Env) > 0 {
@@ -197,6 +206,35 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	emitLine(line(step, "info", probeMessage(step)))
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner reported the step healthy and released the lease cycle.", step.Node.Name)))
 	return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
+}
+
+// requireResolvedStepFile reports a step whose file= names an asset the suite
+// package does not contain. The failure is otherwise silent in two different
+// ways: a task or test starts no container at all, because stepRequiresContainer
+// sees no script, and the simulated path then calls it healthy; a service with
+// an image does start one, and runs the image's default command instead of the
+// script nobody noticed was missing.
+//
+// Only the kinds that actually execute file= are checked, which is the same set
+// stepRequiresContainer accepts — keep the two together. For every other kind
+// the runner never reads the field, so a missing file is not what is wrong with
+// the step and "ship the file" would be the wrong thing to go and do.
+func requireResolvedStepFile(step StepSpec) error {
+	switch step.Node.Kind {
+	case "task", "test", "service":
+	default:
+		return nil
+	}
+	file := strings.TrimSpace(step.Node.File)
+	if file == "" || strings.TrimSpace(step.Node.FileContent) != "" {
+		return nil
+	}
+	// The same candidates the suite package is searched for, in the same order,
+	// and not narrowed by kind: the lookup does not consult the kind either, so
+	// a narrower list here would name fewer paths than were really tried.
+	searched := []string{file, "tasks/" + file, "tests/" + file}
+	return fmt.Errorf("file %q was not found in the suite package (looked for %s) — "+
+		"check the path or ship the file", file, strings.Join(searched, ", "))
 }
 
 func stepRequiresContainer(step StepSpec) bool {

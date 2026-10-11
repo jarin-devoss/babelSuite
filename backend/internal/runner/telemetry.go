@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -88,14 +89,28 @@ func recordPluginSpanAttributes(ctx context.Context, attributes map[string]strin
 		if len(recorded) >= maxPluginSpanAttributes {
 			break
 		}
-		value := attributes[key]
-		if len(value) > maxPluginSpanValueLength {
-			value = value[:maxPluginSpanValueLength]
-		}
+		value := truncatePluginSpanValue(attributes[key])
 		recorded = append(recorded, attribute.String(pluginSpanAttributePrefix+key, value))
 	}
 
 	span.SetAttributes(recorded...)
+}
+
+// truncatePluginSpanValue caps an attribute value at the byte limit without
+// cutting a rune in half. Plugin values are JSON strings, so they are UTF-8 and
+// may well be non-ASCII — a model name, a label, a quoted snippet. Slicing on a
+// byte index alone can land mid-rune and leave a dangling lead byte, which
+// makes the exported attribute invalid UTF-8 rather than merely shortened.
+func truncatePluginSpanValue(value string) string {
+	if len(value) <= maxPluginSpanValueLength {
+		return value
+	}
+	cut := maxPluginSpanValueLength
+	// Walk back off any continuation byte so the cut lands on a rune start.
+	for cut > 0 && !utf8.RuneStart(value[cut]) {
+		cut--
+	}
+	return value[:cut]
 }
 
 func finishStepSpan(ctx context.Context, span trace.Span, step StepSpec, err error) {
