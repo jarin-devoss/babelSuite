@@ -73,6 +73,7 @@ Teams running integration tests without BabelSuite usually have a shell script a
 | Service mocks | Separate mock servers, manual wiring | Built-in, with state machines and request routing |
 | Reusable infrastructure | Copy-paste Compose snippets | OCI modules — load Kafka or Postgres with one line |
 | Scheduled regression runs | Cron shell scripts | Built-in cron jobs with email and Slack reports |
+| Traceability | None | OpenTelemetry traces and audit logs |
 
 **BabelSuite is the right fit if you:**
 
@@ -127,65 +128,11 @@ broker ────┬── orders_topic ┐                 │
                                                checkout_smoke
 ```
 
-### In the UI
-
-Every screenshot below is of the bundled `examples/` suites running on a laptop — nothing staged.
-
-**Logs and step status stream while the environment boots.** The topology panel groups steps into the waves they can start in, and the counters track healthy, running, failed, skipped and pending steps.
-
-![Live execution: logs streaming from a booting payment suite, with the topology panel and step counters](docs/images/live-execution.png)
-
-**The topology graph is the same dependency graph, drawn.** Click a node to filter the logs to that step; Ctrl/⌘ + scroll to zoom, drag or use the arrow keys to pan a graph that is wider than the screen.
+That graph is what the UI draws. Here it is for `composite-readiness`, which
+composes four other suites into about seventy nodes — click a node to filter the
+logs to that step, `Ctrl`/`⌘` + scroll to zoom, drag or use the arrow keys to pan:
 
 ![The topology graph of composite-readiness, around seventy nodes across four imported suites](docs/images/topology-graph-composite.png)
-
-**Suites come from an OCI registry, not a folder on disk.** Pull, fork or inspect any version in the catalog.
-
-![The catalog listing fourteen suites discovered from a Zot registry, with filters by kind, registry and capability](docs/images/catalog.png)
-
-**Inspect a suite without running it** — its `suite.star`, every generated source file, its profiles and its node count.
-
-![The payment-suite package: suite.star with its profiles, tags, node count and generated mock sources](docs/images/suite-detail.png)
-
-**Launching asks three questions: which suite, which profile, which backend.**
-
-![The new execution dialog: suite, profile and backend selection over the recent runs list](docs/images/new-execution.png)
-
-<details>
-<summary>More views</summary>
-
-**Recent runs**, with duration and step counts.
-
-![Executions and runs: three healthy runs with durations and step counts](docs/images/executions.png)
-
-**Profiles** are per-suite, inherit from each other, and decide what a run gets.
-
-![Profiles and configuration for the notification-hub suite](docs/images/profiles.png)
-
-**User-defined Lua plugins** register against a trigger route and expose named operations to suite steps.
-
-![The plugins settings page listing six registered Lua plugins with their trigger routes and operations](docs/images/plugins.png)
-
-**A finished run.**
-
-![A healthy gateway-check run with its logs and topology](docs/images/live-execution-healthy.png)
-
-</details>
-
----
-
-## Why BabelSuite
-
-| | Shell scripts + Compose | BabelSuite |
-|---|---|---|
-| **Dependency ordering** | Manual, error-prone | Automatic from `after=[]` declarations |
-| **Parallel execution** | Not built in | Independent branches run concurrently |
-| **Live visibility** | Tail logs, guess state | Real-time event and log streams in the UI |
-| **Environment parity** | Different scripts per target | One suite, swap backends with a profile |
-| **Mocking** | Separate mock servers, manual wiring | First-class service mocks with state machines |
-| **OCI reuse** | Copy-paste | Load Kafka, Postgres, Redis with one line |
-| **Scheduling** | Cron shell scripts | Built-in cron jobs with suite execution and report delivery |
-| **Traceability** | None | Full OpenTelemetry traces and audit logs |
 
 ---
 
@@ -203,14 +150,22 @@ The same suite runs on local Docker, Kubernetes, or distributed remote agent poo
 ### Profile System
 Define `local`, `ci`, `staging`, and `production` profiles that overlay different env vars, secrets, module configurations, and resource limits. Launch the right configuration for the right environment without branching your topology.
 
+![Profiles and configuration for the notification-hub suite: a default local debug profile and a CI profile](docs/images/profiles.png)
+
 ### OCI Module Packages
 Reuse infrastructure building blocks — Kafka, Postgres, Redis, MongoDB, Playwright — packaged as OCI artifacts and loaded with a single `load()` statement. Publish your own modules to any compatible OCI registry.
+
+Suites travel the same way, and the catalog is the registry read back:
+
+![The catalog listing fourteen suites discovered from a Zot registry, with filters by kind, registry source and capability](docs/images/catalog.png)
 
 ### Stateful Mocks
 Define service mocks with per-operation request/response examples, routing rules, and state machine transitions. Reset mock state between test steps, inject latency, and specify fallback behavior — all in metadata, not code.
 
 ### Live Streaming
 Every log line and status change is pushed over Server-Sent Events to the UI and any API client in real time. No polling, no log tailing — open the execution page and watch it happen.
+
+![Live execution: logs streaming from a booting payment suite, with the topology panel grouping steps into waves and counters for healthy, running, failed, skipped and pending steps](docs/images/live-execution.png)
 
 ### Scheduled Suite Runs
 Create cron jobs that run one or more suites on a schedule and automatically send a results report via email and Slack. Each suite target can be pointed at a different backend and profile. Configuration is live — update SMTP settings in the UI and they apply on the next run without restarting the server.
@@ -252,7 +207,9 @@ Populate the catalog with the bundled example suites:
 python scripts/push-to-zot.py
 ```
 
-Then open `/catalog`, pick a suite, select a profile, and launch your first run.
+Then open `/catalog`, pick a suite, select a profile, and launch your first run. Launching asks three questions — which suite, which profile, which backend:
+
+![The new execution dialog: suite, profile and backend selection over the recent runs list](docs/images/new-execution.png)
 
 See the [Getting Started guide](https://jarin-devoss.github.io/babelSuite/getting-started) for full environment variable setup, PostgreSQL, Redis, remote agents, and SSO.
 
@@ -260,7 +217,9 @@ See the [Getting Started guide](https://jarin-devoss.github.io/babelSuite/gettin
 
 ## Example Suites
 
-Seven production-realistic examples are included under [`examples/oci-suites/`](examples/oci-suites/). Each ships with a `suite.star` topology, environment profiles, OpenAPI contracts, mock schemas, seed fixtures, and test scripts.
+Fourteen production-realistic examples are included under [`examples/oci-suites/`](examples/oci-suites/). Each ships with a `suite.star` topology, environment profiles, OpenAPI contracts, mock schemas, seed fixtures, and test scripts. Any of them can be read without being run:
+
+![The payment-suite detail page: suite.star alongside the package info, tags, commands and profiles](docs/images/suite-detail.png)
 
 | Suite | What it exercises |
 |-------|-------------------|
@@ -271,6 +230,13 @@ Seven production-realistic examples are included under [`examples/oci-suites/`](
 | [`soap-claims-hub`](examples/oci-suites/soap-claims-hub/) | Legacy SOAP/XML service integration |
 | [`fleet-control-room`](examples/oci-suites/fleet-control-room/) | Fleet management with traffic phases and telemetry |
 | [`composite-readiness`](examples/oci-suites/composite-readiness/) | Nested suite composition across multiple registries |
+| [`notification-hub`](examples/oci-suites/notification-hub/) | Redis and Postgres, mock email provider, migrations, template seeding, dispatcher worker |
+| [`security-suite`](examples/oci-suites/security-suite/) | Passive surface checks, active injection tests, rate-limit validation, findings export |
+| [`electronics-lab`](examples/oci-suites/electronics-lab/) | Three Lua plugins — analog circuit (SPICE), digital logic (Verilog), control systems |
+| [`kafka-consumer-health`](examples/oci-suites/kafka-consumer-health/) | A module that loads a plugin internally, to assert consumer group lag |
+| [`llm-judge-live`](examples/oci-suites/llm-judge-live/) | A real model served as a suite step, graded by the `llm-judge` plugin |
+| [`plugin-span-demo`](examples/oci-suites/plugin-span-demo/) | Plugin-reported span attributes, backed entirely by mocks — starts no containers |
+| [`gateway-check`](examples/oci-suites/gateway-check/) | The smallest complete package: one mock, one test step through the sidecar |
 
 ---
 
