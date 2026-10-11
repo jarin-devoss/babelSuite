@@ -27,10 +27,6 @@
   </a>
 </p>
 
-<p align="center">
-  <img src="docs/images/topology-graph.png" alt="The topology graph of a running suite: Postgres, migrations, a Stripe mock, the gateway, a fraud worker and a traffic phase, wired by their dependencies" width="100%" />
-</p>
-
 ---
 
 ## What It Does
