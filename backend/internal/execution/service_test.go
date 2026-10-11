@@ -668,6 +668,7 @@ print("smoke ok")`,
 	}
 
 	waitForExecutionTerminal(t, service, execution.ID)
+	dumpExecutionLogs(t, service, execution.ID)
 
 	record, err := service.GetExecution(execution.ID, "")
 	if err != nil {
@@ -727,6 +728,7 @@ func TestCreateExecutionContinueOnFailureAllowsDownstreamSteps(t *testing.T) {
 	}
 
 	snapshot := waitForExecutionTerminal(t, service, execution.ID)
+	dumpExecutionLogs(t, service, execution.ID)
 	if snapshot.Status != "Healthy" {
 		t.Fatalf("expected healthy execution with continue_on_failure, got %q", snapshot.Status)
 	}
