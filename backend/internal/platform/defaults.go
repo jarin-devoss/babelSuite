@@ -1,6 +1,9 @@
 package platform
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 const defaultPlatformDescription = "Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials."
 
@@ -90,6 +93,18 @@ func DefaultSettings() PlatformSettings {
 		},
 		UpdatedAt: updatedAt,
 	}
+}
+
+// PluginTriggerRoute is the sidecar route a plugin answers on, derived from its
+// name. The path is a convention rather than a choice: a plugin package that
+// also declared it would be repeating the name in a second place, and the two
+// could drift into a route the plugin never answers.
+func PluginTriggerRoute(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	return "/_babelsuite/plugins/" + name + "/start"
 }
 
 func defaultAPISIXSidecar() APISIXSidecarConfig {

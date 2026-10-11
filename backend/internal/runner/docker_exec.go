@@ -15,6 +15,8 @@ import (
 
 	"net/url"
 
+	"github.com/babelsuite/babelsuite/internal/apisix"
+	"github.com/babelsuite/babelsuite/internal/logstream"
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -23,14 +25,15 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
-	"github.com/babelsuite/babelsuite/internal/apisix"
-	"github.com/babelsuite/babelsuite/internal/logstream"
 )
 
 const (
 	containerWorkspaceMount = "/babelsuite/workspace"
 	maxArtifactBytes        = 10 * 1024 * 1024  // 10 MB per artifact file
 	containerMemoryLimit    = 512 * 1024 * 1024 // 512 MB per step container
+	// Docker refuses a memory limit under 6 MB. Checking it here turns a
+	// profile typo into a named error instead of an opaque daemon rejection.
+	minContainerMemoryLimit = 6 * 1024 * 1024
 	containerPidsLimit      = int64(256)
 )
 
@@ -52,24 +55,32 @@ func ExecutionNetworkName(executionID string) string {
 	return executionNetworkName(executionID)
 }
 
-// ensureExecutionNetwork returns the network name for an execution.
-// The network is created upfront by SetupExecutionNetwork before any tasks run.
-func ensureExecutionNetwork(_ context.Context, _ *client.Client, executionID string) string {
-	return executionNetworkName(executionID)
-}
-
 // SetupExecutionNetwork creates the per-execution bridge network once, before
 // any container goroutines start. Call this before enqueuing tasks so that
 // every concurrent runInDocker call finds the network already present.
-func SetupExecutionNetwork(executionID string) {
+//
+// The error is returned rather than dropped: Docker has a finite number of
+// subnets to hand out, and when they run out the failure here is the only place
+// that says so. Swallowed, it resurfaces later as every container reporting
+// "network <name> not found", which describes a missing network rather than an
+// exhausted address pool and sends you looking in the wrong place.
+func SetupExecutionNetwork(executionID string) error {
 	cli, ok := sharedDockerClient()
 	if !ok {
-		return
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	name := executionNetworkName(executionID)
-	cli.NetworkCreate(ctx, name, network.CreateOptions{Driver: "bridge"}) //nolint:errcheck
+	if _, err := cli.NetworkCreate(ctx, name, network.CreateOptions{Driver: "bridge"}); err != nil {
+		// A name collision means a previous run left this network behind; the
+		// containers can still join it, so carry on.
+		if errdefs.IsConflict(err) {
+			return nil
+		}
+		return fmt.Errorf("create execution network %s: %w", name, err)
+	}
+	return nil
 }
 
 // RemoveExecutionNetwork stops and removes all containers for the execution,
@@ -179,7 +190,6 @@ func pingDocker(ctx context.Context) bool {
 	return true
 }
 
-
 func streamContainerLogs(ctx context.Context, cli *client.Client, containerID string, step StepSpec, emit func(logstream.Line)) {
 	logStream, err := cli.ContainerLogs(ctx, containerID, container.LogsOptions{
 		ShowStdout: true,
@@ -207,6 +217,24 @@ func streamContainerLogs(ctx context.Context, cli *client.Client, containerID st
 
 // buildStepScript returns a POSIX shell script that runs the node's commands
 // or file. Returns empty string when neither is configured.
+// typescriptCommand runs a .ts step without downloading anything when the
+// image's own Node can do the job. Node strips type annotations natively from
+// 22.6 on, so `npx ts-node` — which fetches ts-node from the registry on first
+// use — is a network dependency a step should not need just to run TypeScript.
+// That fetch is also the first thing to break behind a proxy, and it fails with
+// an npm error that says nothing about the step.
+//
+// The probe asks the runtime whether it understands the flag rather than
+// parsing a version string, and only an image too old to strip types falls back
+// to the fetch.
+func typescriptCommand(target string) string {
+	return "if node --experimental-strip-types -e '' >/dev/null 2>&1; then\n" +
+		"  node --experimental-strip-types " + target + "\n" +
+		"else\n" +
+		"  npx --yes ts-node " + target + "\n" +
+		"fi\n"
+}
+
 func buildStepScript(step StepSpec) string {
 	if step.Node.FileContent == "" && len(step.Node.Commands) == 0 {
 		return ""
@@ -217,14 +245,26 @@ func buildStepScript(step StepSpec) string {
 
 	if step.Node.FileContent != "" {
 		ext := strings.ToLower(filepath.Ext(step.Node.File))
+		// .sh runs under sh, not bash. A step picks its image for the tool it
+		// needs — curlimages/curl, redis, node-alpine — and most of those are
+		// Alpine-based with no bash at all, so `bash script.sh` exits 127 with
+		// nothing to say for itself. The script is already piped through
+		// /bin/sh by the entrypoint below, so sh is the shell this runner can
+		// actually promise. A script that genuinely needs bash says so by
+		// being named .bash.
 		interpreter := map[string]string{
-			".py": "python", ".sh": "bash", ".bash": "bash",
-			".js": "node", ".rb": "ruby", ".ts": "npx ts-node",
+			".py": "python", ".sh": "sh", ".bash": "bash",
+			".js": "node", ".rb": "ruby",
 		}[ext]
-		if interpreter == "" {
-			interpreter = "/bin/sh"
+		target := containerWorkspaceMount + "/" + step.Node.File
+		switch {
+		case ext == ".ts":
+			sb.WriteString(typescriptCommand(target))
+		case interpreter != "":
+			sb.WriteString(interpreter + " " + target + "\n")
+		default:
+			sb.WriteString("/bin/sh " + target + "\n")
 		}
-		sb.WriteString(interpreter + " " + containerWorkspaceMount + "/" + step.Node.File + "\n")
 	}
 	for _, cmd := range step.Node.Commands {
 		sb.WriteString(strings.ReplaceAll(cmd, "\r", "") + "\n")
@@ -253,8 +293,21 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 
 	workspaceDir := ExecutionWorkspaceDir(step.ExecutionID)
-	if err := os.MkdirAll(workspaceDir, 0700); err != nil {
+	// The step container drops every capability, so the root inside it has no
+	// DAC_OVERRIDE and is bound by the permission bits like any other user.
+	// Nothing makes its uid match whoever runs the control plane, so an
+	// owner-only workspace is one the step cannot cd into, and an owner-only
+	// writable one is a step that cannot produce the artifacts it exports.
+	// Both only show up where the daemon shares the host's filesystem: a
+	// desktop Docker passes the mount through a VM that drops ownership, which
+	// is why this surfaces on Linux alone.
+	if err := os.MkdirAll(workspaceDir, 0777); err != nil {
 		return fmt.Errorf("workspace dir unavailable: %w", err)
+	}
+	// MkdirAll is masked by the process umask, and the step has to write here
+	// whatever that umask happens to be.
+	if err := os.Chmod(workspaceDir, 0777); err != nil {
+		return fmt.Errorf("workspace dir not writable: %w", err)
 	}
 
 	// Write file content to workspace before container starts so it is
@@ -269,11 +322,22 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		}
 	}
 
-	env := make([]string, 0, len(step.Env)+1)
+	env := make([]string, 0, len(step.Env)+3)
 	for k, v := range step.Env {
 		env = append(env, k+"="+v)
 	}
 	env = append(env, "BABELSUITE_WORKSPACE_DIR="+containerWorkspaceMount)
+	// The sidecar address the step can actually reach. The traffic, plugin and
+	// security executors already use step.GatewayURL, but a plain task or test
+	// had no way to learn it, so a script that wanted to call a mock surface had
+	// to hardcode a host and port. Exported only when there is one, so a suite
+	// with no mock surfaces does not advertise an empty address.
+	if gateway := strings.TrimSpace(step.GatewayURL); gateway != "" {
+		env = append(env, "BABELSUITE_GATEWAY_URL="+gateway)
+	}
+	if len(step.GatewayURLs) > 0 {
+		env = append(env, "BABELSUITE_GATEWAY_URLS="+strings.Join(step.GatewayURLs, ","))
+	}
 
 	containerName := fmt.Sprintf("babel-%s-%s", sanitizeID(step.ExecutionID), sanitizeID(step.Node.ID))
 	cfg := &container.Config{
@@ -293,11 +357,31 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 
 	pidsLimit := containerPidsLimit
+	// A step that hosts a process with a large working set — a model server, a
+	// JVM — needs more than the default ceiling, and that is environment-shaped
+	// rather than topology-shaped, so it comes from the profile.
+	memoryLimit := int64(containerMemoryLimit)
+	// Left unset, Docker allows swap up to twice the limit, so a step told it
+	// has N bytes can actually occupy 2N. That is worth pinning when an
+	// operator named a number and expects it honoured — but only then. Pinning
+	// it on the default ceiling instead halves the budget every existing step
+	// has always had, which is how payment-suite's migrate step started
+	// stalling under a limit that had not visibly changed.
+	memorySwapLimit := int64(0)
+	if step.Node.MemoryBytes > 0 {
+		if step.Node.MemoryBytes < minContainerMemoryLimit {
+			return fmt.Errorf("step %q: memory limit %d bytes is below the %d bytes Docker requires",
+				step.Node.Name, step.Node.MemoryBytes, int64(minContainerMemoryLimit))
+		}
+		memoryLimit = step.Node.MemoryBytes
+		memorySwapLimit = step.Node.MemoryBytes
+	}
 	hostCfg := &container.HostConfig{
 		AutoRemove: false,
 		Resources: container.Resources{
-			Memory:    containerMemoryLimit,
-			PidsLimit: &pidsLimit,
+			Memory:     memoryLimit,
+			MemorySwap: memorySwapLimit,
+			PidsLimit:  &pidsLimit,
 		},
 		Binds: []string{workspaceDir + ":" + containerWorkspaceMount + ":rw"},
 	}
@@ -316,14 +400,23 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		}
 	}
 
-	netName := ensureExecutionNetwork(ctx, cli, step.ExecutionID)
-	alias := step.Node.Name
-	if idx := strings.LastIndex(alias, "/"); idx >= 0 {
-		alias = alias[idx+1:]
+	// Every step joins the per-execution network, whatever the profile's
+	// network.mode says. Container-name DNS only works on a user-defined
+	// network, and the shipped modules address other steps by name
+	// unconditionally — postgres connect() dials "<db name>:5432" — so making
+	// this conditional silently breaks any suite that does not opt in.
+	netName := executionNetworkName(step.ExecutionID)
+	aliases := step.NetworkAliases
+	if len(aliases) == 0 {
+		alias := step.Node.Name
+		if idx := strings.LastIndex(alias, "/"); idx >= 0 {
+			alias = alias[idx+1:]
+		}
+		aliases = []string{alias}
 	}
 	netCfg := &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			netName: {Aliases: []string{alias}},
+			netName: {Aliases: aliases},
 		},
 	}
 
@@ -353,6 +446,16 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 
 	if err := cli.ContainerStart(ctx, created.ID, container.StartOptions{}); err != nil {
+		// A detached service has no removal defer, because the goroutine that
+		// owns its lifetime is only started once it is running. A failed start
+		// therefore has no owner at all, and the container is left in "created"
+		// holding a reference to the execution network, which then cannot be
+		// removed — enough of those and Docker runs out of address pools.
+		if isDetachedService(step) {
+			rmCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			cli.ContainerRemove(rmCtx, created.ID, container.RemoveOptions{Force: true}) //nolint:errcheck
+		}
 		return fmt.Errorf("container start failed: %w", err)
 	}
 	emit(line(step, "info", fmt.Sprintf("[%s] Container started.", step.Node.Name)))

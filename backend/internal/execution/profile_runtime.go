@@ -19,6 +19,7 @@ import (
 	"github.com/babelsuite/babelsuite/internal/profiles"
 	"github.com/babelsuite/babelsuite/internal/runner"
 	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var errProfileSecretUnavailable = errors.New("profile secret unavailable")
@@ -30,6 +31,11 @@ type suiteProfilesReader interface {
 type serviceSpec struct {
 	Env     map[string]string
 	Devices []string
+	// Memory is the container memory ceiling for this step in bytes, 0 when the
+	// profile does not set one. Like Devices, it is step configuration that
+	// belongs to the profile rather than suite.star, so the same topology stays
+	// portable between a laptop and a host with room for a large working set.
+	Memory int64
 }
 
 type profileRuntimeDocument struct {
@@ -108,6 +114,25 @@ func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []st
 		return append([]string{}, spec.Devices...)
 	}
 	return nil
+}
+
+// resolveNodeMemory returns the profile's memory ceiling for this step in
+// bytes, or 0 to leave the runner on its default. A profile may key the entry
+// by either the node id or its name, matching how env and devices are looked up.
+func (s *Service) resolveNodeMemory(executionID string, node topologyNode) int64 {
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil {
+		return 0
+	}
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.ID)]; ok && spec.Memory > 0 {
+		return spec.Memory
+	}
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.Name)]; ok && spec.Memory > 0 {
+		return spec.Memory
+	}
+	return 0
 }
 
 func (o executionRuntimeOverlay) serviceEnv(node topologyNode) map[string]string {
@@ -203,13 +228,51 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 					}
 				}
 			}
-			if len(entry.Env) > 0 || len(entry.Devices) > 0 {
+			entry.Memory = parseMemoryQuantity(svcMap["memory"])
+			if len(entry.Env) > 0 || len(entry.Devices) > 0 || entry.Memory > 0 {
 				runtime.Services[strings.TrimSpace(name)] = entry
 			}
 		}
 	}
 
 	return runtime, nil
+}
+
+// parseMemoryQuantity reads a profile memory value into bytes using the same
+// quantity grammar Kubernetes uses, so "2Gi", "512Mi", "2G" and a plain byte
+// count all mean what an operator expects and the suite's own Kubernetes
+// backend agrees with the Docker one. Anything unparseable yields 0, leaving
+// the step on the default ceiling rather than silently granting or denying
+// memory because of a typo.
+func parseMemoryQuantity(raw any) int64 {
+	var bytes int64
+	switch value := raw.(type) {
+	case int:
+		bytes = int64(value)
+	case int64:
+		bytes = value
+	case float64:
+		bytes = int64(value)
+	case string:
+		text := strings.TrimSpace(value)
+		if text == "" {
+			return 0
+		}
+		quantity, err := resource.ParseQuantity(text)
+		if err != nil {
+			return 0
+		}
+		bytes = quantity.Value()
+	default:
+		// Covers nil, booleans and nested YAML structures.
+		return 0
+	}
+	// Every path lands here so a negative or zero count means "unset" rather
+	// than travelling on as a limit no runtime would accept.
+	if bytes <= 0 {
+		return 0
+	}
+	return bytes
 }
 
 func resolveProfileChain(records []profiles.Record, selectedID string) ([]profiles.Record, error) {
@@ -294,16 +357,24 @@ func mergeServiceSpecs(base, overlay map[string]serviceSpec) map[string]serviceS
 	}
 	result := make(map[string]serviceSpec, len(base)+len(overlay))
 	for k, v := range base {
-		result[k] = serviceSpec{Env: cloneRuntimeMap(v.Env), Devices: append([]string{}, v.Devices...)}
+		result[k] = serviceSpec{
+			Env:     cloneRuntimeMap(v.Env),
+			Devices: append([]string{}, v.Devices...),
+			Memory:  v.Memory,
+		}
 	}
 	for k, v := range overlay {
 		existing := result[k]
 		merged := serviceSpec{
 			Env:     mergeRuntimeMaps(existing.Env, v.Env),
 			Devices: existing.Devices,
+			Memory:  existing.Memory,
 		}
 		if len(v.Devices) > 0 {
 			merged.Devices = append([]string{}, v.Devices...)
+		}
+		if v.Memory > 0 {
+			merged.Memory = v.Memory
 		}
 		result[k] = merged
 	}
@@ -316,7 +387,11 @@ func cloneServiceMap(input map[string]serviceSpec) map[string]serviceSpec {
 	}
 	output := make(map[string]serviceSpec, len(input))
 	for name, spec := range input {
-		output[name] = serviceSpec{Env: cloneRuntimeMap(spec.Env), Devices: append([]string{}, spec.Devices...)}
+		output[name] = serviceSpec{
+			Env:     cloneRuntimeMap(spec.Env),
+			Devices: append([]string{}, spec.Devices...),
+			Memory:  spec.Memory,
+		}
 	}
 	return output
 }

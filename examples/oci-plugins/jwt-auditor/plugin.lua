@@ -207,7 +207,7 @@ local function run_audit_endpoint(cfg)
 end
 
 function _M.access(conf, ctx)
-    if ngx.var.uri ~= "/_babelsuite/plugins/jwt-auditor/start" then return ngx.exit(404) end
+    if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()

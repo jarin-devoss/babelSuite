@@ -1,6 +1,10 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+-- cjson encodes an empty Lua table as {}, not [], so a step that found
+-- nothing — the passing case — would otherwise emit a findings object.
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -50,7 +54,7 @@ local function run_scan(cfg)
             detail   = "PII pattern '" .. name .. "' found in response body",
         })
     end
-    return {passed = #findings == 0, findings = findings}, nil
+    return {passed = #findings == 0, findings = as_array(findings)}, nil
 end
 
 local function run_probe(cfg)
@@ -66,11 +70,11 @@ local function run_probe(cfg)
             detail   = "PII pattern '" .. name .. "' found in response body",
         })
     end
-    return {passed = #findings == 0, findings = findings}, nil
+    return {passed = #findings == 0, findings = as_array(findings)}, nil
 end
 
 function _M.access(conf, ctx)
-    if ngx.var.uri ~= "/_babelsuite/plugins/pii-scanner/start" then return ngx.exit(404) end
+    if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()

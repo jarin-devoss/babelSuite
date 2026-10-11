@@ -1,6 +1,8 @@
 name: shadow-diff
-trigger: /_babelsuite/plugins/shadow-diff/start
+version: 1.1.0
 kind: plugin
 variants: [shadow-diff]
+operations: [diff, check]
 schema: schema.cue
 lua: plugin.lua
+star: plugin.star

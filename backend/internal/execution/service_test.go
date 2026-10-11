@@ -635,6 +635,20 @@ func TestCreateExecutionMaterializesJUnitArtifactSummary(t *testing.T) {
 				SuiteStar: strings.Join([]string{
 					`smoke = test.run(file="smoke.py", image="python:3.12", exports=[{"path": "reports/junit.xml", "name": "smoke-results", "format": "junit", "on": "always"}])`,
 				}, "\n"),
+				SourceFiles: []suites.SourceFile{
+					{
+						Path: "tests/smoke.py",
+						Content: `import pathlib
+pathlib.Path("reports").mkdir(parents=True, exist_ok=True)
+pathlib.Path("reports/junit.xml").write_text(
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<testsuite name="smoke" tests="1" failures="0" errors="0" skipped="0">'
+    '<testcase classname="smoke" name="ok"/>'
+    '</testsuite>'
+)
+print("smoke ok")`,
+					},
+				},
 				Profiles: []suites.ProfileOption{
 					{FileName: "local.yaml", Default: true},
 				},
@@ -684,6 +698,16 @@ func TestCreateExecutionContinueOnFailureAllowsDownstreamSteps(t *testing.T) {
 					`lint = test.run(file="lint.sh", image="bash:5.2", expect_logs="THIS STRING DOES NOT EXIST", continue_on_failure=True)`,
 					`deploy = task.run(file="deploy.sh", image="bash:5.2", after=[lint])`,
 				}, "\n"),
+				SourceFiles: []suites.SourceFile{
+					{
+						Path:    "tests/lint.sh",
+						Content: `echo linting`,
+					},
+					{
+						Path:    "tasks/deploy.sh",
+						Content: `echo deployed`,
+					},
+				},
 				Profiles: []suites.ProfileOption{
 					{FileName: "local.yaml", Default: true},
 				},
@@ -740,6 +764,24 @@ func TestCreateExecutionRunsFailureHooksAndSkipsNormalDownstreamSteps(t *testing
 					`rollback = task.run(file="rollback.sh", image="bash:5.2", on_failure=[primary])`,
 					`notify = task.run(file="notify.sh", image="bash:5.2", after=[rollback])`,
 				}, "\n"),
+				SourceFiles: []suites.SourceFile{
+					{
+						Path:    "tasks/deploy.sh",
+						Content: `echo deploying`,
+					},
+					{
+						Path:    "tests/verify.sh",
+						Content: `echo verified`,
+					},
+					{
+						Path:    "tasks/rollback.sh",
+						Content: `echo rolled back`,
+					},
+					{
+						Path:    "tasks/notify.sh",
+						Content: `echo notified`,
+					},
+				},
 				Profiles: []suites.ProfileOption{
 					{FileName: "local.yaml", Default: true},
 				},
@@ -796,6 +838,16 @@ func TestCreateExecutionResetsMockStateBeforeTestRun(t *testing.T) {
 					`dirty_task = task.run(file="mess_up_state.sh", image="bash:5.2", after=[billing_mock])`,
 					`clean_test = test.run(file="verify_billing.py", image="python:3.12", reset_mocks=[billing_mock], after=[dirty_task])`,
 				}, "\n"),
+				SourceFiles: []suites.SourceFile{
+					{
+						Path:    "tasks/mess_up_state.sh",
+						Content: `echo dirtied state`,
+					},
+					{
+						Path:    "tests/verify_billing.py",
+						Content: `print('billing verified')`,
+					},
+				},
 				Profiles: []suites.ProfileOption{
 					{FileName: "local.yaml", Default: true},
 				},
@@ -878,7 +930,6 @@ func containsExecutionEventText(events []ExecutionEvent, needle string) bool {
 	}
 	return false
 }
-
 
 func waitForExecutionTerminal(t *testing.T, service *Service, executionID string) Snapshot {
 	t.Helper()

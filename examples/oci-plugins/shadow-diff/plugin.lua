@@ -1,6 +1,11 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+-- cjson encodes an empty Lua table as {}, which the runner cannot decode into
+-- a findings array — so two identical responses, the whole point of a passing
+-- shadow comparison, is exactly the case that breaks without this.
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -71,7 +76,17 @@ local function compare(primary_url, shadow_url, ignored, threshold, severity)
     end
 
     local passed = #findings <= (threshold or 0)
-    return {passed = passed, findings = findings}, nil
+    return {
+        passed   = passed,
+        findings = as_array(findings),
+        -- Added to this step's runner.run trace span. Counts and statuses are
+        -- bounded; the differing field paths are not, so they stay in findings.
+        attributes = {
+            ["shadow.diffs"]     = tostring(#findings),
+            ["shadow.threshold"] = tostring(threshold or 0),
+            ["shadow.status"]    = string.format("%d/%d", status_p, status_s),
+        },
+    }, nil
 end
 
 local function run_diff(cfg)
@@ -87,7 +102,7 @@ local function run_check(cfg)
 end
 
 function _M.access(conf, ctx)
-    if ngx.var.uri ~= "/_babelsuite/plugins/shadow-diff/start" then return ngx.exit(404) end
+    if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()

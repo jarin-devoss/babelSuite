@@ -105,6 +105,8 @@ func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line)
 		return fmt.Errorf("plugin %s: parse response: %w", plugin.Name, err)
 	}
 
+	recordPluginSpanAttributes(ctx, result.Attributes)
+
 	if result.Stderr != "" {
 		emit(line(step, "warn", fmt.Sprintf("[%s] Plugin stderr: %s", step.Node.Name, strings.TrimSpace(result.Stderr))))
 	}
@@ -134,15 +136,54 @@ func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line)
 }
 
 type pluginResult struct {
-	Passed   bool            `json:"passed"`
-	Findings []pluginFinding `json:"findings"`
-	Stderr   string          `json:"stderr,omitempty"`
-	Summary  string          `json:"summary,omitempty"`
-	Level    string          `json:"level,omitempty"` // log level for summary: info, debug, warn, error
+	Passed   bool           `json:"passed"`
+	Findings pluginFindings `json:"findings"`
+	Stderr   string         `json:"stderr,omitempty"`
+	Summary  string         `json:"summary,omitempty"`
+	Level    string         `json:"level,omitempty"` // log level for summary: info, debug, warn, error
+	// Attributes are added to the runner.run span for this step. A plugin
+	// knows what it just did — which tool it called, which model answered — and
+	// this is the only way that detail reaches the trace. See
+	// recordPluginSpanAttributes for the cardinality limits.
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 type pluginFinding struct {
 	Label    string `json:"label"`
 	Severity string `json:"severity"`
 	Detail   string `json:"detail"`
+}
+
+// pluginFindings decodes the findings list leniently, because the JSON comes
+// from plugin code this runner does not own. Lua's cjson serialises an empty
+// table as {} rather than [], so a plugin that found nothing — the passing
+// case, and the one most worth not breaking — otherwise fails to decode and
+// reports a parse error instead of success.
+type pluginFindings []pluginFinding
+
+func (f *pluginFindings) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		*f = nil
+		return nil
+	}
+	if trimmed[0] == '{' {
+		// Only an empty object is a findings list in disguise. Anything with
+		// keys is a real mistake, and saying so beats guessing.
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(trimmed, &object); err != nil {
+			return err
+		}
+		if len(object) > 0 {
+			return fmt.Errorf("findings must be an array, got an object with %d field(s)", len(object))
+		}
+		*f = pluginFindings{}
+		return nil
+	}
+	var list []pluginFinding
+	if err := json.Unmarshal(trimmed, &list); err != nil {
+		return err
+	}
+	*f = list
+	return nil
 }
