@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: llm-judge-live
+  title: LLM Judge Live
+spec:
+  repository: localhost:5000/qa/llm-judge-live
+  owner: Platform Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Runs a real model as a suite step and grades text with the llm-judge plugin against it, so the plugin is exercised on genuinely sampled output instead of a canned response. Needs no API key and sends nothing off the host.

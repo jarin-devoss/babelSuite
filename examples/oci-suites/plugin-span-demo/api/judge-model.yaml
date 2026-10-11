@@ -1,0 +1,18 @@
+openapi: 3.1.0
+info:
+  title: Judge Model
+  version: v1.0.0
+  description: >-
+    A chat-completions surface the llm-judge plugin grades against. Served by
+    the suite's own mock engine, so the run needs no model, no API key and no
+    network access, and the verdicts are identical on every run.
+servers:
+  - url: https://judge-model
+paths:
+  /v1/chat/completions:
+    post:
+      operationId: judge-chat-completions
+      summary: Return a fixed set of per-criterion verdicts in OpenAI response shape.
+      responses:
+        "200":
+          description: Successful mock response

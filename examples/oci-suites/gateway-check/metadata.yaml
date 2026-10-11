@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: gateway-check
+  title: Gateway Check
+spec:
+  repository: localhost:5000/qa/gateway-check
+  owner: QA
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Verifies a test step can reach the suite's mock through the APISIX sidecar.

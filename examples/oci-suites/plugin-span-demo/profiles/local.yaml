@@ -1,0 +1,3 @@
+name: Local
+description: Mock surfaces only — no containers, no network, no model.
+default: true

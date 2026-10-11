@@ -1,0 +1,3 @@
+name: Local
+description: Local gateway reachability check.
+default: true

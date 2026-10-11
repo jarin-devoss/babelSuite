@@ -1,0 +1,29 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/checkout-shadow/quote.metadata.yaml
+    operationId: checkout-shadow-quote
+    sourceArtifact: mock/checkout-shadow/quote.cue
+    suite: plugin-span-demo
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "500"
+        mediatype: application/json
+        body: |-
+            {
+              "error": "checkout quote mock unavailable"
+            }
+        headers: []
+    parameterConstraints: []
+    resolverUrl: /internal/mock-data/plugin-span-demo/checkout-shadow/checkout-shadow-quote
+    runtimeUrl: /mocks/rest/plugin-span-demo/checkout-shadow/quote
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []
