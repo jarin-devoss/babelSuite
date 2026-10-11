@@ -1,6 +1,10 @@
 local json = require("cjson")
 local http = require("resty.http")
 
+-- cjson encodes an empty Lua table as {}, not [], so a step that found
+-- nothing — the passing case — would otherwise emit a findings object.
+local function as_array(t) return #t == 0 and json.empty_array or t end
+
 local _M = {}
 _M.version  = 0.1
 _M.priority = 10
@@ -36,7 +40,7 @@ local function run_inspect(cfg, rest_url)
             detail   = string.format("found=%d max=%d topic=%s", count, max_msgs, topic),
         })
     end
-    return {passed = #findings == 0, findings = findings, message_count = count}, nil
+    return {passed = #findings == 0, findings = as_array(findings), message_count = count}, nil
 end
 
 local function run_watch_dlq(cfg, rest_url)
@@ -54,11 +58,11 @@ local function run_watch_dlq(cfg, rest_url)
             detail   = string.format("found=%d max=%d topic=%s", count, max_msgs, topic),
         })
     end
-    return {passed = #findings == 0, findings = findings, message_count = count}, nil
+    return {passed = #findings == 0, findings = as_array(findings), message_count = count}, nil
 end
 
 function _M.access(conf, ctx)
-    if ngx.var.uri ~= "/_babelsuite/plugins/dlq-inspector/start" then return ngx.exit(404) end
+    if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()

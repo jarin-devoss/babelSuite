@@ -20,3 +20,9 @@ threshold: >=0.0 & <=1.0 | *1.0
 
 timeout_ms: int & >0 | *30000
 severity:   "warn" | "critical" | *"critical"
+
+// Constrain the model's decoding to a JSON object via `response_format`.
+// Leave this on: prompt instructions alone do not stop a model wrapping its
+// answer in prose or truncating it mid-object. Set false only for an endpoint
+// that rejects the field.
+structured: bool | *true

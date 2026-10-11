@@ -292,6 +292,10 @@ type executionState struct {
 	stepStatus  map[string]string
 	terminalErr error
 	monitor     *liveSpan
+	// networks records which Docker networks each step joins, and under which
+	// aliases, so a service name claimed by more than one composed suite stays
+	// unambiguous. Written once at boot, read by every step after that.
+	networks networkPlan
 }
 
 type executionRuntimeOverlay struct {

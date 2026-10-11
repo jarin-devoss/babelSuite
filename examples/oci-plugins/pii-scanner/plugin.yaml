@@ -1,6 +1,8 @@
 name: pii-scanner
-trigger: /_babelsuite/plugins/pii-scanner/start
+version: 1.0.0
 kind: plugin
 variants: [pii-scanner]
+operations: [scan, probe]
 schema: schema.cue
 lua: plugin.lua
+star: plugin.star

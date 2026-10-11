@@ -131,10 +131,9 @@ func (h *Handler) createPlugin(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, http.StatusBadRequest, "Plugin name must start with a letter or digit and contain only letters, digits, hyphens, and underscores.")
 		return
 	}
-	if strings.TrimSpace(plugin.Trigger) == "" {
-		httpserver.WriteError(w, http.StatusBadRequest, "Plugin trigger route is required.")
-		return
-	}
+	// Derived from the name, so a plugin package never states it and the two
+	// cannot drift apart.
+	plugin.Trigger = PluginTriggerRoute(plugin.Name)
 	if strings.TrimSpace(plugin.Lua) == "" {
 		httpserver.WriteError(w, http.StatusBadRequest, "Plugin Lua source is required.")
 		return
@@ -170,10 +169,9 @@ func (h *Handler) updatePlugin(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, http.StatusBadRequest, "Invalid plugin payload.")
 		return
 	}
-	if strings.TrimSpace(plugin.Trigger) == "" {
-		httpserver.WriteError(w, http.StatusBadRequest, "Plugin trigger route is required.")
-		return
-	}
+	// Derived from the name in the URL — the body's name is ignored here, so
+	// using it would leave the route empty.
+	plugin.Trigger = PluginTriggerRoute(name)
 	if strings.TrimSpace(plugin.Lua) == "" {
 		httpserver.WriteError(w, http.StatusBadRequest, "Plugin Lua source is required.")
 		return
