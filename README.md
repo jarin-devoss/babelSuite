@@ -219,7 +219,7 @@ See the [Getting Started guide](https://jarin-devoss.github.io/babelSuite/gettin
 
 Fourteen production-realistic examples are included under [`examples/oci-suites/`](examples/oci-suites/). Each ships with a `suite.star` topology, environment profiles, OpenAPI contracts, mock schemas, seed fixtures, and test scripts. Any of them can be read without being run:
 
-![The payment-suite detail page: suite.star alongside the package info, tags, commands and profiles](docs/images/suite-detail.png)
+![Inspecting payment-suite from the catalog: the package file tree beside its suite.star, with the pull and fork commands](docs/images/suite-inspect.png)
 
 | Suite | What it exercises |
 |-------|-------------------|
