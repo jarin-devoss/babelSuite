@@ -29,6 +29,8 @@ backend/*.test
 site/
 
 data/
-scripts/
 .local/
 tools/
+
+__pycache__/
+*.pyc
