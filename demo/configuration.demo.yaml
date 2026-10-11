@@ -1,0 +1,75 @@
+# A minimal platform settings file for the demo. Copy it to the repo root as
+# configuration.yaml on a fresh checkout:
+#
+#   cp demo/configuration.demo.yaml configuration.yaml
+#
+# The control plane reads this at request time and writes it back when you edit
+# anything under /settings, so treat it as a starting point rather than
+# something to keep in sync by hand. `python demo/bootstrap.py` appends the
+# example plugins to it.
+
+mode: local
+description: Local demo — one Docker agent and the bundled example registry.
+
+# Where steps run. The APISIX sidecar is required on every agent: mocks,
+# traffic.*, security.* and all Lua plugins execute inside it rather than in
+# containers of their own.
+agents:
+  - agentId: local-docker
+    name: Local Docker
+    type: local
+    enabled: true
+    default: true
+    description: The Docker daemon on this machine.
+    routingTags: []
+    dockerSocket: /var/run/docker.sock
+    apisixSidecar:
+      image: apache/apisix:3.9.0-debian
+      # Must name a file: the generated apisix.yaml is bind-mounted onto this
+      # exact path.
+      configMountPath: /usr/local/apisix/conf/apisix.yaml
+      listenPort: 9080
+      adminPort: 9180
+      capabilities: [rest, grpc, async]
+
+# The catalog scans this for suite and module packages. demo/bootstrap.py
+# pushes examples/oci-suites and examples/oci-modules here.
+registries:
+  - registryId: demo-zot
+    name: Demo Registry
+    provider: zot
+    registryUrl: http://localhost:5000
+    username: ""
+    secret: ""
+    repositoryScope: "*"
+    region: ""
+    # Required for a registry on a private address, which localhost is.
+    allowLocalNetwork: true
+
+# No secret backend in the demo, so profiles that declare a Vault secretRef
+# cannot run — resolveVault needs VAULT_TOKEN and fails the boot without it.
+# Everything else works. Of the shipped examples that leaves out
+# fleet-control-room entirely, plus identity-broker/canary.yaml and
+# payment-suite's staging.yaml and year.yaml.
+secrets:
+  provider: none
+  vaultAddress: ""
+  vaultNamespace: ""
+  vaultRole: ""
+  awsRegion: ""
+  secretPrefix: ""
+  # Injected into every step of every suite. Deliberately empty here: a value
+  # that cannot be reached — a proxy on a hostname that does not resolve, say —
+  # breaks every step that touches the network, and the failure surfaces inside
+  # the step rather than here.
+  globalOverrides: []
+
+notifications:
+  smtp:
+    host: ""
+    port: 587
+    username: ""
+    password: ""
+    from: ""
+
+plugins: []

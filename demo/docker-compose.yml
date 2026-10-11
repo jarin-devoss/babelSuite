@@ -1,0 +1,104 @@
+# Infrastructure for a local BabelSuite demo: the datastore, the optional cache,
+# and an OCI registry to serve the example suites from.
+#
+# The backend and frontend are deliberately NOT in here. The backend drives the
+# local Docker daemon to run suite steps, and it bind-mounts a host directory
+# into every step container as the shared workspace. Running it inside a
+# container would hand the daemon paths that only exist inside that container,
+# so the workspace mount would silently point at nothing. Run it on the host:
+#
+#   docker compose --env-file ../.env up -d       # from this folder
+#   python bootstrap.py                           # push suites, install plugins
+#   cd ../backend && go run ./cmd/server
+#   cd ../frontend && npm install && npm run dev
+#
+# Every port and image tag is overridable from the repo-root .env, which is the
+# single env file for the whole project — see ../.env.example. Compose does not
+# read it automatically from here, hence the --env-file flag above.
+
+name: babelsuite-demo
+
+services:
+  mongo:
+    image: mongo:${DEMO_MONGO_TAG:-7}
+    container_name: babelsuite-demo-mongo
+    restart: unless-stopped
+    ports:
+      - "${DEMO_MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:${DEMO_REDIS_TAG:-7-alpine}
+    container_name: babelsuite-demo-redis
+    restart: unless-stopped
+    ports:
+      - "${DEMO_REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # The catalog reads suites and modules from here. push-to-zot.py uploads each
+  # examples/oci-suites/<name> as an OCI artifact.
+  zot:
+    image: ghcr.io/project-zot/zot-linux-amd64:${DEMO_ZOT_TAG:-latest}
+    container_name: babelsuite-demo-zot
+    restart: unless-stopped
+    ports:
+      - "${DEMO_ZOT_PORT:-5000}:5000"
+    volumes:
+      - ../tools/zot-config.json:/etc/zot/config.json:ro
+      - zot-data:/var/lib/zot
+    # No healthcheck: the zot image ships no shell or curl, so readiness is
+    # probed over HTTP from the host instead — see bootstrap.py.
+
+  # Optional: a collector so the runner.run spans and runner.plugin.* attributes
+  # have somewhere to land. Start it with --profile telemetry.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:${DEMO_OTEL_TAG:-latest}
+    container_name: babelsuite-demo-otel
+    profiles: ["telemetry"]
+    restart: unless-stopped
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "${DEMO_OTLP_GRPC_PORT:-4317}:4317"
+      - "${DEMO_OTLP_HTTP_PORT:-4318}:4318"
+
+  # One-shot: push the example suites and modules into zot and install the
+  # example plugins into configuration.yaml. Equivalent to running
+  # `python bootstrap.py` on the host; use whichever suits you.
+  #
+  #   docker compose --profile seed run --rm seed
+  seed:
+    image: python:${DEMO_PYTHON_TAG:-3.12-slim}
+    profiles: ["seed"]
+    depends_on:
+      - zot
+    volumes:
+      - ..:/repo
+    working_dir: /repo
+    environment:
+      BABELSUITE_ZOT_URL: http://zot:5000
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        pip install --quiet pyyaml
+        python demo/bootstrap.py --registry "$$BABELSUITE_ZOT_URL" --settings configuration.yaml
+
+volumes:
+  mongo-data:
+  zot-data:
