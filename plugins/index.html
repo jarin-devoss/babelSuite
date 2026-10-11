@@ -961,6 +961,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Plugin Response Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reporting-to-the-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reporting to the trace
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1640,6 +1655,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Plugin Response Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reporting-to-the-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reporting to the trace
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2262,16 +2292,38 @@
 <td>string</td>
 <td>Optional raw stderr from the plugin process, shown in the execution log</td>
 </tr>
+<tr>
+<td><code>attributes</code></td>
+<td>object</td>
+<td>Optional string map recorded on the step's OpenTelemetry span, prefixed <code>runner.plugin.</code></td>
+</tr>
 </tbody>
 </table>
+<h3 id="reporting-to-the-trace">Reporting to the trace<a class="headerlink" href="#reporting-to-the-trace" title="Permanent link">&para;</a></h3>
+<p>The runner opens a <code>runner.run</code> span per step carrying what the runner knows — execution, suite, node and backend. <code>attributes</code> is how a plugin adds what it actually did, so the detail reaches your collector alongside everything else BabelSuite traces.</p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kr">return</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nv">passed</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nv">findings</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nv">findings</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">attributes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="p">[</span><span class="s2">&quot;lag.max&quot;</span><span class="p">]</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nb">tostring</span><span class="p">(</span><span class="nv">max_lag</span><span class="p">),</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="p">[</span><span class="s2">&quot;lag.group&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">group</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
+</span></code></pre></div>
+<p>Those arrive on the span as <code>runner.plugin.lag.max</code> and <code>runner.plugin.lag.group</code>.</p>
+<p>The shipped <code>consumer-lag</code> and <code>shadow-diff</code> plugins report this way — lag totals and thresholds, diff counts and upstream statuses.</p>
+<div class="admonition warning">
+<p class="admonition-title">Keep attribute values low-cardinality</p>
+<p>Trace backends index span attributes, so a value that is unique per call — a request id, a full prompt — multiplies the index. Report scores, counts, modes and names; never per-call identifiers. BabelSuite caps each step at 24 attributes and truncates values at 256 characters, but the cap is a backstop, not a licence.</p>
+</div>
 <p>Minimal compliant Lua return:</p>
-<div class="language-lua highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">#</span><span class="nv">findings</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kr">return</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nv">passed</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="p">,</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nv">findings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">findings</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nv">summary</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">&quot;All checks passed.&quot;</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">string.format</span><span class="p">(</span><span class="s2">&quot;%d finding(s).&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">#</span><span class="nv">findings</span><span class="p">),</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nv">level</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">&quot;info&quot;</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;warn&quot;</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">#</span><span class="nv">findings</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kr">return</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nv">passed</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nv">findings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">findings</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nv">summary</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">&quot;All checks passed.&quot;</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">string.format</span><span class="p">(</span><span class="s2">&quot;%d finding(s).&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">#</span><span class="nv">findings</span><span class="p">),</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nv">level</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nv">ok</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">&quot;info&quot;</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;warn&quot;</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
 </span></code></pre></div>
 <h2 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
 <p>All plugin endpoints require an admin session except <code>check</code> and <code>validate</code>.</p>
@@ -2317,25 +2369,25 @@
 </tbody>
 </table>
 <h3 id="register">Register<a class="headerlink" href="#register" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="s1">    &quot;name&quot;:       &quot;spice-sim&quot;,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="s1">    &quot;version&quot;:    &quot;1.0.0&quot;,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="s1">    &quot;trigger&quot;:    &quot;/_babelsuite/plugins/spice-sim/start&quot;,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="s1">    &quot;kind&quot;:       &quot;plugin&quot;,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="s1">    &quot;variants&quot;:   [&quot;spice-sim&quot;],</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="s1">    &quot;operations&quot;: [&quot;transient&quot;, &quot;dc_sweep&quot;, &quot;ac_analysis&quot;],</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="s1">    &quot;lua&quot;:        &quot;&lt;lua source&gt;&quot;,</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="s1">    &quot;schema&quot;:     &quot;&lt;cue schema&gt;&quot;</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="s1">  }&#39;</span>
-</span></code></pre></div>
-<h3 id="update-in-place">Update in-place<a class="headerlink" href="#update-in-place" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins/spice-sim<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{ &quot;trigger&quot;: &quot;/_babelsuite/plugins/spice-sim/start&quot;, &quot;lua&quot;: &quot;&lt;updated lua&gt;&quot;, ... }&#39;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="s1">    &quot;name&quot;:       &quot;spice-sim&quot;,</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="s1">    &quot;version&quot;:    &quot;1.0.0&quot;,</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="s1">    &quot;trigger&quot;:    &quot;/_babelsuite/plugins/spice-sim/start&quot;,</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="s1">    &quot;kind&quot;:       &quot;plugin&quot;,</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="s1">    &quot;variants&quot;:   [&quot;spice-sim&quot;],</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="s1">    &quot;operations&quot;: [&quot;transient&quot;, &quot;dc_sweep&quot;, &quot;ac_analysis&quot;],</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="s1">    &quot;lua&quot;:        &quot;&lt;lua source&gt;&quot;,</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="s1">    &quot;schema&quot;:     &quot;&lt;cue schema&gt;&quot;</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="s1">  }&#39;</span>
+</span></code></pre></div>
+<h3 id="update-in-place">Update in-place<a class="headerlink" href="#update-in-place" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://localhost:8090/api/v1/platform-settings/plugins/spice-sim<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{ &quot;trigger&quot;: &quot;/_babelsuite/plugins/spice-sim/start&quot;, &quot;lua&quot;: &quot;&lt;updated lua&gt;&quot;, ... }&#39;</span>
 </span></code></pre></div>
 <p>The plugin name is taken from the URL — the <code>name</code> field in the body is ignored.</p>
 <h2 id="apisix-sidecar-lifecycle">APISIX Sidecar Lifecycle<a class="headerlink" href="#apisix-sidecar-lifecycle" title="Permanent link">&para;</a></h2>
@@ -2343,81 +2395,81 @@
 <p>The sidecar runs in <strong>standalone mode</strong>: <code>deployment.role: data_plane</code> with <code>config_provider: yaml</code>. No etcd is involved.</p>
 <h2 id="using-plugins-inside-modules">Using Plugins Inside Modules<a class="headerlink" href="#using-plugins-inside-modules" title="Permanent link">&para;</a></h2>
 <p>Modules can load and re-export plugins just like they load <code>@babelsuite/runtime</code>. The <code>@plugins/&lt;name&gt;</code> path is resolved through the same mechanism inside module <code>.star</code> files, so a module can bundle both infrastructure setup <strong>and</strong> plugin-backed verification helpers in one package.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># examples/oci-modules/kafka/admin.star</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span>    <span class="s2">&quot;task&quot;</span><span class="p">)</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/consumer-lag&quot;</span><span class="p">,</span>  <span class="s2">&quot;check_lag&quot;</span><span class="p">)</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/dlq-inspector&quot;</span><span class="p">,</span> <span class="s2">&quot;inspect&quot;</span><span class="p">)</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_consumer_health</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>                          <span class="n">max_lag</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">lag</span> <span class="o">=</span> <span class="n">check_lag</span><span class="p">(</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        <span class="n">name</span>             <span class="o">=</span> <span class="n">broker</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-lag-&quot;</span> <span class="o">+</span> <span class="n">group</span><span class="p">,</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="n">kafka_rest_url</span>   <span class="o">=</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>        <span class="n">group</span>            <span class="o">=</span> <span class="n">group</span><span class="p">,</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>        <span class="n">max_lag</span>          <span class="o">=</span> <span class="n">max_lag</span><span class="p">,</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>        <span class="n">after</span>            <span class="o">=</span> <span class="p">[</span><span class="n">broker</span><span class="p">]</span> <span class="o">+</span> <span class="n">after</span><span class="p">,</span>
-</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="p">)</span>
-</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="n">dlq</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">(</span>
-</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>        <span class="n">name</span>           <span class="o">=</span> <span class="n">broker</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-dlq-&quot;</span> <span class="o">+</span> <span class="n">topic</span><span class="p">,</span>
-</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>        <span class="n">kafka_rest_url</span> <span class="o">=</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
-</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>        <span class="n">topic</span>          <span class="o">=</span> <span class="n">topic</span> <span class="o">+</span> <span class="s2">&quot;.DLQ&quot;</span><span class="p">,</span>
-</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>        <span class="n">max_messages</span>   <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>        <span class="n">after</span>          <span class="o">=</span> <span class="p">[</span><span class="n">lag</span><span class="p">],</span>
-</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>    <span class="p">)</span>
-</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>    <span class="k">return</span> <span class="n">lag</span><span class="p">,</span> <span class="n">dlq</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># examples/oci-modules/kafka/admin.star</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span>    <span class="s2">&quot;task&quot;</span><span class="p">)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/consumer-lag&quot;</span><span class="p">,</span>  <span class="s2">&quot;check_lag&quot;</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/dlq-inspector&quot;</span><span class="p">,</span> <span class="s2">&quot;inspect&quot;</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_consumer_health</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>                          <span class="n">max_lag</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">lag</span> <span class="o">=</span> <span class="n">check_lag</span><span class="p">(</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="n">name</span>             <span class="o">=</span> <span class="n">broker</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-lag-&quot;</span> <span class="o">+</span> <span class="n">group</span><span class="p">,</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="n">kafka_rest_url</span>   <span class="o">=</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="n">group</span>            <span class="o">=</span> <span class="n">group</span><span class="p">,</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="n">max_lag</span>          <span class="o">=</span> <span class="n">max_lag</span><span class="p">,</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>        <span class="n">after</span>            <span class="o">=</span> <span class="p">[</span><span class="n">broker</span><span class="p">]</span> <span class="o">+</span> <span class="n">after</span><span class="p">,</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="p">)</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">dlq</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">(</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>        <span class="n">name</span>           <span class="o">=</span> <span class="n">broker</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-dlq-&quot;</span> <span class="o">+</span> <span class="n">topic</span><span class="p">,</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>        <span class="n">kafka_rest_url</span> <span class="o">=</span> <span class="n">kafka_rest_url</span><span class="p">,</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>        <span class="n">topic</span>          <span class="o">=</span> <span class="n">topic</span> <span class="o">+</span> <span class="s2">&quot;.DLQ&quot;</span><span class="p">,</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>        <span class="n">max_messages</span>   <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>        <span class="n">after</span>          <span class="o">=</span> <span class="p">[</span><span class="n">lag</span><span class="p">],</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>    <span class="p">)</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>    <span class="k">return</span> <span class="n">lag</span><span class="p">,</span> <span class="n">dlq</span>
 </span></code></pre></div>
 <p>A suite then gets both the infrastructure and the verification checks from a single module load:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/kafka&quot;</span><span class="p">,</span> <span class="s2">&quot;kafka&quot;</span><span class="p">,</span> <span class="s2">&quot;create_topic&quot;</span><span class="p">,</span> <span class="s2">&quot;check_consumer_health&quot;</span><span class="p">)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">broker</span>  <span class="o">=</span> <span class="n">kafka</span><span class="p">()</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">topic</span>   <span class="o">=</span> <span class="n">create_topic</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="s2">&quot;orders&quot;</span><span class="p">,</span> <span class="n">partitions</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">app</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">topic</span><span class="p">])</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">lag</span><span class="p">,</span> <span class="n">dlq</span> <span class="o">=</span> <span class="n">check_consumer_health</span><span class="p">(</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">broker</span><span class="p">,</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">group</span>          <span class="o">=</span> <span class="s2">&quot;orders-consumer&quot;</span><span class="p">,</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">topic</span>          <span class="o">=</span> <span class="s2">&quot;orders&quot;</span><span class="p">,</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">kafka_rest_url</span> <span class="o">=</span> <span class="s2">&quot;http://kafka:8082&quot;</span><span class="p">,</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">after</span>          <span class="o">=</span> <span class="p">[</span><span class="n">app</span><span class="p">],</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/kafka&quot;</span><span class="p">,</span> <span class="s2">&quot;kafka&quot;</span><span class="p">,</span> <span class="s2">&quot;create_topic&quot;</span><span class="p">,</span> <span class="s2">&quot;check_consumer_health&quot;</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">broker</span>  <span class="o">=</span> <span class="n">kafka</span><span class="p">()</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">topic</span>   <span class="o">=</span> <span class="n">create_topic</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="s2">&quot;orders&quot;</span><span class="p">,</span> <span class="n">partitions</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">app</span>     <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">topic</span><span class="p">])</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">lag</span><span class="p">,</span> <span class="n">dlq</span> <span class="o">=</span> <span class="n">check_consumer_health</span><span class="p">(</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">broker</span><span class="p">,</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">group</span>          <span class="o">=</span> <span class="s2">&quot;orders-consumer&quot;</span><span class="p">,</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">topic</span>          <span class="o">=</span> <span class="s2">&quot;orders&quot;</span><span class="p">,</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">kafka_rest_url</span> <span class="o">=</span> <span class="s2">&quot;http://kafka:8082&quot;</span><span class="p">,</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">after</span>          <span class="o">=</span> <span class="p">[</span><span class="n">app</span><span class="p">],</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The plugins referenced inside a module must still be registered in platform settings before any suite that loads the module can run — the module provides the Starlark API, but the Lua code runs in the APISIX sidecar at execution time.</p>
 <h2 id="plugin-starlark-wrapper-pluginstar">Plugin Starlark Wrapper (<code>plugin.star</code>)<a class="headerlink" href="#plugin-starlark-wrapper-pluginstar" title="Permanent link">&para;</a></h2>
 <p>Every plugin ships a <code>plugin.star</code> file alongside its Lua source. This file is the <strong>Starlark API surface</strong> of the plugin — it defines the named functions that suite authors call in <code>suite.star</code>, with typed parameters and defaults, and forwards them to the underlying plugin dispatcher.</p>
 <p>Without <code>plugin.star</code>, a suite would have to call the plugin with raw keyword arguments and remember every field name and default. With it, the suite just calls <code>transient(name=..., netlist=..., max_rise_ms=3.0)</code> — the wrapper handles the rest.</p>
 <h3 id="structure">Structure<a class="headerlink" href="#structure" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;spice-sim&quot;</span><span class="p">)</span>          <span class="c1"># bind to the registered plugin by name</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">transient</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">netlist</span><span class="p">,</span>         <span class="c1"># typed, documented parameters</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>              <span class="n">probe_node</span> <span class="o">=</span> <span class="s2">&quot;out&quot;</span><span class="p">,</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>              <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>              <span class="n">max_voltage</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>              <span class="n">sim_url</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>              <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>              <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">transient</span><span class="p">(</span>           <span class="c1"># forward to the dispatcher</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>        <span class="n">name</span>        <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>        <span class="n">after</span>       <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>        <span class="n">netlist</span>     <span class="o">=</span> <span class="n">netlist</span><span class="p">,</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>        <span class="n">probe_node</span>  <span class="o">=</span> <span class="n">probe_node</span><span class="p">,</span>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>        <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="n">max_rise_ms</span><span class="p">,</span>
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>        <span class="n">max_voltage</span> <span class="o">=</span> <span class="n">max_voltage</span><span class="p">,</span>
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>        <span class="n">sim_url</span>     <span class="o">=</span> <span class="n">sim_url</span><span class="p">,</span>
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>        <span class="n">severity</span>    <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>    <span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;spice-sim&quot;</span><span class="p">)</span>          <span class="c1"># bind to the registered plugin by name</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">transient</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">netlist</span><span class="p">,</span>         <span class="c1"># typed, documented parameters</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>              <span class="n">probe_node</span> <span class="o">=</span> <span class="s2">&quot;out&quot;</span><span class="p">,</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>              <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>              <span class="n">max_voltage</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>              <span class="n">sim_url</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>              <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>              <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">transient</span><span class="p">(</span>           <span class="c1"># forward to the dispatcher</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>        <span class="n">name</span>        <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>        <span class="n">after</span>       <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>        <span class="n">netlist</span>     <span class="o">=</span> <span class="n">netlist</span><span class="p">,</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>        <span class="n">probe_node</span>  <span class="o">=</span> <span class="n">probe_node</span><span class="p">,</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>        <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="n">max_rise_ms</span><span class="p">,</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>        <span class="n">max_voltage</span> <span class="o">=</span> <span class="n">max_voltage</span><span class="p">,</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>        <span class="n">sim_url</span>     <span class="o">=</span> <span class="n">sim_url</span><span class="p">,</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>        <span class="n">severity</span>    <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>    <span class="p">)</span>
 </span></code></pre></div>
 <p>Each exported function corresponds to one operation in the plugin's <code>operations</code> list. The function name must match the operation name exactly — that is how the backend knows which operation to pass to the Lua handler.</p>
 <h3 id="how-its-used-in-a-suite">How it's used in a suite<a class="headerlink" href="#how-its-used-in-a-suite" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">,</span> <span class="s2">&quot;dc_sweep&quot;</span><span class="p">)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">rc_filter</span> <span class="o">=</span> <span class="n">transient</span><span class="p">(</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">netlist</span>     <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">,</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">probe_node</span>  <span class="o">=</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">spice_mock</span><span class="p">],</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">,</span> <span class="s2">&quot;dc_sweep&quot;</span><span class="p">)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">rc_filter</span> <span class="o">=</span> <span class="n">transient</span><span class="p">(</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">netlist</span>     <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">probe_node</span>  <span class="o">=</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">max_rise_ms</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">spice_mock</span><span class="p">],</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The <code>load("@plugins/spice-sim", "transient")</code> resolves the <code>plugin.star</code> file for <code>spice-sim</code> and imports the <code>transient</code> function from it.</p>
 <h3 id="relationship-to-pluginyaml">Relationship to <code>plugin.yaml</code><a class="headerlink" href="#relationship-to-pluginyaml" title="Permanent link">&para;</a></h3>
@@ -2429,18 +2481,18 @@
 <li>Always forward <code>name=</code> and <code>after=</code> — these are topology fields, not config fields.</li>
 <li>Set sensible defaults so callers only have to specify what they care about.</li>
 </ol>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;my-checker&quot;</span><span class="p">)</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">check</span><span class="p">(</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="n">name</span>      <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>        <span class="n">after</span>     <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>        <span class="n">target</span>    <span class="o">=</span> <span class="n">target</span><span class="p">,</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>        <span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span><span class="p">,</span>
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>        <span class="n">severity</span>  <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
-</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;my-checker&quot;</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">check</span><span class="p">(</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="n">name</span>      <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>        <span class="n">after</span>     <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>        <span class="n">target</span>    <span class="o">=</span> <span class="n">target</span><span class="p">,</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>        <span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span><span class="p">,</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>        <span class="n">severity</span>  <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    <span class="p">)</span>
 </span></code></pre></div>
 <h2 id="plugin-definition-files">Plugin Definition Files<a class="headerlink" href="#plugin-definition-files" title="Permanent link">&para;</a></h2>
 <p>The example plugins under <a href="../examples/#example-plugins"><code>examples/oci-plugins/</code></a> each ship four files:</p>
@@ -2471,15 +2523,15 @@
 </tbody>
 </table>
 <p><code>plugin.yaml</code> example:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">spice-sim</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0.0</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/_babelsuite/plugins/spice-sim/start</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nt">variants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">spice-sim</span><span class="p p-Indicator">]</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="nt">operations</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">transient</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">dc_sweep</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ac_analysis</span><span class="p p-Indicator">]</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="nt">schema</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">schema.cue</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="nt">lua</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin.lua</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="nt">star</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin.star</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">spice-sim</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0.0</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/_babelsuite/plugins/spice-sim/start</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="nt">variants</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">spice-sim</span><span class="p p-Indicator">]</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="nt">operations</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">transient</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">dc_sweep</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ac_analysis</span><span class="p p-Indicator">]</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="nt">schema</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">schema.cue</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="nt">lua</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin.lua</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="nt">star</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin.star</span>
 </span></code></pre></div>
 <p>The <code>schema</code>, <code>lua</code>, and <code>star</code> fields are file references — the registration script reads them and sends the content inline to the API. Versions live in the definition file and are not auto-bumped by the backend.</p>
 <h2 id="ui">UI<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
