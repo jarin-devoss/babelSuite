@@ -11,7 +11,8 @@ title: Profile Runtime Reference
 BabelSuite currently has two profile representations:
 
 1. workspace profile files under `profiles/*.yaml`
-2. managed profile records in `backend/suite-profiles.yaml` or the profile store API
+2. managed profile records in the file named by `PROFILES_FILE` (default
+   `babelsuite-profiles.yaml`), or the profile store API
 
 Workspace files drive suite discovery, runtime env overlays, and inline `secretRefs`. Managed profiles support UI/API management, inheritance, defaults, and secret references.
 
@@ -55,7 +56,7 @@ Workspace suite discovery currently uses these fields directly:
 - `runtime.profileFile`
 - `modules`
 
-Profile loading and execution also consume optional `env`, `services.<step>.env`, `services.<step>.devices`, `network.mode`, and `secretRefs` blocks from the same YAML body.
+Profile loading and execution also consume optional `env`, `services.<step>.env`, `services.<step>.devices`, `services.<step>.memory`, `network.mode`, and `secretRefs` blocks from the same YAML body.
 
 ## Managed Profile Record Shape
 
@@ -104,6 +105,8 @@ services:
     devices: ["gpu"]          # NVIDIA GPU attached to this step
   capture:
     devices: ["/dev/video0"]  # specific /dev path
+  model-server:
+    memory: 2Gi               # raises this step's 512 MB default ceiling
 ```
 
 ## Defaults And Selection

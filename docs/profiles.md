@@ -14,10 +14,12 @@ A profile can:
 
 - set environment variables for the run
 - select module hints and observability settings
-- override individual service env vars — including `devices:` for hardware passthrough
+- override individual service env vars — including `devices:` for hardware passthrough and `memory:` for a per-step memory ceiling
 - configure the execution network mode (`network.mode`)
 - declare secret-backed env vars with `secretRefs`
 - inherit from another profile via `extendsId`
+
+![Profiles and configuration for the notification-hub suite: a default local debug profile and a CI profile](images/profiles.png)
 
 ## Profile Sources
 
@@ -106,6 +108,7 @@ services:
     devices: ["gpu"]           # nvidia GPU (all)
     # devices: ["gpu:2"]       # exactly 2 GPUs
     # devices: ["/dev/ttyUSB0"] # USB serial device
+    memory: 2Gi                # container memory ceiling for this step
 ```
 
 ### `network.mode`
@@ -115,6 +118,16 @@ services:
 | `execution` | One isolated Docker bridge network per execution. Every container joins it and is reachable by its node `name` as hostname — e.g. `redis:6379`, `payment-gateway:8080`. Network is created at execution start and removed when the execution finishes. |
 | `host` | Containers share the host network stack. |
 | `none` or omitted | Docker default bridge — containers are isolated from each other. |
+
+!!! warning "Read but not yet acted on"
+    The Docker backend creates and joins the per-execution network in every
+    profile, because the shipped modules address other steps by name whether or
+    not a profile opted in — `connect()` dials `<db name>:5432` regardless. The
+    value is parsed and stored, but `host` and `none` change nothing today.
+
+When suites are composed, a service name that more than one of them declares
+gets a single publisher rather than being shared — see
+[Runtime Library](runtime-library.md#service-names-when-suites-are-composed).
 
 ### `services.<name>.devices`
 
@@ -142,6 +155,44 @@ services:
     env:
       BATCH_SIZE: "50000"
 ```
+
+### `services.<name>.memory`
+
+Container memory ceiling for one step. Step containers default to 512 MB, which
+is ample for a script but not for a step that hosts a process with a large
+working set — a model server, a JVM, an in-memory fixture. Raising it per step
+keeps that default, and the protection it gives, for every other step.
+
+Values use the same quantity grammar as Kubernetes, so the Docker and
+Kubernetes backends agree on what a profile means. The suffixes are
+**case-sensitive**.
+
+| Value | Meaning |
+|-------|---------|
+| `2Gi`, `512Mi`, `1Ki` | Binary units — 1024-based |
+| `2G`, `512M`, `2k` | Decimal units — 1000-based (note the lower-case `k`) |
+| `1.5Gi` | Fractions are allowed |
+| `2147483648` | A plain byte count |
+| omitted, zero, negative, or unparseable | Default ceiling, currently 512 MB |
+
+`2GB`, `512MB` and an upper-case `2K` are **not** valid suffixes and are
+ignored, leaving the step on the default. Values below the 6 MB floor Docker
+enforces fail the step with a named error rather than an opaque daemon
+rejection.
+
+```yaml
+# local.yaml — only the model server gets more
+services:
+  ollama:
+    memory: 2Gi
+```
+
+It is a ceiling, not a reservation: the step consumes only what it touches, and
+is OOM-killed if it exceeds this. A step whose process dies with
+`signal: killed` part-way through start-up is the signature of this limit being
+too low.
+
+Like `devices:`, the entry may be keyed by either the node id or the node name.
 
 ## Default Selection
 

@@ -33,9 +33,10 @@ The control plane exposes both short and namespaced paths for each probe.
 | `platform` | Yes | Platform settings file readable |
 | `profiles` | Yes | Profile store accessible |
 | `agents` | No | At least one registered agent (when agent backends are configured) |
-| `suites` | No | At least one launchable suite detected |
 | `cache` | No | Redis connectivity |
 | `telemetry` | No | OTLP exporter reachable |
+
+These are the names `/readyz/{subsystem}` accepts.
 
 ---
 
@@ -57,7 +58,7 @@ OTEL_RESOURCE_ATTRIBUTES=env=production,team=platform
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP collector endpoint (HTTP or gRPC) |
-| `OTEL_SERVICE_NAME` | `babelsuite` | Service name reported to the collector |
+| `OTEL_SERVICE_NAME` | `babelsuite-backend` | Service name reported to the collector |
 | `OTEL_EXPORTER_OTLP_INSECURE` | `false` | Skip TLS verification (for local collectors) |
 | `OTEL_EXPORTER_OTLP_HEADERS` | — | Additional headers sent with each OTLP request |
 | `OTEL_RESOURCE_ATTRIBUTES` | — | Comma-separated `key=value` resource attributes |
@@ -82,32 +83,32 @@ If Redis is not configured, the control plane falls back to the primary store fo
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REDIS_URL` | — | Redis connection string (e.g. `redis://localhost:6379`) |
+| `REDIS_ADDR` | *(empty)* | Redis host and port (e.g. `localhost:6379`) — leave blank to disable |
+| `REDIS_PASSWORD` | *(empty)* | Redis authentication password |
+| `REDIS_DB` | `0` | Redis logical database index |
+| `REDIS_PREFIX` | `babelsuite` | Key prefix for all cache entries |
 
 ---
 
 ## Primary Datastore
 
-BabelSuite supports two primary store backends. Select with the `DB_DRIVER` environment variable.
+MongoDB is the store the server uses.
 
-| Driver | Variable | Description |
-|--------|----------|-------------|
-| `mongo` | `MONGODB_URI` | MongoDB (default for local development) |
-| `postgres` | `DATABASE_URL` | PostgreSQL |
-
-### MongoDB
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `MONGO_DB` | `babelsuite` | MongoDB database name |
 
 ```bash
-DB_DRIVER=mongo
-MONGODB_URI=mongodb://localhost:27017/babelsuite
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=babelsuite
 ```
 
-### PostgreSQL
-
-```bash
-DB_DRIVER=postgres
-DATABASE_URL=postgres://user:password@localhost:5432/babelsuite?sslmode=disable
-```
+!!! note "PostgreSQL is present but not selectable"
+    A PostgreSQL store and migrator exist under `internal/store/postgres`, but
+    the server entrypoint reads no driver-selection variable, so there is no
+    supported way to switch to it today. `DB_DRIVER`, `POSTGRES_DSN` and
+    `DATABASE_URL` are not read.
 
 ---
 
@@ -116,12 +117,16 @@ DATABASE_URL=postgres://user:password@localhost:5432/babelsuite?sslmode=disable
 Every API request passes through the shared middleware stack in this order:
 
 ```
-CORS → CSRF → Request IDs → Auth Session → OTel Trace → HTTP Metrics → Audit
+Recovery → Security Headers → CORS → CSRF → Body Limit (10 MB) →
+Request IDs → Auth Session → OTel Trace → Trace Context → HTTP Metrics → Audit
 ```
 
 | Layer | What it does |
 |-------|-------------|
+| Recovery | Converts a panic in any handler into a 500 instead of dropping the connection |
+| Security Headers | Adds HSTS and related response headers, honouring `TRUSTED_PROXIES` |
 | CORS | Enforces the `FRONTEND_URL` origin allowlist |
+| Body Limit | Rejects request bodies over 10 MB |
 | CSRF | Double-submit cookie check on state-mutating requests (see below) |
 | Request IDs | Attaches a unique ID to each request for log correlation |
 | Auth Session | Verifies JWT and populates request context |
@@ -282,43 +287,14 @@ telemetry:
 
 BabelSuite's MongoDB store creates collections and indexes automatically on startup — no separate migration step is required for MongoDB.
 
-### PostgreSQL
-
-When using the PostgreSQL driver (`DB_DRIVER=postgres`), schema migrations are managed via embedded SQL files applied at startup. To inspect or run them manually:
-
-```bash
-# List pending migrations
-DATABASE_URL=postgres://... ./babelsuite migrate status
-
-# Apply all pending migrations
-DATABASE_URL=postgres://... ./babelsuite migrate up
-
-# Roll back one step
-DATABASE_URL=postgres://... ./babelsuite migrate down
-```
-
-Keep `DATABASE_URL` in a secret and never commit it to version control.
-
 ### Backup and restore
 
-**MongoDB**
-
 ```bash
 # Backup
-mongodump --uri "$MONGODB_URI" --db babelsuite --out /backup/$(date +%Y%m%d)
+mongodump --uri "$MONGO_URI" --db "$MONGO_DB" --out /backup/$(date +%Y%m%d)
 
 # Restore
-mongorestore --uri "$MONGODB_URI" --db babelsuite /backup/20260526/babelsuite
-```
-
-**PostgreSQL**
-
-```bash
-# Backup
-pg_dump "$DATABASE_URL" -Fc -f /backup/babelsuite-$(date +%Y%m%d).dump
-
-# Restore
-pg_restore "$DATABASE_URL" -d babelsuite /backup/babelsuite-20260526.dump
+mongorestore --uri "$MONGO_URI" --db "$MONGO_DB" /backup/20260526/babelsuite
 ```
 
 Automate backups via a Kubernetes CronJob, a managed-database snapshot schedule, or a dedicated backup tool.

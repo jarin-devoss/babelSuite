@@ -4,6 +4,8 @@ title: BabelSuite
 
 # BabelSuite
 
+![The topology graph of a running suite: Postgres, migrations, a Stripe mock, the gateway, a fraud worker and a traffic phase, wired by their dependencies](images/topology-graph.png)
+
 Your tests should run the same way on every machine, every team, every environment — without a README full of setup steps, without a shared staging environment nobody trusts, and without one engineer who "knows how to run the tests locally."
 
 BabelSuite gives every team a `suite.star` file: a short, readable description of the full environment your tests need — databases, services, mocks, migrations — and the tests themselves. No Docker Compose knowledge required. No custom shell scripts. Just declare what depends on what, and BabelSuite handles the rest.
@@ -54,6 +56,7 @@ When a step fails, logs are live in the UI immediately — not buried in CI outp
 
 - [Philosophy](philosophy.md) — the design approach: one file, no setup scripts, zero extra containers
 - [Getting Started](getting-started.md) — prerequisites, local dev flow, first things to try
+- [Demo](demo.md) — one compose stack plus the bundled examples, from a clean checkout
 
 ### System
 
@@ -119,7 +122,8 @@ examples/
   oci-suites/      Runnable example suite packages
   oci-modules/     Reusable Starlark modules (Kafka, Postgres, Redis, MongoDB)
 proto/             API service definitions (protobuf)
-demo/              Demo-mode data files
+demo/              Local demo: compose stack, bootstrap, starting configuration.yaml
+scripts/           push-to-zot.py, install-plugins.py
 tools/             Local helper scripts and configuration
 docs/              This documentation (MkDocs Material)
 ```

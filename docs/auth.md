@@ -34,6 +34,13 @@ ADMIN_PASSWORD=changeme
 
 ## OIDC Single Sign-On
 
+!!! warning "Not wired up yet"
+    The OIDC service and its `/api/v1/auth/oidc/*` routes exist, but the server
+    builds its auth configuration without an OIDC section, so none of the
+    variables in this section are read and the provider never reports as
+    enabled. Treat what follows as the intended contract rather than working
+    configuration, and use local authentication until it is connected.
+
 ### How It Works
 
 1. User clicks **Sign in with SSO** — the frontend calls `GET /api/v1/auth/oidc/login`.

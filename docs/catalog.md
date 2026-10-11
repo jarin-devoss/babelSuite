@@ -21,6 +21,12 @@ For each registry configured in [Platform Settings](platform.md), the catalog se
 
 The result is a unified package list across all configured registries.
 
+![The catalog listing fourteen suites discovered from a Zot registry, with filters by kind, registry source and capability](images/catalog.png)
+
+Selecting an entry opens the suite detail page — its `suite.star`, every published source file, its profiles, tags and node count — without running it.
+
+![The payment-suite detail page: suite.star alongside the package info, tags, commands and profiles](images/suite-detail.png)
+
 ---
 
 ## Package Fields

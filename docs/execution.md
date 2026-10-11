@@ -76,16 +76,16 @@ Each topology node becomes a step spec that carries:
 
 ## Execution Workspace
 
-Every execution gets a shared Docker volume that is mounted into every container in that run at a fixed path. The volume is created before the first step starts and removed when the execution environment is reaped.
+Every execution gets a host directory that is bind-mounted into every container in that run at a fixed path. It is created before the first step starts and removed when the execution environment is reaped.
 
 Inside each container two paths are available:
 
 | Path | Purpose |
 |------|---------|
 | `$BABELSUITE_WORKSPACE_DIR` | Shared volume — readable and writable by every step in the same execution |
-| `$BABELSUITE_ARTIFACTS_DIR` | Per-step mount — files written here are harvested and stored by BabelSuite after the step exits |
+| `$BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only. On Docker, `.export(...)` paths are read from the workspace mount after the step exits |
 
-The workspace volume is isolated per execution. Two concurrent runs never share a volume. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.
+The workspace is isolated per execution. Two concurrent runs never share one. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.
 
 ## Live Streams
 
@@ -98,8 +98,16 @@ Executions expose two SSE endpoints:
 
 The live execution page subscribes to both streams so the UI updates without polling.
 
+![Live execution: logs streaming from a booting payment suite, with the topology panel grouping steps into waves and counters for healthy, running, failed, skipped and pending steps](images/live-execution.png)
+
 !!! note
     SSE connections pass the session token as a query parameter (`?token=...`) because the browser `EventSource` API does not support custom request headers.
+
+### Topology Graph
+
+The **Graph** button draws the same dependency graph the engine executes. Clicking a node filters the logs to that step; `Ctrl`/`⌘` + scroll zooms, and dragging or the arrow keys pan a graph wider than the screen.
+
+![The topology graph of composite-readiness, around seventy nodes across four imported suites](images/topology-graph-composite.png)
 
 ## Execution Overview
 
@@ -109,6 +117,8 @@ The engine maintains a rolling in-memory overview of recent and active execution
 - `GET /api/v1/engine/overview/stream` — SSE stream of overview updates
 
 The home dashboard uses the SSE stream to display live execution status.
+
+![Executions and runs: three healthy runs with their profile, trigger, duration and step counts](images/executions.png)
 
 ## Remote Agents
 
@@ -132,11 +142,11 @@ See [Environments](environments.md) for the inventory model and cleanup operatio
 
 The control plane exposes readiness checks around execution dependencies:
 
-- `datastore` — primary store availability
+- `database` — primary store availability
 - `cache` — Redis availability (optional)
-- `platform-settings` — at least one backend configured
+- `platform` — platform settings readable
 - `profiles` — profile store available
-- `launchable-suites` — at least one suite is launchable
+- `agents` — at least one registered agent, when agent backends are configured
 
 See [Operations](operations.md) for the full health endpoint reference.
 

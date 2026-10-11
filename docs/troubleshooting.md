@@ -50,7 +50,7 @@ curl -s http://localhost:8090/readyz | jq .
 
 | Subsystem | Common cause |
 |-----------|-------------|
-| `database` | MongoDB/Postgres unreachable |
+| `database` | MongoDB unreachable |
 | `platform` | `configuration.yaml` missing or unreadable |
 | `profiles` | `babelsuite-profiles.yaml` unreadable |
 | `agents` | No agents registered (optional — only required when agent backends are configured) |
@@ -61,7 +61,7 @@ curl -s http://localhost:8090/readyz | jq .
 
 1. **No available backend** — check that at least one backend is healthy: `curl /readyz/agents`.
 2. **Agent not heartbeating** — the agent process may have crashed. Check agent logs and restart it.
-3. **Suite not found in catalog** — the OCI registry may be unreachable. Check `curl /readyz/suites`.
+3. **Suite not found in catalog** — the OCI registry may be unreachable, or the suite was never pushed to it. Run `python scripts/push-to-zot.py` and restart the backend, then confirm with `GET /api/v1/suites/<id>`.
 
 ---
 

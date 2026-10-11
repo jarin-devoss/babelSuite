@@ -169,15 +169,31 @@ The suite loader derives package metadata from:
 
 ## Example Suites In This Repository
 
-- `payment-suite`
+- `gateway-check`
+- `notification-hub`
 - `identity-broker`
+- `payment-suite`
 - `returns-control-plane`
 - `storefront-browser-lab`
 - `soap-claims-hub`
 - `fleet-control-room`
+- `security-suite`
 - `composite-readiness`
+- `electronics-lab`
+- `kafka-consumer-health`
+- `plugin-span-demo`
+- `llm-judge-live`
 
-See [Examples](examples.md) for descriptions of each suite and instructions for seeding the local registry.
+[Examples](examples.md) orders these from simplest to most complex and lists the
+features each one introduces, along with instructions for seeding the local
+registry.
+
+!!! tip "The smallest complete package"
+    `examples/oci-suites/gateway-check/` is one mock surface and one test step.
+    It is the shortest thing to read when working out what a package must
+    contain, and what it asserts — that `BABELSUITE_GATEWAY_URL` reaches a step
+    and that the sidecar answers from inside a step container — is exactly what
+    breaks first when either stops working.
 
 ## Related Pages
 

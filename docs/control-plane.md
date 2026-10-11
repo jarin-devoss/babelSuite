@@ -119,15 +119,14 @@ Required subsystem failures return `503 Service Unavailable`.
 
 The control plane wiring currently reports readiness around areas such as:
 
-- datastore
-- cache
-- platform settings
-- profiles
-- telemetry
-- agents
-- launchable suites
+- `database`
+- `cache`
+- `platform`
+- `profiles`
+- `telemetry`
+- `agents`
 
-Exact enabled probes can vary with configuration.
+Those are the names `/readyz/{subsystem}` accepts. Exact enabled probes can vary with configuration.
 
 ## Cache Layer
 

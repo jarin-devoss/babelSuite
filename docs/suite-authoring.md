@@ -77,26 +77,34 @@ Compatibility folders still load for older suites:
 
 ## How `suite.star` Is Parsed
 
-The topology parser is an assignment-based topology scanner, not a full Starlark interpreter. It scans each logical statement for this shape:
+`suite.star` is evaluated by a real Starlark interpreter, so loops, conditionals
+and functions all work, and a node is registered whenever a runtime family
+function is called:
 
-```text
-<variable> = <family>(<arguments>)
+```python
+for region in REGIONS:
+    test.run(name="smoke-" + region, file="smoke.py", image="python:3.12", after=[api])
 ```
 
-Statements that do not match this shape, including `load()` statements, comments, and blank lines, are ignored by the resolver.
+Assigning the call to a variable is the normal style — the variable name becomes
+the node's default id and is how `after=[...]` refers to it — but the call is
+what creates the node.
 
-Backslash continuations are supported for chained `.export(...)` calls.
+See [Runtime Library](runtime-library.md#how-the-parser-works) for the detail,
+including why `env.get()` cannot read the active profile.
 
 ### `load()` statements
 
-`load()` lines are still expected at the top of each suite:
+`load()` lines are required at the top of each suite:
 
 ```python
 load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
 load("@babelsuite/kafka", "kafka")
 ```
 
-The topology parser ignores them. The workspace loader reads them separately to populate the suite's contracts/module references.
+They are real imports — the bound names are what the file calls, and an
+unresolvable module or plugin is an error. The workspace loader also reads the
+paths to populate the suite's contracts/module references.
 
 ## Canonical Example
 
@@ -280,9 +288,9 @@ verify = test.run(
 
 Use `BABELSUITE_ARTIFACTS_DIR` with `.export()` when you want BabelSuite to store and display the file in the execution UI (JUnit reports, coverage, crash dumps). Use `BABELSUITE_WORKSPACE_DIR` when you only need the next step to consume it.
 
-## Profile-Controlled Hardware and Networking
+## Profile-Controlled Hardware, Memory and Networking
 
-Hardware requirements (`devices:`) and network topology (`network.mode:`) are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable across environments.
+Hardware requirements (`devices:`), per-step memory ceilings (`memory:`) and network topology (`network.mode:`) are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable across environments.
 
 ```yaml
 # perf.yaml
@@ -294,6 +302,8 @@ services:
     devices: ["gpu"]          # GPU attached to this step in perf runs only
   capture:
     devices: ["/dev/video0"]  # USB camera for hardware tests
+  model-server:
+    memory: 2Gi               # raises this step above the 512 MB default
 ```
 
 The same `suite.star` runs with no GPU on a laptop (`local.yaml` omits `devices:`) and with GPU on a cluster (`perf.yaml` adds it). See [Profiles](profiles.md) for the full reference.
@@ -318,7 +328,7 @@ rc_filter = transient(
 )
 ```
 
-Plugin nodes behave like any other topology node: they accept `after=`, `continue_on_failure=`, and `on_failure=`. The backend dispatches them to the APISIX sidecar at the plugin's registered trigger path and reads the `passed`, `findings`, `summary`, and `level` fields from the JSON response.
+Plugin nodes behave like any other topology node: they accept `after=`, `continue_on_failure=`, and `on_failure=`. The backend dispatches them to the APISIX sidecar at the plugin's registered trigger path and reads the `passed`, `findings`, `summary`, `level`, `stderr` and `attributes` fields from the JSON response.
 
 Plugin variants (e.g. `transient`, `dc_sweep`) correspond to the `operations` list in the plugin definition. If a plugin defines `operations`, a step that requests an unlisted operation is rejected before dispatch.
 

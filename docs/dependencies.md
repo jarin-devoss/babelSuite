@@ -91,6 +91,44 @@ Imported nodes become namespaced:
 
 That namespacing prevents collisions with parent-suite step names.
 
+## Contested Service Names
+
+Namespacing applies to node **ids**. A network hostname has no namespace, so two
+composed suites that each declare a service called `db` would both answer to
+that one name. BabelSuite resolves it by giving a contested name a single
+publisher: the suite being run keeps the bare name, and an imported suite's
+service answers to `<suite>-<service>` instead.
+
+Importing three suites that each call `pg()` therefore produces:
+
+| Service | Hostname |
+|---------|----------|
+| the running suite's own `db` | `db` |
+| `identity-broker`'s `db` | `identity-broker-db` |
+| `payment-suite`'s `db` | `payment-suite-db` |
+| any uncontested service, imported or not | unchanged |
+
+Point each dependency at its own with `inputs:`, which is merged into the
+imported nodes' environment. The shipped modules and the example suites' scripts
+read `${POSTGRES_URL:-...}` before falling back to a hostname, so one input is
+enough:
+
+```yaml
+dependencies:
+  identity-broker:
+    ref: localhost:5000/security/identity-broker
+    profile: local.yaml
+    inputs:
+      POSTGRES_URL: postgresql://postgres:postgres@identity-broker-db:5432/app
+```
+
+Left unwired, the fallback hostname resolves to nothing and the step fails
+saying so — which is the point. The alternative is a step silently reading
+another suite's database.
+
+A boot event lists the contested names at the start of any execution that has
+them, so you do not have to work out which dependencies need an input.
+
 ## Dependency Runtime Overlays
 
 Dependency entries can carry two runtime overlays:
