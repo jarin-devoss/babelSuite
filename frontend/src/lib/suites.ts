@@ -1,3 +1,13 @@
+/**
+ * The suite entrypoint, which the inspect modals treat as a file of its own:
+ * it is listed first in the tree and rendered from `suiteStar` with Starlark
+ * highlighting, rather than from `sourceFiles` like every other file.
+ *
+ * It is also present in `sourceFiles`, so a tree that lists both has to exclude
+ * it from one of them — listing it from both is what showed it twice.
+ */
+export const SUITE_STAR_PATH = 'suite.star'
+
 export type RuntimeKind = 'mock' | 'service' | 'task' | 'test' | 'traffic' | 'suite' | 'security'
 export type RuntimeStatus = 'pending' | 'running' | 'healthy' | 'failed' | 'skipped'
 

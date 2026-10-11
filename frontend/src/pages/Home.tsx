@@ -4,13 +4,8 @@ import {
   FaChevronDown,
   FaCircleCheck,
   FaCircleXmark,
-  FaCopy,
-  FaCubes,
   FaDiagramProject,
   FaDocker,
-  FaDownload,
-  FaFile,
-  FaFolderOpen,
   FaPlay,
   FaShieldHalved,
   FaSpinner,
@@ -21,7 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import '../components/CatalogInspectModal.css'
 import { logoGradient } from '../components/logoGradient'
-import { useClipboardFeedback } from '../hooks/useClipboardFeedback'
+import { SuitePackageExplorer } from '../components/SuitePackageExplorer'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   createExecution,
@@ -33,9 +28,7 @@ import {
   type ExecutionOverview,
   type ExecutionOverviewItem,
   type SuiteDefinition,
-  type SuiteSourceFile,
 } from '../lib/api'
-import { renderSourceLine, renderStarlarkLine } from '../lib/codeHighlight'
 import './Home.css'
 
 export default function Home() {
@@ -513,8 +506,6 @@ function SuiteInspectModal({ suiteId, onClose }: { suiteId: string; onClose: () 
   const [suite, setSuite] = useState<SuiteDefinition | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [selected, setSelected] = useState('suite.star')
-  const { copiedId, copyToClipboard } = useClipboardFeedback(1600)
 
   useEscapeKey(onClose)
 
@@ -523,25 +514,10 @@ function SuiteInspectModal({ suiteId, onClose }: { suiteId: string; onClose: () 
     setLoading(true)
     setError('')
     void getSuite(suiteId)
-      .then((s) => { if (active) { setSuite(s); setLoading(false); setSelected('suite.star') } })
+      .then((s) => { if (active) { setSuite(s); setLoading(false) } })
       .catch((e) => { if (active) { setError(e instanceof Error ? e.message : 'Could not load suite.'); setLoading(false) } })
     return () => { active = false }
   }, [suiteId])
-
-  const suiteSourceFiles: SuiteSourceFile[] = suite?.sourceFiles ?? []
-  const suiteFolders = suite?.folders ?? []
-  const rootSourceFiles = useMemo(
-    () => suiteSourceFiles.filter((file) => !file.path.includes('/')),
-    [suiteSourceFiles],
-  )
-  const suiteProfiles = suite?.profiles ?? []
-  const sourceFileByPath = useMemo(
-    () => new Map(suiteSourceFiles.map((f) => [f.path, f])),
-    [suiteSourceFiles],
-  )
-
-  const activeSourceFile = sourceFileByPath.get(selected)
-  const showRichSourceUnavailable = !loading && Boolean(suite) && selected !== 'suite.star' && !activeSourceFile
 
   return createPortal(
     <div className='ci-backdrop' onClick={onClose}>
@@ -570,169 +546,12 @@ function SuiteInspectModal({ suiteId, onClose }: { suiteId: string; onClose: () 
           <button type='button' className='ci-close' onClick={onClose} aria-label='Close'><FaXmark /></button>
         </div>
 
-        <div className='ci-body'>
-          <aside className='ci-tree'>
-            <p className='ci-tree__label'>Package Files</p>
-            {loading
-              ? [1, 2, 3, 4, 5].map((n) => <div key={n} className='ci-tree__skeleton' />)
-              : (
-                  <>
-                    {suite && (
-                      <button
-                        type='button'
-                        className={`ci-tree__item${selected === 'suite.star' ? ' ci-tree__item--active' : ''}`}
-                        onClick={() => setSelected('suite.star')}
-                      >
-                        <span className='ci-tree__item-icon'><FaFile /></span>
-                        <span>suite.star</span>
-                      </button>
-                    )}
-                    {rootSourceFiles.map((file) => (
-                      <button
-                        key={file.path}
-                        type='button'
-                        className={`ci-tree__item${selected === file.path ? ' ci-tree__item--active' : ''}`}
-                        onClick={() => setSelected(file.path)}
-                      >
-                        <span className='ci-tree__item-icon'><FaFile /></span>
-                        <span>{file.path}</span>
-                      </button>
-                    ))}
-                    {suiteFolders.map((folder) => (
-                      <div key={folder.name} className='ci-tree__group'>
-                        <div className='ci-tree__folder'>
-                          <span className='ci-tree__item-icon'><FaFolderOpen /></span>
-                          <span>{folder.name}/</span>
-                        </div>
-                        {folder.files.map((filePath) => {
-                          const sourcePath = `${folder.name}/${filePath}`
-                          const file = sourceFileByPath.get(sourcePath)
-                          return (
-                            <button
-                              key={sourcePath}
-                              type='button'
-                              className={`ci-tree__item ci-tree__item--child${selected === sourcePath ? ' ci-tree__item--active' : ''}`}
-                              onClick={() => setSelected(sourcePath)}
-                              disabled={!file}
-                            >
-                              <span className='ci-tree__item-icon'><FaFile /></span>
-                              <span>{filePath}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ))}
-                  </>
-                )}
-            {suiteProfiles.length > 0 && (
-              <>
-                <p className='ci-tree__label ci-tree__label--profiles'>Profiles</p>
-                {suiteProfiles.map((p) => (
-                  <div key={p.fileName} className='ci-tree__profile'>
-                    <span>{p.label}</span>
-                    {p.default && <span className='ci-tree__default'>default</span>}
-                  </div>
-                ))}
-              </>
-            )}
-          </aside>
-
-          <div className='ci-content'>
-            {loading && (
-              <div className='ci-content__loading'>
-                <div className='ci-spinner' />
-                <p>Loading suite…</p>
-              </div>
-            )}
-
-            {!loading && !error && suite && selected === 'suite.star' && (
-              <>
-                <div className='ci-content__toolbar'>
-                  <span className='ci-content__filename'><FaFile /> suite.star</span>
-                  <button
-                    type='button'
-                    className={`ci-copy-btn${copiedId === 'star' ? ' ci-copy-btn--ok' : ''}`}
-                    onClick={() => void copyToClipboard('star', suite.suiteStar)}
-                  >
-                    <FaCopy />
-                    <span>{copiedId === 'star' ? 'Copied!' : 'Copy'}</span>
-                  </button>
-                </div>
-                <div className='ci-code'>
-                  {suite.suiteStar.split('\n').map((line, i) => (
-                    <div key={i} className='ci-code__line'>
-                      <span className='ci-code__num'>{String(i + 1).padStart(3, ' ')}</span>
-                      <code className='ci-code__text'>{renderStarlarkLine(line)}</code>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {!loading && activeSourceFile && selected !== 'suite.star' && (
-              <>
-                <div className='ci-content__toolbar'>
-                  <span className='ci-content__filename'><FaFile /> {activeSourceFile.path}</span>
-                  <span className='ci-folder-role'>{activeSourceFile.language}</span>
-                  <button
-                    type='button'
-                    className={`ci-copy-btn${copiedId === activeSourceFile.path ? ' ci-copy-btn--ok' : ''}`}
-                    onClick={() => void copyToClipboard(activeSourceFile.path, activeSourceFile.content)}
-                  >
-                    <FaCopy />
-                    <span>{copiedId === activeSourceFile.path ? 'Copied!' : 'Copy'}</span>
-                  </button>
-                </div>
-                <div className='ci-code'>
-                  {activeSourceFile.content.split('\n').map((line, i) => (
-                    <div key={`${activeSourceFile.path}-${i + 1}`} className='ci-code__line'>
-                      <span className='ci-code__num'>{String(i + 1).padStart(3, ' ')}</span>
-                      <code className='ci-code__text'>{renderSourceLine(line, activeSourceFile.language)}</code>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {showRichSourceUnavailable && (
-              <div className='ci-content__empty'>
-                Source content for this file is not available yet.
-              </div>
-            )}
-
-            {error && <div className='ci-content__error'>{error}</div>}
-
-            {!loading && suite && (
-              <div className='ci-footer'>
-                <button
-                  type='button'
-                  className={`ci-cmd-btn${copiedId === 'pull' ? ' ci-cmd-btn--ok' : ''}`}
-                  onClick={() => void copyToClipboard('pull', suite.pullCommand)}
-                >
-                  <FaCopy />
-                  <span>{copiedId === 'pull' ? 'Copied!' : 'Copy pull command'}</span>
-                </button>
-                <button
-                  type='button'
-                  className={`ci-cmd-btn ci-cmd-btn--ghost${copiedId === 'fork' ? ' ci-cmd-btn--ok' : ''}`}
-                  onClick={() => void copyToClipboard('fork', suite.forkCommand)}
-                >
-                  <FaDownload />
-                  <span>{copiedId === 'fork' ? 'Copied!' : 'Fork'}</span>
-                </button>
-                {suite.modules.length > 0 && (
-                  <div className='ci-modules'>
-                    {suite.modules.map((m) => (
-                      <span key={m} className='ci-module-pill'>
-                        <FaCubes />{m.replace('@babelsuite/', '')}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <SuitePackageExplorer
+          suite={suite}
+          loading={loading}
+          error={error}
+          resetKey={suiteId}
+        />
 
       </div>
     </div>,
