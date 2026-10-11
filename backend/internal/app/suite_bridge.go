@@ -651,7 +651,7 @@ func (r *catalogSuiteReader) List() []suites.Definition {
 	r.mu.RLock()
 	result := make([]suites.Definition, 0, len(r.cache))
 	for _, def := range r.cache {
-		result = append(result, *def)
+		result = append(result, suites.CloneDefinition(*def))
 	}
 	r.mu.RUnlock()
 
@@ -677,7 +677,7 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 	cached := r.cache[id]
 	r.mu.RUnlock()
 	if cached != nil {
-		clone := *cached
+		clone := suites.CloneDefinition(*cached)
 		return &clone, nil
 	}
 
@@ -699,7 +699,7 @@ func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
 	r.cache[id] = &resolved
 	r.mu.Unlock()
 
-	clone := resolved
+	clone := suites.CloneDefinition(resolved)
 	return &clone, nil
 }
 
