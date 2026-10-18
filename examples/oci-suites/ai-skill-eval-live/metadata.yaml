@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ai-skill-eval-live
+  title: AI Skill Eval Live
+spec:
+  repository: localhost:5000/qa/ai-skill-eval-live
+  owner: Platform Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Tests a real model's skills with the skill-eval plugin — routing with negative controls, stability across samples, argument values and schema, a multi-skill sequence, latency, answer quality, and uplift over the same model without the skill. Runs the model as a suite step, so it needs no API key and sends nothing off the host.

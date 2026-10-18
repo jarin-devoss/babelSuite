@@ -1,0 +1,8 @@
+name: skill-eval
+version: 1.0.0
+kind: plugin
+variants: [skill-eval]
+operations: [trigger, arguments, outcome, uplift, consistency, sequence, latency, monitor]
+schema: schema.cue
+lua: plugin.lua
+star: plugin.star

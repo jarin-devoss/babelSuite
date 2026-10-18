@@ -1,0 +1,15 @@
+name: Local
+description: Runs the model on the host CPU inside the execution network.
+default: true
+
+services:
+  # Same sizing as llm-judge-live: ~335 MB for the server plus ~935 MB for the
+  # weights, over the 512 MB default step ceiling.
+  ollama:
+    memory: 2Gi
+
+env:
+  # Lets the model download bypass a proxy that does not resolve; see
+  # llm-judge-live's profile for why NO_PROXY is the lever.
+  NO_PROXY: "*"
+  no_proxy: "*"
