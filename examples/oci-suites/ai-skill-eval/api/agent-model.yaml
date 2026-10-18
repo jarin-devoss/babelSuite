@@ -1,0 +1,19 @@
+openapi: 3.1.0
+info:
+  title: Agent Model
+  version: v1.0.0
+  description: >-
+    A chat-completions surface standing in for the agent whose skills the
+    skill-eval plugin tests, and for the judge that grades its answers. Each
+    request is answered by the example whose name matches the request's
+    `model`, so every run sees identical tool calls and verdicts.
+servers:
+  - url: https://agent-model
+paths:
+  /v1/chat/completions:
+    post:
+      operationId: agent-chat-completions
+      summary: Return a fixed tool call or verdict set in OpenAI response shape, chosen by model name.
+      responses:
+        "200":
+          description: Successful mock response

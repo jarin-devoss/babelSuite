@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ai-skill-eval
+  title: AI Skill Eval
+spec:
+  repository: localhost:5000/qa/ai-skill-eval
+  owner: Platform Engineering
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Tests an AI agent's skills with every skill-eval operation — routing, routing stability, arguments, multi-skill sequences, latency and answer quality — against a mocked agent and judge, so each step has a known score. Starts no containers and needs no model or API key.

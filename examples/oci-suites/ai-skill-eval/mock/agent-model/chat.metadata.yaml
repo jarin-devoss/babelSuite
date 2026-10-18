@@ -1,0 +1,37 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/agent-model/chat.metadata.yaml
+    operationId: agent-chat-completions
+    sourceArtifact: mock/agent-model/chat.cue
+    suite: ai-skill-eval
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "500"
+        mediatype: application/json
+        body: |-
+            {
+              "error": {
+                "message": "no mock agent is named by this request's model",
+                "type": "api_error"
+              }
+            }
+        headers: []
+    parameterConstraints:
+        - name: content-type
+          source: header
+          required: true
+          forward: false
+          pattern: (?i)^application/json
+    resolverUrl: /internal/mock-data/ai-skill-eval/agent-model/agent-chat-completions
+    runtimeUrl: /mocks/rest/ai-skill-eval/agent-model/v1/chat/completions
+    state:
+        lookupkeytemplate: ""
+        mutationkeytemplate: ""
+        defaults: {}
+        transitions: []
