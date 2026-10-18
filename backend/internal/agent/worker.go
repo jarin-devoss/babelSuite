@@ -139,6 +139,11 @@ func (w *Worker) extendLease(ctx context.Context, request StepRequest, cancel co
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	// A failed renewal is retried rather than fatal: the step is given up
+	// only once the lease has run out on the control plane too, which has
+	// then failed the step already. One slow request over a NAT used to
+	// cancel a step that was running fine.
+	renewed := time.Now()
 	for {
 		select {
 		case <-ctx.Done():
@@ -149,9 +154,18 @@ func (w *Worker) extendLease(ctx context.Context, request StepRequest, cancel co
 			leaseCtx, leaseCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			response, err := w.controlPlane.ExtendLease(leaseCtx, request.JobID, w.agentID)
 			leaseCancel()
-			if err != nil || response.CancelRequested {
+			switch {
+			case err == nil && response.CancelRequested:
 				cancel()
 				return
+			case err == nil:
+				renewed = time.Now()
+			case time.Since(renewed) >= request.LeaseTTL:
+				slog.Error("step lease lapsed; stopping the step", "jobID", request.JobID, "error", err)
+				cancel()
+				return
+			default:
+				slog.Warn("lease renewal failed; retrying", "jobID", request.JobID, "error", err)
 			}
 		}
 	}

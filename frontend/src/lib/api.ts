@@ -23,7 +23,8 @@ export interface ExecutionAgent {
   registeredAt?: string
   lastHeartbeatAt?: string
   routingTags: string[]
-  runtimeCapabilities: string[]
+  // Omitted by the API when the agent has not registered at runtime.
+  runtimeCapabilities?: string[]
   dockerSocket: string
   hostUrl: string
   tlsCert: string
@@ -42,6 +43,19 @@ export interface RuntimeAgent {
   capabilities: string[]
   registeredAt: string
   lastHeartbeatAt: string
+  // Steps the agent declared it runs at once (AGENT_MAX_JOBS); 0 before
+  // agents reported it.
+  capacity: number
+}
+
+// An enabled execution backend as the control plane schedules it.
+export interface BackendOption {
+  id: string
+  label: string
+  kind: string
+  available: boolean
+  // Steps it runs at once; 0 is no limit.
+  capacity: number
 }
 
 export interface OCIRegistry {
@@ -149,6 +163,11 @@ export interface SandboxRecord {
   suite: string
   owner: string
   profile: string
+  // The backend the environment runs on: 'host-docker' (the control plane's
+  // own Docker), or a Kubernetes or remote-agent backend's id.
+  backend: string
+  backendLabel: string
+  backendKind: string
   status: string
   summary: string
   startedAt?: string
@@ -656,6 +675,11 @@ export async function updatePlatformSettings(settings: PlatformSettings) {
     method: 'PUT',
     body: JSON.stringify(settings),
   })
+}
+
+export async function listBackends() {
+  const response = await request<{ backends: BackendOption[] }>('/api/v1/executions/backends')
+  return response.backends
 }
 
 export async function listAgents() {

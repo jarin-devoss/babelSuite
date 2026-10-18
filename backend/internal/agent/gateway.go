@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/babelsuite/babelsuite/gen/proto/go/agent/v1/agentv1connect"
+	"github.com/babelsuite/babelsuite/internal/auth"
 	"github.com/babelsuite/babelsuite/internal/httpserver"
 )
 
@@ -17,6 +18,32 @@ func NewGateway(registry *Registry, coordinator *Coordinator, secret string) htt
 	mux := http.NewServeMux()
 	RegisterGateway(mux, registry, coordinator, secret)
 	return mux
+}
+
+// agentSecretValid reports whether the Authorization header carries the
+// shared agent secret.
+func agentSecretValid(secret, header string) bool {
+	bearer := strings.TrimPrefix(strings.TrimSpace(header), "Bearer ")
+	return subtle.ConstantTimeCompare([]byte(strings.TrimSpace(bearer)), []byte(secret)) == 1
+}
+
+// agentReadMiddleware guards the agent list, which the settings page reads
+// with a user session and an agent reads with the shared secret. Either is
+// enough — reading the list changes nothing — whereas register, heartbeat and
+// the work endpoints stay behind the secret alone, so a user account cannot
+// pose as an agent and report step results.
+func agentReadMiddleware(secret string) httpserver.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if secret != "" && !agentSecretValid(secret, r.Header.Get("Authorization")) {
+				if _, signedIn := auth.SessionFromContext(r.Context()); !signedIn {
+					writeGatewayJSON(w, http.StatusUnauthorized, map[string]string{"error": "agent secret or session required"})
+					return
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func agentSecretMiddleware(secret string) httpserver.Middleware {
@@ -58,7 +85,7 @@ func RegisterGateway(mux *http.ServeMux, registry *Registry, coordinator *Coordi
 			return
 		}
 		writeGatewayJSON(w, http.StatusOK, map[string]any{"agents": registry.List()})
-	}, auth)
+	}, agentReadMiddleware(secret))
 	httpserver.HandleFunc(mux, "POST /api/v1/agents/register", func(w http.ResponseWriter, r *http.Request) {
 		if registry == nil {
 			writeGatewayJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "registry unavailable"})
@@ -182,9 +209,11 @@ func writeGatewayJSON(w http.ResponseWriter, status int, body any) {
 func agentAuthInterceptor(secret string) connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			if secret != "" {
-				bearer := strings.TrimPrefix(strings.TrimSpace(req.Header().Get("Authorization")), "Bearer ")
-				if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(bearer)), []byte(secret)) != 1 {
+			if secret != "" && !agentSecretValid(secret, req.Header().Get("Authorization")) {
+				// Listing agents is the one read the settings page makes; it
+				// may use a user session, like GET /api/v1/agents.
+				_, signedIn := auth.SessionFromContext(ctx)
+				if !signedIn || req.Spec().Procedure != agentv1connect.AgentRegistryServiceListProcedure {
 					return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("agent secret required"))
 				}
 			}

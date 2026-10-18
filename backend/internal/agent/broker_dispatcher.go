@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/babelsuite/babelsuite/internal/logstream"
 	"github.com/babelsuite/babelsuite/internal/strutil"
@@ -53,6 +54,32 @@ func (d *BrokerDispatcher) IsAvailable(context.Context) bool {
 		return false
 	}
 	return d.registry.IsAvailable(d.backendID)
+}
+
+// Release queues the end-of-execution job for this backend's agent, without
+// waiting for it: the execution is already over, and a cleanup that cannot
+// run must not hold its completion up. The job is dropped from the
+// coordinator once done, or after two minutes if no agent claims it.
+func (d *BrokerDispatcher) Release(executionID string) {
+	if d == nil || d.coordinator == nil {
+		return
+	}
+	assignment, err := d.coordinator.Submit(StepRequest{
+		JobID:       executionID + ":" + ReleaseKind,
+		ExecutionID: executionID,
+		BackendID:   d.backendID,
+		LeaseTTL:    30 * time.Second,
+		Node:        StepNode{ID: ReleaseKind, Name: ReleaseKind, Kind: ReleaseKind},
+	})
+	if err != nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		_ = d.coordinator.Wait(ctx, assignment.JobID)
+		d.coordinator.Cleanup(assignment.JobID)
+	}()
 }
 
 func (d *BrokerDispatcher) Dispatch(ctx context.Context, request StepRequest, _ func(logstream.Line)) error {

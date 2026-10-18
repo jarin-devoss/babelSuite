@@ -93,6 +93,7 @@ func (r *Registry) Register(request RegisterRequest) Registration {
 		HostURL:         request.HostURL,
 		Status:          "online",
 		Capabilities:    append([]string{}, request.Capabilities...),
+		Capacity:        request.Capacity,
 		RegisteredAt:    now,
 		LastHeartbeatAt: now,
 	}
@@ -208,6 +209,7 @@ func upsertAgentRegistration(settings *RuntimeState, request RegisterRequest, no
 		record.HostURL = strutil.FirstNonEmpty(request.HostURL, record.HostURL)
 		record.Status = "online"
 		record.Capabilities = append([]string{}, request.Capabilities...)
+		record.Capacity = request.Capacity
 		if record.RegisteredAt.IsZero() {
 			record.RegisteredAt = now
 		}
@@ -221,6 +223,7 @@ func upsertAgentRegistration(settings *RuntimeState, request RegisterRequest, no
 		HostURL:         request.HostURL,
 		Status:          "online",
 		Capabilities:    append([]string{}, request.Capabilities...),
+		Capacity:        request.Capacity,
 		RegisteredAt:    now,
 		LastHeartbeatAt: now,
 	}

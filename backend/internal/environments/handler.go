@@ -131,6 +131,6 @@ func (h *Handler) writeManagerError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrDockerUnavailable):
 		httpserver.WriteError(w, http.StatusServiceUnavailable, humanizeDockerError(err))
 	default:
-		httpserver.WriteError(w, http.StatusInternalServerError, "Sandbox cleanup failed.")
+		httpserver.WriteError(w, http.StatusBadGateway, "Sandbox cleanup failed: "+err.Error())
 	}
 }

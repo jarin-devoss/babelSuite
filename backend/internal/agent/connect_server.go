@@ -131,6 +131,7 @@ func (s *registryServiceServer) Register(
 		Name:         req.Msg.Name,
 		HostURL:      req.Msg.HostUrl,
 		Capabilities: req.Msg.Capabilities,
+		Capacity:     int(req.Msg.Capacity),
 	})
 	return connect.NewResponse(registrationToProto(reg)), nil
 }

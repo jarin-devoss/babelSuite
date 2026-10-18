@@ -43,11 +43,16 @@ type InventorySummary struct {
 }
 
 type Sandbox struct {
-	SandboxID         string        `json:"sandboxId"`
-	RunID             string        `json:"runId"`
-	Suite             string        `json:"suite"`
-	Owner             string        `json:"owner"`
-	Profile           string        `json:"profile"`
+	SandboxID string `json:"sandboxId"`
+	RunID     string `json:"runId"`
+	Suite     string `json:"suite"`
+	Owner     string `json:"owner"`
+	Profile   string `json:"profile"`
+	// The backend the environment runs on: the control plane's own Docker,
+	// a Kubernetes backend or a remote agent.
+	Backend           string        `json:"backend"`
+	BackendLabel      string        `json:"backendLabel"`
+	BackendKind       string        `json:"backendKind"`
 	Status            string        `json:"status"`
 	Summary           string        `json:"summary"`
 	StartedAt         *time.Time    `json:"startedAt,omitempty"`
@@ -130,7 +135,11 @@ type Service struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	events  *eventstream.Hub[streamPayload]
-	stream  struct {
+	// Backends beyond the control plane's Docker, and whether the control
+	// plane still runs an execution; see sources.go.
+	sources  func() []Source
+	runOwned func(runID string) bool
+	stream   struct {
 		mu          sync.Mutex
 		lastSig     string
 		hasSnapshot bool

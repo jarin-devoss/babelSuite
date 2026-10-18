@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,6 +73,35 @@ func (l *Local) Kind() string {
 	return l.config.Kind
 }
 
+// Capacity is how many steps run on this Docker host at once:
+// BABELSUITE_LOCAL_MAX_STEPS, or one per CPU. The containers share the host,
+// so this is the one backend whose limit the control plane itself must set.
+func (l *Local) Capacity() int {
+	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("BABELSUITE_LOCAL_MAX_STEPS"))); err == nil && n > 0 {
+		return n
+	}
+	return runtime.NumCPU()
+}
+
+// SetupExecution creates the execution's Docker network before its first
+// step, so every step can reach another by node name — which only works on a
+// user-defined network.
+func (l *Local) SetupExecution(_ context.Context, executionID string) error {
+	return SetupExecutionNetwork(executionID)
+}
+
+// DestroyExecution removes the execution's containers, detached services
+// included, and its network.
+func (l *Local) DestroyExecution(_ context.Context, executionID string) error {
+	RemoveExecutionNetwork(executionID)
+	return nil
+}
+
+// HostPort returns the host port Docker published for the step's container.
+func (l *Local) HostPort(executionID, nodeID, containerPort string) string {
+	return ContainerHostPort(executionID, nodeID, containerPort)
+}
+
 func (l *Local) IsAvailable(ctx context.Context) bool {
 	if l.config.Permissive {
 		return true
@@ -114,16 +145,7 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 	}
 
 	if step.Node.Kind == "log" {
-		msg := strings.TrimSpace(step.Node.Message)
-		if msg == "" {
-			msg = step.Node.Name
-		}
-		emitLine(logstream.Line{
-			Source: step.Node.ID,
-			Level:  logLevelFromVariant(step.Node.Variant),
-			Kind:   "user",
-			Text:   expandLogMessage(msg, step),
-		})
+		emitLogStep(step, emitLine)
 		return nil
 	}
 
@@ -148,37 +170,8 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		emitLine(line(step, "info", fmt.Sprintf("[%s] Registered %d artifact export rules for this step.", step.Node.Name, len(step.ArtifactExports))))
 	}
 
-	if step.Node.Kind == "plugin" {
-		p, err := canUsePlugin(step, step.RegisteredPlugins)
-		if err != nil {
-			emitLine(line(step, "error", fmt.Sprintf("[%s] %v", step.Node.Name, err)))
-			return err
-		}
-		if p != nil {
-			if err := executePlugin(ctx, step, emitLine, p); err != nil {
-				emitLine(line(step, "error", fmt.Sprintf("[%s] Plugin execution failed: %v", step.Node.Name, err)))
-				return err
-			}
-			return nil
-		}
-		return fmt.Errorf("plugin step %q: no registered plugin named %q — add it to configuration.yaml", step.Node.Name, step.Plugin.Name)
-	}
-
-	if step.Node.Kind == "security" {
-		if err := executeSecurityStep(ctx, step, emitLine); err != nil {
-			emitLine(line(step, "error", fmt.Sprintf("[%s] Security step failed: %v", step.Node.Name, err)))
-			return err
-		}
-		return nil
-	}
-
-	if step.Node.Kind == "traffic" && step.Load != nil {
-		emitLine(line(step, "info", fmt.Sprintf("[%s] Resolving %s assets from traffic/ before the run begins.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
-		emitLine(line(step, "info", fmt.Sprintf("[%s] Applying the %s profile budgets for users, pacing, and latency thresholds.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
-		if err := executeLoadStep(ctx, step, emitLine); err != nil {
-			return err
-		}
-		return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
+	if handled, err := runInProcessStep(ctx, step, emitLine, snapshotLogs); handled {
+		return err
 	}
 
 	if _, available := sharedDockerClient(); available && stepRequiresContainer(step) {
@@ -189,6 +182,79 @@ func (l *Local) Run(ctx context.Context, step StepSpec, emit func(logstream.Line
 		return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 	}
 
+	return runSimulatedStep(ctx, step, emitLine, snapshotLogs)
+}
+
+// emitLogStep writes a log.* node's message. It runs no container on any
+// backend: the message is the whole step.
+func emitLogStep(step StepSpec, emitLine func(logstream.Line)) {
+	msg := strings.TrimSpace(step.Node.Message)
+	if msg == "" {
+		msg = step.Node.Name
+	}
+	emitLine(logstream.Line{
+		Source: step.Node.ID,
+		Level:  logLevelFromVariant(step.Node.Variant),
+		Kind:   "user",
+		Text:   expandLogMessage(msg, step),
+	})
+}
+
+// runInProcessStep runs the step kinds the control plane executes itself —
+// plugin, security and traffic steps all talk to the suite's APISIX sidecar
+// from this process, and none of them has an image. It reports whether it
+// handled the step. Shared with the Kubernetes backend, which would otherwise
+// try to turn these steps into pods and fail for want of an image.
+func runInProcessStep(ctx context.Context, step StepSpec, emitLine func(logstream.Line), snapshotLogs func() []string) (bool, error) {
+	if step.Node.Kind == "plugin" {
+		p, err := canUsePlugin(step, step.RegisteredPlugins)
+		if err != nil {
+			emitLine(line(step, "error", fmt.Sprintf("[%s] %v", step.Node.Name, err)))
+			return true, err
+		}
+		if p != nil {
+			if err := executePlugin(ctx, step, emitLine, p); err != nil {
+				emitLine(line(step, "error", fmt.Sprintf("[%s] Plugin execution failed: %v", step.Node.Name, err)))
+				return true, err
+			}
+			return true, nil
+		}
+		// canUsePlugin also answers "no plugin" when the step has no plugin call
+		// or no sidecar to reach; say which, rather than dereferencing a nil
+		// call — which crashed a whole remote agent along with its other jobs.
+		switch {
+		case step.Plugin == nil:
+			return true, fmt.Errorf("plugin step %q carries no plugin call", step.Node.Name)
+		case strings.TrimSpace(step.GatewayURL) == "":
+			return true, fmt.Errorf("plugin step %q: the suite's APISIX sidecar is not running, so plugin %q cannot be reached", step.Node.Name, step.Plugin.Name)
+		}
+		return true, fmt.Errorf("plugin step %q: no registered plugin named %q — add it to configuration.yaml", step.Node.Name, step.Plugin.Name)
+	}
+
+	if step.Node.Kind == "security" {
+		if err := executeSecurityStep(ctx, step, emitLine); err != nil {
+			emitLine(line(step, "error", fmt.Sprintf("[%s] Security step failed: %v", step.Node.Name, err)))
+			return true, err
+		}
+		return true, nil
+	}
+
+	if step.Node.Kind == "traffic" && step.Load != nil {
+		emitLine(line(step, "info", fmt.Sprintf("[%s] Resolving %s assets from traffic/ before the run begins.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
+		emitLine(line(step, "info", fmt.Sprintf("[%s] Applying the %s profile budgets for users, pacing, and latency thresholds.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
+		if err := executeLoadStep(ctx, step, emitLine); err != nil {
+			return true, err
+		}
+		return true, evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
+	}
+
+	return false, nil
+}
+
+// runSimulatedStep completes a step that has nothing to execute: a mock
+// service, which the sidecar answers, or a task with no script. Shared with
+// the Kubernetes backend so the two report these steps the same way.
+func runSimulatedStep(ctx context.Context, step StepSpec, emitLine func(logstream.Line), snapshotLogs func() []string) error {
 	delay := nodeDelay(step.Node.Kind)
 	timer := time.NewTimer(delay)
 	defer timer.Stop()

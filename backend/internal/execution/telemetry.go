@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -222,10 +223,34 @@ func (s *Service) finishStepObservation(ctx context.Context, span trace.Span, st
 	span.End()
 }
 
+// destroyExecutionBackend releases what the execution's backend holds for the
+// whole run. It is safe on every exit path, setup included, because
+// DestroyExecution must tolerate a setup that failed or never ran.
+func (s *Service) destroyExecutionBackend(executionID string) {
+	s.mu.Lock()
+	var backend runner.Backend
+	if item := s.executions[executionID]; item != nil && !item.released {
+		backend = item.backend
+		item.released = true
+	}
+	s.mu.Unlock()
+	lifecycle, ok := backend.(runner.ExecutionLifecycle)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := lifecycle.DestroyExecution(ctx, executionID); err != nil {
+		slog.Warn("execution backend cleanup failed", "executionID", executionID, "error", err)
+	}
+}
+
 func (s *Service) finishExecutionObservation(executionID string, err error) {
 	defer s.queue.PruneGroup(executionID)
 	defer os.RemoveAll(runner.ExecutionWorkspaceDir(executionID))
-	defer runner.RemoveExecutionNetwork(executionID)
+	// The backend removes what it set up — on Docker, the execution's
+	// containers and network.
+	defer s.destroyExecutionBackend(executionID)
 
 	if s.signals == nil {
 		return

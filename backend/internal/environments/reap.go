@@ -12,6 +12,14 @@ func (s *Service) ReapSandbox(ctx context.Context, sandboxID string) (*ReapResul
 	if sandboxID == "" {
 		return nil, ErrNotFound
 	}
+	if source, runID, ok := s.sourceFor(sandboxID); ok {
+		result, err := s.reapRemote(ctx, source, runID, sandboxID)
+		if err != nil {
+			return nil, err
+		}
+		_ = s.publishLatestSnapshot(ctx, "sandbox-reap", false)
+		return result, nil
+	}
 
 	containers, networks, volumes, dockerAvailable, _, err := s.collectResources(ctx)
 	if err != nil {
@@ -48,7 +56,14 @@ func (s *Service) ReapAll(ctx context.Context) (*ReapResult, error) {
 		return nil, err
 	}
 	if !dockerAvailable {
-		return nil, ErrDockerUnavailable
+		if len(s.listSources()) == 0 {
+			return nil, ErrDockerUnavailable
+		}
+		result := &ReapResult{Scope: "global", Target: "all-managed-sandboxes", Warnings: []string{"The control plane's Docker is unavailable; only remote backends were cleaned."}}
+		s.reapAllRemote(ctx, result)
+		result.Warnings = compactStrings(result.Warnings)
+		_ = s.publishLatestSnapshot(ctx, "global-reap", false)
+		return result, nil
 	}
 
 	allContainers := make([]Container, 0, len(containers))
@@ -68,6 +83,8 @@ func (s *Service) ReapAll(ctx context.Context) (*ReapResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.reapAllRemote(ctx, result)
+	result.Warnings = compactStrings(result.Warnings)
 
 	_ = s.publishLatestSnapshot(ctx, "global-reap", false)
 	return result, nil

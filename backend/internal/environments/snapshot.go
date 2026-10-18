@@ -14,21 +14,21 @@ func (s *Service) Snapshot(ctx context.Context) (*Inventory, error) {
 		return nil, err
 	}
 
-	if !dockerAvailable {
-		return &Inventory{
-			DockerAvailable: false,
-			UpdatedAt:       s.now(),
-			Summary:         InventorySummary{},
-			Sandboxes:       []Sandbox{},
-			Warnings:        warnings,
-		}, nil
+	// The control plane's Docker and the other backends are listed apart:
+	// with Docker down here, a run on an agent or in a cluster still shows.
+	inventory := &Inventory{Sandboxes: []Sandbox{}}
+	if dockerAvailable {
+		stats, statWarnings := s.collectStats(ctx, containers)
+		warnings = append(warnings, statWarnings...)
+		inventory = s.buildInventory(ctx, containers, networks, volumes, stats)
 	}
+	remote, remoteWarnings := s.collectRemote(ctx)
+	warnings = append(warnings, remoteWarnings...)
+	inventory.Sandboxes = append(inventory.Sandboxes, remote...)
+	sortSandboxes(inventory.Sandboxes)
+	inventory.Summary = summarize(inventory.Sandboxes)
 
-	stats, statWarnings := s.collectStats(ctx, containers)
-	warnings = append(warnings, statWarnings...)
-
-	inventory := s.buildInventory(ctx, containers, networks, volumes, stats)
-	inventory.DockerAvailable = true
+	inventory.DockerAvailable = dockerAvailable
 	inventory.UpdatedAt = s.now()
 	inventory.Warnings = compactStrings(warnings)
 	return inventory, nil
@@ -79,9 +79,15 @@ func (s *Service) buildInventory(ctx context.Context, containers []dockerContain
 	sandboxes := make([]Sandbox, 0, len(groups))
 	for _, sandbox := range groups {
 		finalizeSandbox(ctx, s.checker, s.now(), sandbox)
+		sandbox.Backend, sandbox.BackendLabel, sandbox.BackendKind = hostBackendID, hostBackendLabel, "local"
 		sandboxes = append(sandboxes, *sandbox)
 	}
 
+	sortSandboxes(sandboxes)
+	return &Inventory{Sandboxes: sandboxes, Summary: summarize(sandboxes)}
+}
+
+func sortSandboxes(sandboxes []Sandbox) {
 	sort.Slice(sandboxes, func(i, j int) bool {
 		leftRank := sandboxStatusRank(sandboxes[i].Status)
 		rightRank := sandboxStatusRank(sandboxes[j].Status)
@@ -95,24 +101,22 @@ func (s *Service) buildInventory(ctx context.Context, containers []dockerContain
 		}
 		return sandboxes[i].SandboxID < sandboxes[j].SandboxID
 	})
+}
 
-	inventory := &Inventory{
-		Sandboxes: sandboxes,
-	}
-	for index := range sandboxes {
-		item := sandboxes[index]
-		inventory.Summary.ActiveSandboxes++
+func summarize(sandboxes []Sandbox) InventorySummary {
+	var summary InventorySummary
+	for _, item := range sandboxes {
+		summary.ActiveSandboxes++
 		if item.IsZombie {
-			inventory.Summary.ZombieSandboxes++
+			summary.ZombieSandboxes++
 		}
-		inventory.Summary.Containers += len(item.Containers)
-		inventory.Summary.Networks += len(item.Networks)
-		inventory.Summary.Volumes += len(item.Volumes)
-		inventory.Summary.TotalCPUPercent += item.ResourceUsage.CPUPercent
-		inventory.Summary.TotalMemoryBytes += item.ResourceUsage.MemoryBytes
+		summary.Containers += len(item.Containers)
+		summary.Networks += len(item.Networks)
+		summary.Volumes += len(item.Volumes)
+		summary.TotalCPUPercent += item.ResourceUsage.CPUPercent
+		summary.TotalMemoryBytes += item.ResourceUsage.MemoryBytes
 	}
-
-	return inventory
+	return summary
 }
 
 func (s *Service) collectStats(ctx context.Context, containers []dockerContainer) (map[string]ResourceUsage, []string) {

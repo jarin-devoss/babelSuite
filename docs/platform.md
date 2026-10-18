@@ -35,7 +35,7 @@ Execution agents are the backends where suite steps run. The control plane route
 | `type` | `local`, `remote-agent`, `remote-docker`, or `kubernetes` |
 | `enabled` | Whether this agent accepts work |
 | `default` | Whether this agent is used when no backend is specified — at most one enabled agent may be the default |
-| `routingTags` | Tags used to route specific suite runs to this agent |
+| `routingTags` | Tags this agent carries. A launch that names no backend goes to one carrying every tag in its profile's [`agent.tags`](profiles.md#agenttags) |
 | `dockerSocket` | Docker socket path for `local` type |
 | `hostUrl` | Base URL for remote agent connections |
 | `tlsCert` / `tlsKey` | TLS certificate and key for secure remote connections |

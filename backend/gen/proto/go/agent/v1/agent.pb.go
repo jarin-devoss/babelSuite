@@ -84,18 +84,22 @@ func (AssignmentStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 type StepNode struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	Variant       string                 `protobuf:"bytes,4,opt,name=variant,proto3" json:"variant,omitempty"`
-	DependsOn     []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	Image         string                 `protobuf:"bytes,6,opt,name=image,proto3" json:"image,omitempty"`
-	File          string                 `protobuf:"bytes,7,opt,name=file,proto3" json:"file,omitempty"`
-	Commands      []string               `protobuf:"bytes,8,rep,name=commands,proto3" json:"commands,omitempty"`
-	FileContent   string                 `protobuf:"bytes,9,opt,name=file_content,json=fileContent,proto3" json:"file_content,omitempty"`
-	Message       string                 `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
-	Devices       []string               `protobuf:"bytes,11,rep,name=devices,proto3" json:"devices,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Kind        string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Variant     string                 `protobuf:"bytes,4,opt,name=variant,proto3" json:"variant,omitempty"`
+	DependsOn   []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	Image       string                 `protobuf:"bytes,6,opt,name=image,proto3" json:"image,omitempty"`
+	File        string                 `protobuf:"bytes,7,opt,name=file,proto3" json:"file,omitempty"`
+	Commands    []string               `protobuf:"bytes,8,rep,name=commands,proto3" json:"commands,omitempty"`
+	FileContent string                 `protobuf:"bytes,9,opt,name=file_content,json=fileContent,proto3" json:"file_content,omitempty"`
+	Message     string                 `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
+	Devices     []string               `protobuf:"bytes,11,rep,name=devices,proto3" json:"devices,omitempty"`
+	// The profile's services.<name>.memory in bytes; 0 keeps the runner default.
+	MemoryBytes int64 `protobuf:"varint,12,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
+	// The profile's services.<name>.cpu in millicores; 0 is no limit.
+	MilliCpu      int64 `protobuf:"varint,13,opt,name=milli_cpu,json=milliCpu,proto3" json:"milli_cpu,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -205,6 +209,20 @@ func (x *StepNode) GetDevices() []string {
 		return x.Devices
 	}
 	return nil
+}
+
+func (x *StepNode) GetMemoryBytes() int64 {
+	if x != nil {
+		return x.MemoryBytes
+	}
+	return 0
+}
+
+func (x *StepNode) GetMilliCpu() int64 {
+	if x != nil {
+		return x.MilliCpu
+	}
+	return 0
 }
 
 type ArtifactExport struct {
@@ -905,8 +923,14 @@ type StepRequest struct {
 	OnFailure        []string               `protobuf:"bytes,26,rep,name=on_failure,json=onFailure,proto3" json:"on_failure,omitempty"`
 	ArtifactExports  []*ArtifactExport      `protobuf:"bytes,27,rep,name=artifact_exports,json=artifactExports,proto3" json:"artifact_exports,omitempty"`
 	Node             *StepNode              `protobuf:"bytes,28,opt,name=node,proto3" json:"node,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The suite sidecar's address as the control plane sees it.
+	GatewayUrl  string   `protobuf:"bytes,29,opt,name=gateway_url,json=gatewayUrl,proto3" json:"gateway_url,omitempty"`
+	GatewayUrls []string `protobuf:"bytes,30,rep,name=gateway_urls,json=gatewayUrls,proto3" json:"gateway_urls,omitempty"`
+	// The hostnames the step answers to on the execution network; empty is the
+	// step's own name.
+	NetworkAliases []string `protobuf:"bytes,31,rep,name=network_aliases,json=networkAliases,proto3" json:"network_aliases,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StepRequest) Reset() {
@@ -1131,6 +1155,27 @@ func (x *StepRequest) GetArtifactExports() []*ArtifactExport {
 func (x *StepRequest) GetNode() *StepNode {
 	if x != nil {
 		return x.Node
+	}
+	return nil
+}
+
+func (x *StepRequest) GetGatewayUrl() string {
+	if x != nil {
+		return x.GatewayUrl
+	}
+	return ""
+}
+
+func (x *StepRequest) GetGatewayUrls() []string {
+	if x != nil {
+		return x.GatewayUrls
+	}
+	return nil
+}
+
+func (x *StepRequest) GetNetworkAliases() []string {
+	if x != nil {
+		return x.NetworkAliases
 	}
 	return nil
 }
@@ -1532,11 +1577,13 @@ func (x *CompleteRequest) GetError() string {
 }
 
 type RegisterRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	HostUrl       string                 `protobuf:"bytes,3,opt,name=host_url,json=hostUrl,proto3" json:"host_url,omitempty"`
-	Capabilities  []string               `protobuf:"bytes,4,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	AgentId      string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Name         string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	HostUrl      string                 `protobuf:"bytes,3,opt,name=host_url,json=hostUrl,proto3" json:"host_url,omitempty"`
+	Capabilities []string               `protobuf:"bytes,4,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	// How many steps this agent runs at once.
+	Capacity      int32 `protobuf:"varint,5,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1599,6 +1646,13 @@ func (x *RegisterRequest) GetCapabilities() []string {
 	return nil
 }
 
+func (x *RegisterRequest) GetCapacity() int32 {
+	if x != nil {
+		return x.Capacity
+	}
+	return 0
+}
+
 type Registration struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	AgentId         string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
@@ -1608,6 +1662,7 @@ type Registration struct {
 	Capabilities    []string               `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	RegisteredAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=registered_at,json=registeredAt,proto3" json:"registered_at,omitempty"`
 	LastHeartbeatAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_heartbeat_at,json=lastHeartbeatAt,proto3" json:"last_heartbeat_at,omitempty"`
+	Capacity        int32                  `protobuf:"varint,8,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1689,6 +1744,13 @@ func (x *Registration) GetLastHeartbeatAt() *timestamppb.Timestamp {
 		return x.LastHeartbeatAt
 	}
 	return nil
+}
+
+func (x *Registration) GetCapacity() int32 {
+	if x != nil {
+		return x.Capacity
+	}
+	return 0
 }
 
 type HeartbeatRequest struct {
@@ -1819,7 +1881,7 @@ var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14agent/v1/agent.proto\x12\x13babelsuite.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1clogstream/v1/logstream.proto\"\x98\x02\n" +
+	"\x14agent/v1/agent.proto\x12\x13babelsuite.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1clogstream/v1/logstream.proto\"\xd8\x02\n" +
 	"\bStepNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1833,7 +1895,9 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\ffile_content\x18\t \x01(\tR\vfileContent\x12\x18\n" +
 	"\amessage\x18\n" +
 	" \x01(\tR\amessage\x12\x18\n" +
-	"\adevices\x18\v \x03(\tR\adevices\"`\n" +
+	"\adevices\x18\v \x03(\tR\adevices\x12!\n" +
+	"\fmemory_bytes\x18\f \x01(\x03R\vmemoryBytes\x12\x1b\n" +
+	"\tmilli_cpu\x18\r \x01(\x03R\bmilliCpu\"`\n" +
 	"\x0eArtifactExport\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
@@ -1897,7 +1961,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"expectLogs\x12 \n" +
 	"\ffail_on_logs\x18\x03 \x03(\tR\n" +
 	"failOnLogsB\x0e\n" +
-	"\f_expect_exit\"\x8e\n" +
+	"\f_expect_exit\"\xfb\n" +
 	"\n" +
 	"\vStepRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12!\n" +
@@ -1935,7 +1999,11 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"on_failure\x18\x1a \x03(\tR\tonFailure\x12N\n" +
 	"\x10artifact_exports\x18\x1b \x03(\v2#.babelsuite.agent.v1.ArtifactExportR\x0fartifactExports\x121\n" +
-	"\x04node\x18\x1c \x01(\v2\x1d.babelsuite.agent.v1.StepNodeR\x04node\x1a6\n" +
+	"\x04node\x18\x1c \x01(\v2\x1d.babelsuite.agent.v1.StepNodeR\x04node\x12\x1f\n" +
+	"\vgateway_url\x18\x1d \x01(\tR\n" +
+	"gatewayUrl\x12!\n" +
+	"\fgateway_urls\x18\x1e \x03(\tR\vgatewayUrls\x12'\n" +
+	"\x0fnetwork_aliases\x18\x1f \x03(\tR\x0enetworkAliases\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
@@ -1968,12 +2036,13 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fCompleteRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\"\x7f\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x9b\x01\n" +
 	"\x0fRegisterRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
 	"\bhost_url\x18\x03 \x01(\tR\ahostUrl\x12\"\n" +
-	"\fcapabilities\x18\x04 \x03(\tR\fcapabilities\"\x9d\x02\n" +
+	"\fcapabilities\x18\x04 \x03(\tR\fcapabilities\x12\x1a\n" +
+	"\bcapacity\x18\x05 \x01(\x05R\bcapacity\"\xb9\x02\n" +
 	"\fRegistration\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
@@ -1981,7 +2050,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\"\n" +
 	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\x12?\n" +
 	"\rregistered_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\fregisteredAt\x12F\n" +
-	"\x11last_heartbeat_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x0flastHeartbeatAt\"-\n" +
+	"\x11last_heartbeat_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x0flastHeartbeatAt\x12\x1a\n" +
+	"\bcapacity\x18\b \x01(\x05R\bcapacity\"-\n" +
 	"\x10HeartbeatRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x13\n" +
 	"\x11ListAgentsRequest\"O\n" +

@@ -4,16 +4,43 @@ import {
   ApiError,
   getPlatformSettings,
   updatePlatformSettings,
+  type ExecutionAgent,
   type PlatformSettings,
 } from '../../lib/api'
 import AppShell from '../../components/AppShell'
 import '../PlatformSettings.css'
 
+// The mode decides which enabled agents runs use; the backend applies the same
+// rule (platform.ModeAllowsAgent) when it picks a run's backend.
 const MODE_OPTIONS = [
-  { value: 'local', label: 'Local', desc: 'Runs workloads on the host machine via the local Docker socket.' },
-  { value: 'remote', label: 'Remote', desc: 'Delegates all workloads to a remote Docker or Kubernetes pool.' },
-  { value: 'hybrid', label: 'Hybrid', desc: 'Routes suites by routing tag across local and remote agents.' },
+  {
+    value: 'local',
+    label: 'Local',
+    desc: "Runs every suite on this host's Docker. Remote agents and Kubernetes backends are not used, even when enabled.",
+  },
+  {
+    value: 'remote',
+    label: 'Remote',
+    desc: "Runs every suite on remote agents or Kubernetes. This host's Docker is never used, so the control plane only schedules.",
+  },
+  {
+    value: 'hybrid',
+    label: 'Hybrid',
+    desc: "Uses every enabled backend: a profile's agent.tags send it to a backend carrying them, the rest go to the default.",
+  },
 ] as const
+
+const isLocalAgent = (agent: ExecutionAgent) => agent.type === 'local'
+
+function modeAllows(mode: string, agent: ExecutionAgent) {
+  if (mode === 'hybrid') return true
+  if (mode === 'remote') return !isLocalAgent(agent)
+  return isLocalAgent(agent)
+}
+
+function backendsUsed(mode: string, agents: ExecutionAgent[]) {
+  return agents.filter((agent) => agent.enabled && modeAllows(mode, agent)).map((agent) => agent.name)
+}
 
 export default function General() {
   const [savedSettings, setSavedSettings] = useState<PlatformSettings | null>(null)
@@ -133,6 +160,7 @@ export default function General() {
               </div>
               <div className='bs-settings-panel__control bs-settings-panel__description'>
                 {opt.desc}
+                <ModeBackends names={backendsUsed(opt.value, draft.agents)} />
               </div>
             </div>
           ))}
@@ -186,4 +214,15 @@ export default function General() {
       </div>
     </AppShell>
   )
+}
+
+function ModeBackends({ names }: { names: string[] }) {
+  if (names.length === 0) {
+    return (
+      <span className='bs-mode-backends bs-mode-backends--none'>
+        No enabled backend fits this mode, so it cannot be saved. Enable one under Settings → Agents.
+      </span>
+    )
+  }
+  return <span className='bs-mode-backends'>Uses: {names.join(', ')}</span>
 }

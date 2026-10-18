@@ -55,6 +55,29 @@ func NewHandler(service *Service, secret string) http.Handler {
 			flusher.Flush()
 		})
 	})))
+	mux.Handle("GET /api/v1/agent/inventory", requireSecret(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if service.inventory == nil {
+			httpserver.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "this agent does not report an inventory"})
+			return
+		}
+		executions, err := service.inventory(r.Context())
+		if err != nil {
+			httpserver.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
+			return
+		}
+		httpserver.WriteJSON(w, http.StatusOK, map[string]any{"executions": executions})
+	})))
+	mux.Handle("POST /api/v1/agent/executions/{executionId}/reap", requireSecret(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if service.reap == nil {
+			httpserver.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "this agent cannot reap executions"})
+			return
+		}
+		if err := service.reap(r.Context(), r.PathValue("executionId")); err != nil {
+			httpserver.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		httpserver.WriteJSON(w, http.StatusOK, map[string]string{"status": "reaped"})
+	})))
 	mux.Handle("POST /api/v1/agent/jobs/{jobId}/cancel", requireSecret(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if service.Cancel(r.PathValue("jobId")) {
 			httpserver.WriteJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})

@@ -386,6 +386,17 @@
   font-size: 0.9rem;
 }
 
+.bs-mode-backends {
+  display: block;
+  margin-top: 4px;
+  color: #1f7ea8;
+  font-size: 0.82rem;
+}
+
+.bs-mode-backends--none {
+  color: #b5482f;
+}
+
 .bs-field--readonly {
   color: #678094;
   cursor: default;
@@ -658,4 +669,14 @@ textarea.bs-field {
   .bs-table-list__row .bs-table-row {
     flex-wrap: wrap;
   }
+}
+
+/* A value the control plane reports rather than one an admin sets: shown in
+   the place of an input, without looking like one. */
+.bs-readonly-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
 }

@@ -56,7 +56,7 @@ Workspace suite discovery currently uses these fields directly:
 - `runtime.profileFile`
 - `modules`
 
-Profile loading and execution also consume optional `env`, `services.<step>.env`, `services.<step>.devices`, `services.<step>.memory`, `network.mode`, and `secretRefs` blocks from the same YAML body.
+Profile loading and execution also consume optional `env`, `services.<step>.env`, `services.<step>.devices`, `services.<step>.memory`, `services.<step>.cpu`, `network.mode`, `agent.tags`, and `secretRefs` blocks from the same YAML body. `agent.tags` is read when the run is launched, before secrets are resolved, because it decides which backend runs it.
 
 ## Managed Profile Record Shape
 

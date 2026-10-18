@@ -45,7 +45,7 @@ func (c systemProcessChecker) Alive(ctx context.Context, pid int) bool {
 	}
 }
 
-func NewService() *Service {
+func NewService(options ...Option) *Service {
 	runner := execRunner{}
 	ctx, cancel := context.WithCancel(context.Background())
 	service := &Service{
@@ -55,6 +55,9 @@ func NewService() *Service {
 		ctx:     ctx,
 		cancel:  cancel,
 		events:  eventstream.NewHub[streamPayload](),
+	}
+	for _, option := range options {
+		option(service)
 	}
 	service.events.Open(inventoryStreamKey)
 	go service.watchInventory()

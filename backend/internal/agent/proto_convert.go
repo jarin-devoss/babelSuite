@@ -37,6 +37,9 @@ func stepRequestToProto(r StepRequest) *agentv1.StepRequest {
 		TotalSteps:       int32(r.TotalSteps),
 		OnFailure:        r.OnFailure,
 		Node:             stepNodeToProto(r.Node),
+		GatewayUrl:       r.GatewayURL,
+		GatewayUrls:      r.GatewayURLs,
+		NetworkAliases:   r.NetworkAliases,
 	}
 	if r.LeaseTTL > 0 {
 		p.LeaseTtl = durationpb.New(r.LeaseTTL)
@@ -87,6 +90,9 @@ func protoToStepRequest(p *agentv1.StepRequest) StepRequest {
 		TotalSteps:       int(p.TotalSteps),
 		OnFailure:        p.OnFailure,
 		Node:             protoToStepNode(p.Node),
+		GatewayURL:       p.GatewayUrl,
+		GatewayURLs:      p.GatewayUrls,
+		NetworkAliases:   p.NetworkAliases,
 	}
 	if p.LeaseTtl != nil {
 		r.LeaseTTL = p.LeaseTtl.AsDuration()
@@ -121,6 +127,8 @@ func stepNodeToProto(n StepNode) *agentv1.StepNode {
 		FileContent: n.FileContent,
 		Message:     n.Message,
 		Devices:     n.Devices,
+		MemoryBytes: n.MemoryBytes,
+		MilliCpu:    n.MilliCPU,
 	}
 }
 
@@ -140,6 +148,8 @@ func protoToStepNode(p *agentv1.StepNode) StepNode {
 		FileContent: p.FileContent,
 		Message:     p.Message,
 		Devices:     p.Devices,
+		MemoryBytes: p.MemoryBytes,
+		MilliCPU:    p.MilliCpu,
 	}
 }
 
@@ -148,11 +158,11 @@ func loadSpecToProto(s *suites.LoadSpec) *agentv1.LoadSpec {
 		return nil
 	}
 	p := &agentv1.LoadSpec{
-		Variant:          s.Variant,
-		PlanPath:         s.PlanPath,
-		Target:           s.Target,
+		Variant:           s.Variant,
+		PlanPath:          s.PlanPath,
+		Target:            s.Target,
 		RequestsPerSecond: s.RequestsPerS,
-		ArrivalRate:      s.ArrivalRate,
+		ArrivalRate:       s.ArrivalRate,
 	}
 	for _, u := range s.Users {
 		pu := &agentv1.LoadUser{
@@ -356,6 +366,7 @@ func registrationToProto(r Registration) *agentv1.Registration {
 		Capabilities:    r.Capabilities,
 		RegisteredAt:    timestamppb.New(r.RegisteredAt),
 		LastHeartbeatAt: timestamppb.New(r.LastHeartbeatAt),
+		Capacity:        int32(r.Capacity),
 	}
 }
 
@@ -369,6 +380,7 @@ func protoToRegistration(p *agentv1.Registration) Registration {
 		HostURL:      p.HostUrl,
 		Status:       p.Status,
 		Capabilities: p.Capabilities,
+		Capacity:     int(p.Capacity),
 	}
 	if p.RegisteredAt != nil {
 		r.RegisteredAt = p.RegisteredAt.AsTime()

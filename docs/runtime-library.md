@@ -621,6 +621,11 @@ which Node does from 22.6 on. Only an older runtime falls back to
 | `BABELSUITE_GATEWAY_URLS` | comma-separated address per mock node, in topology order |
 | `BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only — path to the artifacts sidecar mount |
 
+A plugin step's config is its call's keyword arguments over the profile's
+`services.<step>.env`. A keyword left at an empty default (`""` or `None`) does
+not override a value the profile sets, so a `plugin.star` wrapper can forward
+every parameter without erasing the profile's.
+
 `BABELSUITE_GATEWAY_URL` is how a `task.run` or `test.run` reaches a mock
 surface without hardcoding a host and port. It is set only when the suite has
 one, so a step can tell the difference between "no gateway" and "wrong address".
@@ -642,7 +647,7 @@ one, so a step can tell the difference between "no gateway" and "wrong address".
 
 ## Profile-Controlled Step Config
 
-Hardware, memory and networking are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge, modest memory) and a GPU cluster (with devices, execution network, a larger ceiling) by switching profiles.
+Hardware, memory, CPU and networking are declared in the **profile YAML**, not in `suite.star`. This keeps the suite portable — the same topology runs on a laptop (no GPU, default bridge, modest memory) and a GPU cluster (with devices, execution network, a larger ceiling) by switching profiles.
 
 ### `services.<name>.devices`
 
@@ -679,6 +684,20 @@ rather than a reservation, so the step still uses only what it touches, and
 every other step keeps the default. A step whose process dies with
 `signal: killed` during start-up has hit this limit — see
 [Profiles](profiles.md#servicesnamememory).
+
+### `services.<name>.cpu`
+
+Cap one step's CPU. Unset is unlimited, the default:
+
+```yaml
+# local.yaml
+services:
+  ollama:
+    cpu: "2"        # cores; "500m" for millicores
+```
+
+Docker applies it as `NanoCPUs`, Kubernetes as `limits.cpu` — see
+[Profiles](profiles.md#servicesnamecpu).
 
 ### `network.mode`
 

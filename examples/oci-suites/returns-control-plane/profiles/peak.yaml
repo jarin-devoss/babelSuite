@@ -1,6 +1,10 @@
 name: Peak Season
 description: High-volume refund traffic with GPU-accelerated policy seeding.
 default: false
+# Only an agent tagged gpu-enabled may run this profile: a step below asks
+# for a GPU, and a backend without one would fail it or silently skip it.
+agent:
+  tags: [gpu-enabled]
 
 network:
   mode: execution

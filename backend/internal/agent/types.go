@@ -20,6 +20,10 @@ type StepNode struct {
 	FileContent string   `json:"fileContent,omitempty" yaml:"fileContent,omitempty"`
 	Message     string   `json:"message,omitempty" yaml:"message,omitempty"`
 	Devices     []string `json:"devices,omitempty" yaml:"devices,omitempty"`
+	// The profile's memory and cpu limits for the step, so a remote agent
+	// applies the same ceilings the local backend does.
+	MemoryBytes int64 `json:"memoryBytes,omitempty" yaml:"memoryBytes,omitempty"`
+	MilliCPU    int64 `json:"milliCpu,omitempty" yaml:"milliCpu,omitempty"`
 }
 
 type ArtifactExport struct {
@@ -58,6 +62,15 @@ type StepRequest struct {
 	OnFailure        []string               `json:"onFailure,omitempty" yaml:"onFailure,omitempty"`
 	ArtifactExports  []ArtifactExport       `json:"artifactExports,omitempty" yaml:"artifactExports,omitempty"`
 	Node             StepNode               `json:"node" yaml:"node"`
+	// The suite sidecar's address as the control plane sees it; the agent
+	// points its loopback host at the control plane before handing it to the
+	// step, so a test can reach the suite's mocks from another machine.
+	GatewayURL  string   `json:"gatewayUrl,omitempty" yaml:"gatewayUrl,omitempty"`
+	GatewayURLs []string `json:"gatewayUrls,omitempty" yaml:"gatewayUrls,omitempty"`
+	// The hostnames the step answers to on the execution network, as the
+	// control plane resolved them across the composed suites: two suites can
+	// each declare a "db", and only one of them may take the bare name.
+	NetworkAliases []string `json:"networkAliases,omitempty" yaml:"networkAliases,omitempty"`
 }
 
 type StreamMessage struct {
@@ -81,6 +94,9 @@ type RegisterRequest struct {
 	Name         string   `json:"name"`
 	HostURL      string   `json:"hostUrl"`
 	Capabilities []string `json:"capabilities,omitempty"`
+	// Capacity is how many steps the agent runs at once, as it declares at
+	// registration. Zero is read as 1.
+	Capacity int `json:"capacity,omitempty"`
 }
 
 type Registration struct {
@@ -91,7 +107,25 @@ type Registration struct {
 	Capabilities    []string  `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
 	RegisteredAt    time.Time `json:"registeredAt" yaml:"registeredAt"`
 	LastHeartbeatAt time.Time `json:"lastHeartbeatAt" yaml:"lastHeartbeatAt"`
+	// Capacity is the number of steps the agent declared it runs at once.
+	Capacity int `json:"capacity,omitempty" yaml:"capacity,omitempty"`
 }
+
+// SlotCount is the agent's declared capacity, at least 1: an agent that
+// registered before capacity existed runs one step at a time, as it did.
+func (r Registration) SlotCount() int {
+	if r.Capacity < 1 {
+		return 1
+	}
+	return r.Capacity
+}
+
+// ReleaseKind marks the job a remote backend queues when an execution ends:
+// the agent that claims it removes the execution's containers, detached
+// services included, and its network from its own host. Steps are sent to
+// agents one at a time, so without it nothing on the agent learns that a run
+// is over.
+const ReleaseKind = "release"
 
 type AssignmentStatus string
 

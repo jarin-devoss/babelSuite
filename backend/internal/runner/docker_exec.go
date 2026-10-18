@@ -72,7 +72,7 @@ func SetupExecutionNetwork(executionID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	name := executionNetworkName(executionID)
-	if _, err := cli.NetworkCreate(ctx, name, network.CreateOptions{Driver: "bridge"}); err != nil {
+	if _, err := cli.NetworkCreate(ctx, name, network.CreateOptions{Driver: "bridge", Labels: managedLabels(executionID, nil)}); err != nil {
 		// A name collision means a previous run left this network behind; the
 		// containers can still join it, so carry on.
 		if errdefs.IsConflict(err) {
@@ -278,6 +278,42 @@ func isDetachedService(step StepSpec) bool {
 	return step.Node.Kind == "service" && (step.Node.Image != "" || resolveStepImage(step) != "")
 }
 
+// buildDeviceConfig translates a profile's services.<name>.devices into Docker
+// device options, per the mapping in docs/profiles.md: "gpu" is every NVIDIA
+// GPU, "gpu:N" is N of them, and "/dev/<path>" is that host device. Added in
+// #53 and dropped by accident in #54's refactor of this file, which left the
+// documented passthrough silently ignored on Docker while the Kubernetes and
+// remote backends still honoured it.
+func buildDeviceConfig(devices []string) ([]container.DeviceRequest, []container.DeviceMapping) {
+	var requests []container.DeviceRequest
+	var mappings []container.DeviceMapping
+	for _, d := range devices {
+		switch {
+		case d == "gpu":
+			requests = append(requests, container.DeviceRequest{
+				Driver:       "nvidia",
+				Count:        -1,
+				Capabilities: [][]string{{"gpu"}},
+			})
+		case strings.HasPrefix(d, "gpu:"):
+			n := 1
+			fmt.Sscanf(strings.TrimPrefix(d, "gpu:"), "%d", &n) //nolint:errcheck // a malformed count keeps 1
+			requests = append(requests, container.DeviceRequest{
+				Driver:       "nvidia",
+				Count:        n,
+				Capabilities: [][]string{{"gpu"}},
+			})
+		case strings.HasPrefix(d, "/dev/"):
+			mappings = append(mappings, container.DeviceMapping{
+				PathOnHost:        d,
+				PathInContainer:   d,
+				CgroupPermissions: "rwm",
+			})
+		}
+	}
+	return requests, mappings
+}
+
 func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -343,11 +379,13 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	cfg := &container.Config{
 		Image: img,
 		Env:   env,
-		Labels: map[string]string{
+		Labels: managedLabels(step.ExecutionID, map[string]string{
 			"babelsuite.execution": step.ExecutionID,
 			"babelsuite.step":      step.Node.ID,
 			"babelsuite.kind":      step.Node.Kind,
-		},
+			labelSuite:             step.SuiteID,
+			labelProfile:           step.Profile,
+		}),
 	}
 
 	if script := buildStepScript(step); script != "" {
@@ -376,12 +414,16 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		memoryLimit = step.Node.MemoryBytes
 		memorySwapLimit = step.Node.MemoryBytes
 	}
+	deviceRequests, deviceMappings := buildDeviceConfig(step.Node.Devices)
 	hostCfg := &container.HostConfig{
 		AutoRemove: false,
 		Resources: container.Resources{
-			Memory:     memoryLimit,
-			MemorySwap: memorySwapLimit,
-			PidsLimit:  &pidsLimit,
+			Memory:         memoryLimit,
+			MemorySwap:     memorySwapLimit,
+			NanoCPUs:       step.Node.MilliCPU * 1_000_000,
+			PidsLimit:      &pidsLimit,
+			Devices:        deviceMappings,
+			DeviceRequests: deviceRequests,
 		},
 		Binds: []string{workspaceDir + ":" + containerWorkspaceMount + ":rw"},
 	}
@@ -726,11 +768,7 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 			"APISIX_STAND_ALONE=true",
 			"BABELSUITE_ENGINE_ADDR=host.docker.internal:8090",
 		},
-		Labels: map[string]string{
-			"babelsuite.suite":   suiteID,
-			"babelsuite.profile": profile,
-			"babelsuite.kind":    "apisix-sidecar",
-		},
+		Labels: sidecarLabels(suiteID, profile),
 	}
 	// On Linux, host.docker.internal is not pre-seeded (unlike Mac/Windows which run
 	// Docker in a VM). Adding it via host-gateway makes BABELSUITE_ENGINE_ADDR resolve
