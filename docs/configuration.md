@@ -34,6 +34,7 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 | `HTTP_WRITE_TIMEOUT` | `2m` | Maximum time to write a response |
 | `HTTP_IDLE_TIMEOUT` | `2m` | Keep-alive idle connection timeout |
 | `TRUSTED_PROXIES` | *(empty)* | Comma-separated CIDR ranges whose `X-Forwarded-*` headers are trusted |
+| `BABELSUITE_LOCAL_MAX_STEPS` | number of CPUs | Steps the **local Docker** backend runs at once. Each backend has its own limit — Kubernetes leaves it to the cluster scheduler, remote agents declare theirs with `AGENT_MAX_JOBS` — so a slow step on one backend never holds back another. See [Agents](agents.md#how-steps-are-scheduled) |
 
 !!! warning "Use a relative `VITE_API_URL` locally"
     Setting it to an absolute URL such as `http://localhost:8090` makes the
@@ -171,11 +172,15 @@ updatedAt: 2026-01-01T00:00:00Z
 
 ### `mode`
 
-| Value | Meaning |
-|-------|---------|
-| `local` | All execution targets are on the same machine |
-| `remote` | Primary targets are remote agents or Kubernetes clusters |
-| `hybrid` | Mix of local and remote targets |
+The deployment mode decides which of the enabled `agents` runs may use. It applies to every launch — those that pick a backend, those routed by a profile's `agent.tags`, and those left to the default — and to the backends the launch screen offers.
+
+| Value | Backends runs use |
+|-------|-------------------|
+| `local` (default) | Only `local` (host Docker) agents. Remote agents and Kubernetes backends stay idle even when enabled. |
+| `remote` | Only `remote-agent`, `remote-docker` and `kubernetes` agents. The host's Docker is never used, so the control plane only schedules. |
+| `hybrid` | Every enabled agent. A profile's `agent.tags` route it to a backend carrying them; the rest go to the default agent. |
+
+A launch the mode rules out is refused with `422`, naming the backend and the mode: asking for `kubernetes-burst` in `local` mode, or running a profile whose `agent.tags` only an excluded backend carries. Settings whose mode leaves no enabled agent are rejected when saved.
 
 ### Agents
 
@@ -189,7 +194,7 @@ Each entry in `agents` defines one execution target.
 | `enabled` | Whether this backend is available for suite runs |
 | `default` | Whether this backend is selected when no backend is specified — at most one enabled agent may be the default |
 | `description` | Free-text description |
-| `routingTags` | List of tags used to route suites to specific agents |
+| `routingTags` | Tags this agent carries, matched against a profile's [`agent.tags`](profiles.md#agenttags) when a launch names no backend |
 | `dockerSocket` | Docker socket path for `local` type (e.g. `/var/run/docker.sock`) |
 | `hostUrl` | Base URL for `remote-agent` and `remote-docker` types |
 | `tlsCert` | PEM-encoded TLS certificate for remote connections |

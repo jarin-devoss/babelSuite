@@ -14,10 +14,11 @@ A profile can:
 
 - set environment variables for the run
 - select module hints and observability settings
-- override individual service env vars — including `devices:` for hardware passthrough and `memory:` for a per-step memory ceiling
+- override individual service env vars — including `devices:` for hardware passthrough, `memory:` for a per-step memory ceiling and `cpu:` for a per-step CPU limit
 - configure the execution network mode (`network.mode`)
 - declare secret-backed env vars with `secretRefs`
 - inherit from another profile via `extendsId`
+- require agents with particular routing tags via `agent.tags`
 
 ![Profiles and configuration for the notification-hub suite: a default local debug profile and a CI profile](images/profiles.png)
 
@@ -109,6 +110,7 @@ services:
     # devices: ["gpu:2"]       # exactly 2 GPUs
     # devices: ["/dev/ttyUSB0"] # USB serial device
     memory: 2Gi                # container memory ceiling for this step
+    cpu: "1.5"                 # CPU limit in cores, or "500m"; unset is unlimited
 ```
 
 ### `network.mode`
@@ -194,6 +196,65 @@ too low.
 
 Like `devices:`, the entry may be keyed by either the node id or the node name.
 
+### `services.<name>.cpu`
+
+CPU limit for one step. Unset means **no limit** — the step can use whatever
+the host or node has, which is the default on every backend. Set it when one
+step must not starve the others sharing a host: a load generator, a model
+server, a build.
+
+Values use the Kubernetes CPU grammar, so both backends read them the same way:
+
+| Value | Meaning |
+|-------|---------|
+| `2`, `1.5` | Cores — fractions allowed |
+| `500m` | Millicores — thousandths of a core |
+| omitted, zero, negative, or unparseable | No limit |
+
+| Backend | Applied as |
+|---------|-----------|
+| Docker | `NanoCPUs` — the container gets that many cores' worth of time |
+| Kubernetes | `limits.cpu`; the request stays at `100m`, or drops to the limit if it is lower |
+| Remote agent | Carried in the step request; the agent applies it with its own runner |
+
+```yaml
+# local.yaml — keep the model server off every core
+services:
+  ollama:
+    memory: 2Gi
+    cpu: "2"
+```
+
+A CPU limit throttles rather than kills, so one set too low shows up as a step
+that is slow or times out, not one that fails outright.
+
+### `agent.tags`
+
+Routing tags a backend must carry to run this profile. The agents that run
+suites list their `routingTags` in platform settings; when a launch does not
+name a backend, it goes to an enabled backend carrying **every** tag here —
+the default one if it qualifies.
+
+```yaml
+# peak.yaml — needs a GPU, so only a GPU-tagged agent may run it
+agent:
+  tags: [gpu-enabled]
+services:
+  seed-policies:
+    devices: ["gpu"]
+```
+
+| Situation | Result |
+|-----------|--------|
+| No `agent.tags` | The default backend, as before |
+| Tags, and a backend carries them all | That backend; the default first if it qualifies |
+| Tags no enabled backend carries | The launch is refused with `422`, naming the tags |
+| A backend named at launch | Used as asked; if it lacks tags, the run starts with a warning saying which |
+
+Tags compare case-insensitively. A profile inheriting through `extendsId` that
+sets its own `agent.tags` replaces its parent's rather than adding to them, so
+it can move a run to a different kind of agent.
+
 ## Default Selection
 
 At launch time:
@@ -201,6 +262,9 @@ At launch time:
 1. The explicitly chosen profile wins.
 2. Otherwise the profile marked `default: true` is used.
 3. Otherwise the first available profile is used.
+
+The backend is chosen next: the one named at launch, or else one carrying the
+profile's [`agent.tags`](#agenttags).
 
 ## Suite Dependency Profiles
 

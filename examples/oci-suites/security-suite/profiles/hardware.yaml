@@ -1,6 +1,10 @@
 name: Hardware Device
 description: Runs the security suite against an API served by a physical device connected over USB serial.
 default: false
+# Only an agent tagged usb-serial — a host with the device attached — may run
+# this profile: a step below needs /dev/ttyUSB0.
+agent:
+  tags: [usb-serial]
 runtime:
   suite: security-suite
   repository: localhost:5000/security/security-suite

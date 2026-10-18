@@ -15,6 +15,11 @@ func (s *Service) ConfigureRemoteWorkers(registry *agent.Registry, coordinator *
 }
 
 func (s *Service) AssignmentState(request agent.StepRequest, state string, message string) {
+	// The release job runs after the execution has finished and belongs to
+	// none of its steps.
+	if request.Node.Kind == agent.ReleaseKind {
+		return
+	}
 	if strings.TrimSpace(message) == "" {
 		switch state {
 		case "claimed":
@@ -44,5 +49,8 @@ func (s *Service) AssignmentState(request agent.StepRequest, state string, messa
 }
 
 func (s *Service) AssignmentLog(request agent.StepRequest, line logstream.Line) {
+	if request.Node.Kind == agent.ReleaseKind {
+		return
+	}
 	s.appendRunnerLog(request.ExecutionID, request.Node.ID, line)
 }

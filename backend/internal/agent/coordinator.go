@@ -18,6 +18,11 @@ var (
 	ErrAssignmentNotFound = errors.New("assignment not found")
 	ErrAssignmentClaimed  = errors.New("assignment already claimed")
 	ErrAssignmentClosed   = errors.New("assignment already completed")
+	// ErrLeaseExpired is a claimed step whose agent stopped renewing its
+	// lease. It wraps context.DeadlineExceeded, which it used to be reported
+	// as, leaving "context deadline exceeded" as the only clue that the
+	// agent, not the step, had gone quiet.
+	ErrLeaseExpired = fmt.Errorf("the agent stopped renewing the step's lease: %w", context.DeadlineExceeded)
 )
 
 type AssignmentObserver interface {
@@ -300,7 +305,7 @@ func (c *Coordinator) expiryLoop(ctx context.Context) {
 				}
 				entry.completed = true
 				entry.status = AssignmentFailed
-				entry.err = context.DeadlineExceeded
+				entry.err = fmt.Errorf("%w (agent %s, silent for over %s)", ErrLeaseExpired, entry.claimedBy, entry.request.LeaseTTL)
 				close(entry.done)
 				agentMetrics.leaseExpiries.Add(ctx, 1, metric.WithAttributes(jobAttributes(entry.request)...))
 			}

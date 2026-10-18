@@ -134,8 +134,22 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	}
 	assignmentCoordinator.ConfigureRuntimeCache(cacheLayer, cfg.CacheTTL.executionRuntimeOr(24*time.Hour))
 	executionService.ConfigureRemoteWorkers(agentRegistry, assignmentCoordinator)
+	executionService.ConfigureAgentSecret(cfg.AgentSharedSecret)
 
-	environmentService := environments.NewService()
+	// The Environments page lists the control plane's Docker itself, and every
+	// Kubernetes and remote-agent backend through the backend; a run there is
+	// a zombie once the execution service no longer owns it.
+	environmentService := environments.NewService(
+		environments.WithSources(func() []environments.Source {
+			backends := executionService.InventorySources()
+			sources := make([]environments.Source, 0, len(backends))
+			for _, backend := range backends {
+				sources = append(sources, environments.Source{ID: backend.ID, Label: backend.Label, Kind: backend.Kind, Reporter: backend.Reporter})
+			}
+			return sources
+		}),
+		environments.WithRunOwner(executionService.RunOwned),
+	)
 
 	var cronService *cronjobs.Service
 	if cronStore, ok := primaryStore.(cronjobs.Store); ok {

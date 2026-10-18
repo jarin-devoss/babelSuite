@@ -18,6 +18,18 @@ type Service struct {
 
 	mu   sync.Mutex
 	jobs map[string]context.CancelFunc
+
+	// What the agent's host holds per execution, and how to remove one, for
+	// the control plane's Environments page. Set by the agent binary, which
+	// owns the Docker those executions run on.
+	inventory func(ctx context.Context) (any, error)
+	reap      func(ctx context.Context, executionID string) error
+}
+
+// ConfigureInventory serves list on the agent's inventory endpoint and reap
+// on its per-execution reap endpoint.
+func (s *Service) ConfigureInventory(list func(ctx context.Context) (any, error), reap func(ctx context.Context, executionID string) error) {
+	s.inventory, s.reap = list, reap
 }
 
 func NewService(info Info, executor Executor) *Service {

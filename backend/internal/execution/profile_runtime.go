@@ -36,6 +36,10 @@ type serviceSpec struct {
 	// belongs to the profile rather than suite.star, so the same topology stays
 	// portable between a laptop and a host with room for a large working set.
 	Memory int64
+	// MilliCPU is the step's CPU limit in thousandths of a core, 0 when the
+	// profile does not set one — and an unset limit is no limit, as on the
+	// Docker backend.
+	MilliCPU int64
 }
 
 type profileRuntimeDocument struct {
@@ -43,6 +47,9 @@ type profileRuntimeDocument struct {
 	Services    map[string]serviceSpec
 	NetworkMode string
 	SecretRefs  []profiles.SecretReference
+	// AgentTags are the routing tags a backend must carry to run this
+	// profile — agent.tags in the profile YAML.
+	AgentTags []string
 }
 
 func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, profile string) (executionRuntimeOverlay, error) {
@@ -71,6 +78,18 @@ func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, p
 	}
 
 	return overlay, nil
+}
+
+// profileAgentTags returns the agent tags the profile requires, read when the
+// run is launched — before secrets are resolved, so choosing a backend never
+// waits on, or fails because of, a secret store. A profile that cannot be read
+// requires none here; boot reports the real problem.
+func (s *Service) profileAgentTags(suiteID, profile string) []string {
+	runtime, err := s.resolveManagedProfileRuntime(suiteID, profile)
+	if err != nil {
+		return nil
+	}
+	return runtime.AgentTags
 }
 
 func (s *Service) resolveNodeRuntimeEnv(executionID string, node topologyNode) map[string]string {
@@ -114,6 +133,24 @@ func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []st
 		return append([]string{}, spec.Devices...)
 	}
 	return nil
+}
+
+// resolveNodeCPU returns the profile's CPU limit for this step in millicores,
+// or 0 to leave it unlimited. Keyed by node id or name, like memory.
+func (s *Service) resolveNodeCPU(executionID string, node topologyNode) int64 {
+	s.mu.Lock()
+	item := s.executions[executionID]
+	s.mu.Unlock()
+	if item == nil {
+		return 0
+	}
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.ID)]; ok && spec.MilliCPU > 0 {
+		return spec.MilliCPU
+	}
+	if spec, ok := item.runtime.Services[strings.TrimSpace(node.Name)]; ok && spec.MilliCPU > 0 {
+		return spec.MilliCPU
+	}
+	return 0
 }
 
 // resolveNodeMemory returns the profile's memory ceiling for this step in
@@ -184,6 +221,12 @@ func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profile
 		if parsed.NetworkMode != "" {
 			runtime.NetworkMode = parsed.NetworkMode
 		}
+		// A child profile that names agent tags replaces its parent's: the
+		// tags say where the run must go, and a union could ask for a
+		// backend the child meant to move away from.
+		if len(parsed.AgentTags) > 0 {
+			runtime.AgentTags = append([]string{}, parsed.AgentTags...)
+		}
 	}
 
 	return runtime, nil
@@ -204,6 +247,16 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 		Env:        scalarStringMap(document["env"]),
 		Services:   map[string]serviceSpec{},
 		SecretRefs: profiles.ExtractSecretRefsFromYAML(source),
+	}
+
+	if agentBlock, ok := document["agent"].(map[string]any); ok {
+		if tags, ok := agentBlock["tags"].([]any); ok {
+			for _, tag := range tags {
+				if text, ok := tag.(string); ok && strings.TrimSpace(text) != "" {
+					runtime.AgentTags = append(runtime.AgentTags, strings.TrimSpace(text))
+				}
+			}
+		}
 	}
 
 	if netBlock, ok := document["network"].(map[string]any); ok {
@@ -229,7 +282,8 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 				}
 			}
 			entry.Memory = parseMemoryQuantity(svcMap["memory"])
-			if len(entry.Env) > 0 || len(entry.Devices) > 0 || entry.Memory > 0 {
+			entry.MilliCPU = parseCPUQuantity(svcMap["cpu"])
+			if len(entry.Env) > 0 || len(entry.Devices) > 0 || entry.Memory > 0 || entry.MilliCPU > 0 {
 				runtime.Services[strings.TrimSpace(name)] = entry
 			}
 		}
@@ -273,6 +327,39 @@ func parseMemoryQuantity(raw any) int64 {
 		return 0
 	}
 	return bytes
+}
+
+// parseCPUQuantity reads a profile cpu value into millicores with the
+// Kubernetes CPU grammar — "2", "1.5", "500m" — so the Docker and Kubernetes
+// backends read a profile the same way, as they do for memory. Anything
+// unparseable, zero or negative yields 0: no limit, rather than a typo
+// throttling a step to nothing.
+func parseCPUQuantity(raw any) int64 {
+	var milli int64
+	switch value := raw.(type) {
+	case int:
+		milli = int64(value) * 1000
+	case int64:
+		milli = value * 1000
+	case float64:
+		milli = int64(value * 1000)
+	case string:
+		text := strings.TrimSpace(value)
+		if text == "" {
+			return 0
+		}
+		quantity, err := resource.ParseQuantity(text)
+		if err != nil {
+			return 0
+		}
+		milli = quantity.MilliValue()
+	default:
+		return 0
+	}
+	if milli <= 0 {
+		return 0
+	}
+	return milli
 }
 
 func resolveProfileChain(records []profiles.Record, selectedID string) ([]profiles.Record, error) {
@@ -358,23 +445,28 @@ func mergeServiceSpecs(base, overlay map[string]serviceSpec) map[string]serviceS
 	result := make(map[string]serviceSpec, len(base)+len(overlay))
 	for k, v := range base {
 		result[k] = serviceSpec{
-			Env:     cloneRuntimeMap(v.Env),
-			Devices: append([]string{}, v.Devices...),
-			Memory:  v.Memory,
+			Env:      cloneRuntimeMap(v.Env),
+			Devices:  append([]string{}, v.Devices...),
+			Memory:   v.Memory,
+			MilliCPU: v.MilliCPU,
 		}
 	}
 	for k, v := range overlay {
 		existing := result[k]
 		merged := serviceSpec{
-			Env:     mergeRuntimeMaps(existing.Env, v.Env),
-			Devices: existing.Devices,
-			Memory:  existing.Memory,
+			Env:      mergeRuntimeMaps(existing.Env, v.Env),
+			Devices:  existing.Devices,
+			Memory:   existing.Memory,
+			MilliCPU: existing.MilliCPU,
 		}
 		if len(v.Devices) > 0 {
 			merged.Devices = append([]string{}, v.Devices...)
 		}
 		if v.Memory > 0 {
 			merged.Memory = v.Memory
+		}
+		if v.MilliCPU > 0 {
+			merged.MilliCPU = v.MilliCPU
 		}
 		result[k] = merged
 	}
@@ -388,9 +480,10 @@ func cloneServiceMap(input map[string]serviceSpec) map[string]serviceSpec {
 	output := make(map[string]serviceSpec, len(input))
 	for name, spec := range input {
 		output[name] = serviceSpec{
-			Env:     cloneRuntimeMap(spec.Env),
-			Devices: append([]string{}, spec.Devices...),
-			Memory:  spec.Memory,
+			Env:      cloneRuntimeMap(spec.Env),
+			Devices:  append([]string{}, spec.Devices...),
+			Memory:   spec.Memory,
+			MilliCPU: spec.MilliCPU,
 		}
 	}
 	return output

@@ -6,8 +6,9 @@ import (
 )
 
 func normalize(settings *PlatformSettings) {
+	settings.Mode = strings.ToLower(strings.TrimSpace(settings.Mode))
 	if settings.Mode == "" {
-		settings.Mode = "local"
+		settings.Mode = ModeLocal
 	}
 	if settings.Description == "" {
 		settings.Description = defaultPlatformDescription
@@ -88,6 +89,26 @@ func validate(settings *PlatformSettings) error {
 	}
 	if defaultAgents > 1 {
 		return errors.New("Only one enabled execution agent can be the default.")
+	}
+	if !validMode(settings.Mode) {
+		return errors.New("Deployment mode must be local, remote, or hybrid.")
+	}
+	// The mode decides which enabled agents runs may use; one that leaves
+	// none would refuse every launch.
+	usable := false
+	for _, agent := range settings.Agents {
+		if agent.Enabled && ModeAllowsAgent(settings.Mode, agent.Type) {
+			usable = true
+			break
+		}
+	}
+	if !usable {
+		switch settings.Mode {
+		case ModeRemote:
+			return errors.New("Remote mode needs an enabled remote agent or Kubernetes backend.")
+		default:
+			return errors.New("Local mode needs an enabled local Docker backend.")
+		}
 	}
 
 	for _, registry := range settings.Registries {

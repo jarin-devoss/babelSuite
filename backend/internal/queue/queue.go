@@ -19,6 +19,12 @@ type Task struct {
 	LeaseTTL         time.Duration
 	Run              func(context.Context) error
 	OnCanceled       func()
+	// Pool groups tasks that share a capacity — the backend that runs them.
+	Pool string
+	// Capacity reports how many of the pool's tasks may run at once; nil or a
+	// value <= 0 is no limit. It is asked each time a task could start, so a
+	// pool backed by remote agents grows and shrinks as they come and go.
+	Capacity func() int
 }
 
 type State string
@@ -48,29 +54,36 @@ type Memory struct {
 	mu      sync.Mutex
 	order   []string
 	entries map[string]*entry
+	// running counts each pool's tasks in StateRunning.
+	running map[string]int
+	// inFlight tracks task goroutines, so Drain can wait for them.
+	inFlight sync.WaitGroup
 }
 
 type entry struct {
 	Entry
 	cancel context.CancelFunc
+	// counted marks a task included in its pool's running count, so it is
+	// released exactly once however it finishes.
+	counted bool
 }
 
-func NewMemory(parent context.Context, workers int) *Memory {
-	if workers <= 0 {
-		workers = 1
-	}
-
+// NewMemory returns a queue with no fixed worker pool. A task starts as soon
+// as its dependencies are met and its pool has room — the server only queues,
+// and capacity is what the backends declare — rather than waiting for one of
+// a set number of workers that every backend, remote agents included, used to
+// share.
+func NewMemory(parent context.Context) *Memory {
 	ctx, cancel := context.WithCancel(parent)
 	m := &Memory{
 		ctx:     ctx,
 		cancel:  cancel,
 		wakeCh:  make(chan struct{}, 1),
 		entries: make(map[string]*entry),
+		running: make(map[string]int),
 	}
 
-	for range workers {
-		go m.worker()
-	}
+	go m.dispatch()
 	go m.expiryLoop()
 	registerQueueGauge(m)
 	return m
@@ -109,6 +122,8 @@ func (m *Memory) Enqueue(tasks []Task) error {
 					LeaseTTL:         leaseTTL,
 					Run:              task.Run,
 					OnCanceled:       task.OnCanceled,
+					Pool:             task.Pool,
+					Capacity:         task.Capacity,
 				},
 				State: StatePending,
 			},
@@ -179,6 +194,22 @@ func (m *Memory) Close() {
 	m.cancel()
 }
 
+// Drain waits up to timeout for running tasks to return, after Close has
+// canceled them. It reports whether they all did.
+func (m *Memory) Drain(timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		m.inFlight.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
+}
+
 func (m *Memory) stateTallies() map[State]int64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -193,32 +224,43 @@ func (m *Memory) stateTallies() map[State]int64 {
 	return counts
 }
 
-func (m *Memory) worker() {
+// dispatch starts every task that can run, then waits to be woken by an
+// enqueue or a finish.
+func (m *Memory) dispatch() {
 	for {
-		task, ok := m.claim()
-		if !ok {
-			select {
-			case <-m.ctx.Done():
-				return
-			case <-m.wakeCh:
-				continue
+		for {
+			task, ok := m.claim()
+			if !ok {
+				break
 			}
+			m.inFlight.Add(1)
+			go func() {
+				defer m.inFlight.Done()
+				m.run(task)
+			}()
 		}
-
-		spanCtx, span := startTaskSpan(m.ctx, task)
-		runCtx, cancel := context.WithCancel(spanCtx)
-		m.attachCancel(task.ID, cancel)
-
-		doneCh := make(chan struct{})
-		go m.renewLease(task.ID, task.LeaseTTL, doneCh)
-
-		err := task.Run(runCtx)
-
-		close(doneCh)
-		cancel()
-		finishTaskSpan(spanCtx, span, task, err)
-		m.finish(task.ID, err)
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-m.wakeCh:
+		}
 	}
+}
+
+func (m *Memory) run(task Task) {
+	spanCtx, span := startTaskSpan(m.ctx, task)
+	runCtx, cancel := context.WithCancel(spanCtx)
+	m.attachCancel(task.ID, cancel)
+
+	doneCh := make(chan struct{})
+	go m.renewLease(task.ID, task.LeaseTTL, doneCh)
+
+	err := task.Run(runCtx)
+
+	close(doneCh)
+	cancel()
+	finishTaskSpan(spanCtx, span, task, err)
+	m.finish(task.ID, err)
 }
 
 func (m *Memory) expiryLoop() {
@@ -257,6 +299,8 @@ func (m *Memory) claim() (Task, bool) {
 
 	m.mu.Lock()
 	now := time.Now().UTC()
+	// Each pool's capacity is asked once per claim, not once per pending task.
+	capacities := map[string]int{}
 	for _, id := range m.order {
 		item := m.entries[id]
 		if item == nil || item.State != StatePending {
@@ -308,6 +352,20 @@ func (m *Memory) claim() (Task, bool) {
 			continue
 		}
 
+		pool := item.Task.Pool
+		limit, asked := capacities[pool]
+		if !asked {
+			if item.Task.Capacity != nil {
+				limit = item.Task.Capacity()
+			}
+			capacities[pool] = limit
+		}
+		if limit > 0 && m.running[pool] >= limit {
+			continue
+		}
+
+		m.running[pool]++
+		item.counted = true
 		item.State = StateRunning
 		item.StartedAt = now
 		item.LeaseDeadline = now.Add(item.Task.LeaseTTL)
@@ -378,6 +436,10 @@ func (m *Memory) finish(id string, err error) {
 	}
 
 	item.cancel = nil
+	if item.counted {
+		item.counted = false
+		m.running[item.Task.Pool]--
+	}
 	item.CompletedAt = time.Now().UTC()
 	item.Err = err
 	item.LeaseDeadline = time.Time{}

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,6 +38,42 @@ func (s *Service) Close() {
 	}
 	s.cancel()
 	s.queue.Close()
+
+	// Executions still running when the service stops would otherwise leave
+	// their detached services and networks behind — every test that closed
+	// the service mid-run left a payment-suite pre-hook running, and enough
+	// of those exhaust Docker's address pools. In-flight boots and steps are
+	// let finish first: one still setting up would create a network, or a
+	// detached service, after it had been torn down.
+	waitFor(&s.boots, closeDrainTimeout)
+	s.queue.Drain(closeDrainTimeout)
+	s.mu.Lock()
+	pending := make([]string, 0, len(s.executions))
+	for id, item := range s.executions {
+		if item.backend != nil && !item.released {
+			pending = append(pending, id)
+		}
+	}
+	s.mu.Unlock()
+	for _, id := range pending {
+		s.destroyExecutionBackend(id)
+	}
+}
+
+// closeDrainTimeout caps how long Close waits for in-flight work.
+const closeDrainTimeout = 15 * time.Second
+
+// waitFor waits for wg up to timeout.
+func waitFor(wg *sync.WaitGroup, timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+	}
 }
 
 func (s *Service) ResolveRef(ref string) (*LaunchSuite, error) {
@@ -156,10 +193,18 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 		return nil, ErrProfileNotFound
 	}
 
-	selectedBackend, err := s.resolveBackend(ctx, request.Backend)
+	requiredTags := s.profileAgentTags(suite.ID, profile)
+	selectedBackend, missing, err := s.resolveBackend(ctx, request.Backend, requiredTags)
 	if err != nil {
 		<-s.concurrencySem
-		s.noteRejectedLaunch(ctx, suite.ID, "backend_unavailable")
+		reason := "backend_unavailable"
+		switch {
+		case errors.Is(err, ErrNoTaggedBackend):
+			reason = "no_tagged_backend"
+		case errors.Is(err, ErrModeExcludesBackend):
+			reason = "mode_excludes_backend"
+		}
+		s.noteRejectedLaunch(ctx, suite.ID, reason)
 		return nil, err
 	}
 
@@ -196,7 +241,24 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 	s.logs.Open(executionID)
 	s.schedulePersist()
 
-	go s.bootExecution(executionID, suite, profile, selectedBackend)
+	// A backend chosen by name runs the suite even without the tags its
+	// profile asks for; the run says so instead of failing quietly later.
+	if len(missing) > 0 {
+		s.appendEvent(executionID, ExecutionEvent{
+			ID:        "agent-tags-missing",
+			Source:    "boot",
+			Timestamp: s.nextTimestamp(executionID),
+			Text: fmt.Sprintf("Backend %s was chosen explicitly but lacks the agent tags the %s profile asks for: %s.",
+				selectedBackend.option.Label, profile, strings.Join(missing, ", ")),
+			Level: "warn",
+		})
+	}
+
+	s.boots.Add(1)
+	go func() {
+		defer s.boots.Done()
+		s.bootExecution(executionID, suite, profile, selectedBackend)
+	}()
 
 	s.mu.Lock()
 	summary := s.summaryLocked(state)
@@ -239,6 +301,7 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 		// Computed once from the whole resolved topology, because deciding
 		// whether a service name is contested needs every node, not just one.
 		state.networks = buildNetworkPlan(resolved.Nodes, suite.ID)
+		state.backend = selectedBackend.backend
 	}
 	s.mu.Unlock()
 
@@ -259,6 +322,14 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 
 	os.MkdirAll(runner.ExecutionWorkspaceDir(executionID), 0700) //nolint:errcheck
+	// A backend with execution-wide resources sets them up once, before any
+	// step runs; finishExecutionObservation releases them.
+	if lifecycle, ok := selectedBackend.backend.(runner.ExecutionLifecycle); ok {
+		if err := lifecycle.SetupExecution(context.Background(), executionID); err != nil {
+			s.failBootedExecution(executionID, fmt.Errorf("backend setup: %w", err))
+			return
+		}
+	}
 	s.beginRunObservation(context.Background(), state)
 
 	tasks := make([]queue.Task, 0, len(resolved.Nodes))
@@ -286,9 +357,13 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 		}
 		node := node
 		tasks = append(tasks, queue.Task{
-			ID:               taskIDs[node.ID],
-			Group:            executionID,
-			Name:             node.Name,
+			ID:    taskIDs[node.ID],
+			Group: executionID,
+			Name:  node.Name,
+			// The step waits for a slot on the backend that runs it, not for
+			// one of a fixed set of control-plane workers.
+			Pool:             selectedBackend.option.ID,
+			Capacity:         backendCapacity(selectedBackend.backend),
 			Dependencies:     dependencies,
 			SoftDependencies: softDeps,
 			LeaseTTL:         8 * time.Second,
@@ -305,13 +380,10 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 		})
 	}
 
-	// Unconditional: every step container joins this network so one step can
-	// reach another by node name, which only works on a user-defined network.
-	if err := runner.SetupExecutionNetwork(executionID); err != nil {
-		s.noteRejectedLaunch(context.Background(), suite.ID, "network_setup_failed")
-		s.failBootedExecution(executionID, err)
-		return
-	}
+	// The per-execution Docker network is set up by the backend that runs the
+	// steps (Local.SetupExecution above, or the remote agent on its own Docker),
+	// not here: created on this host for every run, it sat unused by
+	// Kubernetes and remote executions and exhausted Docker's address pools.
 	if err := s.ensureSuiteSidecar(suite, profile); err != nil {
 		s.failBootedExecution(executionID, fmt.Errorf("APISIX sidecar failed to start: %w", err))
 		return
@@ -405,6 +477,15 @@ func (s *Service) failBootedExecution(executionID string, err error) {
 	s.finishExecutionObservation(executionID, err)
 }
 
+// backendCapacity reports the backend's own limit on concurrent steps, or nil
+// — no limit — for one that sets none.
+func backendCapacity(backend runner.Backend) func() int {
+	if reporter, ok := backend.(runner.CapacityReporter); ok {
+		return reporter.Capacity
+	}
+	return nil
+}
+
 func (s *Service) runNode(ctx context.Context, executionID string, suite *suites.Definition, profile string, backend runner.Backend, node topologyNode) error {
 	stepCtx, stepSpan, stepStartedAt := s.beginStepObservation(s.stepContext(executionID), executionID, suite, profile, node)
 
@@ -475,7 +556,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		LeaseTTL:          8 * time.Second,
 		Load:              suitesCloneLoadSpec(node.Load),
 		Security:          node.Security,
-		Plugin:            rewritePluginConfigForHostAccess(executionID, suite, node.Plugin),
+		Plugin:            rewritePluginConfigForHostAccess(executionID, suite, backend, node.Plugin),
 		RegisteredPlugins: s.loadRegisteredPlugins(),
 		Evaluation:        cloneNodeEvaluation(node.Evaluation),
 		OnFailure:         append([]string{}, node.OnFailure...),
@@ -501,6 +582,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 			FileContent: resolveNodeFileContent(node, suite),
 			Devices:     s.resolveNodeDevices(executionID, node),
 			MemoryBytes: s.resolveNodeMemory(executionID, node),
+			MilliCPU:    s.resolveNodeCPU(executionID, node),
 			DependsOn:   append([]string{}, node.DependsOn...),
 		},
 	}, func(line logstream.Line) {
@@ -957,11 +1039,16 @@ func pluginHostPortRefs(suite *suites.Definition) map[string][]string {
 
 // rewritePluginConfigForHostAccess replaces "<host>:<port>" references to
 // sibling nodes inside a plugin's config with "host.docker.internal:<port>",
-// using the host port that node published via pluginHostPortRefs /
-// StepSpec.PublishPorts. Falls back to the original value when that node
-// hasn't published a matching port yet (e.g. not running, or no match).
-func rewritePluginConfigForHostAccess(executionID string, suite *suites.Definition, spec *suites.PluginSpec) *suites.PluginSpec {
+// using the host port the backend reports for that node's container port — a
+// Docker published port, or a Kubernetes port-forward — via pluginHostPortRefs
+// / StepSpec.PublishPorts. Falls back to the original value when the backend
+// cannot report one, or the node has not published a matching port yet.
+func rewritePluginConfigForHostAccess(executionID string, suite *suites.Definition, backend runner.Backend, spec *suites.PluginSpec) *suites.PluginSpec {
 	if spec == nil || suite == nil {
+		return spec
+	}
+	resolver, ok := backend.(runner.HostPortResolver)
+	if !ok {
 		return spec
 	}
 	cfg, ok := spec.Config.(map[string]any)
@@ -986,7 +1073,7 @@ func rewritePluginConfigForHostAccess(executionID string, suite *suites.Definiti
 			if !found {
 				return match
 			}
-			hostPort := runner.ContainerHostPort(executionID, nodeID, port+"/tcp")
+			hostPort := resolver.HostPort(executionID, nodeID, port+"/tcp")
 			if hostPort == "" {
 				return match
 			}

@@ -11,6 +11,7 @@ import (
 	"github.com/babelsuite/babelsuite/internal/logstream"
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/queue"
+	"github.com/babelsuite/babelsuite/internal/runner"
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
@@ -29,7 +30,14 @@ var (
 	ErrExecutionNotFound  = errors.New("execution not found")
 	ErrBackendNotFound    = errors.New("backend not found")
 	ErrBackendUnavailable = errors.New("backend unavailable")
-	ErrInvalidTopology    = errors.New("invalid suite topology")
+	// ErrNoTaggedBackend is a launch whose profile asks for agent tags that no
+	// enabled backend carries.
+	ErrNoTaggedBackend = errors.New("no backend carries the profile's agent tags")
+	// ErrModeExcludesBackend is a launch the platform's deployment mode rules
+	// out: the backend asked for, or the only one carrying the profile's tags,
+	// is of a kind the mode does not use.
+	ErrModeExcludesBackend = errors.New("deployment mode excludes the backend")
+	ErrInvalidTopology     = errors.New("invalid suite topology")
 )
 
 type ProfileOption struct {
@@ -46,6 +54,11 @@ type BackendOption struct {
 	Description string `json:"description"`
 	Default     bool   `json:"default"`
 	Available   bool   `json:"available"`
+	// Capacity is how many steps the backend runs at once; 0 is no limit.
+	Capacity int `json:"capacity"`
+	// Tags are the agent's routing tags, matched against a profile's
+	// agent.tags when a launch names no backend.
+	Tags []string `json:"tags,omitempty"`
 }
 
 type LaunchSuite struct {
@@ -187,6 +200,10 @@ type Observer interface {
 }
 
 type Service struct {
+	// boots tracks bootExecution goroutines, so Close can wait for a boot that
+	// is still setting up a backend before releasing it.
+	boots sync.WaitGroup
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	queue  *queue.Memory
@@ -196,6 +213,7 @@ type Service struct {
 	mockResetter   mockResetter
 	registry       *agent.Registry
 	coordinator    *agent.Coordinator
+	agentSecret    string
 	runtimeStore   RuntimeStore
 	runtimeCache   executionCache
 	runtimeTTL     time.Duration
@@ -296,6 +314,12 @@ type executionState struct {
 	// aliases, so a service name claimed by more than one composed suite stays
 	// unambiguous. Written once at boot, read by every step after that.
 	networks networkPlan
+	// backend is the instance the execution's steps run on, kept so the
+	// execution's resources can be released on that same backend at the end.
+	backend runner.Backend
+	// released is set once the backend has been told to tear the execution
+	// down, so a finish and a shutdown never release it twice.
+	released bool
 }
 
 type executionRuntimeOverlay struct {

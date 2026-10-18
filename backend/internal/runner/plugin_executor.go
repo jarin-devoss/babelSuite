@@ -40,6 +40,37 @@ func canUsePlugin(step StepSpec, plugins []platform.CustomPlugin) (*platform.Cus
 	return nil, nil
 }
 
+// mergePluginConfig builds a plugin step's config: the profile env provides
+// defaults, and the suite call's kwargs override them.
+//
+// A kwarg that is unset — None, or the empty string a plugin.star wrapper
+// passes for an optional parameter nobody gave — is not an override. Without
+// that rule every wrapper default erased the profile's value: electronics-lab
+// sets sim_url per step in its profile, the spice-sim wrapper forwards
+// sim_url="", and the plugin was handed an empty URL on every backend.
+func mergePluginConfig(env map[string]string, pluginConfig any) map[string]any {
+	config := make(map[string]any, len(env))
+	for k, v := range env {
+		config[k] = v
+	}
+	kwargs, _ := pluginConfig.(map[string]any)
+	for k, v := range kwargs {
+		if _, fromProfile := config[k]; fromProfile && isUnsetPluginValue(v) {
+			continue
+		}
+		config[k] = v
+	}
+	return config
+}
+
+func isUnsetPluginValue(v any) bool {
+	if v == nil {
+		return true
+	}
+	s, ok := v.(string)
+	return ok && strings.TrimSpace(s) == ""
+}
+
 // executePlugin dispatches a plugin.run() step to the registered APISIX Lua plugin.
 func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line), plugin *platform.CustomPlugin) error {
 	gatewayURL := strings.TrimSuffix(strings.TrimSpace(step.GatewayURL), "/")
@@ -54,16 +85,7 @@ func executePlugin(ctx context.Context, step StepSpec, emit func(logstream.Line)
 		emit(line(step, "debug", fmt.Sprintf("[%s] Dispatching to plugin %q at %s.", step.Node.Name, plugin.Name, gatewayURL)))
 	}
 
-	// Profile env provides defaults; suite-call kwargs (Plugin.Config) override per-step.
-	config := make(map[string]any, len(step.Env))
-	for k, v := range step.Env {
-		config[k] = v
-	}
-	if pluginCfg, ok := step.Plugin.Config.(map[string]any); ok {
-		for k, v := range pluginCfg {
-			config[k] = v
-		}
-	}
+	config := mergePluginConfig(step.Env, step.Plugin.Config)
 
 	payload := map[string]any{
 		"step":   step.Node.Name,

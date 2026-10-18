@@ -1,4 +1,4 @@
-﻿package execution
+package execution
 
 import (
 	"encoding/json"
@@ -33,6 +33,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	streaming := auth.RequireSession(h.jwt, auth.VerifyOptions{AllowQueryToken: false})
 	createLimit := auth.NewIPRateLimiter(30, time.Minute).Middleware()
 	httpserver.HandleFunc(mux, "GET /api/v1/executions/launch-suites", h.listLaunchSuites, protected)
+	httpserver.HandleFunc(mux, "GET /api/v1/executions/backends", h.listBackends, protected)
 	httpserver.HandleFunc(mux, "GET /api/v1/executions/resolve-ref", h.resolveRef, protected)
 	httpserver.HandleFunc(mux, "GET /api/v1/executions/overview", h.getOverview, protected)
 	httpserver.HandleFunc(mux, "GET /api/v1/executions", h.listExecutions, protected)
@@ -45,6 +46,12 @@ func (h *Handler) Register(mux *http.ServeMux) {
 
 func (h *Handler) listLaunchSuites(w http.ResponseWriter, r *http.Request) {
 	httpserver.WriteJSON(w, http.StatusOK, map[string]any{"suites": h.service.ListLaunchSuites()})
+}
+
+// listBackends reports each enabled backend with its availability and how
+// many steps it runs at once, for the agents settings page.
+func (h *Handler) listBackends(w http.ResponseWriter, r *http.Request) {
+	httpserver.WriteJSON(w, http.StatusOK, map[string]any{"backends": h.service.BackendOptions()})
 }
 
 func (h *Handler) resolveRef(w http.ResponseWriter, r *http.Request) {
@@ -124,6 +131,10 @@ func (h *Handler) createExecution(w http.ResponseWriter, r *http.Request) {
 			httpserver.WriteError(w, http.StatusBadRequest, "Profile runtime configuration is invalid.")
 		case errors.Is(err, ErrBackendNotFound):
 			httpserver.WriteError(w, http.StatusBadRequest, "Selected backend does not exist.")
+		case errors.Is(err, ErrModeExcludesBackend):
+			httpserver.WriteError(w, http.StatusUnprocessableEntity, "Not allowed by the deployment mode: "+strings.TrimPrefix(err.Error(), ErrModeExcludesBackend.Error()+": ")+". Change the mode under Settings → General, or choose another backend.")
+		case errors.Is(err, ErrNoTaggedBackend):
+			httpserver.WriteError(w, http.StatusUnprocessableEntity, "No enabled backend carries the agent tags this profile asks for ("+strings.TrimPrefix(err.Error(), ErrNoTaggedBackend.Error()+": needs ")+"). Add them to an agent's routing tags, or choose a backend explicitly.")
 		case errors.Is(err, ErrBackendUnavailable):
 			httpserver.WriteError(w, http.StatusServiceUnavailable, "Selected backend is unavailable.")
 		case errors.Is(err, ErrInvalidTopology):

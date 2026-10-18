@@ -5,9 +5,12 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -36,6 +39,17 @@ func main() {
 	controlPlaneURL := strings.TrimSpace(os.Getenv("AGENT_CONTROL_PLANE_URL"))
 	heartbeatInterval := durationOr("AGENT_HEARTBEAT_INTERVAL", 15*time.Second)
 	pollInterval := durationOr("AGENT_POLL_INTERVAL", time.Second)
+	// How many steps this agent runs at once. It is declared by the agent,
+	// which knows its host, and the control plane schedules up to it.
+	maxJobs := intOr("AGENT_MAX_JOBS", 1)
+	// The host this agent reaches the control plane on — 10.0.2.2 from a
+	// VirtualBox VM — is also where the suite sidecar publishes its port.
+	controlPlaneHost := ""
+	if parsed, err := url.Parse(strings.TrimSpace(os.Getenv("AGENT_CONTROL_PLANE_URL"))); err == nil {
+		controlPlaneHost = parsed.Hostname()
+	}
+
+	executions := newExecutionScopes()
 
 	localBackend := runner.NewLocal(runner.BackendConfig{
 		ID:    "worker-local",
@@ -50,6 +64,27 @@ func main() {
 		Status:       "ready",
 		Capabilities: []string{"service", "task", "test", "traffic", "suite"},
 	}, agent.ExecutorFunc(func(ctx context.Context, request agent.StepRequest, emit func(logstream.Line)) error {
+		// The execution ended on the control plane: remove what it left on
+		// this host, detached services and its network included.
+		if request.Node.Kind == agent.ReleaseKind {
+			return destroyExecution(executions, request.ExecutionID)
+		}
+		// The control plane creates the execution network on its own host
+		// only for local runs; steps here run on this host's Docker and
+		// join a network by the execution's name, so it is set up here.
+		// Idempotent, so concurrent steps of one execution are safe.
+		if err := runner.SetupExecutionNetwork(request.ExecutionID); err != nil {
+			return err
+		}
+		executions.track(request.ExecutionID)
+		// A service's container lives as long as the context it was started
+		// with. The job's context ends once the service is up, which stopped
+		// it a second later — kafka never served the steps after it. On the
+		// local backend that context is the execution's, so here it is too:
+		// it lasts until the release job for the execution.
+		if request.Node.Kind == "service" {
+			ctx = executions.context(request.ExecutionID)
+		}
 		return localBackend.Run(ctx, runner.StepSpec{
 			ExecutionID:      request.ExecutionID,
 			SuiteID:          request.SuiteID,
@@ -70,6 +105,9 @@ func main() {
 			Evaluation:       cloneStepEvaluation(request.Evaluation),
 			OnFailure:        append([]string{}, request.OnFailure...),
 			ArtifactExports:  cloneArtifactExports(request.ArtifactExports),
+			GatewayURL:       runner.RewriteLoopbackURL(request.GatewayURL, controlPlaneHost),
+			GatewayURLs:      rewriteAll(request.GatewayURLs, controlPlaneHost),
+			NetworkAliases:   append([]string{}, request.NetworkAliases...),
 			Node: runner.StepNode{
 				ID:          request.Node.ID,
 				Name:        request.Node.Name,
@@ -82,9 +120,19 @@ func main() {
 				FileContent: request.Node.FileContent,
 				Message:     request.Node.Message,
 				Devices:     append([]string{}, request.Node.Devices...),
+				MemoryBytes: request.Node.MemoryBytes,
+				MilliCPU:    request.Node.MilliCPU,
 			},
 		}, emit)
 	}))
+
+	// The control plane's Environments page cannot see this host's Docker, so
+	// the agent reports what it holds and reaps on request — the same cleanup
+	// the release job and shutdown run.
+	service.ConfigureInventory(
+		func(ctx context.Context) (any, error) { return runner.DockerInventory(ctx) },
+		func(_ context.Context, executionID string) error { return destroyExecution(executions, executionID) },
+	)
 
 	agentSecret := strings.TrimSpace(os.Getenv("AGENT_SHARED_SECRET"))
 
@@ -98,22 +146,53 @@ func main() {
 
 	controlPlane := agent.NewControlPlaneClient(controlPlaneURL, nil, agentSecret)
 	if controlPlaneURL != "" {
-		registerCtx, cancel := context.WithTimeout(rootCtx, 5*time.Second)
-		if err := controlPlane.Register(registerCtx, agent.RegisterRequest{
-			AgentID:      agentID,
-			Name:         agentName,
-			HostURL:      publicURL,
-			Capabilities: []string{"service", "task", "test", "traffic", "suite"},
-		}); err != nil {
-			slog.Error("agent register failed", "error", err)
+		register := func(ctx context.Context) error {
+			registerCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return controlPlane.Register(registerCtx, agent.RegisterRequest{
+				AgentID:      agentID,
+				Name:         agentName,
+				HostURL:      publicURL,
+				Capabilities: []string{"service", "task", "test", "traffic", "suite"},
+				Capacity:     maxJobs,
+			})
 		}
-		cancel()
-
-		go heartbeatLoop(rootCtx, controlPlane, agentID, heartbeatInterval)
+		registered := make(chan struct{})
+		go registerAndHeartbeat(rootCtx, controlPlane, agentID, heartbeatInterval, register, func() { close(registered) })
+		// One claim loop per slot: each claims a step, runs it and claims the
+		// next, so the agent never holds more than maxJobs steps. They start
+		// once the agent is registered, so the control plane schedules
+		// against the capacity the agent declared rather than a stale record.
 		worker := agent.NewWorker(agentID, pollInterval, controlPlane, service)
+		var workers sync.WaitGroup
 		go func() {
-			if err := worker.Run(rootCtx); err != nil && err != context.Canceled {
-				slog.Error("agent worker loop stopped", "error", err)
+			select {
+			case <-rootCtx.Done():
+				return
+			case <-registered:
+			}
+			for range maxJobs {
+				workers.Go(func() {
+					if err := worker.Run(rootCtx); err != nil && err != context.Canceled {
+						slog.Error("agent worker loop stopped", "error", err)
+					}
+				})
+			}
+			slog.Info("agent claiming work", "agentID", agentID, "maxJobs", maxJobs)
+		}()
+		// On shutdown, destroy what this agent still holds once its steps
+		// have stopped. Nothing else would: the control plane's release job
+		// for these executions has no agent left to claim it.
+		defer func() {
+			stopped := make(chan struct{})
+			go func() { workers.Wait(); close(stopped) }()
+			select {
+			case <-stopped:
+			case <-time.After(15 * time.Second):
+			}
+			for _, executionID := range executions.releaseAll() {
+				_ = destroyExecution(executions, executionID)
+				slog.Info("destroyed execution on shutdown", "executionID", executionID)
 			}
 		}()
 		defer func() {
@@ -139,20 +218,51 @@ func main() {
 	}
 }
 
-func heartbeatLoop(ctx context.Context, client *agent.ControlPlaneClient, agentID string, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+// registerAndHeartbeat registers the agent, retrying until the control plane
+// takes it, then heartbeats. A failed heartbeat registers again: a control
+// plane that was down when the agent started — or restarted since — otherwise
+// keeps the record it had, with the capacity the agent declared last time, or
+// none, and the agent's slots never reach the scheduler.
+func registerAndHeartbeat(ctx context.Context, client *agent.ControlPlaneClient, agentID string, interval time.Duration, register func(context.Context) error, onFirstRegistration func()) {
+	registered := false
+	first := true
+	tryRegister := func() {
+		if err := register(ctx); err != nil {
+			slog.Error("agent register failed; retrying", "error", err)
+			return
+		}
+		registered = true
+		if first {
+			first = false
+			if onFirstRegistration != nil {
+				onFirstRegistration()
+			}
+		}
+	}
+	tryRegister()
 
+	retry := min(interval, 3*time.Second)
 	for {
+		wait := interval
+		if !registered {
+			wait = retry
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			heartbeatCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			if err := client.Heartbeat(heartbeatCtx, agentID); err != nil {
-				slog.Error("agent heartbeat failed", "error", err)
-			}
-			cancel()
+		case <-time.After(wait):
+		}
+		if !registered {
+			tryRegister()
+			continue
+		}
+		heartbeatCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err := client.Heartbeat(heartbeatCtx, agentID)
+		cancel()
+		if err != nil {
+			slog.Error("agent heartbeat failed; registering again", "error", err)
+			registered = false
+			tryRegister()
 		}
 	}
 }
@@ -179,6 +289,88 @@ func withPortPrefix(port string) string {
 		return port
 	}
 	return ":" + port
+}
+
+// destroyExecution removes what an execution left on this host: its services
+// first, by ending their scope, then its containers and network, then its
+// workspace. The release job, shutdown and a reap from the Environments page
+// all end an execution this way.
+func destroyExecution(executions *executionScopes, executionID string) error {
+	executions.release(executionID)
+	runner.RemoveExecutionNetwork(executionID)
+	return os.RemoveAll(runner.ExecutionWorkspaceDir(executionID))
+}
+
+// executionScopes holds the executions this agent has run steps for, each
+// with a context that outlives its steps, for the services that must keep
+// running after the job that started them.
+type executionScopes struct {
+	mu      sync.Mutex
+	cancels map[string]context.CancelFunc
+	ctxs    map[string]context.Context
+}
+
+func newExecutionScopes() *executionScopes {
+	return &executionScopes{cancels: map[string]context.CancelFunc{}, ctxs: map[string]context.Context{}}
+}
+
+// track records that the execution has left something on this host.
+func (s *executionScopes) track(executionID string) {
+	s.context(executionID)
+}
+
+func (s *executionScopes) context(executionID string) context.Context {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ctx, ok := s.ctxs[executionID]; ok {
+		return ctx
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.ctxs[executionID], s.cancels[executionID] = ctx, cancel
+	return ctx
+}
+
+func (s *executionScopes) release(executionID string) {
+	s.mu.Lock()
+	cancel := s.cancels[executionID]
+	delete(s.cancels, executionID)
+	delete(s.ctxs, executionID)
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+// releaseAll ends every scope and returns the executions they belonged to.
+func (s *executionScopes) releaseAll() []string {
+	s.mu.Lock()
+	ids := make([]string, 0, len(s.cancels))
+	for id := range s.cancels {
+		ids = append(ids, id)
+	}
+	s.mu.Unlock()
+	for _, id := range ids {
+		s.release(id)
+	}
+	return ids
+}
+
+// rewriteAll applies runner.RewriteLoopbackURL to every URL.
+func rewriteAll(urls []string, host string) []string {
+	out := make([]string, len(urls))
+	for i, u := range urls {
+		out[i] = runner.RewriteLoopbackURL(u, host)
+	}
+	return out
+}
+
+// intOr reads a positive integer from the environment, or returns fallback.
+func intOr(key string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(key)))
+	if err != nil || value < 1 {
+		return fallback
+	}
+	return value
 }
 
 func durationOr(key string, fallback time.Duration) time.Duration {

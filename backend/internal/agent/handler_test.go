@@ -153,6 +153,49 @@ func TestControlPlaneClientClaimsReportsAndCompletesAssignments(t *testing.T) {
 	}
 }
 
+// A step from a composed suite has slashes in its id; the agent's reports for
+// it must still reach the job routes rather than 404.
+func TestControlPlaneClientReportsJobsWithSlashedIDs(t *testing.T) {
+	registry := NewRegistry(nil)
+	coordinator := NewCoordinator(registry, nil)
+	server := httptest.NewServer(NewGateway(registry, coordinator, ""))
+	defer server.Close()
+
+	client := NewControlPlaneClient(server.URL, server.Client(), "")
+	if err := client.Register(context.Background(), RegisterRequest{AgentID: "worker-1", Name: "Worker", HostURL: server.URL}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	submitted, err := coordinator.Submit(StepRequest{
+		JobID:       "run-1:identity-broker/pre-hook/session-store",
+		ExecutionID: "run-1",
+		BackendID:   "worker-1",
+		LeaseTTL:    2 * time.Second,
+		Node:        StepNode{ID: "identity-broker/pre-hook/session-store", Name: "session-store", Kind: "service"},
+	})
+	if err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	if claim, err := client.ClaimNext(context.Background(), "worker-1"); err != nil || claim == nil {
+		t.Fatalf("claim next: %v %#v", err, claim)
+	}
+
+	if err := client.ReportState(context.Background(), submitted.JobID, StateReport{AgentID: "worker-1", State: "running"}); err != nil {
+		t.Fatalf("report state: %v", err)
+	}
+	if _, err := client.ExtendLease(context.Background(), submitted.JobID, "worker-1"); err != nil {
+		t.Fatalf("extend lease: %v", err)
+	}
+	if err := client.ReportLog(context.Background(), submitted.JobID, "worker-1", logstream.Line{Source: "session-store", Text: "ready"}); err != nil {
+		t.Fatalf("report log: %v", err)
+	}
+	if err := client.Complete(context.Background(), submitted.JobID, CompleteRequest{AgentID: "worker-1"}); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if err := coordinator.Wait(context.Background(), submitted.JobID); err != nil {
+		t.Fatalf("wait: %v", err)
+	}
+}
+
 func TestCoordinatorConfigureStoreRestoresAssignments(t *testing.T) {
 	registry := NewRegistry(nil)
 	coordinator := NewCoordinator(registry, nil)

@@ -78,6 +78,7 @@ func (o *captureObserver) SyncExecution(snapshot Snapshot) {
 func TestCreateExecutionUsesExplicitRemoteBackend(t *testing.T) {
 	service := NewServiceWithPlatform(suites.NewWorkspaceService(), stubPlatformSource{
 		settings: &platform.PlatformSettings{
+			Mode: platform.ModeRemote,
 			Agents: []platform.ExecutionAgent{
 				{
 					AgentID:     "remote-agent",
@@ -212,6 +213,7 @@ func TestCreateExecutionRejectsUnknownBackend(t *testing.T) {
 func TestCreateExecutionRejectsUnavailableBackend(t *testing.T) {
 	service := NewServiceWithPlatform(suites.NewWorkspaceService(), stubPlatformSource{
 		settings: &platform.PlatformSettings{
+			Mode: platform.ModeRemote,
 			Agents: []platform.ExecutionAgent{
 				{
 					AgentID: "remote-agent",

@@ -13,8 +13,10 @@ import { timestampDate } from '@bufbuild/protobuf/wkt'
 import {
   ApiError,
   getPlatformSettings,
+  listBackends,
   updatePlatformSettings,
   type APISIXSidecarConfig,
+  type BackendOption,
   type ExecutionAgent,
   type PlatformSettings,
   type RuntimeAgent,
@@ -43,6 +45,7 @@ export default function Agents() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [isNewAgent, setIsNewAgent] = useState(false)
   const [runtimeAgents, setRuntimeAgents] = useState<RuntimeAgent[]>([])
+  const [backends, setBackends] = useState<BackendOption[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -77,6 +80,12 @@ export default function Agents() {
         }
       } catch {
         // ignore errors from cancelled or background load
+      }
+      try {
+        const options = await listBackends()
+        if (!cancelled) startTransition(() => setBackends(options))
+      } catch {
+        // capacity is informational; the table renders without it
       }
     }
 
@@ -216,6 +225,7 @@ export default function Agents() {
   }
 
   const runtimeById = new Map(runtimeAgents.map((agent) => [agent.agentId, agent]))
+  const backendById = new Map(backends.map((backend) => [backend.id, backend]))
 
   return (
     <AppShell
@@ -244,6 +254,8 @@ export default function Agents() {
               <div className='bs-table-cell'>Name</div>
               <div className='bs-table-cell'>Type</div>
               <div className='bs-table-cell'>Status</div>
+              <div className='bs-table-cell'>Capacity</div>
+              <div className='bs-table-cell'>Capabilities</div>
               <div className='bs-table-cell'>Tags</div>
               <div className='bs-table-cell bs-table-cell--shrink' />
             </div>
@@ -262,8 +274,10 @@ export default function Agents() {
             <div className='bs-table-list__row' key={agent.agentId} onClick={() => openPanel(agent)}>
               {(() => {
                 const runtime = runtimeById.get(agent.agentId)
-                const displayStatus = runtime?.status ?? agent.status
+                const backend = backendById.get(agent.agentId)
+                const displayStatus = reportedStatus(agent, runtime, backend)
                 const heartbeatAt = runtime?.lastHeartbeatAt ?? agent.lastHeartbeatAt
+                const sidecarProtocols = agent.apisixSidecar?.capabilities ?? []
                 return (
               <div className='bs-table-row'>
                 <div className='bs-table-cell bs-table-cell--shrink'>
@@ -284,6 +298,18 @@ export default function Agents() {
                   <span className={`bs-status-badge bs-status-badge--${statusTone(displayStatus)}`}>
                     {displayStatus}
                   </span>
+                </div>
+                <div className='bs-table-cell'>
+                  {backend
+                    ? <span className='bs-tag'>{capacityLabel(backend.capacity)}</span>
+                    : <span className='bs-table-cell__muted' title='Not scheduling: the agent is disabled'>—</span>}
+                </div>
+                <div className='bs-table-cell'>
+                  {runtime && runtime.capabilities.length > 0
+                    ? runtime.capabilities.map((capability) => <span key={capability} className='bs-tag'>{capability}</span>)
+                    : sidecarProtocols.length > 0
+                      ? <span className='bs-table-cell__muted' title={sidecarProtocols.join(', ')}>{sidecarProtocols.length} sidecar protocols</span>
+                      : <span className='bs-table-cell__muted'>—</span>}
                 </div>
                 <div className='bs-table-cell'>
                   {agent.routingTags.length > 0
@@ -327,10 +353,12 @@ export default function Agents() {
         {panelAgent && (
           (() => {
             const runtime = runtimeById.get(panelAgent.agentId)
-            const displayStatus = runtime?.status ?? panelAgent.status
+            const displayStatus = reportedStatus(panelAgent, runtime, backendById.get(panelAgent.agentId))
             const registeredAt = runtime?.registeredAt ?? panelAgent.registeredAt
             const lastHeartbeatAt = runtime?.lastHeartbeatAt ?? panelAgent.lastHeartbeatAt
-            const runtimeCapabilities = runtime?.capabilities ?? panelAgent.runtimeCapabilities
+            // Neither source is guaranteed: an agent that never registered at
+            // runtime has no live entry, and the API omits an empty list.
+            const runtimeCapabilities = runtime?.capabilities ?? panelAgent.runtimeCapabilities ?? []
             return (
           <>
             <div className='white-box'>
@@ -361,8 +389,13 @@ export default function Agents() {
                   </select>
                 </div>
                 <div>
-                  <label>Status</label>
-                  <input value={displayStatus} onChange={(e) => updatePanelAgent('status', e.target.value)} />
+                  {/* Reported by the agent — online on register and heartbeat,
+                      offline when heartbeats stop — so it is shown, not edited:
+                      a status typed here would only misreport the agent. */}
+                  <label>Status <span className='bs-label-note'>(reported by the agent)</span></label>
+                  <div className='bs-readonly-field'>
+                    <span className={`bs-status-badge bs-status-badge--${statusTone(displayStatus)}`}>{displayStatus}</span>
+                  </div>
                 </div>
               </div>
               <div className='bs-form-row bs-form-row--two'>
@@ -376,7 +409,7 @@ export default function Agents() {
                 </div>
               </div>
               <div className='bs-form-row'>
-                <label>Routing Tags <span className='bs-label-note'>(comma-separated)</span></label>
+                <label>Routing Tags <span className='bs-label-note'>(comma-separated — a launch with no backend chosen goes to an agent carrying every tag in its profile's agent.tags)</span></label>
                 <input
                   value={panelAgent.routingTags.join(', ')}
                   onChange={(e) => updatePanelAgent('routingTags', splitList(e.target.value))}
@@ -384,12 +417,12 @@ export default function Agents() {
                 />
               </div>
               <div className='bs-form-row'>
-                <label>Runtime Capabilities <span className='bs-label-note'>(comma-separated)</span></label>
-                <input
-                  value={runtimeCapabilities.join(', ')}
-                  onChange={(e) => updatePanelAgent('runtimeCapabilities', splitList(e.target.value))}
-                  placeholder='service, task, test, traffic, suite'
-                />
+                <label>Runtime Capabilities <span className='bs-label-note'>(reported when the agent registers)</span></label>
+                <div className='bs-readonly-field'>
+                  {runtimeCapabilities.length > 0
+                    ? runtimeCapabilities.map((capability) => <span key={capability} className='bs-tag'>{capability}</span>)
+                    : <span className='bs-table-cell__muted'>Not registered yet</span>}
+                </div>
               </div>
               <div className='bs-form-checks'>
                 <label>
@@ -529,11 +562,22 @@ function labelForAgentType(type: ExecutionAgent['type']) {
   }
 }
 
+// reportedStatus is the agent's real state, never the placeholder stored in
+// settings: a live registration's own status when the agent has one, else
+// whether the control plane can reach the backend — local Docker and
+// Kubernetes never register — and Disabled for one that is switched off.
+function reportedStatus(agent: ExecutionAgent, runtime?: RuntimeAgent, backend?: BackendOption) {
+  if (runtime?.status) return runtime.status
+  if (!agent.enabled) return 'Disabled'
+  if (backend) return backend.available ? 'Available' : 'Unreachable'
+  return 'Not registered'
+}
+
 function statusTone(status: string) {
   const s = status.toLowerCase()
-  if (s.includes('ready') || s.includes('indexed') || s.includes('online')) return 'ok'
-  if (s.includes('pending') || s.includes('standby')) return 'warn'
-  if (s.includes('disconnect') || s.includes('error')) return 'err'
+  if (s.includes('ready') || s.includes('indexed') || s.includes('online') || s === 'available') return 'ok'
+  if (s.includes('pending') || s.includes('standby') || s.includes('not registered')) return 'warn'
+  if (s.includes('disconnect') || s.includes('error') || s.includes('unreachable')) return 'err'
   if (s.includes('offline')) return 'off'
   return 'off'
 }
@@ -578,7 +622,15 @@ function registrationToRuntimeAgent(reg: Registration): RuntimeAgent {
     capabilities: [...reg.capabilities],
     registeredAt: reg.registeredAt ? timestampDate(reg.registeredAt).toISOString() : '',
     lastHeartbeatAt: reg.lastHeartbeatAt ? timestampDate(reg.lastHeartbeatAt).toISOString() : '',
+    capacity: reg.capacity,
   }
+}
+
+// capacityLabel reads a backend's step limit, where 0 means the backend sets
+// none — Kubernetes, which leaves it to the cluster scheduler.
+function capacityLabel(capacity: number) {
+  if (capacity <= 0) return 'Unlimited'
+  return capacity === 1 ? '1 step at a time' : `${capacity} steps at a time`
 }
 
 function defaultAPISIXSidecar(): APISIXSidecarConfig {

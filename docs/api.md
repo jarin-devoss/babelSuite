@@ -106,6 +106,24 @@ The frontend route is `/environments`, but the backing API currently uses `/api/
 - `POST /api/v1/sandboxes/reap-all`
 - `POST /api/v1/sandboxes/{sandboxId}/reap`
 
+The inventory is read from the control plane host's Docker. It lists the resources labelled `babelsuite.managed=true` and groups them by `babelsuite.run_id`:
+
+| Resources | `babelsuite.run_id` | Also labelled |
+|-----------|---------------------|---------------|
+| A run's step containers and execution network | the execution id | `babelsuite.suite`, `babelsuite.profile`, `babelsuite.orchestrator_pid` |
+| A suite's shared APISIX sidecar | `sidecar-<suite>-<profile>` | `babelsuite.suite`, `babelsuite.profile` |
+
+A run whose containers still run after the process in `babelsuite.orchestrator_pid` has died — a control plane that crashed or was killed — is reported as a **Zombie**, and reaping it removes its containers and network. Sidecars carry no pid: a restarted control plane reuses a running sidecar, so it is never a zombie, and reaping one only removes it until the suite's next run starts it again.
+
+Every enabled Kubernetes and remote-agent backend is listed too, each environment naming its backend (`backend`, `backendLabel`, `backendKind`):
+
+| Backend | Listed | Reaped by |
+|---------|--------|-----------|
+| Kubernetes | the namespace's pods, headless Service and workspace claim labelled `babelsuite.execution` | deleting them, as when an execution ends |
+| Remote agent | the agent's `GET /api/v1/agent/inventory`, from its own Docker | the agent's `POST /api/v1/agent/executions/{executionId}/reap` |
+
+Their environment ids are `<backend>:<run>`. Neither has a pid to check, so one is a **Zombie** when the control plane does not own the run: it is not running it, and did not finish it in the last two minutes. An execution restored after a restart is not owned — nothing resumes it. A backend that cannot be reached adds a warning to the inventory rather than failing it.
+
 ## Agent Registry And Control Plane
 
 - `GET /api/v1/agents`

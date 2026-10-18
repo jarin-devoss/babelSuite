@@ -3,6 +3,7 @@ import {
   FaArrowRotateRight,
   FaBoxArchive,
   FaCircleXmark,
+  FaCloud,
   FaDocker,
   FaHardDrive,
   FaLayerGroup,
@@ -49,6 +50,7 @@ export default function Sandboxes() {
       const haystack = [
         sandbox.suite,
         sandbox.runId,
+        sandbox.backendLabel,
         sandbox.owner,
         sandbox.profile,
         sandbox.summary,
@@ -145,7 +147,7 @@ export default function Sandboxes() {
             <button
               className='sb-btn sb-btn--danger'
               onClick={() => setConfirmGlobal(true)}
-              disabled={!snapshot?.dockerAvailable || (snapshot?.sandboxes.length ?? 0) === 0}
+              disabled={(snapshot?.sandboxes.length ?? 0) === 0}
             >
               <FaTrash />
               <span>Global Clean</span>
@@ -208,6 +210,7 @@ export default function Sandboxes() {
                   </div>
                   <p className='sb-card__run'>{sandbox.runId || sandbox.sandboxId}</p>
                   <div className='sb-card__chips'>
+                    <span className='sb-chip'><FaCloud />{sandbox.backendLabel}</span>
                     <span className='sb-chip'><FaLayerGroup />{sandbox.profile}</span>
                     <span className='sb-chip'><FaServer />{sandbox.owner}</span>
                   </div>
@@ -266,7 +269,7 @@ export default function Sandboxes() {
                 <button
                   className='sb-btn sb-btn--danger'
                   onClick={() => setConfirmNuke(selectedSandbox.sandboxId)}
-                  disabled={!snapshot?.dockerAvailable || !selectedSandbox.canReap}
+                  disabled={!selectedSandbox.canReap || (selectedSandbox.backendKind === 'local' && !snapshot?.dockerAvailable)}
                 >
                   <FaTrash />
                   <span>Nuke</span>
@@ -297,6 +300,7 @@ export default function Sandboxes() {
 
             {/* Facts */}
             <dl className='sb-facts'>
+              <div><dt>Backend</dt><dd>{selectedSandbox.backendLabel}</dd></div>
               <div><dt>Profile</dt><dd>{selectedSandbox.profile}</dd></div>
               <div><dt>Owner</dt><dd>{selectedSandbox.owner}</dd></div>
               <div><dt>Orchestrator PID</dt><dd>{selectedSandbox.orchestratorPid || 'Unknown'}</dd></div>

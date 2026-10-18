@@ -76,7 +76,8 @@ func finalizeSandbox(ctx context.Context, checker processChecker, now time.Time,
 		if item.State == "running" {
 			running++
 		}
-		if item.State == "exited" || item.State == "dead" || item.State == "restarting" {
+		// "failed" is a pod's phase; the rest are Docker's container states.
+		if item.State == "exited" || item.State == "dead" || item.State == "restarting" || item.State == "failed" {
 			failed++
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -83,25 +84,32 @@ func (c *ControlPlaneClient) ClaimNext(ctx context.Context, agentID string) (*St
 	return claim.Assignment, nil
 }
 
+// jobURL escapes the job id, which is <execution>:<step id>: a step from a
+// composed suite carries its alias path, as in identity-broker/pre-hook/db,
+// and unescaped those slashes put the request on no route at all.
+func (c *ControlPlaneClient) jobURL(jobID, action string) string {
+	return c.baseURL + "/api/v1/agent-control/jobs/" + url.PathEscape(jobID) + "/" + action
+}
+
 func (c *ControlPlaneClient) ExtendLease(ctx context.Context, jobID, agentID string) (LeaseResponse, error) {
 	var response LeaseResponse
-	err := c.postJSONInto(ctx, c.baseURL+"/api/v1/agent-control/jobs/"+jobID+"/lease", LeaseRequest{AgentID: agentID}, &response)
+	err := c.postJSONInto(ctx, c.jobURL(jobID, "lease"), LeaseRequest{AgentID: agentID}, &response)
 	return response, err
 }
 
 func (c *ControlPlaneClient) ReportState(ctx context.Context, jobID string, report StateReport) error {
-	return c.postJSON(ctx, c.baseURL+"/api/v1/agent-control/jobs/"+jobID+"/state", report)
+	return c.postJSON(ctx, c.jobURL(jobID, "state"), report)
 }
 
 func (c *ControlPlaneClient) ReportLog(ctx context.Context, jobID, agentID string, line logstream.Line) error {
-	return c.postJSON(ctx, c.baseURL+"/api/v1/agent-control/jobs/"+jobID+"/logs", LogReport{
+	return c.postJSON(ctx, c.jobURL(jobID, "logs"), LogReport{
 		AgentID: agentID,
 		Line:    line,
 	})
 }
 
 func (c *ControlPlaneClient) Complete(ctx context.Context, jobID string, request CompleteRequest) error {
-	return c.postJSON(ctx, c.baseURL+"/api/v1/agent-control/jobs/"+jobID+"/complete", request)
+	return c.postJSON(ctx, c.jobURL(jobID, "complete"), request)
 }
 
 func (c *ControlPlaneClient) Unregister(ctx context.Context, agentID string) error {

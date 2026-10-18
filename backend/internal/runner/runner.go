@@ -23,7 +23,10 @@ type StepNode struct {
 	// MemoryBytes overrides the runner's default container memory ceiling for
 	// this step. Zero keeps the default.
 	MemoryBytes int64
-	DependsOn   []string
+	// MilliCPU caps this step's CPU in thousandths of a core. Zero is no
+	// limit, the default on every backend.
+	MilliCPU  int64
+	DependsOn []string
 }
 
 type ArtifactExport struct {
@@ -110,6 +113,32 @@ type Backend interface {
 	Kind() string
 	// IsAvailable reports whether the backend is reachable and ready to accept work.
 	IsAvailable(ctx context.Context) bool
+}
+
+// ExecutionLifecycle is implemented by a backend that holds resources for a
+// whole execution rather than for one step — on Kubernetes the DNS Service,
+// the shared workspace volume, and service pods that outlive the step that
+// started them. SetupExecution runs once before the first step,
+// DestroyExecution once after the last, and DestroyExecution must be safe to
+// call when setup failed or never ran.
+type ExecutionLifecycle interface {
+	SetupExecution(ctx context.Context, executionID string) error
+	DestroyExecution(ctx context.Context, executionID string) error
+}
+
+// CapacityReporter reports how many steps a backend runs at once; a value
+// <= 0 is no limit. The execution queue has no worker pool of its own: it
+// starts a step when the backend that runs it has a free slot, so a slow step
+// on one backend never holds back another.
+type CapacityReporter interface {
+	Capacity() int
+}
+
+// HostPortResolver reports the host port that reaches a step's container
+// port, or "" when there is none. Plugin steps run in the suite's APISIX
+// sidecar outside the execution, and dial sibling services through it.
+type HostPortResolver interface {
+	HostPort(executionID, nodeID, containerPort string) string
 }
 
 // Compile-time assertions that all backend implementations satisfy the Backend interface.

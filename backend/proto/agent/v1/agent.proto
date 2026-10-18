@@ -30,6 +30,10 @@ message StepNode {
   string file_content = 9;
   string message = 10;
   repeated string devices = 11;
+  // The profile's services.<name>.memory in bytes; 0 keeps the runner default.
+  int64 memory_bytes = 12;
+  // The profile's services.<name>.cpu in millicores; 0 is no limit.
+  int64 milli_cpu = 13;
 }
 
 message ArtifactExport {
@@ -131,6 +135,12 @@ message StepRequest {
   repeated string on_failure = 26;
   repeated ArtifactExport artifact_exports = 27;
   StepNode node = 28;
+  // The suite sidecar's address as the control plane sees it.
+  string gateway_url = 29;
+  repeated string gateway_urls = 30;
+  // The hostnames the step answers to on the execution network; empty is the
+  // step's own name.
+  repeated string network_aliases = 31;
 }
 
 message ClaimRequest {
@@ -177,6 +187,8 @@ message RegisterRequest {
   string name = 2;
   string host_url = 3;
   repeated string capabilities = 4;
+  // How many steps this agent runs at once.
+  int32 capacity = 5;
 }
 
 message Registration {
@@ -187,6 +199,7 @@ message Registration {
   repeated string capabilities = 5;
   google.protobuf.Timestamp registered_at = 6;
   google.protobuf.Timestamp last_heartbeat_at = 7;
+  int32 capacity = 8;
 }
 
 message HeartbeatRequest {

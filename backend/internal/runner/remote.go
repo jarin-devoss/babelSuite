@@ -3,22 +3,40 @@ package runner
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/babelsuite/babelsuite/internal/agent"
 	"github.com/babelsuite/babelsuite/internal/logstream"
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
+// remoteLeaseTTL is the least time an agent may go without renewing a step's
+// lease before the control plane counts it dead. The queue's 8s suits a step
+// in this process; an agent on another machine can be silent longer than that
+// for no fault of the step's, behind a NAT or on a VM the host briefly stops
+// scheduling.
+const remoteLeaseTTL = time.Minute
+
 type RemoteConfig struct {
 	BackendConfig
 	BaseURL    string
 	Dispatcher agent.Dispatcher
+	// Capacity reports the steps the backend's agent runs at once, as it
+	// declared at registration. Nil is no limit.
+	Capacity func() int
+	// Secret is the agent's shared secret, which its own HTTP API — the
+	// inventory the Environments page reads — requires as a Bearer token.
+	Secret string
 }
 
 type Remote struct {
 	config     BackendConfig
 	baseURL    string
 	dispatcher agent.Dispatcher
+	capacity   func() int
+	secret     string
 }
 
 func NewRemote(config RemoteConfig) *Remote {
@@ -31,7 +49,30 @@ func NewRemote(config RemoteConfig) *Remote {
 		config:     backendConfig,
 		baseURL:    config.BaseURL,
 		dispatcher: dispatcher,
+		capacity:   config.Capacity,
+		secret:     config.Secret,
 	}
+}
+
+// SetupExecution has nothing to prepare here: the agent sets up the
+// execution's network on its own host when its first step arrives.
+func (r *Remote) SetupExecution(context.Context, string) error { return nil }
+
+// DestroyExecution tells the agent to remove what the execution left on its
+// host, through the dispatcher's release job when it has one.
+func (r *Remote) DestroyExecution(_ context.Context, executionID string) error {
+	if releaser, ok := r.dispatcher.(interface{ Release(string) }); ok {
+		releaser.Release(executionID)
+	}
+	return nil
+}
+
+// Capacity is what the backend's registered agents declared they run at once.
+func (r *Remote) Capacity() int {
+	if r.capacity == nil {
+		return 0
+	}
+	return r.capacity()
 }
 
 func (r *Remote) ID() string {
@@ -62,6 +103,37 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		return fmt.Errorf("remote backend %q is missing a dispatcher", r.config.ID)
 	}
 
+	// Only steps that run a container go to the agent. Log, plugin, security,
+	// traffic and mock steps run in the control plane, against the suite's
+	// sidecar and plugin registry, exactly as on the local and Kubernetes
+	// backends; sent to an agent they had neither, and a plugin step crashed
+	// the agent outright.
+	var capturedMu sync.Mutex
+	capturedLogs := make([]string, 0, 8)
+	emitLine := func(entry logstream.Line) {
+		if text := strings.TrimSpace(entry.Text); text != "" {
+			capturedMu.Lock()
+			capturedLogs = append(capturedLogs, text)
+			capturedMu.Unlock()
+		}
+		emit(entry)
+	}
+	snapshotLogs := func() []string {
+		capturedMu.Lock()
+		defer capturedMu.Unlock()
+		return append([]string(nil), capturedLogs...)
+	}
+	if step.Node.Kind == "log" {
+		emitLogStep(step, emitLine)
+		return nil
+	}
+	if handled, err := runInProcessStep(ctx, step, emitLine, snapshotLogs); handled {
+		return err
+	}
+	if !stepRequiresContainer(step) {
+		return runSimulatedStep(ctx, step, emitLine, snapshotLogs)
+	}
+
 	emit(line(step, "info", fmt.Sprintf("[%s] Forwarding the step to the remote worker at %s.", step.Node.Name, r.baseURL)))
 	return r.dispatcher.Dispatch(ctx, agent.StepRequest{
 		ExecutionID:      step.ExecutionID,
@@ -85,7 +157,7 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		DependencyAlias:  step.DependencyAlias,
 		StepIndex:        step.StepIndex,
 		TotalSteps:       step.TotalSteps,
-		LeaseTTL:         step.LeaseTTL,
+		LeaseTTL:         max(step.LeaseTTL, remoteLeaseTTL),
 		Load:             cloneRunnerLoadSpec(step.Load),
 		Evaluation:       cloneRunnerEvaluation(step.Evaluation),
 		OnFailure:        append([]string{}, step.OnFailure...),
@@ -102,7 +174,12 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 			FileContent: step.Node.FileContent,
 			Message:     step.Node.Message,
 			Devices:     append([]string{}, step.Node.Devices...),
+			MemoryBytes: step.Node.MemoryBytes,
+			MilliCPU:    step.Node.MilliCPU,
 		},
+		GatewayURL:     step.GatewayURL,
+		GatewayURLs:    append([]string{}, step.GatewayURLs...),
+		NetworkAliases: append([]string{}, step.NetworkAliases...),
 	}, emit)
 }
 
