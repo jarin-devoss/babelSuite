@@ -965,6 +965,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-steps-are-scheduled" class="md-nav__link">
+    <span class="md-ellipsis">
+      How Steps Are Scheduled
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#control-plane-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       Control Plane Endpoints
@@ -1356,6 +1365,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-steps-are-scheduled" class="md-nav__link">
+    <span class="md-ellipsis">
+      How Steps Are Scheduled
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#control-plane-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       Control Plane Endpoints
@@ -1465,9 +1483,9 @@
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                                                         then marks it complete
 </span></code></pre></div>
 <ol>
-<li><strong>Register</strong> — the agent calls <code>POST /api/v1/agents/register</code> with its identity and capabilities.</li>
+<li><strong>Register</strong> — the agent calls <code>POST /api/v1/agents/register</code> with its identity, capabilities and <code>capacity</code> (how many steps it runs at once).</li>
 <li><strong>Heartbeat</strong> — the agent sends periodic heartbeats so the control plane knows it is alive.</li>
-<li><strong>Claim</strong> — the agent polls <code>POST /api/v1/agent-control/claims/next</code>. When a step is waiting, the control plane returns a <code>StepRequest</code>.</li>
+<li><strong>Claim</strong> — each of the agent's <code>AGENT_MAX_JOBS</code> claim loops polls <code>POST /api/v1/agent-control/claims/next</code>. When a step is waiting, the control plane returns a <code>StepRequest</code>.</li>
 <li><strong>Execute</strong> — the agent runs the step and streams log lines and state transitions back continuously.</li>
 <li><strong>Complete</strong> — the agent calls <code>POST /api/v1/agent-control/jobs/:id/complete</code> with the final result.</li>
 </ol>
@@ -1478,6 +1496,72 @@
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>go<span class="w"> </span>run<span class="w"> </span>./cmd/agent
 </span></code></pre></div>
 <p>The worker listens on port <code>8091</code> by default. Set <code>AGENT_SHARED_SECRET</code> on both the control plane and the agent to authenticate registrations.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AGENT_ID</code></td>
+<td>hostname</td>
+<td>Identity; must match the <code>agentId</code> of the <code>remote-agent</code> entry in platform settings, because claims are matched to that backend by id</td>
+</tr>
+<tr>
+<td><code>AGENT_CONTROL_PLANE_URL</code></td>
+<td><em>(empty)</em></td>
+<td>Control plane base URL; without it the agent only serves its own HTTP API</td>
+</tr>
+<tr>
+<td><code>AGENT_MAX_JOBS</code></td>
+<td><code>1</code></td>
+<td>Steps this agent runs at once. It is sent with the registration, and the agent runs that many claim loops</td>
+</tr>
+<tr>
+<td><code>AGENT_POLL_INTERVAL</code></td>
+<td><code>1s</code></td>
+<td>Wait between claims when no step is pending</td>
+</tr>
+<tr>
+<td><code>AGENT_HEARTBEAT_INTERVAL</code></td>
+<td><code>15s</code></td>
+<td>Heartbeat period</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="how-steps-are-scheduled">How Steps Are Scheduled<a class="headerlink" href="#how-steps-are-scheduled" title="Permanent link">&para;</a></h2>
+<p>Which backends a run may land on is set by the platform's deployment mode — <code>local</code>, <code>remote</code> or <code>hybrid</code>, under Settings → General; see <a href="../configuration/#mode"><code>mode</code></a>. Remote agents and Kubernetes backends take work only in <code>remote</code> or <code>hybrid</code> mode.</p>
+<p>The control plane has no worker pool of its own. Every step is queued under the backend that runs it, and starts as soon as its dependencies are done and <strong>that backend</strong> has a free slot: the server only queues, and capacity is what the backends declare.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Capacity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local Docker</td>
+<td><code>BABELSUITE_LOCAL_MAX_STEPS</code>, default one step per CPU of the host</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>Unlimited — the cluster scheduler already holds a pod <code>Pending</code> until a node has room</td>
+</tr>
+<tr>
+<td>Remote agent</td>
+<td>The <code>AGENT_MAX_JOBS</code> its agent declared at registration; 1 while it is offline, so steps wait for it to return</td>
+</tr>
+</tbody>
+</table>
+<p>An agent registered before capacity existed counts as one slot. Raising capacity means restarting the agent with a higher <code>AGENT_MAX_JOBS</code>, rather than reconfiguring the control plane.</p>
+<p>Each remote-agent backend is served by <strong>one</strong> agent, whose <code>AGENT_ID</code> is the backend's <code>agentId</code>. Steps are dispatched one at a time, and the steps of a run find each other by container name on the agent's own Docker network, so all of a run must land on one host: a second agent started under the same id would replace the first's registration and could take half a run's steps to a host where its services do not exist. To add a host, add another remote-agent backend with its own id, and route to it with routing tags or by choosing it at launch.</p>
+<p>A step sent to an agent carries a lease of at least one minute, which the agent renews at half that interval. A renewal that fails is retried; only when the agent has gone a whole lease without renewing does the control plane fail the step, and the agent stop it. A service an agent starts runs until the execution ends — the control plane then queues a release job, and the agent removes the execution's containers and network from its host. An agent that is stopped does the same for every execution it still holds before it exits, since no agent would be left to claim their release jobs. A step whose agent goes silent for a whole lease fails with <em>the agent stopped renewing the step's lease</em>, naming the agent.</p>
+<p>Job ids are <code>&lt;execution&gt;:&lt;step id&gt;</code>, and a step from a composed suite carries its alias path, as in <code>run-1:identity-broker/pre-hook/db</code> — clients put the id in <code>/jobs/{jobId}/…</code> URLs path-escaped (<code>%2F</code> for each <code>/</code>).</p>
 <hr />
 <h2 id="control-plane-endpoints">Control Plane Endpoints<a class="headerlink" href="#control-plane-endpoints" title="Permanent link">&para;</a></h2>
 <table>
@@ -1573,6 +1657,16 @@
 <td><code>/api/v1/agent/jobs/{jobId}/cleanup</code></td>
 <td>Clean up resources left by a step</td>
 </tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/agent/inventory</code></td>
+<td>The executions this agent's Docker holds, for the Environments page</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/agent/executions/{executionId}/reap</code></td>
+<td>Remove an execution's containers, network and workspace from this host</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -1618,16 +1712,22 @@
 </table>
 <hr />
 <h2 id="kubernetes-backend">Kubernetes Backend<a class="headerlink" href="#kubernetes-backend" title="Permanent link">&para;</a></h2>
-<p>When <code>type: kubernetes</code> is set in platform settings, the control plane dispatches each step as an isolated Kubernetes pod in <code>targetNamespace</code>.</p>
+<p>When <code>type: kubernetes</code> is set in platform settings, the control plane runs each step that has an image as a pod in <code>targetNamespace</code>. Everything else runs exactly as it does on the Docker backend: <code>log.*</code> steps are their message, <code>plugin</code>, <code>security.*</code> and <code>traffic.*</code> steps are executed by the control plane against the suite's APISIX sidecar, and <code>service.mock</code> is answered by that sidecar.</p>
 <h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
 <ol>
-<li>A pod is created with the step image. Environment variables, headers, and OCI pull secrets are injected at pod creation time.</li>
-<li>Container logs are streamed live with <code>follow: true</code> — output appears in real time rather than after the pod exits.</li>
-<li>The control plane watches the <strong>step container</strong> status directly. This correctly detects completion even when artifact sidecars keep the pod running after the main container exits.</li>
-<li>The container exit code is captured and evaluated against any <code>expect:</code> assertions defined in the step.</li>
+<li><strong>Per execution</strong>, before the first step, the backend creates a headless Service named <code>babel-&lt;execution&gt;</code> and a <code>ReadWriteOnce</code> volume claim <code>babel-&lt;execution&gt;-workspace</code> (1Gi, default storage class). Both are removed when the execution finishes, together with every pod labelled <code>babelsuite.execution=&lt;execution&gt;</code>.</li>
+<li>Every pod mounts the workspace claim at <code>$BABELSUITE_WORKSPACE_DIR</code>, so files pass between steps as they do on Docker. A node-local volume keeps an execution's pods on one node.</li>
+<li><code>task.run</code> and <code>test.run</code> pods run the step's <code>commands=</code> or <code>file=</code> through <code>BABELSUITE_SCRIPT</code>, are watched until the <strong>step container</strong> terminates, and are deleted when it does. Their exit code is evaluated against <code>expect_*</code> assertions. They drop every capability and cannot escalate privileges, as on Docker.</li>
+<li><code>service.run(image=...)</code> pods are <strong>detached</strong>: the step returns once the container is running and has survived a 500 ms crash window, and the pod keeps running for later steps. Image pull back-off, an unschedulable pod, or an immediate exit fail the step at once instead of waiting out the 15-minute start timeout.</li>
+<li>A service pod's hostname is its network alias and its subdomain the execution's headless Service; every pod of the execution searches that subdomain, so <code>db:5432</code> resolves to that execution's <code>db</code> only. Kubernetes tries the namespace's own domain before that search entry, so keep the namespace for BabelSuite runs: a Service named <code>db</code> there would answer for every execution's <code>db</code>.</li>
+<li>Ports a plugin references on a service (<code>http://broker:8082</code>) are port-forwarded to <code>127.0.0.1</code> on the control plane host, and the plugin config is rewritten to <code>host.docker.internal:&lt;port&gt;</code>, the way Docker-published ports are.</li>
+<li>Pods run as the image's own user, with the profile's <code>services.&lt;name&gt;.memory</code> as their memory limit and no CPU limit, and <code>imagePullPolicy: IfNotPresent</code>.</li>
 <li>Artifact collection uses an <code>emptyDir</code> volume shared between the step container and a <code>busybox</code> sidecar. After the step container exits, artifacts are read through the pod exec API before the pod is deleted.</li>
-<li>When the step completes the pod is deleted immediately. Cleanup is also triggered on cancellation.</li>
 </ol>
+<div class="admonition note">
+<p class="admonition-title">Reaching the host</p>
+<p>Steps and the sidecar reach the control plane host as <code>host.docker.internal</code>, which Docker Desktop and kind resolve inside pods. <code>BABELSUITE_GATEWAY_URL</code> is rewritten to that name for pods. A cluster that does not resolve it cannot reach the sidecar from a step.</p>
+</div>
 <h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">agents</span><span class="p">:</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">agentId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">k8s-prod</span>
@@ -1656,7 +1756,7 @@
 </tr>
 <tr>
 <td><code>targetNamespace</code></td>
-<td>Namespace where step pods are created. The service account must have <code>create</code>/<code>get</code>/<code>watch</code>/<code>delete</code> pod permissions in this namespace.</td>
+<td>Namespace where step pods are created. The service account needs, in this namespace: <code>create</code>/<code>get</code>/<code>list</code>/<code>watch</code>/<code>delete</code> on pods, <code>get</code> on <code>pods/log</code>, <code>create</code> on <code>pods/exec</code> and <code>pods/portforward</code>, and <code>create</code>/<code>delete</code> on services and persistentvolumeclaims.</td>
 </tr>
 <tr>
 <td><code>serviceAccountToken</code></td>

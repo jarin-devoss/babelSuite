@@ -1646,6 +1646,52 @@ registration. Suites using those must come from a registry instead.</p>
 <li><code>POST /api/v1/sandboxes/reap-all</code></li>
 <li><code>POST /api/v1/sandboxes/{sandboxId}/reap</code></li>
 </ul>
+<p>The inventory is read from the control plane host's Docker. It lists the resources labelled <code>babelsuite.managed=true</code> and groups them by <code>babelsuite.run_id</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Resources</th>
+<th><code>babelsuite.run_id</code></th>
+<th>Also labelled</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A run's step containers and execution network</td>
+<td>the execution id</td>
+<td><code>babelsuite.suite</code>, <code>babelsuite.profile</code>, <code>babelsuite.orchestrator_pid</code></td>
+</tr>
+<tr>
+<td>A suite's shared APISIX sidecar</td>
+<td><code>sidecar-&lt;suite&gt;-&lt;profile&gt;</code></td>
+<td><code>babelsuite.suite</code>, <code>babelsuite.profile</code></td>
+</tr>
+</tbody>
+</table>
+<p>A run whose containers still run after the process in <code>babelsuite.orchestrator_pid</code> has died — a control plane that crashed or was killed — is reported as a <strong>Zombie</strong>, and reaping it removes its containers and network. Sidecars carry no pid: a restarted control plane reuses a running sidecar, so it is never a zombie, and reaping one only removes it until the suite's next run starts it again.</p>
+<p>Every enabled Kubernetes and remote-agent backend is listed too, each environment naming its backend (<code>backend</code>, <code>backendLabel</code>, <code>backendKind</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Listed</th>
+<th>Reaped by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kubernetes</td>
+<td>the namespace's pods, headless Service and workspace claim labelled <code>babelsuite.execution</code></td>
+<td>deleting them, as when an execution ends</td>
+</tr>
+<tr>
+<td>Remote agent</td>
+<td>the agent's <code>GET /api/v1/agent/inventory</code>, from its own Docker</td>
+<td>the agent's <code>POST /api/v1/agent/executions/{executionId}/reap</code></td>
+</tr>
+</tbody>
+</table>
+<p>Their environment ids are <code>&lt;backend&gt;:&lt;run&gt;</code>. Neither has a pid to check, so one is a <strong>Zombie</strong> when the control plane does not own the run: it is not running it, and did not finish it in the last two minutes. An execution restored after a restart is not owned — nothing resumes it. A backend that cannot be reached adds a warning to the inventory rather than failing it.</p>
 <h2 id="agent-registry-and-control-plane">Agent Registry And Control Plane<a class="headerlink" href="#agent-registry-and-control-plane" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>GET /api/v1/agents</code></li>

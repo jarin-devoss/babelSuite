@@ -842,6 +842,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#servicesnamecpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.cpu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agenttags" class="md-nav__link">
+    <span class="md-ellipsis">
+      agent.tags
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1410,6 +1428,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#servicesnamecpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      services.&lt;name&gt;.cpu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agenttags" class="md-nav__link">
+    <span class="md-ellipsis">
+      agent.tags
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1477,10 +1513,11 @@
 <ul>
 <li>set environment variables for the run</li>
 <li>select module hints and observability settings</li>
-<li>override individual service env vars — including <code>devices:</code> for hardware passthrough and <code>memory:</code> for a per-step memory ceiling</li>
+<li>override individual service env vars — including <code>devices:</code> for hardware passthrough, <code>memory:</code> for a per-step memory ceiling and <code>cpu:</code> for a per-step CPU limit</li>
 <li>configure the execution network mode (<code>network.mode</code>)</li>
 <li>declare secret-backed env vars with <code>secretRefs</code></li>
 <li>inherit from another profile via <code>extendsId</code></li>
+<li>require agents with particular routing tags via <code>agent.tags</code></li>
 </ul>
 <p><img alt="Profiles and configuration for the notification-hub suite: a default local debug profile and a CI profile" src="../images/profiles.png" /></p>
 <h2 id="profile-sources">Profile Sources<a class="headerlink" href="#profile-sources" title="Permanent link">&para;</a></h2>
@@ -1615,6 +1652,7 @@
 </span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="c1"># devices: [&quot;gpu:2&quot;]       # exactly 2 GPUs</span>
 </span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="c1"># devices: [&quot;/dev/ttyUSB0&quot;] # USB serial device</span>
 </span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2Gi</span><span class="w">                </span><span class="c1"># container memory ceiling for this step</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1.5&quot;</span><span class="w">                 </span><span class="c1"># CPU limit in cores, or &quot;500m&quot;; unset is unlimited</span>
 </span></code></pre></div>
 <h3 id="networkmode"><code>network.mode</code><a class="headerlink" href="#networkmode" title="Permanent link">&para;</a></h3>
 <table>
@@ -1743,6 +1781,105 @@ is OOM-killed if it exceeds this. A step whose process dies with
 <code>signal: killed</code> part-way through start-up is the signature of this limit being
 too low.</p>
 <p>Like <code>devices:</code>, the entry may be keyed by either the node id or the node name.</p>
+<h3 id="servicesnamecpu"><code>services.&lt;name&gt;.cpu</code><a class="headerlink" href="#servicesnamecpu" title="Permanent link">&para;</a></h3>
+<p>CPU limit for one step. Unset means <strong>no limit</strong> — the step can use whatever
+the host or node has, which is the default on every backend. Set it when one
+step must not starve the others sharing a host: a load generator, a model
+server, a build.</p>
+<p>Values use the Kubernetes CPU grammar, so both backends read them the same way:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>2</code>, <code>1.5</code></td>
+<td>Cores — fractions allowed</td>
+</tr>
+<tr>
+<td><code>500m</code></td>
+<td>Millicores — thousandths of a core</td>
+</tr>
+<tr>
+<td>omitted, zero, negative, or unparseable</td>
+<td>No limit</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Applied as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Docker</td>
+<td><code>NanoCPUs</code> — the container gets that many cores' worth of time</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td><code>limits.cpu</code>; the request stays at <code>100m</code>, or drops to the limit if it is lower</td>
+</tr>
+<tr>
+<td>Remote agent</td>
+<td>Carried in the step request; the agent applies it with its own runner</td>
+</tr>
+</tbody>
+</table>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># local.yaml — keep the model server off every core</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">ollama</span><span class="p">:</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2Gi</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2&quot;</span>
+</span></code></pre></div>
+<p>A CPU limit throttles rather than kills, so one set too low shows up as a step
+that is slow or times out, not one that fails outright.</p>
+<h3 id="agenttags"><code>agent.tags</code><a class="headerlink" href="#agenttags" title="Permanent link">&para;</a></h3>
+<p>Routing tags a backend must carry to run this profile. The agents that run
+suites list their <code>routingTags</code> in platform settings; when a launch does not
+name a backend, it goes to an enabled backend carrying <strong>every</strong> tag here —
+the default one if it qualifies.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># peak.yaml — needs a GPU, so only a GPU-tagged agent may run it</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">agent</span><span class="p">:</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">gpu-enabled</span><span class="p p-Indicator">]</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">seed-policies</span><span class="p">:</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;gpu&quot;</span><span class="p p-Indicator">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No <code>agent.tags</code></td>
+<td>The default backend, as before</td>
+</tr>
+<tr>
+<td>Tags, and a backend carries them all</td>
+<td>That backend; the default first if it qualifies</td>
+</tr>
+<tr>
+<td>Tags no enabled backend carries</td>
+<td>The launch is refused with <code>422</code>, naming the tags</td>
+</tr>
+<tr>
+<td>A backend named at launch</td>
+<td>Used as asked; if it lacks tags, the run starts with a warning saying which</td>
+</tr>
+</tbody>
+</table>
+<p>Tags compare case-insensitively. A profile inheriting through <code>extendsId</code> that
+sets its own <code>agent.tags</code> replaces its parent's rather than adding to them, so
+it can move a run to a different kind of agent.</p>
 <h2 id="default-selection">Default Selection<a class="headerlink" href="#default-selection" title="Permanent link">&para;</a></h2>
 <p>At launch time:</p>
 <ol>
@@ -1750,13 +1887,15 @@ too low.</p>
 <li>Otherwise the profile marked <code>default: true</code> is used.</li>
 <li>Otherwise the first available profile is used.</li>
 </ol>
+<p>The backend is chosen next: the one named at launch, or else one carrying the
+profile's <a href="#agenttags"><code>agent.tags</code></a>.</p>
 <h2 id="suite-dependency-profiles">Suite Dependency Profiles<a class="headerlink" href="#suite-dependency-profiles" title="Permanent link">&para;</a></h2>
 <p>Nested suite dependencies can declare their own runtime profile in <code>dependencies.yaml</code>:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">dependencies</span><span class="p">:</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">auth-module</span><span class="p">:</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">ref</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">localhost:5000/core-platform/identity-broker</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.2.0</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary.yaml</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">dependencies</span><span class="p">:</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">auth-module</span><span class="p">:</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">ref</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">localhost:5000/core-platform/identity-broker</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.2.0</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary.yaml</span>
 </span></code></pre></div>
 <p>That selected profile travels with the imported suite's resolved topology and step specs. The resolver reads the child suite's <code>profiles/canary.yaml</code> and applies its <code>env:</code> and per-service <code>services.&lt;step&gt;.env:</code> overlays to imported nodes before execution.</p>
 <h2 id="managed-profile-endpoints">Managed Profile Endpoints<a class="headerlink" href="#managed-profile-endpoints" title="Permanent link">&para;</a></h2>

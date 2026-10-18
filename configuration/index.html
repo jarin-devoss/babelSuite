@@ -1711,6 +1711,11 @@
 <td><em>(empty)</em></td>
 <td>Comma-separated CIDR ranges whose <code>X-Forwarded-*</code> headers are trusted</td>
 </tr>
+<tr>
+<td><code>BABELSUITE_LOCAL_MAX_STEPS</code></td>
+<td>number of CPUs</td>
+<td>Steps the <strong>local Docker</strong> backend runs at once. Each backend has its own limit — Kubernetes leaves it to the cluster scheduler, remote agents declare theirs with <code>AGENT_MAX_JOBS</code> — so a slow step on one backend never holds back another. See <a href="../agents/#how-steps-are-scheduled">Agents</a></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition warning">
@@ -2048,28 +2053,30 @@ settings always come from the workspace — <code>configuration.yaml</code> and
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="nt">updatedAt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2026-01-01T00:00:00Z</span>
 </span></code></pre></div>
 <h3 id="mode"><code>mode</code><a class="headerlink" href="#mode" title="Permanent link">&para;</a></h3>
+<p>The deployment mode decides which of the enabled <code>agents</code> runs may use. It applies to every launch — those that pick a backend, those routed by a profile's <code>agent.tags</code>, and those left to the default — and to the backends the launch screen offers.</p>
 <table>
 <thead>
 <tr>
 <th>Value</th>
-<th>Meaning</th>
+<th>Backends runs use</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>local</code></td>
-<td>All execution targets are on the same machine</td>
+<td><code>local</code> (default)</td>
+<td>Only <code>local</code> (host Docker) agents. Remote agents and Kubernetes backends stay idle even when enabled.</td>
 </tr>
 <tr>
 <td><code>remote</code></td>
-<td>Primary targets are remote agents or Kubernetes clusters</td>
+<td>Only <code>remote-agent</code>, <code>remote-docker</code> and <code>kubernetes</code> agents. The host's Docker is never used, so the control plane only schedules.</td>
 </tr>
 <tr>
 <td><code>hybrid</code></td>
-<td>Mix of local and remote targets</td>
+<td>Every enabled agent. A profile's <code>agent.tags</code> route it to a backend carrying them; the rest go to the default agent.</td>
 </tr>
 </tbody>
 </table>
+<p>A launch the mode rules out is refused with <code>422</code>, naming the backend and the mode: asking for <code>kubernetes-burst</code> in <code>local</code> mode, or running a profile whose <code>agent.tags</code> only an excluded backend carries. Settings whose mode leaves no enabled agent are rejected when saved.</p>
 <h3 id="agents">Agents<a class="headerlink" href="#agents" title="Permanent link">&para;</a></h3>
 <p>Each entry in <code>agents</code> defines one execution target.</p>
 <table>
@@ -2106,7 +2113,7 @@ settings always come from the workspace — <code>configuration.yaml</code> and
 </tr>
 <tr>
 <td><code>routingTags</code></td>
-<td>List of tags used to route suites to specific agents</td>
+<td>Tags this agent carries, matched against a profile's <a href="../profiles/#agenttags"><code>agent.tags</code></a> when a launch names no backend</td>
 </tr>
 <tr>
 <td><code>dockerSocket</code></td>
