@@ -26,7 +26,7 @@ func newApp(ctx context.Context) (*app.App, error) {
 		MongoURI: envOr("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:  envOr("MONGO_DB", "babelsuite"),
 
-		PlatformSettingsFile: resolveWorkspacePath(envOr("PLATFORM_SETTINGS_FILE", "configuration.yaml")),
+		PlatformSettingsFile: platformSettingsPath(envOr("PLATFORM_SETTINGS_FILE", "configuration.yaml")),
 		ProfilesFile:         resolveWorkspacePath(envOr("PROFILES_FILE", "babelsuite-profiles.yaml")),
 		AgentRuntimeFile:     resolveWorkspacePath(envOr("AGENT_RUNTIME_FILE", "babelsuite-agents.yaml")),
 

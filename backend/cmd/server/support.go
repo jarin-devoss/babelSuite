@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -93,6 +94,41 @@ func buildCacheHub() (*cachehub.Hub, error) {
 		DB:       index,
 		Prefix:   envOr("REDIS_PREFIX", "babelsuite"),
 	})
+}
+
+// demoSettingsTemplate is the committed starting point for the platform
+// settings file. The file itself is per-machine state — the server rewrites it
+// whenever settings change — so it is not in git.
+const demoSettingsTemplate = "demo/configuration.demo.yaml"
+
+// platformSettingsPath resolves the settings file like resolveWorkspacePath,
+// and on a fresh checkout, where it does not exist yet, creates it from the
+// demo template. The new file goes beside the template's demo/ folder — the
+// repo root — whether the server runs from there or from backend/, so the
+// plugin installers find the same file. An absolute path is never seeded: one
+// that is missing was named on purpose, and startup reports it.
+func platformSettingsPath(path string) string {
+	resolved := resolveWorkspacePath(path)
+	if path == "" || filepath.IsAbs(path) {
+		return resolved
+	}
+	if _, err := os.Stat(resolved); err == nil {
+		return resolved
+	}
+	for _, base := range []string{".", ".."} {
+		template, err := os.ReadFile(filepath.Join(base, demoSettingsTemplate))
+		if err != nil {
+			continue
+		}
+		target := filepath.Join(base, path)
+		if err := os.WriteFile(target, template, 0o644); err != nil {
+			slog.Warn("could not create the platform settings file from the demo template", "path", target, "error", err)
+			return resolved
+		}
+		slog.Info("created the platform settings file from the demo template", "path", target, "template", filepath.Join(base, demoSettingsTemplate))
+		return target
+	}
+	return resolved
 }
 
 func resolveWorkspacePath(path string) string {

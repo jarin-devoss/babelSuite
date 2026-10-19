@@ -8,6 +8,9 @@
 Thumbs.db
 
 # Local runtime files
+# The live platform settings: the server rewrites this file whenever settings
+# change, so it is per-machine state. Start from demo/configuration.demo.yaml.
+/configuration.yaml
 backend-start.log
 backend-start.err.log
 

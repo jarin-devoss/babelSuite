@@ -33,7 +33,7 @@ docker compose --env-file ../.env up -d
 
 # 2. settings + example content  (safe to re-run)
 cd ..
-cp demo/configuration.demo.yaml configuration.yaml   # fresh checkout only
+cp demo/configuration.demo.yaml configuration.yaml   # optional: created from it if missing
 cp .env.example .env    # at the repo root; then set JWT_SECRET
 python demo/bootstrap.py
 
