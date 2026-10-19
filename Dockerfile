@@ -17,7 +17,9 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=backend-builder /babelsuite /usr/local/bin/babelsuite
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-COPY configuration.yaml ./
+# The image starts from the demo settings; mount your own at
+# PLATFORM_SETTINGS_FILE to replace them.
+COPY demo/configuration.demo.yaml ./configuration.yaml
 
 EXPOSE 8090
 ENV PORT=8090
