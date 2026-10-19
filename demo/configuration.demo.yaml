@@ -1,5 +1,7 @@
-# A minimal platform settings file for the demo. Copy it to the repo root as
-# configuration.yaml on a fresh checkout:
+# A minimal platform settings file for the demo. configuration.yaml at the repo
+# root is not in git — it is per-machine state — so on a fresh checkout the
+# server's first start, or scripts/install-plugins.py, creates it from this
+# file. To start over from it by hand:
 #
 #   cp demo/configuration.demo.yaml configuration.yaml
 #

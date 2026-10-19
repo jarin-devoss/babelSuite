@@ -111,13 +111,17 @@ def main() -> int:
             return 1
 
     settings_path = pathlib.Path(args.settings)
+    template = REPO_ROOT / "demo" / "configuration.demo.yaml"
+    if not settings_path.is_file() and template.is_file():
+        # The settings file is per-machine and not in git, so a fresh checkout
+        # has none yet. Start it from the demo settings, as the server does on
+        # its first start, rather than from a stub that looks complete.
+        settings_path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        print(f"created {settings_path} from {template.relative_to(REPO_ROOT)}")
     if settings_path.is_file():
         settings = yaml.safe_load(settings_path.read_text(encoding="utf-8")) or {}
     else:
-        # A fresh checkout may not have one yet; the server needs at least an
-        # agent to run anything, so say so rather than writing a stub that
-        # looks complete.
-        print(f"! {settings_path} does not exist — start the backend once, or copy demo/configuration.demo.yaml",
+        print(f"! {settings_path} does not exist, and neither does {template} to start it from",
               file=sys.stderr)
         return 1
 

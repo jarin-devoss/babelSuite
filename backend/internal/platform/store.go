@@ -56,7 +56,7 @@ func (s *FileStore) loadUnlocked() (*PlatformSettings, error) {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("platform settings file not found: %s", s.path)
+			return nil, fmt.Errorf("platform settings file not found: %s (copy demo/configuration.demo.yaml there to start from the demo settings)", s.path)
 		}
 		return nil, err
 	}
