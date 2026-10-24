@@ -159,7 +159,7 @@ func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 }
 
 // suiteRequestsHardening reports whether any mock node in the suite's
-// topology opted into gateway-level hardening (e.g. service.mock(harden=True)
+// topology opted into gateway-level hardening (e.g. mock.api(harden=True)
 // in suite.star). Hardening is opt-in: without it, security/load checks
 // observe the real backend, so a genuinely broken backend can still fail
 // them.

@@ -10,10 +10,6 @@ env:
   BROWSERS: chromium
 
 services:
-  storefront:
-    env:
-      API_PORT: 13000
-      FEATURE_FLAGS: new_checkout=true
   catalog-mock:
     env:
       RESPONSE_DELAY_MS: "100"

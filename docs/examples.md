@@ -13,7 +13,7 @@ The example suites under [`examples/oci-suites/`](https://github.com/jarin-devos
 | Level | Suite | What it introduces |
 |-------|-------|--------------------|
 | 1 | [`notification-hub`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/notification-hub) | `service.run`, `test.run`, `commands=`, profile `env:`, `services.<name>.env:` |
-| 2 | [`identity-broker`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/identity-broker) | `task.run`, `service.mock`, `log.info/debug`, `secretRefs`, `expect_exit=`, `expect_logs=`, `fail_on_logs=`, `continue_on_failure=` |
+| 2 | [`identity-broker`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/identity-broker) | `task.run`, `mock.api`, `log.info/debug`, `secretRefs`, `expect_exit=`, `expect_logs=`, `fail_on_logs=`, `continue_on_failure=` |
 | 3 | [`payment-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite) | `file=`, conditionals, profile `extendsId`, `traffic.baseline/stress`, `reset_mocks=`, `log.warn`, `.export(cobertura)` |
 | 4 | [`returns-control-plane`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/returns-control-plane) | `network.mode: execution`, `services.<name>.devices:`, log `{{ }}` templates, `on_failure=`, `traffic.stress/spike` |
 | 5 | [`storefront-browser-lab`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab) | Playwright specs, `.export(ctrf)`, `traffic.soak`, `reset_mocks=`, `on_failure=` |
@@ -39,7 +39,7 @@ shows a module that internally composes a plugin.
 |---------|-----------------|
 | `service.run`, `test.run`, `commands=` | notification-hub |
 | Profile `env:`, `services.<name>.env:` | notification-hub |
-| `task.run`, `service.mock`, `log.info/debug` | identity-broker |
+| `task.run`, `mock.api`, `log.info/debug` | identity-broker |
 | `secretRefs`, `expect_exit=`, `expect_logs=`, `fail_on_logs=` | identity-broker |
 | `continue_on_failure=` | identity-broker |
 | `file=`, conditionals | payment-suite |

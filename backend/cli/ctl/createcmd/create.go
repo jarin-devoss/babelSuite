@@ -129,7 +129,7 @@ func templateFiles(name string, title string) []apiclient.SuiteSourceFile {
 }
 
 func renderSuiteStar(name string) string {
-	return `load("@babelsuite/runtime", "service", "task", "test", "traffic", "suite")
+	return `load("@babelsuite/runtime", "service", "mock", "task", "test", "traffic")
 
 db = service.run(
     image="postgres:16",
@@ -143,7 +143,7 @@ api = service.run(
     },
 )
 
-catalog = service.mock(
+catalog = mock.api(
     contract="api/openapi.yaml",
     source="mock/catalog",
     after=[api],

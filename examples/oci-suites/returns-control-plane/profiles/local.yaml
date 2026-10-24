@@ -10,10 +10,3 @@ env:
   REFUND_MODES: instant,delayed,manual
   ENABLE_FRAUD_SCREENING: "true"
 
-services:
-  returns-api:
-    env:
-      API_PORT: 18085
-  fraud-worker:
-    env:
-      DECISION_MODE: permissive

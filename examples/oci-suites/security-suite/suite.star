@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "security", "log")
+load("@babelsuite/runtime", "mock", "task", "security", "log")
 
 # Level 8 — dedicated security reference
 # This suite exists as a clean, focused reference for all 8 security modes.
@@ -13,7 +13,7 @@ load("@babelsuite/runtime", "service", "task", "security", "log")
 # checks below have something real to validate. Suites that omit this flag
 # get no gateway-level protection, so those same checks observe their actual
 # backend and can genuinely fail.
-api = service.mock(name="api", harden=True)
+api = mock.api(name="api", harden=True)
 
 log.info("APISIX sidecar provisioned — starting passive surface checks", after=[api])
 

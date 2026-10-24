@@ -17,7 +17,7 @@ At startup, BabelSuite reads:
 - `metadata.yaml` for optional suite labels and tags
 - `profiles/*.yaml` for launchable profile options
 - `dependencies.yaml` and `dependencies.lock.yaml` for nested suite manifests
-- recognized content folders such as `api/`, `mock/`, `services/`, `tasks/`, `tests/`, and `resources/`; `traffic/` is recognized when present but is no longer required
+- recognized content folders such as `api/`, `mock/`, `tasks/`, `tests/`, and `resources/`; `traffic/` is recognized when present but is no longer required
 
 ## Recommended Package Layout
 
@@ -34,7 +34,6 @@ my-suite/
     staging.yaml
   api/
   mock/
-  services/
   tasks/
   tests/
   resources/
@@ -61,7 +60,7 @@ my-suite/
 | `profiles/` | Configuration | Launch profiles and runtime metadata |
 | `api/` | Contracts | Schemas and compatibility surface definitions |
 | `mock/` | Mocking | Mock metadata, examples, and schema-backed artifacts |
-| `services/` | Infrastructure | Background service assets and compatibility configs |
+| `services/` | Unused | Accepted in a package but read by nothing — a service is whatever `service.run(image=...)` starts |
 | `tasks/` | Operations | One-shot jobs, migrations, and seed scripts |
 | `tests/` | Verification | Smoke, regression, browser, and protocol assertions |
 | `traffic/` | Performance | Advanced traffic plans and workload definitions (optional) |
@@ -110,12 +109,12 @@ paths to populate the suite's contracts/module references.
 
 ```python
 load("@babelsuite/postgres", "pg")
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "security")
+load("@babelsuite/runtime", "service", "mock", "task", "test", "traffic", "security")
 
-db       = service.run()
-stripe   = service.mock(after=[db])
+db       = service.run(image="postgres:16")
+stripe   = mock.api(after=[db])
 migrate  = task.run(file="migrate.py", image="python:3.12", after=[db])
-api      = service.run(after=[db, stripe, migrate])
+api      = service.run(image="payments-api:latest", after=[db, stripe, migrate])
 baseline = traffic.baseline(target="http://api:8080", after=[api])
 smoke    = test.run(file="go/smoke_test.go", image="golang:1.24", after=[baseline])
 ```
@@ -153,7 +152,8 @@ Because pre-hook steps are ordinary topology nodes, they stream logs, report sta
 
 | Family | Preferred calls |
 |--------|-----------------|
-| `service` | `service.run`, `service.mock`, `service.wiremock`, `service.prism`, `service.custom` |
+| `service` | `service.run` — starts a container from `image=` (required) and keeps it running |
+| `mock` | `mock.api` — a fake API answered from `api/` and `mock/`; no container |
 | `task` | `task.run` |
 | `test` | `test.run` |
 | `traffic` | `traffic.smoke`, `traffic.baseline`, `traffic.stress`, `traffic.spike`, `traffic.soak`, `traffic.scalability`, `traffic.step`, `traffic.wave`, `traffic.staged`, `traffic.constant_throughput`, `traffic.constant_pacing`, `traffic.open_model` |
@@ -162,7 +162,6 @@ Because pre-hook steps are ordinary topology nodes, they stream logs, report sta
 | `suite` | `suite.run` |
 | `plugin` | loaded via `load("@plugins/<name>", "<operation>")` — user-registered Lua plugins; `traffic.*` and `security.*` are built-in plugins using the same mechanism — see [Plugins](plugins.md) |
 
-The only retained legacy bridge is `mock.serve`, which still maps to `service.mock` while older suites are being migrated.
 
 For the full runtime surface and per-family argument reference, see [Runtime Library Reference](runtime-library.md).
 
@@ -171,9 +170,9 @@ For the full runtime surface and per-family argument reference, see [Runtime Lib
 Use `after=[db, api]` to declare which nodes a given node depends on. The resolver builds a DAG from those edges and produces a topologically sorted execution order.
 
 ```python
-db    = service.run()
+db    = service.run(image="postgres:16")
 seed  = task.run(file="seed.sh", image="bash:5.2", after=[db])
-api   = service.run(after=[db, seed])
+api   = service.run(image="payments-api:latest", after=[db, seed])
 tests = test.run(file="smoke.py", image="python:3.12", after=[api])
 ```
 
@@ -209,7 +208,7 @@ rollback = task.run(file="rollback.sh", image="bash:5.2", on_failure=[primary])
 To clear stateful mocks before a verification step, use `reset_mocks=[...]` on the test node:
 
 ```python
-billing_mock = service.mock()
+billing_mock = mock.api()
 clean_test = test.run(file="verify_billing.py", image="python:3.12", reset_mocks=[billing_mock], after=[billing_mock])
 ```
 
@@ -317,7 +316,7 @@ load("@plugins/spice-sim",   "transient", "dc_sweep")
 load("@plugins/verilog-sim", "simulate")
 load("@plugins/control-sim", "monitor")
 
-spice_mock = service.mock(name="spice-service")
+spice_mock = mock.api(name="spice-service")
 
 rc_filter = transient(
     name        = "rc-filter-step-response",

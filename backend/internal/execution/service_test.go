@@ -338,9 +338,9 @@ func TestCreateExecutionExpandsNestedSuiteTopology(t *testing.T) {
 				Repository: "localhost:5000/core/child-suite",
 				Version:    "workspace",
 				SuiteStar: strings.Join([]string{
-					`db = service.run(name="db")`,
-					`stub = service.mock(name="stub", after=[db])`,
-					`api = service.run(name="api", after=[stub])`,
+					`db = service.run(image="alpine:3.19", name="db")`,
+					`stub = mock.api(name="stub", after=[db])`,
+					`api = service.run(image="alpine:3.19", name="api", after=[stub])`,
 				}, "\n"),
 				Profiles: []suites.ProfileOption{
 					{FileName: "local.yaml", Default: true},
@@ -367,7 +367,7 @@ services:
 				Repository: "localhost:5000/core/parent-suite",
 				Version:    "workspace",
 				SuiteStar: strings.Join([]string{
-					`global_db = service.run(name="global-db")`,
+					`global_db = service.run(image="alpine:3.19", name="global-db")`,
 					`auth = suite.run(ref="auth-module", after=[global_db])`,
 					`smoke = test.run(name="smoke", file="smoke_test.py", image="python:3.12", after=[auth])`,
 				}, "\n"),
@@ -836,7 +836,7 @@ func TestCreateExecutionResetsMockStateBeforeTestRun(t *testing.T) {
 				ID:    "reset-suite",
 				Title: "Reset Suite",
 				SuiteStar: strings.Join([]string{
-					`billing_mock = service.mock()`,
+					`billing_mock = mock.api()`,
 					`dirty_task = task.run(file="mess_up_state.sh", image="bash:5.2", after=[billing_mock])`,
 					`clean_test = test.run(file="verify_billing.py", image="python:3.12", reset_mocks=[billing_mock], after=[dirty_task])`,
 				}, "\n"),

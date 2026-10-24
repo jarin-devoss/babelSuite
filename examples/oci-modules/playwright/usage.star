@@ -1,5 +1,4 @@
 load("@babelsuite/playwright", "browser_test", "a11y_audit", "visual_diff")
-load("@babelsuite/runtime",   "service")
 
 BROWSERS = ["chromium", "firefox", "webkit"]
 DEVICES  = ["desktop", "mobile", "tablet"]
@@ -9,15 +8,12 @@ BASE_URL  = env.get("APP_URL",    "http://storefront-ui:3000")
 VISUAL    = env.get("VISUAL",     "false") == "true"
 A11Y      = env.get("A11Y",       "true")  == "true"
 
-ui = service.run(name="storefront-ui")
-
 # full browser × device matrix for the checkout flow
 checkout_nodes = browser_test(
     spec     = "checkout.spec.ts",
     base_url = BASE_URL,
     browsers = BROWSERS,
     devices  = DEVICES,
-    after    = [ui],
     env      = {"LOCALE": "en"},
 )
 

@@ -18,11 +18,3 @@ env:
 services:
   seed-policies:
     devices: ["gpu"]
-  returns-api:
-    env:
-      API_PORT: 8085
-      MAX_CONCURRENT_REFUNDS: "500"
-  fraud-worker:
-    env:
-      DECISION_MODE: strict
-      WORKER_THREADS: "8"

@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime", "mock", "task", "test", "traffic", "log")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 load("@babelsuite/redis",   "redis")
 
@@ -10,19 +10,13 @@ ENABLE_TELEMETRY = env.get("ENABLE_TELEMETRY", "true") == "true"
 ENABLE_GEO_FENCE = env.get("ENABLE_GEO_FENCE", "true") == "true"
 SPIKE_MULTIPLIER = int(env.get("SPIKE_MULTIPLIER", "5"))
 
-REGION_VEHICLE_CAPS = {
-    "eu-west":  {"van": 200, "truck": 50,  "motorcycle": 400},
-    "us-east":  {"van": 350, "truck": 120, "motorcycle": 600},
-    "ap-south": {"van": 150, "truck": 30,  "motorcycle": 800},
-}
-
 TRAFFIC_PHASES = ["ramp", "steady", "spike", "drain"]
 
 # ── infrastructure ────────────────────────────────────────────────────────────
 cache          = redis()
 broker         = kafka()
-telemetry_mock = service.mock(name="telemetry-mock", after=[cache]) if ENABLE_TELEMETRY else None
-geo_fence_mock = service.mock(name="geo-fence-mock", after=[cache]) if ENABLE_GEO_FENCE else None
+telemetry_mock = mock.api(name="telemetry-mock", after=[cache]) if ENABLE_TELEMETRY else None
+geo_fence_mock = mock.api(name="geo-fence-mock", after=[cache]) if ENABLE_GEO_FENCE else None
 
 infra_mocks = [m for m in [telemetry_mock, geo_fence_mock] if m != None]
 
@@ -36,65 +30,29 @@ if ENABLE_TELEMETRY:
         t = create_topic(broker, "telemetry-" + vehicle_class, partitions=6)
         telemetry_topics.append(t)
 
-# ── per-region dispatcher + planner stack ────────────────────────────────────
-planners    = []
-dispatchers = []
+infra_ready = [cache, seed_routes] + infra_mocks + telemetry_topics
 
+# ── per-region load tests, for the designated regions ────────────────────────
 for region in REGIONS:
-    caps = REGION_VEHICLE_CAPS.get(region, {"van": 100, "truck": 20, "motorcycle": 200})
-
-    dispatcher = service.run(
-        name="dispatcher-" + region,
-        after=[cache, seed_routes] + infra_mocks + telemetry_topics,
-        env={
-            "REGION":             region,
-            "GEO_FENCE_ENABLED":  str(ENABLE_GEO_FENCE).lower(),
-            "TELEMETRY_ENABLED":  str(ENABLE_TELEMETRY).lower(),
-        },
-    )
-    dispatchers.append(dispatcher)
-
-    # one planner per vehicle class per region
-    region_planners = []
-    for vehicle_class in VEHICLE_CLASSES:
-        cap = caps.get(vehicle_class, 100)
-        planner = service.run(
-            name="planner-" + region + "-" + vehicle_class,
-            after=[dispatcher],
-            env={
-                "REGION":         region,
-                "VEHICLE_CLASS":  vehicle_class,
-                "MAX_VEHICLES":   str(cap),
-            },
-        )
-        region_planners.append(planner)
-    planners += region_planners
-
-    # load tests only for designated regions
     if region in LOAD_TEST_REGIONS:
         traffic.stress(
             name   = "stress-" + region,
             target = "http://dispatcher-" + region + ":8080",
             rps    = min(20 * SPIKE_MULTIPLIER, 80),
-            after  = region_planners,
+            after  = infra_ready,
             env    = {"REGION": region},
         )
 
-# ── control room — aggregates all regions ─────────────────────────────────────
 fleet_ready = log.info(
-    str(len(REGIONS)) + " regions online — dispatchers and planners healthy",
-    after=planners,
-)
-control_room = service.run(
-    after=[fleet_ready],
-    env={"REGIONS": ",".join(REGIONS), "VEHICLE_CLASSES": ",".join(VEHICLE_CLASSES)},
+    str(len(REGIONS)) + " regions configured",
+    after=infra_ready,
 )
 
 # ── multi-phase traffic simulation ────────────────────────────────────────────
 phase_nodes = []
 prev_phase  = None
 for phase in TRAFFIC_PHASES:
-    after_nodes = [control_room] + ([prev_phase] if prev_phase != None else [])
+    after_nodes = [fleet_ready] + ([prev_phase] if prev_phase != None else [])
 
     if phase == "ramp":
         t = traffic.baseline(name="fleet-ramp",   target="http://control-room:8080", after=after_nodes)

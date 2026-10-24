@@ -256,12 +256,7 @@ function canonicalRuntimeCall(call: string): string {
   if (trimmed.startsWith('load.')) {
     return `traffic.${trimmed.slice('load.'.length)}`
   }
-  switch (trimmed) {
-    case 'mock.serve':
-      return 'service.mock'
-    default:
-      return trimmed
-  }
+  return trimmed
 }
 
 function readCallArguments(expression: string, openIndex: number): { args: string; nextIndex: number } | null {
@@ -618,12 +613,10 @@ function resolveTopology(nodes: ParsedTopologyNode[]): TopologyNode[] {
 function topologyKind(rawCall: string): RuntimeKind | null {
   const call = canonicalRuntimeCall(rawCall.trim())
   switch (call) {
-    case 'service.mock':
+    // The calls the backend runtime defines (internal/suites/starlark_eval.go).
+    case 'mock.api':
       return 'mock'
     case 'service.run':
-    case 'service.wiremock':
-    case 'service.prism':
-    case 'service.custom':
       return 'service'
     case 'task.run':
       return 'task'

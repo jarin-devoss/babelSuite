@@ -12,10 +12,3 @@ secretRefs:
     provider: Vault
     ref: kv/identity-broker/canary-jwt-key
 
-services:
-  broker-api:
-    env:
-      API_PORT: 9000
-      TLS_ENABLED: "true"
-      COOKIE_POLICY: strict
-      SESSION_STORE: distributed

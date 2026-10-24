@@ -80,9 +80,9 @@ load("@plugins/spice-sim",   "transient", "dc_sweep")
 load("@plugins/verilog-sim", "simulate")
 load("@plugins/control-sim", "monitor")
 
-spice_mock   = service.mock(name="spice-service")
-verilog_mock = service.mock(name="verilog-service")
-control_mock = service.mock(name="control-service")
+spice_mock   = mock.api(name="spice-service")
+verilog_mock = mock.api(name="verilog-service")
+control_mock = mock.api(name="control-service")
 
 rc_filter = transient(
     name        = "rc-filter-step-response",
@@ -459,7 +459,7 @@ load("@babelsuite/kafka", "kafka", "create_topic", "check_consumer_health")
 
 broker  = kafka()
 topic   = create_topic(broker, "orders", partitions=3)
-app     = service.run(after=[topic])
+app     = service.run(image="orders-app:latest", after=[topic])
 lag, dlq = check_consumer_health(
     broker,
     group          = "orders-consumer",

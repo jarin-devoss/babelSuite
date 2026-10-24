@@ -9,15 +9,15 @@ Your tests should run the same way on every machine, every team, every environme
 BabelSuite gives every team a `suite.star` file: a short, readable description of the full environment your tests need — databases, services, mocks, migrations — and the tests themselves. No Docker Compose knowledge required. No custom shell scripts. Just declare what depends on what, and BabelSuite handles the rest.
 
 ```python
-load("@babelsuite/runtime",  "service", "task", "test")
+load("@babelsuite/runtime",  "service", "mock", "task", "test")
 load("@babelsuite/postgres", "pg")
 
 REGIONS = env.get("REGIONS", "us,eu,ap").split(",")
 
 db          = pg()
 migrate     = task.run(file="migrate.py", image="python:3.12", after=[db])
-stripe_mock = service.mock(after=[db])
-api         = service.run(after=[db, migrate, stripe_mock])
+stripe_mock = mock.api(after=[db])
+api         = service.run(name="api", image="payments-api:latest", after=[db, migrate, stripe_mock])
 
 # run smoke tests for every region in parallel
 for region in REGIONS:

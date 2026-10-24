@@ -12,8 +12,8 @@ func preHookSuite(preHook string) Definition {
 		Repository: "localhost:5000/core/gated-suite",
 		Version:    "workspace",
 		SuiteStar: strings.Join([]string{
-			`db = service.run()`,
-			`api = service.run(after=[db])`,
+			`db = service.run(image="alpine:3.19")`,
+			`api = service.run(image="alpine:3.19", after=[db])`,
 		}, "\n"),
 	}
 	if preHook != "" {
@@ -163,7 +163,7 @@ func TestNestedSuiteKeepsItsOwnPreHook(t *testing.T) {
 		Title:      "Auth Suite",
 		Repository: "localhost:5000/core/auth-suite",
 		Version:    "workspace",
-		SuiteStar:  `api = service.run()`,
+		SuiteStar:  `api = service.run(image="alpine:3.19")`,
 		SourceFiles: []SourceFile{
 			{Path: PreHookFile, Content: `ready = task.run(file="check.py", image="python:3.12")`},
 		},

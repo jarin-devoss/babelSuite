@@ -12,7 +12,3 @@ env:
   ENABLE_GEO_FENCE: "true"
   SPIKE_MULTIPLIER: "2"
 
-services:
-  control-room:
-    env:
-      API_PORT: 13000

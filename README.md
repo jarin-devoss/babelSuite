@@ -36,15 +36,46 @@ Most teams have a staging environment nobody trusts, a README full of setup step
 You write the full environment your tests need — database, services, mocks, migrations — alongside the tests themselves. No Docker Compose expertise required. No custom shell scripts. Just declare what depends on what:
 
 ```python
-load("@babelsuite/runtime",  "service", "task", "test")
+load("@babelsuite/runtime",  "service", "mock", "task", "test")
 load("@babelsuite/postgres", "pg")
 
-db          = pg()                                                              # start Postgres
-migrate     = task.run(file="migrate.py", image="python:3.12", after=[db])    # run migrations
-stripe_mock = service.mock(after=[db])                                         # start a Stripe mock
-api         = service.run(after=[db, migrate, stripe_mock])                    # start your service
-smoke       = test.run(file="smoke.py",   image="python:3.12", after=[api])   # run tests
+# Postgres, from a reusable module. It keeps running until the suite ends.
+db = pg()
+
+# A one-off job: runs once and must succeed before anything after it starts.
+migrate = task.run(file="migrate.py", image="python:3.12", after=[db])
+
+# A fake Stripe API, answered from this suite's api/ and mock/ folders.
+# Nothing to wait for, so it starts alongside the database.
+stripe = mock.api(name="stripe-mock")
+
+# Your service under test, started from its image and kept running.
+api = service.run(name="api", image="payments-api:latest", after=[migrate, stripe])
+
+# The tests: run once against the live stack; their exit code is the verdict.
+smoke = test.run(file="smoke.py", image="python:3.12", after=[api])
 ```
+
+**How to read it.** Each line is one step. The call says what kind of step it is and how long it lives:
+
+| Call | What it is | Lives |
+|---|---|---|
+| `service.run(image=...)` | A container you need running: your service, a worker, a database. `image=` is required. | Until the suite ends |
+| `mock.api(name=...)` | A fake API answered from the suite's `api/` and `mock/` folders. No container. | Until the suite ends |
+| `task.run(...)` | A one-off job: migration, seed data, setup. Must succeed. | Runs once |
+| `test.run(...)` | Your tests. The exit code is the verdict. | Runs once |
+| `pg()`, `kafka()`, … | Helpers from a module loaded with `load(...)`; they create the steps above for you. | — |
+
+The arguments work the same way on every step:
+
+| Argument | Meaning |
+|---|---|
+| `after=[...]` | Steps to wait for. Steps with nothing in common start in parallel. |
+| `name=` | The step's name in the UI, and the hostname other steps reach it by (`api:8080`). Defaults to the variable name. |
+| `image=` | The container image the step runs in. |
+| `file=` | A script from the suite: `task.run` reads it from `tasks/`, `test.run` from `tests/`. |
+
+Environment-specific settings live in a profile, not in this file. A profile's `services:` block tunes a step by its name (env vars, memory, CPU, devices), so the same suite runs on a laptop and in CI.
 
 Push the suite to your OCI registry and any team can pull it, run it against their own backend, and get identical results — on a laptop, in CI, or on Kubernetes. The suite is the shared standard.
 
@@ -52,7 +83,7 @@ BabelSuite starts each step only when its dependencies are ready — parallel wh
 
 ```
 ✓ db            started  (1.2s)
-✓ stripe_mock   started  (0.8s)
+✓ stripe-mock   started  (0.8s)
 ✓ migrate       passed   (3.1s)
 ✓ api           started  (2.4s)
 ✓ smoke         passed   (4.7s)  — 14 tests passed
@@ -90,21 +121,23 @@ Teams running integration tests without BabelSuite usually have a shell script a
 A `suite.star` file for a payment service with Postgres, Kafka, a Stripe mock, fraud detection, traffic baselines, and smoke tests:
 
 ```python
-load("@babelsuite/runtime", "service", "task", "test", "traffic")
+load("@babelsuite/runtime", "service", "mock", "task", "test", "traffic")
 load("@babelsuite/postgres",  "pg")
 load("@babelsuite/kafka",     "kafka", "create_topic")
 
 db               = pg()
 broker           = kafka()
-orders_topic     = create_topic("orders", partitions=3, after=[broker])
-migrate          = task.run(file="migrate.py",      image="python:3.12", after=[db])
-stripe_mock      = service.mock(after=[db])
-payment_gateway  = service.run(after=[db, migrate, stripe_mock])
-fraud_worker     = service.run(after=[broker, orders_topic, payment_gateway])
+orders_topic     = create_topic(broker, "orders", partitions=3)
+migrate          = task.run(file="migrate.py", image="python:3.12", after=[db])
+stripe_mock      = mock.api(name="stripe-mock")
+payment_gateway  = service.run(name="payment-gateway", image="payment-gateway:1.4",
+                               after=[migrate, stripe_mock])
+fraud_worker     = service.run(name="fraud-worker", image="fraud-worker:1.4",
+                               after=[orders_topic])
 
 checkout_traffic = traffic.baseline(
     plan="checkout_baseline.star",
-    target="http://payment_gateway:8080",
+    target="http://payment-gateway:8080",
     after=[payment_gateway, fraud_worker],
 )
 checkout_smoke   = test.run(
@@ -118,11 +151,11 @@ checkout_smoke   = test.run(
 BabelSuite reads the file, builds the dependency graph, and executes each step in topological order — running independent branches in parallel:
 
 ```
-db ────────┬── migrate ────┐
-           └── stripe_mock ┤
+db ────────── migrate ─────┐
+stripe_mock ───────────────┤
                             payment_gateway ──┐
-broker ────┬── orders_topic ┐                 │
-           └────────────────┴── fraud_worker ─┤
+broker ────── orders_topic ┐                  │
+                           └── fraud_worker ──┤
                                                checkout_traffic
                                                      │
                                                checkout_smoke

@@ -1,5 +1,5 @@
 load("@babelsuite/mongodb", "mongodb", "create_collection", "create_index", "insert_documents", "run_script")
-load("@babelsuite/runtime", "service", "test")
+load("@babelsuite/runtime", "test")
 
 DATABASES = ["catalog", "orders", "analytics"]
 
@@ -57,16 +57,10 @@ seed = insert_documents(
 
 migrate = run_script(cluster=cluster, db="analytics", script_path="migrations/001_partition_events.js", after=[seed])
 
-app = service.run(
-    name  = "catalog-api",
-    env   = {"MONGO_URI": "mongodb://root:secret@" + cluster.name + ":27017"},
-    after = [migrate],
-)
-
 test.run(
     name  = "mongo-smoke",
     file  = "mongo_smoke.py",
     image = "python:3.12",
-    after = [app],
-    env   = {"DATABASES": ",".join(DATABASES)},
+    after = [migrate],
+    env   = {"DATABASES": ",".join(DATABASES), "MONGO_URI": "mongodb://root:secret@" + cluster.name + ":27017"},
 )

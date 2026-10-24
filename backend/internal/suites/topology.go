@@ -780,7 +780,7 @@ func unquoteTopologyString(value string) (string, error) {
 
 func topologyKind(call string) (string, bool) {
 	switch strings.TrimSpace(call) {
-	case "service.mock":
+	case VariantMockAPI:
 		return "mock", true
 	case "service.run":
 		return "service", true
@@ -809,12 +809,7 @@ func canonicalRuntimeCall(call string) string {
 	if strings.HasPrefix(trimmed, "load.") {
 		return "traffic." + strings.TrimPrefix(trimmed, "load.")
 	}
-	switch trimmed {
-	case "mock.serve":
-		return "service.mock"
-	default:
-		return trimmed
-	}
+	return trimmed
 }
 
 func canonicalTrafficCall(call string) string {

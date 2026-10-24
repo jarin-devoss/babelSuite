@@ -6,7 +6,7 @@ One mock surface and one test step, so when it fails there is nothing else to
 rule out:
 
 ```
-echo-mock (service.mock)  ->  gateway-reachable (test.run, curlimages/curl)
+echo-mock (mock.api)  ->  gateway-reachable (test.run, curlimages/curl)
 ```
 
 `tests/reach.sh` asserts two things the runner is responsible for:

@@ -2,9 +2,9 @@ load("@plugins/spice-sim",   "transient")
 load("@plugins/verilog-sim", "simulate")
 load("@plugins/control-sim", "monitor")
 
-spice_mock   = service.mock(name="spice-service")
-verilog_mock = service.mock(name="verilog-service")
-control_mock = service.mock(name="control-service")
+spice_mock   = mock.api(name="spice-service")
+verilog_mock = mock.api(name="verilog-service")
+control_mock = mock.api(name="control-service")
 
 _counter_verilog = "\n".join([
     "module counter(input wire clk, input wire rst, output reg [3:0] out);",

@@ -11,7 +11,7 @@ func TestParseSuiteTopologySupportsUnifiedRuntimeEntrypoints(t *testing.T) {
 cache = service.run(image="redis:alpine", ports={"6379": 6379})
 seed = task.run(image="bash:5.2", file="seed.sh", after=[cache])
 worker = service.run(image="ghcr.io/acme/worker:latest", env={"REDIS_ADDR": "cache:6379"}, after=[cache, seed])
-shared = service.run(name_or_id="otel-collector", after=[worker])
+shared = service.run(image="alpine:3.19", name_or_id="otel-collector", after=[worker])
 smoke = test.run(image="golang:1.24", file="go/smoke_test.go", after=[shared])`
 
 	topology, err := parseSuiteTopology(suiteStar)
@@ -60,7 +60,7 @@ smoke = test.run(image="golang:1.24", file="go/smoke_test.go", after=[shared])`
 func TestParseSuiteTopologyDefaultsNodeIDToAssignmentAndSupportsIdentifierDependencies(t *testing.T) {
 	suiteStar := `load("@babelsuite/runtime", "service", "task", "test")
 
-db = service.run()
+db = service.run(image="alpine:3.19")
 seed_data = task.run(file="seed.sh", image="bash:5.2", after=[db])
 smoke_test = test.run(file="smoke_test.py", image="python:3.12", after=[seed_data])`
 
@@ -136,9 +136,9 @@ smoke = test.run(file="smoke_test.py", image="python:3.12", after=[seed], expect
 }
 
 func TestParseSuiteTopologySupportsFailureFlowControls(t *testing.T) {
-	suiteStar := `load("@babelsuite/runtime", "service", "task", "test")
+	suiteStar := `load("@babelsuite/runtime", "mock", "task", "test")
 
-billing_mock = service.mock()
+billing_mock = mock.api()
 lint = test.run(file="lint.sh", image="bash:5.2", expect_logs="THIS STRING DOES NOT EXIST", continue_on_failure=True, reset_mocks=[billing_mock])
 rollback = task.run(file="rollback.sh", image="bash:5.2", on_failure=[lint])`
 
@@ -207,10 +207,10 @@ smoke = scenario.python(file="smoke_test.py", image="python:3.12")`,
 }
 
 func TestParseSuiteTopologySupportsMockAndServiceModuleEntrypoints(t *testing.T) {
-	suiteStar := `load("@babelsuite/runtime", "service", "test")
+	suiteStar := `load("@babelsuite/runtime", "service", "mock", "test")
 
-payments_api = service.run(name="payments-api")
-orders = service.mock(name="orders-mock", source="mock/orders", after=[payments_api])
+payments_api = service.run(image="alpine:3.19", name="payments-api")
+orders = mock.api(name="orders-mock", source="mock/orders", after=[payments_api])
 catalog = service.run(name="catalog-compat", image="stoplight/prism:5", after=[orders])
 legacy = service.run(name="legacy-compat", image="node:22-alpine", after=[catalog])
 smoke = test.run(name="smoke", file="http/smoke.hurl", image="curlimages/curl:8.7.1", after=[legacy])`
@@ -413,7 +413,7 @@ func TestParseSuiteTopologyRejectsMissingDependency(t *testing.T) {
 	// after= requires node references; passing a string is invalid Starlark.
 	suiteStar := `load("@babelsuite/runtime", "service")
 
-api = service.run(name="api", after=["db"])`
+api = service.run(image="alpine:3.19", name="api", after=["db"])`
 
 	_, err := parseSuiteTopology(suiteStar)
 	if err == nil {
@@ -428,8 +428,8 @@ func TestParseSuiteTopologyRejectsDuplicateStepIDs(t *testing.T) {
 	// Two nodes with the same explicit name produce a duplicate-step error.
 	suiteStar := `load("@babelsuite/runtime", "service")
 
-a = service.run(name="api")
-b = service.run(name="api")`
+a = service.run(image="alpine:3.19", name="api")
+b = service.run(image="alpine:3.19", name="api")`
 
 	_, err := parseSuiteTopology(suiteStar)
 	if err == nil {
@@ -443,9 +443,9 @@ b = service.run(name="api")`
 func TestParseSuiteTopologyUsesStableDeclarationOrderWithinLevels(t *testing.T) {
 	suiteStar := `load("@babelsuite/runtime", "service")
 
-zeta = service.run(name="zeta")
-alpha = service.run(name="alpha")
-worker = service.run(name="worker", after=[zeta, alpha])`
+zeta = service.run(image="alpine:3.19", name="zeta")
+alpha = service.run(image="alpine:3.19", name="alpha")
+worker = service.run(image="alpine:3.19", name="worker", after=[zeta, alpha])`
 
 	topology, err := parseSuiteTopology(suiteStar)
 	if err != nil {

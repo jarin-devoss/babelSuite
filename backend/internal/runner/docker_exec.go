@@ -793,7 +793,12 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		ExtraHosts:   extraHosts,
 		Binds: []string{
 			// File-level mounts so APISIX can still write nginx.conf to its own conf dir.
-			filepath.Join(confDir, "config.yaml") + ":/usr/local/apisix/conf/config.yaml:ro",
+			// config.yaml is writable: with APISIX_STAND_ALONE set, the 3.9
+			// image's entrypoint rewrites an existing config.yaml in place to
+			// force standalone mode, and exits on a read-only one — the image
+			// the demo settings pin. The file is regenerated before every
+			// start and already says standalone, so the rewrite changes nothing.
+			filepath.Join(confDir, "config.yaml") + ":/usr/local/apisix/conf/config.yaml",
 			filepath.Join(confDir, "apisix.yaml") + ":" + configMountPath + ":ro",
 			luaDir + ":" + apisix.LuaPluginMountPath + ":ro",
 		},

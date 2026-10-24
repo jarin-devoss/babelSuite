@@ -7,12 +7,3 @@ env:
   EMAIL_PROVIDER: mock
   RATE_LIMIT_RPS: "500"
 
-services:
-  notification-api:
-    env:
-      API_PORT: 8090
-      BATCH_SIZE: "20"
-  dispatcher:
-    env:
-      POLL_INTERVAL_MS: "1000"
-      WORKER_CONCURRENCY: "1"

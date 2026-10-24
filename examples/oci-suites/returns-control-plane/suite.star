@@ -1,9 +1,8 @@
-load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime",  "mock", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect")
 load("@babelsuite/kafka",    "kafka", "create_topic")
 
 
-ENABLE_FRAUD = env.get("ENABLE_FRAUD_SCREENING", "true") == "true"
 REFUND_MODES = env.get("REFUND_MODES", "instant,delayed,manual").split(",")
 
 # ── infrastructure ────────────────────────────────────────────────────────────
@@ -13,7 +12,7 @@ broker = kafka(after=[conn])
 
 returns_topic = create_topic(broker, "returns.events", partitions=3)
 
-partner_mock = service.mock(name="partner-api", after=[conn])
+partner_mock = mock.api(name="partner-api", after=[conn])
 
 seed = task.run(
     name     = "seed-policies",
@@ -22,15 +21,10 @@ seed = task.run(
     after    = [conn],
 )
 
-returns_api  = service.run(name="returns-api",  after=[seed, returns_topic, partner_mock])
-fraud_worker = service.run(name="fraud-worker", after=[returns_topic, returns_api]) if ENABLE_FRAUD else None
-
-all_services = [returns_api] + ([fraud_worker] if fraud_worker else [])
-
 # log template — {{ healthy }}/{{ total }} resolved at runtime from live graph state
 ready = log.info(
     "{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy",
-    after = all_services,
+    after = [seed, returns_topic, partner_mock],
 )
 
 # ── traffic — stress then spike ───────────────────────────────────────────────

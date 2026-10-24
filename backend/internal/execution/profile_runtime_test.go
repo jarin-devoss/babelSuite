@@ -54,8 +54,8 @@ func TestRunNodeInjectsManagedProfileSecretsAndOverridesIntoBackend(t *testing.T
 				Title:      "Secret Suite",
 				Repository: "localhost:5000/testing/secret-suite",
 				SuiteStar: strings.Join([]string{
-					`api = service.run(name="api")`,
-					`worker = service.run(name="worker", after=[api])`,
+					`api = service.run(image="alpine:3.19", name="api")`,
+					`worker = service.run(image="alpine:3.19", name="worker", after=[api])`,
 				}, "\n"),
 				Profiles: []suites.ProfileOption{
 					{FileName: "local.yaml", Label: "Local", Default: true},
@@ -248,13 +248,13 @@ func TestRunNodeInjectsPaymentSuiteStagingProfileRuntimeIntoBackend(t *testing.T
 	backend := &captureBackend{}
 	var gatewayNode topologyNode
 	for _, node := range suite.Topology {
-		if node.ID == "payment-gateway" {
+		if node.ID == "checkout-smoke" {
 			gatewayNode = node
 			break
 		}
 	}
 	if gatewayNode.ID == "" {
-		t.Fatal("expected payment-gateway node in payment-suite topology")
+		t.Fatal("expected checkout-smoke node in payment-suite topology")
 	}
 
 	if err := service.runNode(context.Background(), "run-payment-staging", suite, "staging.yaml", backend, gatewayNode); err != nil {
@@ -375,13 +375,13 @@ func TestRunNodeInjectsWorkspaceProfileInlineSecretRefsIntoBackend(t *testing.T)
 	backend := &captureBackend{}
 	var gatewayNode topologyNode
 	for _, node := range suite.Topology {
-		if node.ID == "payment-gateway" {
+		if node.ID == "checkout-smoke" {
 			gatewayNode = node
 			break
 		}
 	}
 	if gatewayNode.ID == "" {
-		t.Fatal("expected payment-gateway node in payment-suite topology")
+		t.Fatal("expected checkout-smoke node in payment-suite topology")
 	}
 
 	if err := service.runNode(context.Background(), "run-payment-workspace-staging", suite, "staging.yaml", backend, gatewayNode); err != nil {

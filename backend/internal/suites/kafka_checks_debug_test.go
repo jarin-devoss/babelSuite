@@ -19,8 +19,8 @@ func TestKafkaChecksModuleWithConsumerLagPlugin(t *testing.T) {
 load("@babelsuite/runtime", "service")
 load("@babelsuite/kafka-checks", "assert_consumer_healthy")
 
-broker  = service.run(name="broker")
-worker  = service.run(name="worker", after=[broker])
+broker  = service.run(image="alpine:3.19", name="broker")
+worker  = service.run(image="alpine:3.19", name="worker", after=[broker])
 check   = assert_consumer_healthy(broker=broker, group="workers", topic="orders", after=[worker])
 `
 
