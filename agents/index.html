@@ -1712,7 +1712,7 @@
 </table>
 <hr />
 <h2 id="kubernetes-backend">Kubernetes Backend<a class="headerlink" href="#kubernetes-backend" title="Permanent link">&para;</a></h2>
-<p>When <code>type: kubernetes</code> is set in platform settings, the control plane runs each step that has an image as a pod in <code>targetNamespace</code>. Everything else runs exactly as it does on the Docker backend: <code>log.*</code> steps are their message, <code>plugin</code>, <code>security.*</code> and <code>traffic.*</code> steps are executed by the control plane against the suite's APISIX sidecar, and <code>service.mock</code> is answered by that sidecar.</p>
+<p>When <code>type: kubernetes</code> is set in platform settings, the control plane runs each step that has an image as a pod in <code>targetNamespace</code>. Everything else runs exactly as it does on the Docker backend: <code>log.*</code> steps are their message, <code>plugin</code>, <code>security.*</code> and <code>traffic.*</code> steps are executed by the control plane against the suite's APISIX sidecar, and <code>mock.api</code> is answered by that sidecar.</p>
 <h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>Per execution</strong>, before the first step, the backend creates a headless Service named <code>babel-&lt;execution&gt;</code> and a <code>ReadWriteOnce</code> volume claim <code>babel-&lt;execution&gt;-workspace</code> (1Gi, default storage class). Both are removed when the execution finishes, together with every pod labelled <code>babelsuite.execution=&lt;execution&gt;</code>.</li>

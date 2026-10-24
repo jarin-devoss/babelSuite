@@ -909,9 +909,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#servicemock" class="md-nav__link">
+  <a href="#mockapi" class="md-nav__link">
     <span class="md-ellipsis">
-      service.mock
+      mock.api
     </span>
   </a>
   
@@ -1606,9 +1606,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#servicemock" class="md-nav__link">
+  <a href="#mockapi" class="md-nav__link">
     <span class="md-ellipsis">
-      service.mock
+      mock.api
     </span>
   </a>
   
@@ -1910,7 +1910,7 @@ program rather than a list of declarations. Control flow runs:</p>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;shadow mode&quot;</span><span class="p">)</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">fan_out</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>               <span class="c1"># functions are available</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="k">return</span> <span class="p">[</span><span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">prefix</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">)]</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="k">return</span> <span class="p">[</span><span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">prefix</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;worker:latest&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">)]</span>
 </span></code></pre></div>
 <p>A node is registered when a <code>service.*</code>, <code>task.*</code>, <code>test.*</code>, <code>traffic.*</code>,
 <code>security.*</code>, <code>log.*</code>, <code>suite.*</code> or plugin function is <strong>called</strong>. Assigning the
@@ -1972,11 +1972,11 @@ rather than branching on it here.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">db</span>  <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">db</span>  <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;postgres:16&quot;</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;payments-api:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p>Use <code>service.run</code> for first-party background dependencies such as databases, APIs, caches, and workers.</p>
-<p>When <code>image=</code> is provided, <code>service.run</code> starts a real Docker container and runs it <strong>detached</strong> — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends.</p>
+<p><code>image=</code> is required: <code>service.run</code> starts that container and runs it <strong>detached</strong> — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends. A <code>service.run</code> with no image is an error; to fake an API rather than run one, use <a href="#mockapi"><code>mock.api</code></a>.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">cache</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;redis:7-alpine&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">worker</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;myapp:latest&quot;</span><span class="p">,</span>
@@ -1986,7 +1986,7 @@ rather than branching on it here.</p>
 </span></code></pre></div>
 <p><code>commands=</code> is available as an inline alternative to a separate <code>file=</code> script — the commands are encoded into a <code>BABELSUITE_SCRIPT</code> environment variable and executed inside the container via <code>/bin/sh -e</code>. See the <a href="#ci_script-injection">CI_SCRIPT injection</a> section below.</p>
 <p><code>service(...)</code> is intentionally rejected. Use one of the explicit <code>service.*</code> forms.</p>
-<h3 id="servicemock"><code>service.mock</code><a class="headerlink" href="#servicemock" title="Permanent link">&para;</a></h3>
+<h3 id="mockapi"><code>mock.api</code><a class="headerlink" href="#mockapi" title="Permanent link">&para;</a></h3>
 <p>Native suite-defined mock surfaces.</p>
 <table>
 <thead>
@@ -1997,14 +1997,14 @@ rather than branching on it here.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>service.mock</code></td>
+<td><code>mock.api</code></td>
 <td><code>mock</code></td>
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">orders</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span></code></pre></div>
-<p><code>service.mock</code> is the runtime entrypoint for mocks backed by the suite's <code>api/</code> and <code>mock/</code> folders.</p>
+<p><code>mock.api</code> is the runtime entrypoint for mocks backed by the suite's <code>api/</code> and <code>mock/</code> folders. It starts no container: the suite's APISIX sidecar answers it.</p>
 <table>
 <thead>
 <tr>
@@ -2019,10 +2019,6 @@ rather than branching on it here.</p>
 </tr>
 </tbody>
 </table>
-<p>Compatibility aliases still parse:</p>
-<ul>
-<li><code>mock.serve</code></li>
-</ul>
 <h3 id="task"><code>task</code><a class="headerlink" href="#task" title="Permanent link">&para;</a></h3>
 <p>Short-lived jobs: setup, seeding, migrations, and one-off operations.</p>
 <table>
@@ -2263,7 +2259,7 @@ rather than branching on it here.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/probe.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
@@ -2315,11 +2311,11 @@ rather than branching on it here.</p>
 </tr>
 </tbody>
 </table>
-<p>The APISIX sidecar is provisioned automatically alongside every <code>service.mock</code> node, so <code>security.*</code> nodes derive their gateway URL from the mock's sidecar without a separate <code>target=</code> argument.</p>
+<p>The APISIX sidecar is provisioned automatically alongside every <code>mock.api</code> node, so <code>security.*</code> nodes derive their gateway URL from the mock's sidecar without a separate <code>target=</code> argument.</p>
 <p>Each security step POSTs to <code>/_babelsuite/attack/start</code> and returns a synchronous JSON findings report: <code>{"total":N,"passed":N,"failed":N,"findings":[...]}</code>.</p>
 <h4 id="hardening-and-security-checks">Hardening and <code>security.*</code> checks<a class="headerlink" href="#hardening-and-security-checks" title="Permanent link">&para;</a></h4>
 <p>By default the gateway adds nothing on top of your backend: <code>security.headers</code> and <code>security.flood</code> observe whatever your real API actually returns, so a backend that's genuinely missing security headers or rate-limiting will genuinely fail those checks.</p>
-<p>Pass <code>harden=True</code> to <code>service.mock(...)</code> to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:</p>
+<p>Pass <code>harden=True</code> to <code>mock.api(...)</code> to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:</p>
 <ul>
 <li>a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s</li>
 <li>a synthetic rate-limited route at <code>/api/v1/resource</code> (HTTP 429 after 20 requests/second) for <code>security.flood</code> to validate against when the suite has no rate-limited surface of its own</li>
@@ -2374,14 +2370,14 @@ rather than branching on it here.</p>
 </tbody>
 </table>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">checkpoint</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;schema migrated — starting API warmup&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">migrate</span><span class="p">])</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">checkpoint</span><span class="p">])</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">api</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;payments-api:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">checkpoint</span><span class="p">])</span>
 </span></code></pre></div>
 <p>The message can be passed as a positional argument or via <code>message=</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;feature flag disabled — skipping canary step&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span></code></pre></div>
 <p><code>log.*</code> nodes are valid anywhere in the graph, including inside OCI modules:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">pg</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;db&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">cluster</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">cluster</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">ready</span>   <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;postgres cluster ready at &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;:5432&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">cluster</span><span class="p">])</span>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="p">,</span> <span class="s2">&quot;ready&quot;</span><span class="p">:</span> <span class="n">ready</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">}</span>
 </span></code></pre></div>
@@ -2449,7 +2445,7 @@ rather than branching on it here.</p>
 <p>User-registered Lua plugins. Plugins are not part of the built-in runtime library — they are loaded with <code>load("@plugins/&lt;name&gt;", "&lt;operation&gt;")</code> and must be registered in platform settings before a suite that references them can run.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/spice-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;transient&quot;</span><span class="p">)</span>
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">rc_filter</span>  <span class="o">=</span> <span class="n">transient</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;rc-filter&quot;</span><span class="p">,</span> <span class="n">netlist</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">probe_node</span><span class="o">=</span><span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">spice_mock</span><span class="p">])</span>
 </span></code></pre></div>
 <p>The function call forwards its keyword arguments as the plugin config. The APISIX sidecar dispatches the request to the plugin's trigger path, and the returned <code>passed</code> / <code>findings</code> / <code>summary</code> / <code>level</code> fields drive the step outcome.</p>
@@ -2782,7 +2778,7 @@ every other step keeps the default. A step whose process dies with
 </span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nt">network</span><span class="p">:</span>
 </span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># isolated bridge — containers reach each other by node name</span>
 </span></code></pre></div>
-<p>Every container in the execution joins a shared Docker bridge network, and the node's <code>name</code> becomes its DNS hostname — a <code>service.run(name="redis")</code> is reachable at <code>redis:6379</code> from any <code>task.run</code> or <code>test.run</code> in the same execution. No <code>suite.star</code> changes required.</p>
+<p>Every container in the execution joins a shared Docker bridge network, and the node's <code>name</code> becomes its DNS hostname — a <code>service.run(name="redis", image="redis:7-alpine")</code> is reachable at <code>redis:6379</code> from any <code>task.run</code> or <code>test.run</code> in the same execution. No <code>suite.star</code> changes required.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>network.mode</code> is read but not yet acted on</p>
 <p>The Docker backend creates and joins the per-execution network
@@ -2845,7 +2841,7 @@ than silently reading another suite's database.</p>
 <li>quoted <code>after=["db"]</code> still parses, but identifier references are the preferred style</li>
 <li><code>task.run(file="...")</code> resolves from <code>tasks/</code>; <code>task.run(commands=[...])</code> is the inline alternative — both require <code>image=</code></li>
 <li><code>test.run(file="...")</code> resolves from <code>tests/</code>; <code>test.run(commands=[...])</code> is the inline alternative — both require <code>image=</code></li>
-<li><code>service.run(image="...")</code> starts a detached container; <code>commands=</code> is accepted here too</li>
+<li><code>service.run(image="...")</code> starts a detached container — <code>image=</code> is required; <code>commands=</code> is accepted here too</li>
 <li><code>traffic.*(plan="...")</code> resolves from <code>traffic/</code> — only applies when <code>plan=</code> is specified</li>
 <li><code>ref=</code> is required for <code>suite.run</code>; the parser errors if it is missing</li>
 <li>duplicate <code>after</code> entries are deduplicated automatically</li>

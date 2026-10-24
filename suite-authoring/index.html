@@ -1588,7 +1588,7 @@
 <li><code>metadata.yaml</code> for optional suite labels and tags</li>
 <li><code>profiles/*.yaml</code> for launchable profile options</li>
 <li><code>dependencies.yaml</code> and <code>dependencies.lock.yaml</code> for nested suite manifests</li>
-<li>recognized content folders such as <code>api/</code>, <code>mock/</code>, <code>services/</code>, <code>tasks/</code>, <code>tests/</code>, and <code>resources/</code>; <code>traffic/</code> is recognized when present but is no longer required</li>
+<li>recognized content folders such as <code>api/</code>, <code>mock/</code>, <code>tasks/</code>, <code>tests/</code>, and <code>resources/</code>; <code>traffic/</code> is recognized when present but is no longer required</li>
 </ul>
 <h2 id="recommended-package-layout">Recommended Package Layout<a class="headerlink" href="#recommended-package-layout" title="Permanent link">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>my-suite/
@@ -1603,13 +1603,12 @@
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    staging.yaml
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  api/
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  mock/
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  services/
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  tasks/
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  tests/
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  resources/
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  traffic/           # only needed for advanced plan files
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    certs/
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    data/
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  tasks/
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  tests/
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  resources/
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  traffic/           # only needed for advanced plan files
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    certs/
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    data/
 </span></code></pre></div>
 <h2 id="recognized-root-files">Recognized Root Files<a class="headerlink" href="#recognized-root-files" title="Permanent link">&para;</a></h2>
 <table>
@@ -1680,8 +1679,8 @@
 </tr>
 <tr>
 <td><code>services/</code></td>
-<td>Infrastructure</td>
-<td>Background service assets and compatibility configs</td>
+<td>Unused</td>
+<td>Accepted in a package but read by nothing — a service is whatever <code>service.run(image=...)</code> starts</td>
 </tr>
 <tr>
 <td><code>tasks/</code></td>
@@ -1735,12 +1734,12 @@ unresolvable module or plugin is an error. The workspace loader also reads the
 paths to populate the suite's contracts/module references.</p>
 <h2 id="canonical-example">Canonical Example<a class="headerlink" href="#canonical-example" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/postgres&quot;</span><span class="p">,</span> <span class="s2">&quot;pg&quot;</span><span class="p">)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;traffic&quot;</span><span class="p">,</span> <span class="s2">&quot;security&quot;</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;mock&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;traffic&quot;</span><span class="p">,</span> <span class="s2">&quot;security&quot;</span><span class="p">)</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">db</span>       <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">stripe</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">db</span>       <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;postgres:16&quot;</span><span class="p">)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">stripe</span>   <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">migrate</span>  <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;migrate.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">api</span>      <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">stripe</span><span class="p">,</span> <span class="n">migrate</span><span class="p">])</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">api</span>      <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;payments-api:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">stripe</span><span class="p">,</span> <span class="n">migrate</span><span class="p">])</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">baseline</span> <span class="o">=</span> <span class="n">traffic</span><span class="o">.</span><span class="n">baseline</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8080&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">smoke</span>    <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;go/smoke_test.go&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;golang:1.24&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">baseline</span><span class="p">])</span>
 </span></code></pre></div>
@@ -1778,7 +1777,11 @@ paths to populate the suite's contracts/module references.</p>
 <tbody>
 <tr>
 <td><code>service</code></td>
-<td><code>service.run</code>, <code>service.mock</code>, <code>service.wiremock</code>, <code>service.prism</code>, <code>service.custom</code></td>
+<td><code>service.run</code> — starts a container from <code>image=</code> (required) and keeps it running</td>
+</tr>
+<tr>
+<td><code>mock</code></td>
+<td><code>mock.api</code> — a fake API answered from <code>api/</code> and <code>mock/</code>; no container</td>
 </tr>
 <tr>
 <td><code>task</code></td>
@@ -1810,13 +1813,12 @@ paths to populate the suite's contracts/module references.</p>
 </tr>
 </tbody>
 </table>
-<p>The only retained legacy bridge is <code>mock.serve</code>, which still maps to <code>service.mock</code> while older suites are being migrated.</p>
 <p>For the full runtime surface and per-family argument reference, see <a href="../runtime-library/">Runtime Library Reference</a>.</p>
 <h2 id="dependency-ordering">Dependency Ordering<a class="headerlink" href="#dependency-ordering" title="Permanent link">&para;</a></h2>
 <p>Use <code>after=[db, api]</code> to declare which nodes a given node depends on. The resolver builds a DAG from those edges and produces a topologically sorted execution order.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">db</span>    <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">db</span>    <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;postgres:16&quot;</span><span class="p">)</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">seed</span>  <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;seed.sh&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">])</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">seed</span><span class="p">])</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;payments-api:latest&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">db</span><span class="p">,</span> <span class="n">seed</span><span class="p">])</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">tests</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;smoke.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">])</span>
 </span></code></pre></div>
 <p>You can also define explicit success/failure rules on runnable nodes:</p>
@@ -1843,7 +1845,7 @@ paths to populate the suite's contracts/module references.</p>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">rollback</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;rollback.sh&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;bash:5.2&quot;</span><span class="p">,</span> <span class="n">on_failure</span><span class="o">=</span><span class="p">[</span><span class="n">primary</span><span class="p">])</span>
 </span></code></pre></div>
 <p>To clear stateful mocks before a verification step, use <code>reset_mocks=[...]</code> on the test node:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">billing_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">billing_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">()</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">clean_test</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s2">&quot;verify_billing.py&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;python:3.12&quot;</span><span class="p">,</span> <span class="n">reset_mocks</span><span class="o">=</span><span class="p">[</span><span class="n">billing_mock</span><span class="p">],</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">billing_mock</span><span class="p">])</span>
 </span></code></pre></div>
 <p>You can also attach artifact export rules to a node:</p>
@@ -1963,7 +1965,7 @@ paths to populate the suite's contracts/module references.</p>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/verilog-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;simulate&quot;</span><span class="p">)</span>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@plugins/control-sim&quot;</span><span class="p">,</span> <span class="s2">&quot;monitor&quot;</span><span class="p">)</span>
 </span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">spice_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;spice-service&quot;</span><span class="p">)</span>
 </span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
 </span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="n">rc_filter</span> <span class="o">=</span> <span class="n">transient</span><span class="p">(</span>
 </span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;rc-filter-step-response&quot;</span><span class="p">,</span>
