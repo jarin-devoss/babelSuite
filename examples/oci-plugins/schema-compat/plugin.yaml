@@ -1,8 +1,8 @@
 name: schema-compat
-version: 1.0.0
+version: 1.1.0
 kind: plugin
 variants: [schema-compat]
-operations: [check_compat, enforce]
+operations: [check_compat, enforce, check_registered, check_mode]
 schema: schema.cue
 lua: plugin.lua
 star: plugin.star

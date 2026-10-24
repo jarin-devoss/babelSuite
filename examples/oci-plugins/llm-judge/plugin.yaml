@@ -1,8 +1,8 @@
 name: llm-judge
-version: 1.1.0
+version: 1.2.0
 kind: plugin
 variants: [llm-judge]
-operations: [judge, monitor]
+operations: [judge, monitor, consistency, compare]
 schema: schema.cue
 lua: plugin.lua
 star: plugin.star

@@ -29,3 +29,32 @@ def audit_endpoint(name, auth_url, username, password, endpoint,
         token_field = token_field,
         severity    = severity,
     )
+
+def check_claims(name, auth_url, username, password, expected_issuer = "",
+                 expected_audience = "", forbidden_scopes = [], token_field = "token",
+                 severity = "high", after = []):
+    return _ref.check_claims(
+        name              = name,
+        after             = after,
+        auth_url          = auth_url,
+        username          = username,
+        password          = password,
+        expected_issuer   = expected_issuer,
+        expected_audience = expected_audience,
+        forbidden_scopes  = forbidden_scopes,
+        token_field       = token_field,
+        severity          = severity,
+    )
+
+def audit_endpoints(name, auth_url, username, password, endpoints,
+                    token_field = "token", severity = "high", after = []):
+    return _ref.audit_endpoints(
+        name        = name,
+        after       = after,
+        auth_url    = auth_url,
+        username    = username,
+        password    = password,
+        endpoints   = endpoints,
+        token_field = token_field,
+        severity    = severity,
+    )

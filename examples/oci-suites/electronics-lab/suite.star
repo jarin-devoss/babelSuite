@@ -1,5 +1,5 @@
 load("@plugins/spice-sim",   "transient")
-load("@plugins/verilog-sim", "simulate")
+load("@plugins/verilog-sim", "simulate", "lint")
 load("@plugins/control-sim", "monitor")
 
 spice_mock   = mock.api(name="spice-service")
@@ -47,6 +47,16 @@ counter_check = simulate(
     verilog    = _counter_verilog,
     testbench  = _counter_tb,
     timeout_ns = 200,
+    severity   = "critical",
+    after      = [verilog_mock],
+)
+
+# lint compiles the design without running a testbench — a fast gate for
+# syntax and elaboration errors before the full simulation above.
+counter_lint = lint(
+    name       = "4bit-counter-lint",
+    top_module = "tb_counter",
+    verilog    = _counter_verilog,
     severity   = "critical",
     after      = [verilog_mock],
 )

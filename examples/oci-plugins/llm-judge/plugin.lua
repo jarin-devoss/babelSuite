@@ -202,6 +202,121 @@ local function run_judge(cfg, severity)
     }, nil
 end
 
+-- run_consistency: grades the same text N times and fails when the judgements
+-- disagree. A judge whose verdict flips between runs cannot gate a pipeline;
+-- this measures that instability directly instead of trusting a single pass.
+local function run_consistency(cfg, severity)
+    local output = cfg.output
+    if (output == nil or output == "") and (cfg.target or "") ~= "" then
+        local fetched, err = fetch_body(cfg.target, cfg.timeout_ms or 30000)
+        if err then return nil, err end
+        output = fetched
+    end
+    if output == nil or output == "" then
+        return nil, "nothing to grade: set output= or target="
+    end
+
+    local criteria = cfg.criteria or {}
+    local rounds   = tonumber(cfg.rounds) or 3
+    local prompt   = build_prompt(output, criteria)
+
+    local scores = {}
+    for _ = 1, rounds do
+        local verdicts, err = call_model(cfg, prompt)
+        if err then return nil, err end
+        local _, passed_count = score_verdicts(verdicts, criteria, severity)
+        scores[#scores + 1] = #criteria > 0 and (passed_count / #criteria) or 0
+    end
+
+    local lo, hi, sum = scores[1], scores[1], 0
+    for _, s in ipairs(scores) do
+        if s < lo then lo = s end
+        if s > hi then hi = s end
+        sum = sum + s
+    end
+    local spread = hi - lo
+    local mean   = sum / rounds
+
+    local max_spread = tonumber(cfg.max_spread) or 0.0
+    local findings = {}
+    if spread > max_spread then
+        table.insert(findings, {
+            label    = "judge.inconsistent",
+            severity = severity,
+            detail   = string.format("score ranged %.2f–%.2f across %d rounds (max spread %.2f)",
+                lo, hi, rounds, max_spread),
+        })
+    end
+
+    local ok = #findings == 0
+    return {
+        passed   = ok or severity == "warn",
+        findings = as_array(findings),
+        summary  = string.format("consistency: mean %.2f, spread %.2f over %d rounds", mean, spread, rounds),
+        level    = ok and "info" or (severity == "warn" and "warn" or "error"),
+        attributes = {
+            ["judge.status"] = "scored",
+            ["judge.mean"]   = string.format("%.2f", mean),
+            ["judge.spread"] = string.format("%.2f", spread),
+            ["judge.rounds"] = tostring(rounds),
+            ["judge.model"]  = tostring(cfg.model or DEFAULT_MODEL),
+        },
+    }, nil
+end
+
+-- run_compare: grades two candidate texts against the same criteria and reports
+-- which scored higher. A finding is raised when the preferred side (default
+-- "a", the baseline) does not win, so a regression in a new prompt or model is
+-- visible as a step failure.
+local function run_compare(cfg, severity)
+    local a, b = cfg.output_a or "", cfg.output_b or ""
+    if a == "" or b == "" then
+        return nil, "compare needs both output_a= and output_b="
+    end
+    local criteria = cfg.criteria or {}
+
+    local function grade(text)
+        local verdicts, err = call_model(cfg, build_prompt(text, criteria))
+        if err then return nil, err end
+        local _, passed_count = score_verdicts(verdicts, criteria, severity)
+        return #criteria > 0 and (passed_count / #criteria) or 0, nil
+    end
+
+    local score_a, err = grade(a)
+    if err then return nil, err end
+    local score_b
+    score_b, err = grade(b)
+    if err then return nil, err end
+
+    local prefer = cfg.prefer or "a"
+    local winner = score_a == score_b and "tie" or (score_a > score_b and "a" or "b")
+
+    local findings = {}
+    if prefer ~= winner and winner ~= "tie" then
+        table.insert(findings, {
+            label    = "judge.compare.regression",
+            severity = severity,
+            detail   = string.format("preferred '%s' but '%s' scored higher (a=%.2f b=%.2f)",
+                prefer, winner, score_a, score_b),
+        })
+    end
+
+    local ok = #findings == 0
+    return {
+        passed   = ok or severity == "warn",
+        findings = as_array(findings),
+        summary  = string.format("compare: a=%.2f b=%.2f winner=%s", score_a, score_b, winner),
+        level    = ok and "info" or (severity == "warn" and "warn" or "error"),
+        attributes = {
+            ["judge.status"]  = "scored",
+            ["judge.score_a"] = string.format("%.2f", score_a),
+            ["judge.score_b"] = string.format("%.2f", score_b),
+            ["judge.winner"]  = winner,
+            ["judge.model"]   = tostring(cfg.model or DEFAULT_MODEL),
+        },
+    }, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -223,7 +338,14 @@ function _M.access(conf, ctx)
     -- monitor reports the same verdicts but never blocks the suite.
     local severity = (op == "monitor") and "warn" or (cfg.severity or "critical")
 
-    local result, err = run_judge(cfg, severity)
+    local result, err
+    if op == "consistency" then
+        result, err = run_consistency(cfg, severity)
+    elseif op == "compare" then
+        result, err = run_compare(cfg, severity)
+    else
+        result, err = run_judge(cfg, severity)
+    end
     if err then
         -- A model that is unreachable, or that answers unusably, is a step
         -- outcome rather than a transport fault. Reporting it as a 200 with

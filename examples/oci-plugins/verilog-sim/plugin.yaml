@@ -1,8 +1,8 @@
 name: verilog-sim
-version: 1.0.0
+version: 1.1.0
 kind: plugin
 variants: [verilog-sim]
-operations: [simulate, strict]
+operations: [simulate, strict, lint, check_coverage]
 schema: schema.cue
 lua: plugin.lua
 star: plugin.star

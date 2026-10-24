@@ -7,6 +7,15 @@
 output?:   string
 target?:   string
 
+// compare grades two candidates instead of one.
+output_a?: string
+output_b?: string
+prefer?:   "a" | "b" | *"a"
+
+// consistency: how many times to re-grade, and the score spread allowed.
+rounds?:     int & >=2 | *3
+max_spread?: >=0.0 & <=1.0 | *0.0
+
 // Each criterion is answered yes/no independently. The score is the fraction
 // answered yes, so criteria should be small and separately checkable.
 criteria: [string, ...string]

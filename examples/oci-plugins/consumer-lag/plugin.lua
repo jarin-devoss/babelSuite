@@ -83,6 +83,101 @@ local function run_watch_lag(cfg, rest_url)
     }, nil
 end
 
+local function total_lag_of(rest_url, group)
+    local data, err = fetch_offsets(rest_url, group)
+    if err then return nil, err end
+    local _, total = build_lag_findings(data, group, math.huge, "warn")
+    return total, nil
+end
+
+-- wait_caught_up: polls until the group's total lag drops to max_lag or the
+-- timeout passes. A load test ends long before its consumers finish, so a
+-- single check_lag right after it reports lag that would have drained.
+local function run_wait_caught_up(cfg, rest_url)
+    local group     = cfg.group or ""
+    local max_lag   = tonumber(cfg.max_lag) or 0
+    local timeout_s = tonumber(cfg.timeout_s) or 60
+    local interval  = tonumber(cfg.interval_s) or 2
+    local severity  = cfg.severity or "critical"
+
+    ngx.update_time()
+    local started, total, polls = ngx.now(), 0, 0
+    while true do
+        local err
+        total, err = total_lag_of(rest_url, group)
+        if err then return nil, err end
+        polls = polls + 1
+        ngx.update_time()
+        if total <= max_lag or ngx.now() - started >= timeout_s then break end
+        ngx.sleep(interval)
+    end
+
+    ngx.update_time()
+    local waited   = ngx.now() - started
+    local findings = {}
+    if total > max_lag then
+        table.insert(findings, {
+            label    = "consumer.lag.not_caught_up",
+            severity = severity,
+            detail   = string.format("group=%s still %d behind after %.0fs (max=%d)", group, total, waited, max_lag),
+        })
+    end
+    return {
+        passed    = #findings == 0,
+        findings  = as_array(findings),
+        total_lag = total,
+        summary   = string.format("wait_caught_up: group=%s lag=%d after %d polls in %.1fs",
+            group, total, polls, waited),
+        attributes = {
+            ["lag.group"]  = group,
+            ["lag.total"]  = tostring(total),
+            ["lag.max"]    = tostring(max_lag),
+            ["lag.waited"] = string.format("%.1f", waited),
+            ["lag.mode"]   = "wait",
+        },
+    }, nil
+end
+
+-- check_trend: samples twice and fails when lag grew between the samples. A
+-- high but shrinking lag is a consumer catching up; a growing one is a
+-- consumer that cannot keep pace with its producers.
+local function run_check_trend(cfg, rest_url)
+    local group      = cfg.group or ""
+    local interval   = tonumber(cfg.interval_s) or 10
+    local max_growth = tonumber(cfg.max_growth) or 0
+    local severity   = cfg.severity or "critical"
+
+    local first, err = total_lag_of(rest_url, group)
+    if err then return nil, err end
+    ngx.sleep(interval)
+    local second
+    second, err = total_lag_of(rest_url, group)
+    if err then return nil, err end
+
+    local growth   = second - first
+    local findings = {}
+    if growth > max_growth then
+        table.insert(findings, {
+            label    = "consumer.lag.growing",
+            severity = severity,
+            detail   = string.format("group=%s lag grew %d -> %d in %gs (max growth=%d)",
+                group, first, second, interval, max_growth),
+        })
+    end
+    return {
+        passed     = #findings == 0,
+        findings   = as_array(findings),
+        total_lag  = second,
+        lag_growth = growth,
+        attributes = {
+            ["lag.group"]  = group,
+            ["lag.total"]  = tostring(second),
+            ["lag.growth"] = tostring(growth),
+            ["lag.mode"]   = "trend",
+        },
+    }, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -102,6 +197,10 @@ function _M.access(conf, ctx)
     local result, err
     if op == "watch_lag" then
         result, err = run_watch_lag(cfg, rest_url)
+    elseif op == "wait_caught_up" then
+        result, err = run_wait_caught_up(cfg, rest_url)
+    elseif op == "check_trend" then
+        result, err = run_check_trend(cfg, rest_url)
     else
         result, err = run_check_lag(cfg, rest_url)
     end

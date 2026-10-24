@@ -129,6 +129,106 @@ local function run_monitor(cfg, sim_url)
             overshoot_pct = overshoot, dc_gain = dc_gain, summary = summary, level = ok and "info" or "warn"}, nil
 end
 
+-- impulse_response: the system's answer to a unit impulse. A stable plant must
+-- return to rest; a response that does not decay is a sign of marginal or
+-- unstable dynamics the step test can miss when it only watches the final
+-- value. Reuses the stability and settling thresholds.
+local function run_impulse_response(cfg, sim_url)
+    local body = {
+        numerator   = cfg.numerator   or {},
+        denominator = cfg.denominator or {},
+        analysis    = "impulse",
+        time_end    = tonumber(cfg.time_end) or 10,
+    }
+    local data, err = sim_request(sim_url, body)
+    if err then return nil, err end
+    local severity = cfg.severity or "critical"
+    local findings = {}
+
+    if not data.stable then
+        table.insert(findings, {
+            label    = "control.unstable",
+            severity = severity,
+            detail   = "system is unstable (poles in right-half plane)",
+        })
+    end
+
+    -- A decayed impulse response ends near zero. final_value is the response at
+    -- time_end; well-damped systems leave it close to zero.
+    local final = tonumber(data.final_value)
+    local max_residual = tonumber(cfg.max_residual)
+    if max_residual and final and math.abs(final) > max_residual then
+        table.insert(findings, {
+            label    = "control.impulse.residual",
+            severity = severity,
+            detail   = string.format("response has not decayed: |final|=%.4f max=%.4f", math.abs(final), max_residual),
+        })
+    end
+
+    local settling = tonumber(data.settling_time)
+    if cfg.max_settling_time and settling then
+        local max_s = tonumber(cfg.max_settling_time)
+        if max_s and settling > max_s then
+            table.insert(findings, {
+                label    = "control.settling_time",
+                severity = severity,
+                detail   = string.format("settling=%.3fs max=%.3fs", settling, max_s),
+            })
+        end
+    end
+
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings),
+            stable = data.stable or false, settling_s = settling, final_value = final,
+            summary = string.format("impulse_response: stable=%s settling=%.3fs final=%.4f",
+                tostring(data.stable or false), settling or 0, final or 0),
+            level = ok and "info" or "warn"}, nil
+end
+
+-- frequency_response: a Bode analysis, checking the stability margins. Gain and
+-- phase margins say how much loop gain or delay the plant tolerates before it
+-- oscillates — the headroom a time-domain step response never reports.
+local function run_frequency_response(cfg, sim_url)
+    local body = {
+        numerator   = cfg.numerator   or {},
+        denominator = cfg.denominator or {},
+        analysis    = "bode",
+        time_end    = tonumber(cfg.time_end) or 10,
+    }
+    local data, err = sim_request(sim_url, body)
+    if err then return nil, err end
+    local severity = cfg.severity or "critical"
+    local findings = {}
+
+    local gain_margin  = tonumber(data.gain_margin_db)
+    local phase_margin = tonumber(data.phase_margin_deg)
+
+    local min_gm = tonumber(cfg.min_gain_margin_db)
+    if min_gm and gain_margin and gain_margin < min_gm then
+        table.insert(findings, {
+            label    = "control.gain_margin.low",
+            severity = severity,
+            detail   = string.format("gain margin=%.2fdB min=%.2fdB", gain_margin, min_gm),
+        })
+    end
+
+    local min_pm = tonumber(cfg.min_phase_margin_deg)
+    if min_pm and phase_margin and phase_margin < min_pm then
+        table.insert(findings, {
+            label    = "control.phase_margin.low",
+            severity = severity,
+            detail   = string.format("phase margin=%.2f° min=%.2f°", phase_margin, min_pm),
+        })
+    end
+
+    local ok = #findings == 0
+    return {passed = ok, findings = as_array(findings),
+            gain_margin_db = gain_margin, phase_margin_deg = phase_margin,
+            summary = string.format("frequency_response: gain_margin=%.2fdB phase_margin=%.2f°",
+                gain_margin or 0, phase_margin or 0),
+            level = ok and "info" or "warn"}, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -148,6 +248,10 @@ function _M.access(conf, ctx)
     local result, err
     if op == "monitor" then
         result, err = run_monitor(cfg, sim_url)
+    elseif op == "impulse_response" then
+        result, err = run_impulse_response(cfg, sim_url)
+    elseif op == "frequency_response" then
+        result, err = run_frequency_response(cfg, sim_url)
     else
         result, err = run_step_response(cfg, sim_url)
     end

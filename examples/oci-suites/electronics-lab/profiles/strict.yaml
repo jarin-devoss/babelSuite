@@ -29,6 +29,12 @@ services:
       max_errors:  "0"
       severity:    critical
 
+  4bit-counter-lint:
+    env:
+      sim_url:    http://verilog-service:9080
+      top_module: tb_counter
+      severity:   critical
+
   mass-spring-damper-response:
     env:
       sim_url:           http://control-service:9080

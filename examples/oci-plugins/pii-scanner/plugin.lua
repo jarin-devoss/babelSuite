@@ -73,6 +73,63 @@ local function run_probe(cfg)
     return {passed = #findings == 0, findings = as_array(findings)}, nil
 end
 
+-- scan_headers: PII leaks through headers as often as bodies — an email in a
+-- Set-Cookie, a card number echoed in a debug header, a token in Location.
+-- Each header is scanned on its own so the finding names where the leak is.
+local function run_scan_headers(cfg)
+    local httpc = http.new()
+    httpc:set_timeout(10000)
+    local res, err = httpc:request_uri(cfg.target or "", {method = "GET"})
+    if err then return nil, "upstream failed: " .. err end
+
+    local severity = cfg.severity or "critical"
+    local findings, scanned = {}, 0
+    for header, value in pairs(res.headers or {}) do
+        -- A repeated header, such as several Set-Cookie lines, arrives as a list.
+        local text = type(value) == "table" and table.concat(value, "\n") or tostring(value)
+        scanned = scanned + 1
+        for _, name in ipairs(match_patterns(text, cfg.patterns)) do
+            table.insert(findings, {
+                label    = "pii." .. name,
+                severity = severity,
+                detail   = "PII pattern '" .. name .. "' found in response header " .. header,
+            })
+        end
+    end
+    return {passed = #findings == 0, findings = as_array(findings), headers_scanned = scanned}, nil
+end
+
+-- scan_many: one step over a list of endpoints, so a suite can sweep every
+-- read path of an API instead of declaring a scan per URL.
+local function run_scan_many(cfg)
+    local severity = cfg.severity or "critical"
+    local findings = {}
+    for _, target in ipairs(cfg.targets or {}) do
+        local body, err = fetch_body(target)
+        if err then
+            table.insert(findings, {
+                label    = "pii.unreachable",
+                severity = "warn",
+                detail   = target .. " — " .. err,
+            })
+        else
+            for _, name in ipairs(match_patterns(body, cfg.patterns)) do
+                table.insert(findings, {
+                    label    = "pii." .. name,
+                    severity = severity,
+                    detail   = "PII pattern '" .. name .. "' found in response body of " .. target,
+                })
+            end
+        end
+    end
+    local leaks = 0
+    for _, f in ipairs(findings) do
+        if f.label ~= "pii.unreachable" then leaks = leaks + 1 end
+    end
+    return {passed = leaks == 0, findings = as_array(findings),
+            summary = string.format("scan_many: %d targets, %d leaks", #(cfg.targets or {}), leaks)}, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -84,13 +141,21 @@ function _M.access(conf, ctx)
     local op  = payload.op or "scan"
     local cfg = payload.config or {}
 
-    if (cfg.target or "") == "" then
+    if op == "scan_many" then
+        if type(cfg.targets) ~= "table" or #cfg.targets == 0 then
+            ngx.status = 400; ngx.say(json.encode({error = "targets must be a non-empty list"})); return ngx.exit(400)
+        end
+    elseif (cfg.target or "") == "" then
         ngx.status = 400; ngx.say(json.encode({error = "target is required"})); return ngx.exit(400)
     end
 
     local result, err
     if op == "probe" then
         result, err = run_probe(cfg)
+    elseif op == "scan_headers" then
+        result, err = run_scan_headers(cfg)
+    elseif op == "scan_many" then
+        result, err = run_scan_many(cfg)
     else
         result, err = run_scan(cfg)
     end

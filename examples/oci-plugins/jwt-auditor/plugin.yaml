@@ -1,8 +1,8 @@
 name: jwt-auditor
-version: 1.0.0
+version: 1.1.0
 kind: plugin
 variants: [jwt-auditor]
-operations: [check_token, audit_endpoint]
+operations: [check_token, audit_endpoint, check_claims, audit_endpoints]
 schema: schema.cue
 lua: plugin.lua
 star: plugin.star
