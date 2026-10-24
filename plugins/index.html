@@ -2127,9 +2127,17 @@ than silently reaching something real.</p>
 <td><code>strict</code></td>
 <td>Same as <code>simulate</code> but zero-tolerance: any X-state signal, any compile error, any simulation error fails the step immediately.</td>
 </tr>
+<tr>
+<td><code>lint</code></td>
+<td>Compiles the design without running a testbench — a fast gate for syntax and elaboration errors before the slower <code>simulate</code>. Needs no testbench. <code>fail_on_warnings</code> promotes compiler warnings to failures.</td>
+</tr>
+<tr>
+<td><code>check_coverage</code></td>
+<td>Runs the testbench and fails if the simulator's reported toggle coverage falls below <code>min_coverage_pct</code> — catches modules that pass every assertion while leaving branches unexercised.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>sim_url</code>, <code>top_module</code>. Optional: <code>verilog</code>, <code>testbench</code>, <code>timeout_ns</code>, <code>max_errors</code>, <code>assert_no_x</code>, <code>severity</code>.</p>
+<p>Required config: <code>sim_url</code>, <code>top_module</code>. Optional: <code>verilog</code>, <code>testbench</code> (required except for <code>lint</code>), <code>timeout_ns</code>, <code>max_errors</code>, <code>assert_no_x</code>, <code>fail_on_warnings</code> (<code>lint</code>), <code>min_coverage_pct</code> (<code>check_coverage</code>, default <code>80</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="control-sim-control-system-simulation"><code>control-sim</code> — Control System Simulation<a class="headerlink" href="#control-sim-control-system-simulation" title="Permanent link">&para;</a></h3>
 <p>Sends a transfer function (numerator/denominator polynomial coefficients) to a scipy-backed simulation service and checks stability and transient response metrics.</p>
@@ -2149,9 +2157,17 @@ than silently reaching something real.</p>
 <td><code>monitor</code></td>
 <td>Same checks, but always emits <code>warn</code>-level findings — never blocks the suite. Use this for passive observability of control system health.</td>
 </tr>
+<tr>
+<td><code>impulse_response</code></td>
+<td>Runs an impulse response. Checks stability and settling, plus that the response has decayed back to near zero by <code>time_end</code> (<code>max_residual</code>) — a marginal system the step test's final-value check can miss.</td>
+</tr>
+<tr>
+<td><code>frequency_response</code></td>
+<td>Runs a Bode analysis and checks the stability margins: gain margin against <code>min_gain_margin_db</code> and phase margin against <code>min_phase_margin_deg</code>. These report the headroom a time-domain step never shows.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>sim_url</code>, <code>numerator</code>, <code>denominator</code>. Optional: <code>time_end</code>, <code>max_settling_time</code>, <code>max_overshoot_pct</code>, <code>min_dc_gain</code>, <code>max_dc_gain</code>, <code>severity</code>.</p>
+<p>Required config: <code>sim_url</code>, <code>numerator</code>, <code>denominator</code>. Optional: <code>time_end</code>, <code>max_settling_time</code>, <code>max_overshoot_pct</code>, <code>min_dc_gain</code>, <code>max_dc_gain</code>, <code>max_residual</code> (<code>impulse_response</code>), <code>min_gain_margin_db</code> / <code>min_phase_margin_deg</code> (<code>frequency_response</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="jwt-auditor-jwt-token-and-endpoint-security"><code>jwt-auditor</code> — JWT Token and Endpoint Security<a class="headerlink" href="#jwt-auditor-jwt-token-and-endpoint-security" title="Permanent link">&para;</a></h3>
 <p>Application-level JWT security checks. The built-in <code>security.*</code> modes check HTTP-layer concerns (headers, CORS, verbs, fuzz payloads). <code>jwt-auditor</code> checks what's <em>inside</em> the token and whether the endpoint actually enforces signature validation — neither of which the attack scanner covers.</p>
@@ -2171,9 +2187,17 @@ than silently reaching something real.</p>
 <td><code>audit_endpoint</code></td>
 <td>Gets a valid token first, then probes <code>endpoint</code> three ways: no Authorization header (must be 401/403), tampered signature (must be 401/403), and valid token (must be 2xx). Flags any case where the endpoint accepts what it shouldn't.</td>
 </tr>
+<tr>
+<td><code>check_claims</code></td>
+<td>Fetches a token and checks its claims against expected values: the <code>expected_issuer</code> it must carry, the <code>expected_audience</code> it must include, and any <code>forbidden_scopes</code> it must not grant. A structurally valid token can still name the wrong issuer or carry an over-broad scope.</td>
+</tr>
+<tr>
+<td><code>audit_endpoints</code></td>
+<td>Runs the <code>audit_endpoint</code> checks over a list of <code>endpoints</code>, so one step covers every protected route. Each endpoint's findings are prefixed with its URL.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>auth_url</code>, <code>username</code>, <code>password</code>. Optional: <code>token_field</code> (default <code>token</code>), <code>endpoint</code> (required for <code>audit_endpoint</code>), <code>max_lifetime_hours</code> (default <code>24</code>), <code>required_claims</code>, <code>severity</code>.</p>
+<p>Required config: <code>auth_url</code>, <code>username</code>, <code>password</code>. Optional: <code>token_field</code> (default <code>token</code>), <code>endpoint</code> (required for <code>audit_endpoint</code>), <code>endpoints</code> (required for <code>audit_endpoints</code>), <code>expected_issuer</code> / <code>expected_audience</code> / <code>forbidden_scopes</code> (<code>check_claims</code>), <code>max_lifetime_hours</code> (default <code>24</code>), <code>required_claims</code>, <code>severity</code>.</p>
 <hr />
 <h3 id="canary-validator-canary-deployment-traffic-ratio"><code>canary-validator</code> — Canary Deployment Traffic Ratio<a class="headerlink" href="#canary-validator-canary-deployment-traffic-ratio" title="Permanent link">&para;</a></h3>
 <blockquote>
@@ -2196,9 +2220,17 @@ than silently reaching something real.</p>
 <td><code>watch_ratio</code></td>
 <td>Same check but with a wider default tolerance and <code>warn</code>-level findings — passive monitoring mode.</td>
 </tr>
+<tr>
+<td><code>sticky</code></td>
+<td>Sends every request with the same <code>session_value</code> on <code>session_header</code> and fails if they do not all land on one side. A session that reaches both the canary and stable versions means a user would bounce between them mid-session.</td>
+</tr>
+<tr>
+<td><code>compare_errors</code></td>
+<td>Splits the sample by which side answered and compares the 5xx rate of each. Fails if the canary's error rate exceeds stable's by more than <code>max_error_delta</code>, or if no canary traffic was seen at all.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>target</code>. Optional: <code>canary_header</code> (default <code>X-Canary</code>), <code>expected_ratio</code> (default <code>0.1</code>), <code>tolerance</code> (default <code>0.05</code>), <code>sample_size</code> (default <code>100</code>), <code>severity</code>.</p>
+<p>Required config: <code>target</code>. Optional: <code>canary_header</code> (default <code>X-Canary</code>), <code>expected_ratio</code> (default <code>0.1</code>), <code>tolerance</code> (default <code>0.05</code>), <code>sample_size</code> (default <code>100</code>), <code>session_header</code> / <code>session_value</code> (<code>sticky</code>), <code>max_error_delta</code> (<code>compare_errors</code>, default <code>0.01</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="consumer-lag-kafka-consumer-group-lag"><code>consumer-lag</code> — Kafka Consumer Group Lag<a class="headerlink" href="#consumer-lag-kafka-consumer-group-lag" title="Permanent link">&para;</a></h3>
 <p>Queries a Kafka REST Proxy for a consumer group's partition offsets and checks whether any partition's lag exceeds a threshold. Useful after a load test or data ingestion task to confirm the consumer has fully caught up.</p>
@@ -2218,9 +2250,17 @@ than silently reaching something real.</p>
 <td><code>watch_lag</code></td>
 <td>Same check but always <code>warn</code>-level — use for continuous observability.</td>
 </tr>
+<tr>
+<td><code>wait_caught_up</code></td>
+<td>Polls until the group's total lag drops to <code>max_lag</code> or <code>timeout_s</code> passes. A load test ends long before its consumers drain, so a single <code>check_lag</code> right after it reports lag that would have cleared.</td>
+</tr>
+<tr>
+<td><code>check_trend</code></td>
+<td>Samples the total lag twice, <code>interval_s</code> apart, and fails if it grew by more than <code>max_growth</code>. A high but shrinking lag is a consumer catching up; a growing one cannot keep pace with its producers.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>kafka_rest_url</code>, <code>group</code>. Optional: <code>max_lag</code> (default <code>1000</code>), <code>severity</code>.</p>
+<p>Required config: <code>kafka_rest_url</code>, <code>group</code>. Optional: <code>max_lag</code> (default <code>1000</code>), <code>timeout_s</code> / <code>interval_s</code> (<code>wait_caught_up</code>, defaults <code>60</code> / <code>2</code>), <code>interval_s</code> / <code>max_growth</code> (<code>check_trend</code>, defaults <code>10</code> / <code>0</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="dlq-inspector-dead-letter-queue-inspector"><code>dlq-inspector</code> — Dead Letter Queue Inspector<a class="headerlink" href="#dlq-inspector-dead-letter-queue-inspector" title="Permanent link">&para;</a></h3>
 <p>Checks the latest offset of a Kafka DLQ topic via the REST Proxy. A non-zero (or above-threshold) offset means messages were dead-lettered during the test run.</p>
@@ -2240,9 +2280,17 @@ than silently reaching something real.</p>
 <td><code>watch_dlq</code></td>
 <td>Same check but always <code>warn</code>-level — never blocks the suite.</td>
 </tr>
+<tr>
+<td><code>check_growth</code></td>
+<td>Samples the DLQ's message count twice, <code>interval_s</code> apart, and fails if it grew by more than <code>max_growth</code>. The absolute count includes everything dead-lettered before the run; growth isolates what is being dead-lettered right now.</td>
+</tr>
+<tr>
+<td><code>inspect_topics</code></td>
+<td>Runs <code>inspect</code> over a list of <code>topics</code> in one step, each over-limit topic its own finding — no need for an <code>inspect</code> step per DLQ.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>kafka_rest_url</code>, <code>topic</code>. Optional: <code>max_messages</code> (default <code>0</code>), <code>severity</code>.</p>
+<p>Required config: <code>kafka_rest_url</code>, <code>topic</code> (or <code>topics</code> for <code>inspect_topics</code>). Optional: <code>max_messages</code> (default <code>0</code>), <code>interval_s</code> / <code>max_growth</code> (<code>check_growth</code>, defaults <code>10</code> / <code>0</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="pii-scanner-pii-leak-detection"><code>pii-scanner</code> — PII Leak Detection<a class="headerlink" href="#pii-scanner-pii-leak-detection" title="Permanent link">&para;</a></h3>
 <blockquote>
@@ -2265,9 +2313,17 @@ than silently reaching something real.</p>
 <td><code>probe</code></td>
 <td>Same scan but always <code>warn</code>-level — passive auditing mode.</td>
 </tr>
+<tr>
+<td><code>scan_headers</code></td>
+<td>Scans the response <em>headers</em> rather than the body — an email in a <code>Set-Cookie</code>, a card number echoed in a debug header, a token in <code>Location</code>. Each header is named in its finding.</td>
+</tr>
+<tr>
+<td><code>scan_many</code></td>
+<td>Scans a list of <code>targets</code> in one step, so a suite can sweep every read path of an API. An unreachable target is a <code>warn</code>-level finding, not a hard failure.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>target</code>. Optional: <code>patterns</code> (list of extra regex strings), <code>severity</code>.</p>
+<p>Required config: <code>target</code> (or <code>targets</code> for <code>scan_many</code>). Optional: <code>patterns</code> (list of extra regex strings), <code>severity</code>.</p>
 <hr />
 <h3 id="schema-compat-avro-schema-compatibility"><code>schema-compat</code> — Avro Schema Compatibility<a class="headerlink" href="#schema-compat-avro-schema-compatibility" title="Permanent link">&para;</a></h3>
 <p>Posts a new schema to a Confluent-compatible Schema Registry compatibility endpoint and checks whether it is compatible with the current version for a given subject.</p>
@@ -2287,9 +2343,17 @@ than silently reaching something real.</p>
 <td><code>enforce</code></td>
 <td>Always checks <code>FULL</code> compatibility (both backward and forward). Use this as a hard gate before publishing a new schema version.</td>
 </tr>
+<tr>
+<td><code>check_registered</code></td>
+<td>Asks the registry whether <code>new_schema</code> is already a registered version of the subject. Run it after the step that publishes a schema, to prove the schema the service will look up by id is really there; reports the version and id.</td>
+</tr>
+<tr>
+<td><code>check_mode</code></td>
+<td>Reads the compatibility level the registry actually enforces for the subject (falling back to the global level) and fails if it is not <code>mode</code>. A subject quietly set to <code>NONE</code> accepts any change, which makes every <code>check_compat</code> against it meaningless. Needs no <code>new_schema</code>.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>registry_url</code>, <code>subject</code>, <code>new_schema</code>. Optional: <code>mode</code> (default <code>BACKWARD</code>), <code>severity</code>.</p>
+<p>Required config: <code>registry_url</code>, <code>subject</code>, <code>new_schema</code> (not needed for <code>check_mode</code>). Optional: <code>mode</code> (default <code>BACKWARD</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="shadow-diff-shadow-traffic-response-diffing"><code>shadow-diff</code> — Shadow Traffic Response Diffing<a class="headerlink" href="#shadow-diff-shadow-traffic-response-diffing" title="Permanent link">&para;</a></h3>
 <blockquote>
@@ -2312,9 +2376,17 @@ than silently reaching something real.</p>
 <td><code>check</code></td>
 <td>Same diff but always <code>warn</code>-level — passive shadow monitoring.</td>
 </tr>
+<tr>
+<td><code>compare_paths</code></td>
+<td>Treats <code>primary</code> and <code>shadow</code> as base URLs and diffs every path in <code>paths</code> on both, each differing path named in its findings. A migration is rarely one endpoint.</td>
+</tr>
+<tr>
+<td><code>compare_latency</code></td>
+<td>Sends <code>samples</code> requests to each side and fails if the shadow's median latency is more than <code>max_ratio</code> times the primary's. A shadow that returns identical payloads twice as slowly is not ready for traffic.</td>
+</tr>
 </tbody>
 </table>
-<p>Required config: <code>primary</code>, <code>shadow</code>. Optional: <code>ignore_fields</code> (list of field paths to skip), <code>threshold</code> (default <code>0</code>), <code>severity</code>.</p>
+<p>Required config: <code>primary</code>, <code>shadow</code> (base URLs for <code>compare_paths</code>). Optional: <code>ignore_fields</code> (list of field paths to skip), <code>threshold</code> (default <code>0</code>), <code>paths</code> (<code>compare_paths</code>), <code>samples</code> / <code>max_ratio</code> (<code>compare_latency</code>, defaults <code>10</code> / <code>1.5</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="llm-judge-grading-text-against-criteria"><code>llm-judge</code> — Grading Text Against Criteria<a class="headerlink" href="#llm-judge-grading-text-against-criteria" title="Permanent link">&para;</a></h3>
 <p>Sends a block of text and a list of criteria to any OpenAI-compatible
@@ -2339,6 +2411,14 @@ the model's own reason into a finding.</p>
 <tr>
 <td><code>monitor</code></td>
 <td>Reports the same verdicts at <code>warn</code> level without failing the suite.</td>
+</tr>
+<tr>
+<td><code>consistency</code></td>
+<td>Grades the same text <code>rounds</code> times and fails if the score varies by more than <code>max_spread</code>. A judge whose verdict flips between runs cannot gate a pipeline; this measures that instability directly.</td>
+</tr>
+<tr>
+<td><code>compare</code></td>
+<td>Grades two candidate texts (<code>output_a</code>, <code>output_b</code>) against the same criteria and fails when the <code>prefer</code>red side (default <code>a</code>, the baseline) does not score highest — so a regression in a new prompt or model shows up as a step failure.</td>
 </tr>
 </tbody>
 </table>

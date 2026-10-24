@@ -1570,57 +1570,57 @@ shows a module that internally composes a plugin.</p>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/control-sim"><code>control-sim</code></a></td>
-<td><code>step_response</code>, <code>monitor</code></td>
+<td><code>step_response</code>, <code>monitor</code>, <code>impulse_response</code>, <code>frequency_response</code></td>
 <td>Hardware simulation</td>
-<td>Control-system simulation via a scipy backend. Checks settling time, overshoot, and DC gain.</td>
+<td>Control-system simulation via a scipy backend. Checks settling time, overshoot, DC gain, impulse decay, and stability margins.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/jwt-auditor"><code>jwt-auditor</code></a></td>
-<td><code>check_token</code>, <code>audit_endpoint</code></td>
+<td><code>check_token</code>, <code>audit_endpoint</code>, <code>check_claims</code>, <code>audit_endpoints</code></td>
 <td>Application security</td>
-<td>JWT token auditing: algorithm strength, claim completeness, lifetime, and endpoint signature enforcement. Not covered by the built-in attack scanner.</td>
+<td>JWT token auditing: algorithm strength, claim completeness, lifetime, issuer/audience/scope checks, and endpoint signature enforcement. Not covered by the built-in attack scanner.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/consumer-lag"><code>consumer-lag</code></a></td>
-<td><code>check_lag</code>, <code>watch_lag</code></td>
+<td><code>check_lag</code>, <code>watch_lag</code>, <code>wait_caught_up</code>, <code>check_trend</code></td>
 <td>Event streaming</td>
-<td>Kafka consumer group lag check via REST Proxy.</td>
+<td>Kafka consumer group lag check via REST Proxy, with a drain-wait and a growth-trend mode.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/dlq-inspector"><code>dlq-inspector</code></a></td>
-<td><code>inspect</code>, <code>watch_dlq</code></td>
+<td><code>inspect</code>, <code>watch_dlq</code>, <code>check_growth</code>, <code>inspect_topics</code></td>
 <td>Event streaming</td>
-<td>Kafka DLQ message count check via REST Proxy.</td>
+<td>Kafka DLQ message count check via REST Proxy, over one topic or many, with a growth-between-samples mode.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/schema-compat"><code>schema-compat</code></a></td>
-<td><code>check_compat</code>, <code>enforce</code></td>
+<td><code>check_compat</code>, <code>enforce</code>, <code>check_registered</code>, <code>check_mode</code></td>
 <td>Event streaming</td>
-<td>Avro schema compatibility check against a Confluent Schema Registry.</td>
+<td>Avro schema compatibility check against a Confluent Schema Registry, plus registration and enforced-mode checks.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/canary-validator"><code>canary-validator</code></a></td>
-<td><code>validate</code>, <code>watch_ratio</code></td>
+<td><code>validate</code>, <code>watch_ratio</code>, <code>sticky</code>, <code>compare_errors</code></td>
 <td>Deployment validation</td>
-<td>Validates that a canary deployment receives the correct traffic split ratio.</td>
+<td>Validates a canary's traffic split ratio, session stickiness, and error-rate parity against stable.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/pii-scanner"><code>pii-scanner</code></a></td>
-<td><code>scan</code>, <code>probe</code></td>
+<td><code>scan</code>, <code>probe</code>, <code>scan_headers</code>, <code>scan_many</code></td>
 <td>Data quality</td>
-<td>Scans API response bodies for PII leakage (credit card, SSN, email, private key patterns).</td>
+<td>Scans API response bodies and headers for PII leakage (credit card, SSN, email, private key patterns), over one target or many.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/shadow-diff"><code>shadow-diff</code></a></td>
-<td><code>diff</code>, <code>check</code></td>
+<td><code>diff</code>, <code>check</code>, <code>compare_paths</code>, <code>compare_latency</code></td>
 <td>Deployment validation</td>
-<td>Deep JSON diff of primary vs shadow service responses for migration validation.</td>
+<td>Deep JSON diff of primary vs shadow service responses for migration validation, across many paths, plus a latency-ratio check.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-plugins/llm-judge"><code>llm-judge</code></a></td>
-<td><code>judge</code>, <code>monitor</code></td>
+<td><code>judge</code>, <code>monitor</code>, <code>consistency</code>, <code>compare</code></td>
 <td>Output grading</td>
-<td>Grades text against a list of criteria using any OpenAI-compatible chat-completions endpoint, scoring the fraction of criteria satisfied.</td>
+<td>Grades text against a list of criteria using any OpenAI-compatible chat-completions endpoint, scoring the fraction satisfied; also measures judgement stability and compares two candidates.</td>
 </tr>
 </tbody>
 </table>
