@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service")
+load("@babelsuite/runtime", "mock")
 load("@plugins/skill-eval", "trigger", "arguments", "outcome", "uplift",
      "consistency", "sequence", "latency", "monitor")
 
@@ -33,7 +33,7 @@ SKILLS = [
     },
 ]
 
-agent_model = service.mock(name = "agent-model")
+agent_model = mock.api(name = "agent-model")
 
 # 3 of 4 cases route correctly; the parcel question goes to issue_refund
 # instead of track_shipment and is reported as skill.misrouted.

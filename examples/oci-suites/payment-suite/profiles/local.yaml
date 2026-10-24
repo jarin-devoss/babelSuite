@@ -13,10 +13,7 @@ secretRefs:
     ref: secrets://developer/stripe-api-key
 
 services:
-  payment-gateway:
+  checkout-smoke:
     env:
       API_PORT: 18080
       CHECKOUT_MODE: local-debug
-  fraud-worker-0:
-    env:
-      WORKER_REPLICA_COUNT: "1"

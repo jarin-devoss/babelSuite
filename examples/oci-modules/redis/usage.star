@@ -1,5 +1,5 @@
 load("@babelsuite/redis",   "redis", "wait_ready", "flush_db", "set_keys", "set_key")
-load("@babelsuite/runtime", "service", "test")
+load("@babelsuite/runtime", "test")
 
 FEATURE_FLAGS = {
     "checkout_v2":  "true",
@@ -22,17 +22,11 @@ for token in SESSION_TOKENS:
     n = set_key(cache, key="session:" + token, value=token + "-payload", ttl_seconds=SESSION_TTL, after=[seed_flags])
     session_nodes.append(n)
 
-app = service.run(
-    name  = "session-api",
-    env   = {"REDIS_HOST": cache.name},
-    after = session_nodes,
-)
-
 test.run(
     name  = "cache-smoke",
     file  = "cache_smoke.py",
     image = "python:3.12",
-    after = [app],
+    after = session_nodes,
     env   = {
         "REDIS_HOST":     cache.name,
         "FEATURE_FLAGS":  ",".join(FEATURE_FLAGS.keys()),

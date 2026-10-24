@@ -123,7 +123,7 @@ When the control plane assigns a step, the `StepRequest` contains everything the
 
 ## Kubernetes Backend
 
-When `type: kubernetes` is set in platform settings, the control plane runs each step that has an image as a pod in `targetNamespace`. Everything else runs exactly as it does on the Docker backend: `log.*` steps are their message, `plugin`, `security.*` and `traffic.*` steps are executed by the control plane against the suite's APISIX sidecar, and `service.mock` is answered by that sidecar.
+When `type: kubernetes` is set in platform settings, the control plane runs each step that has an image as a pod in `targetNamespace`. Everything else runs exactly as it does on the Docker backend: `log.*` steps are their message, `plugin`, `security.*` and `traffic.*` steps are executed by the control plane against the suite's APISIX sidecar, and `mock.api` is answered by that sidecar.
 
 ### How it works
 

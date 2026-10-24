@@ -33,7 +33,9 @@ const (
 	NodeKindLog      = "log"
 	NodeKindPlugin   = "plugin"
 
-	VariantServiceMock = "service.mock"
+	// The calls a suite makes, recorded on each node as its variant.
+	VariantServiceRun = "service.run"
+	VariantMockAPI    = "mock.api"
 )
 
 type ProfileOption struct {

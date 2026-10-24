@@ -1,6 +1,6 @@
-load("@babelsuite/runtime", "service", "test")
+load("@babelsuite/runtime", "mock", "test")
 
-echo = service.mock(name="echo-mock")
+echo = mock.api(name="echo-mock")
 
 reach = test.run(
     name="gateway-reachable",

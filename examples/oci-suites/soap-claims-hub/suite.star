@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime", "mock", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect")
 
 # ── environment knobs ────────────────────────────────────────────────────────
@@ -34,38 +34,19 @@ seed_reference_data = task.run(
 claim_mocks = {}
 for claim_type in CLAIM_TYPES:
     mock_name = claim_type + "-claims-mock"
-    mock = service.mock(
+    claim_mock = mock.api(
         name=mock_name,
         definition="mock/claims/" + claim_type,
         after=[conn],
     )
-    claim_mocks[claim_type] = mock
+    claim_mocks[claim_type] = claim_mock
 
 all_mocks = list(claim_mocks.values())
 
-# ── optional REST adapter (wraps SOAP for modern consumers) ──────────────────
-if ENABLE_ADAPTER:
-    rest_adapter = service.run(
-        name="soap-rest-adapter",
-        after=all_mocks,
-        env={"CLAIM_TYPES": ",".join(CLAIM_TYPES), "SOAP_VERSIONS": ",".join(SOAP_VERSIONS)},
-    )
-    bridge_deps = [rest_adapter]
-else:
-    bridge_deps = []
-
-# ── claims bridge ─────────────────────────────────────────────────────────────
+# ── mocks ready ───────────────────────────────────────────────────────────────
 mocks_ready = log.info(
     str(len(CLAIM_TYPES)) + " SOAP mocks registered across " + str(len(SOAP_VERSIONS)) + " versions",
     after=all_mocks,
-)
-claims_bridge = service.run(
-    after=[mocks_ready] + bridge_deps + [seed_reference_data],
-    env={
-        "LEGACY_MODE":       str(LEGACY_MODE).lower(),
-        "VALIDATION_LEVEL":  VALIDATION_LEVEL,
-        "SOAP_VERSIONS":     ",".join(SOAP_VERSIONS),
-    },
 )
 
 # ── traffic — one baseline run per SOAP version ───────────────────────────────
@@ -75,7 +56,7 @@ for version in SOAP_VERSIONS:
     t = traffic.baseline(
         name="claims-baseline-soap-" + safe_version,
         target="http://claims-bridge:8080",
-        after=[claims_bridge],
+        after=[mocks_ready, seed_reference_data],
         env={"SOAP_VERSION": version},
     )
     traffic_nodes.append(t)

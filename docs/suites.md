@@ -40,7 +40,6 @@ my-suite/
     staging.yaml
   api/
   mock/
-  services/
   tasks/
   tests/
   resources/
@@ -49,7 +48,7 @@ my-suite/
     data/
 ```
 
-The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`, `services/`, `tasks/`, `tests/`, and `resources/`. The `traffic/` folder is recognized when present but is not required.
+The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`, `tasks/`, `tests/`, and `resources/`. The `traffic/` folder is recognized when present but is not required. A `services/` folder is accepted but unused: a service is whatever `service.run(image=...)` starts.
 
 ## `suite.star`
 
@@ -57,7 +56,8 @@ The workspace loader assigns first-class meaning to `profiles/`, `api/`, `mock/`
 
 | Family | Variants |
 |--------|---------|
-| `service` | `service.run`, `service.mock`, `service.wiremock`, `service.prism`, `service.custom` |
+| `service` | `service.run` — starts a container from `image=` (required) and keeps it running |
+| `mock` | `mock.api` — a fake API answered from `api/` and `mock/`; no container |
 | `task` | `task.run` |
 | `test` | `test.run` |
 | `traffic` | `traffic.smoke`, `traffic.baseline`, `traffic.stress`, `traffic.spike`, `traffic.soak`, `traffic.scalability`, `traffic.step`, `traffic.wave`, `traffic.staged`, `traffic.constant_throughput`, `traffic.constant_pacing`, `traffic.open_model` |
@@ -70,17 +70,16 @@ Each node declares ordering with `after=[db, api]`.
 
 Bare `service(...)`, `task(...)`, `test(...)`, `traffic(...)`, `security(...)`, and `suite(...)` are not accepted. Use the explicit family variants.
 
-The only retained legacy bridge is `mock.serve`, which still maps to `service.mock` while older suites are being migrated.
 
 ## Example
 
 ```python
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "security")
+load("@babelsuite/runtime", "service", "mock", "task", "test", "traffic", "security")
 
-db          = service.run()
-stripe_mock = service.mock(after=[db])
+db          = service.run(image="postgres:16")
+stripe_mock = mock.api(after=[db])
 migrate     = task.run(file="migrate.py", image="python:3.12", after=[db])
-api         = service.run(after=[db, stripe_mock, migrate])
+api         = service.run(image="payments-api:latest", after=[db, stripe_mock, migrate])
 smoke       = test.run(file="go/smoke_test.go", image="golang:1.24", after=[api])
 ```
 
@@ -90,12 +89,12 @@ For the full runtime surface, see [Runtime Library Reference](runtime-library.md
 
 The public authoring model is intentionally aligned with the suite folder structure:
 
-- `service.run(...)` owns background infrastructure
-- `service.mock(...)` is backed by `api/` and `mock/`
+- `service.run(image=...)` starts background infrastructure — the `services/` folder is not read
+- `mock.api(...)` is backed by `api/` and `mock/`
 - `task.run(file="...")` reads from `tasks/`
 - `test.run(file="...")` reads from `tests/`
 - `traffic.*(plan="...")` reads from `traffic/` — only needed when using advanced plan files; omitting `plan=` runs a synthetic baseline without a file
-- `security.*` nodes derive their target from the APISIX sidecar provisioned alongside every `service.mock` node — no file or folder needed
+- `security.*` nodes derive their target from the APISIX sidecar provisioned alongside every `mock.api` node — no file or folder needed
 - `resources/` holds passive assets such as certificates and static datasets
 
 That keeps the suite package unambiguous: authors do not need to guess where a file belongs.

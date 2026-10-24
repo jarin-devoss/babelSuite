@@ -17,10 +17,6 @@ secretRefs:
     ref: kv/payment-suite/year-end-sftp-key
 
 services:
-  payment-gateway:
+  checkout-smoke:
     env:
       SETTLEMENT_BATCH_SIZE: "500"
-  fraud-worker-0:
-    env:
-      REPLAY_HISTORICAL_CHARGES: "true"
-      LEDGER_CLOSE_MODE: year-end

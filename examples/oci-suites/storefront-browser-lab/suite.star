@@ -1,4 +1,4 @@
-load("@babelsuite/runtime",  "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime",  "mock", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect")
 load("@babelsuite/redis",    "redis", "wait_ready", "flush_db")
 
@@ -13,7 +13,7 @@ cache = redis(after=[conn])
 cache_ready = wait_ready(cache)
 flush       = flush_db(cache, db=0, after=[cache_ready])
 
-catalog_mock = service.mock(name="catalog-api", after=[conn])
+catalog_mock = mock.api(name="catalog-api", after=[conn])
 
 seed = task.run(
     name  = "seed-products",
@@ -22,11 +22,9 @@ seed = task.run(
     after = [conn],
 )
 
-storefront = service.run(name="storefront", after=[seed, flush, catalog_mock])
-
 ready = log.info(
     "storefront ready — {{ healthy }}/{{ total }} healthy — BROWSERS={{ env.BROWSERS }}",
-    after = [storefront],
+    after = [seed, flush, catalog_mock],
 )
 
 # ── api smoke + soak ──────────────────────────────────────────────────────────

@@ -30,7 +30,7 @@ check_health = check
 	// suite.star — loads the module and calls the plugin through it
 	suiteStar := strings.TrimSpace(`
 load("@babelsuite/my-module", "check_health")
-api = service.run()
+api = service.run(image="alpine:3.19")
 health = check_health(name="health-check", target="http://api:8080/health", after=[api])
 `)
 
@@ -73,7 +73,7 @@ check_health = check
 
 	suiteStar := strings.TrimSpace(`
 load("@babelsuite/my-module", "check_health")
-api = service.run()
+api = service.run(image="alpine:3.19")
 `)
 
 	resolver := func(name string) (map[string]string, error) {

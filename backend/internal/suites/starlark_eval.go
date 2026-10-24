@@ -121,6 +121,7 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 	}
 	return starlark.StringDict{
 		"service":  runtimeModule["service"],
+		"mock":     runtimeModule["mock"],
 		"task":     runtimeModule["task"],
 		"test":     runtimeModule["test"],
 		"traffic":  runtimeModule["traffic"],
@@ -430,11 +431,19 @@ func (e mapDirEntry) Type() fs.FileMode          { return 0 }
 func (e mapDirEntry) Info() (fs.FileInfo, error) { return nil, fmt.Errorf("not supported") }
 
 func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
+	// service.run starts a container and keeps it running until the suite
+	// ends; mock.api is a fake API the sidecar answers, with no container.
 	service := &starlarkNamespace{
 		reg: reg,
 		methods: map[string]starlarkBuilderFunc{
-			"run":  buildNodeFunc(reg, "service.run"),
-			"mock": buildNodeFunc(reg, "service.mock"),
+			"run": buildServiceRunFunc(reg),
+		},
+		renamed: map[string]string{"mock": "mock.api"},
+	}
+	mock := &starlarkNamespace{
+		reg: reg,
+		methods: map[string]starlarkBuilderFunc{
+			"api": buildNodeFunc(reg, VariantMockAPI),
 		},
 	}
 	task := &starlarkNamespace{
@@ -501,6 +510,7 @@ func buildRuntimeModule(reg *starlarkRegistry) (starlark.StringDict, error) {
 
 	return starlark.StringDict{
 		"service":  service,
+		"mock":     mock,
 		"task":     task,
 		"test":     test,
 		"traffic":  traffic,
@@ -516,6 +526,29 @@ type starlarkBuilderFunc func(thread *starlark.Thread, fn *starlark.Builtin, arg
 type starlarkNamespace struct {
 	reg     *starlarkRegistry
 	methods map[string]starlarkBuilderFunc
+	// renamed maps a method that no longer exists to the call that replaced
+	// it, so a suite still using it fails saying what to write instead.
+	renamed map[string]string
+}
+
+// buildServiceRunFunc is service.run(...), which starts a container and keeps
+// it running, so it needs image=. Without one it used to start nothing and
+// report healthy anyway — a stand-in nobody could tell from a real service.
+func buildServiceRunFunc(reg *starlarkRegistry) starlarkBuilderFunc {
+	build := buildNodeFunc(reg, VariantServiceRun)
+	return func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		hasImage := false
+		for _, kv := range kwargs {
+			if key, _ := starlark.AsString(kv[0]); key == "image" {
+				image, _ := starlark.AsString(kv[1])
+				hasImage = strings.TrimSpace(image) != ""
+			}
+		}
+		if !hasImage {
+			return nil, fmt.Errorf("service.run needs image=: it starts that container and keeps it running — use mock.api for an API the suite only needs to fake")
+		}
+		return build(thread, fn, args, kwargs)
+	}
 }
 
 func (ns *starlarkNamespace) String() string        { return "babelsuite.Namespace" }
@@ -527,6 +560,9 @@ func (ns *starlarkNamespace) Hash() (uint32, error) { return 0, fmt.Errorf("name
 func (ns *starlarkNamespace) Attr(name string) (starlark.Value, error) {
 	fn, ok := ns.methods[name]
 	if !ok {
+		if replacement, renamed := ns.renamed[name]; renamed {
+			return nil, fmt.Errorf("%s was renamed to %s", name, replacement)
+		}
 		return nil, nil
 	}
 	return starlark.NewBuiltin(name, fn), nil

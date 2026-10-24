@@ -16,8 +16,3 @@ env:
 services:
   seed-products:
     devices: ["gpu"]
-  storefront:
-    env:
-      API_PORT: 3000
-      PROMO_MODE: enabled
-      DISCOUNT_CAP: "50"

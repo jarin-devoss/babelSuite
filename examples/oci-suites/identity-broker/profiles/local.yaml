@@ -13,10 +13,6 @@ secretRefs:
     ref: secrets://developer/jwt-signing-key
 
 services:
-  broker-api:
-    env:
-      API_PORT: 19000
-      TLS_ENABLED: "false"
   oidc-provider:
     env:
       RESPONSE_DELAY_MS: "50"

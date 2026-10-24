@@ -28,7 +28,7 @@ load("@babelsuite/kafka",    "kafka", "create_topic")
 load("@babelsuite/postgres", "pg",    "connect")
 ```
 
-The workspace loader resolves the `@babelsuite/kafka` path against your configured registries, pulls the OCI artifact, and makes the exported symbols available in your suite file. The helpers return topology nodes — the same kind that `service.run()` or `task.run()` return — so you wire them into your graph with `after=[]` like anything else.
+The workspace loader resolves the `@babelsuite/kafka` path against your configured registries, pulls the OCI artifact, and makes the exported symbols available in your suite file. The helpers return topology nodes — the same kind that `service.run(...)` or `task.run(...)` return — so you wire them into your graph with `after=[]` like anything else.
 
 ---
 
@@ -84,7 +84,7 @@ broker         = kafka()
 orders_topic   = create_topic(broker, "orders",   partitions=3)
 payments_topic = create_topic(broker, "payments", partitions=1)
 
-worker = service.run(after=[orders_topic, payments_topic])
+worker = service.run(image="orders-worker:latest", after=[orders_topic, payments_topic])
 ```
 
 The worker only starts once both topics exist. BabelSuite runs `kafka()`, then the two `create_topic` calls in parallel (they don't depend on each other), then the worker.
@@ -138,10 +138,10 @@ seed = insert(
     after=[conn],
 )
 
-app = service.run(after=[seed])
+app = service.run(image="merchant-api:latest", after=[seed])
 ```
 
-The app only starts after the seed data is in place. The `pg()` → `connect()` → `insert()` chain runs in strict order; `service.run()` waits on the final insert node.
+The app only starts after the seed data is in place. The `pg()` → `connect()` → `insert()` chain runs in strict order; `service.run(...)` waits on the final insert node.
 
 ---
 
@@ -191,7 +191,7 @@ seed = set_keys(
     after=[flush],
 )
 
-app = service.run(env={"REDIS_URL": cache["url"]}, after=[seed])
+app = service.run(image="feature-api:latest", env={"REDIS_URL": cache["url"]}, after=[seed])
 ```
 
 ---
@@ -240,7 +240,7 @@ seed = insert_documents(
     after=[idx],
 )
 
-app = service.run(env={"MONGO_URI": db["uri"]}, after=[seed])
+app = service.run(image="catalog-api:latest", env={"MONGO_URI": db["uri"]}, after=[seed])
 ```
 
 ---
@@ -276,7 +276,7 @@ playwright/
 load("@babelsuite/playwright", "browser_test", "a11y_audit")
 load("@babelsuite/runtime",   "service")
 
-ui = service.run(name="storefront-ui")
+ui = service.run(name="storefront-ui", image="storefront-ui:latest")
 
 checkout_nodes = browser_test(
     spec     = "checkout.spec.ts",

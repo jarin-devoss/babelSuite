@@ -12,8 +12,3 @@ secretRefs:
     provider: Local Secret
     ref: secrets://ci/jwt-signing-key
 
-services:
-  broker-api:
-    env:
-      API_PORT: 9000
-      TLS_ENABLED: "false"

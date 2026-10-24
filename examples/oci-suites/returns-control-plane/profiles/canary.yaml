@@ -10,9 +10,3 @@ env:
   REFUND_MODES: instant,delayed,manual
   ENABLE_FRAUD_SCREENING: "false"
 
-services:
-  returns-api:
-    env:
-      API_PORT: 8085
-      CANARY_RULES: "true"
-      ESCALATION_MODE: manual-review

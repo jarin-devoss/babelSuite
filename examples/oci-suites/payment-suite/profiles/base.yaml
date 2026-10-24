@@ -13,7 +13,7 @@ secretRefs:
     ref: secrets://developer/jwt-private-key
 
 services:
-  payment-gateway:
+  checkout-smoke:
     env:
       POSTGRES_URL: postgres://test:test@db:5432/payments
   stripe-mock:

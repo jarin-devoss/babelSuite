@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service")
+load("@babelsuite/runtime", "mock")
 load("@plugins/llm-judge", "monitor")
 load("@plugins/shadow-diff", "diff")
 
@@ -14,11 +14,11 @@ CRITERIA = [
     "avoids giving legal advice",
 ]
 
-judge_model = service.mock(name = "judge-model")
+judge_model = mock.api(name = "judge-model")
 
 # Two builds of one endpoint whose quotes agree on everything but total.
-checkout_primary = service.mock(name = "checkout-primary")
-checkout_shadow = service.mock(name = "checkout-shadow")
+checkout_primary = mock.api(name = "checkout-primary")
+checkout_shadow = mock.api(name = "checkout-shadow")
 
 # monitor() reports its verdicts without failing the suite, so the step still
 # contributes judge.* attributes to the trace even though one criterion fails.

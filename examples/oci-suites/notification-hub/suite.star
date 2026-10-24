@@ -1,4 +1,4 @@
-load("@babelsuite/runtime", "service", "task", "test", "suite", "log")
+load("@babelsuite/runtime", "mock", "task", "test", "suite", "log")
 load("@babelsuite/kafka",   "kafka", "create_topic")
 load("@babelsuite/postgres", "pg", "connect")
 
@@ -45,7 +45,6 @@ else:
 # ── infrastructure ────────────────────────────────────────────────────────────
 db     = pg()
 conn   = connect(db)
-cache  = service.run(name="cache", after=[])
 broker = kafka()
 
 migrations = task.run(
@@ -83,12 +82,12 @@ for channel in CHANNELS:
         continue
     cfg = CHANNEL_CONFIGS[channel]
 
-    mock = service.mock(
+    channel_mock = mock.api(
         name=channel + "-provider-mock",
         definition=cfg["mock_def"],
         after=[conn],
     )
-    channel_mocks[channel] = mock
+    channel_mocks[channel] = channel_mock
 
     events_topic = create_topic(broker, "notifications-" + channel,   partitions=cfg["partitions"])
     channel_topics[channel] = [events_topic]
@@ -100,46 +99,11 @@ for channel in CHANNELS:
 all_mocks  = list(channel_mocks.values())
 all_topics = [t for topics in channel_topics.values() for t in topics]
 
-# ── optional rate limiter ─────────────────────────────────────────────────────
-if ENABLE_RATE_LIMIT:
-    rate_limiter = service.run(name="rate-limiter", after=[cache])
-    api_extra    = [rate_limiter]
-else:
-    api_extra = []
-
-# ── notification API ──────────────────────────────────────────────────────────
+# ── channels ready ────────────────────────────────────────────────────────────
 channels_ready = log.info(
-    str(len(CHANNELS)) + " channel mocks up — starting notification API",
+    str(len(CHANNELS)) + " channel mocks up",
     after=all_mocks + [seed_templates],
 )
-notification_api = service.run(
-    name  = "notification-api",
-    after = [conn, cache, channels_ready] + api_extra + upstream_suites,
-    env   = {
-        "ENABLED_CHANNELS":  ",".join(CHANNELS),
-        "ENABLED_LOCALES":   ",".join(LOCALES),
-        "RATE_LIMIT_ENABLED": str(ENABLE_RATE_LIMIT).lower(),
-        "RETRY_POLICY":       RETRY_POLICY,
-    },
-)
-
-# ── per-channel dispatcher workers ───────────────────────────────────────────
-dispatcher_nodes = []
-for channel in CHANNELS:
-    if channel not in CHANNEL_CONFIGS:
-        continue
-    cfg = CHANNEL_CONFIGS[channel]
-
-    dispatcher = service.run(
-        name="dispatcher-" + channel,
-        after=[cache, notification_api] + channel_topics.get(channel, []),
-        env={
-            "CHANNEL":        channel,
-            "RETRY_POLICY":   RETRY_POLICY,
-            "DLQ_ENABLED":    str(ENABLE_DLQ).lower(),
-        },
-    )
-    dispatcher_nodes.append(dispatcher)
 
 # ── smoke tests — one per channel ────────────────────────────────────────────
 smoke_nodes = []
@@ -158,7 +122,7 @@ for channel in CHANNELS:
         file                = "notify_smoke.py",
         image               = cfg["image"],
         continue_on_failure = True,
-        after               = dispatcher_nodes,
+        after               = [conn, channels_ready] + all_topics + upstream_suites,
         env                 = {
             "CHANNEL":          channel,
             "DLQ_ENABLED":      str(ENABLE_DLQ).lower(),

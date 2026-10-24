@@ -9,8 +9,3 @@ env:
   LOG_LEVEL: warn
   BROWSERS: chromium
 
-services:
-  storefront:
-    env:
-      API_PORT: 3000
-      FEATURE_FLAGS: ""

@@ -9,7 +9,7 @@ func TestGetReturnsClonedSuite(t *testing.T) {
 	_, err := service.Register(RegisterRequest{
 		ID:        "clone-test",
 		Title:     "Clone Test",
-		SuiteStar: `api = service.run(name="api")`,
+		SuiteStar: `api = service.run(image="alpine:3.19", name="api")`,
 	})
 	if err != nil {
 		t.Fatalf("register: %v", err)
@@ -33,7 +33,7 @@ func TestGetReturnsClonedSuite(t *testing.T) {
 func TestListReturnsSortedSuites(t *testing.T) {
 	service := &Service{suites: map[string]Definition{}}
 	for _, id := range []string{"zebra-suite", "alpha-suite", "mango-suite"} {
-		if _, err := service.Register(RegisterRequest{ID: id, SuiteStar: `api = service.run(name="api")`}); err != nil {
+		if _, err := service.Register(RegisterRequest{ID: id, SuiteStar: `api = service.run(image="alpine:3.19", name="api")`}); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}

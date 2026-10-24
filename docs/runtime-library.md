@@ -25,7 +25,7 @@ if FRAUD_STRATEGY == "shadow":            # conditionals apply
     log.warn("shadow mode")
 
 def fan_out(prefix, count):               # functions are available
-    return [service.run(name=prefix + str(i)) for i in range(count)]
+    return [service.run(name=prefix + str(i), image="worker:latest") for i in range(count)]
 ```
 
 A node is registered when a `service.*`, `task.*`, `test.*`, `traffic.*`,
@@ -93,13 +93,13 @@ Long-lived background infrastructure in the suite graph.
 | `service.run` | `service` |
 
 ```python
-db  = service.run()
-api = service.run(after=[db])
+db  = service.run(image="postgres:16")
+api = service.run(image="payments-api:latest", after=[db])
 ```
 
 Use `service.run` for first-party background dependencies such as databases, APIs, caches, and workers.
 
-When `image=` is provided, `service.run` starts a real Docker container and runs it **detached** — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends.
+`image=` is required: `service.run` starts that container and runs it **detached** — the node signals healthy as soon as the container is up, then keeps it running in the background while downstream nodes proceed. The container is torn down when the execution ends. A `service.run` with no image is an error; to fake an API rather than run one, use [`mock.api`](#mockapi).
 
 ```python
 cache = service.run(image="redis:7-alpine", after=[db])
@@ -114,27 +114,24 @@ worker = service.run(
 
 `service(...)` is intentionally rejected. Use one of the explicit `service.*` forms.
 
-### `service.mock`
+### `mock.api`
 
 Native suite-defined mock surfaces.
 
 | Call | Kind |
 |------|------|
-| `service.mock` | `mock` |
+| `mock.api` | `mock` |
 
 ```python
-orders = service.mock(after=[api])
+orders = mock.api(after=[api])
 ```
 
-`service.mock` is the runtime entrypoint for mocks backed by the suite's `api/` and `mock/` folders.
+`mock.api` is the runtime entrypoint for mocks backed by the suite's `api/` and `mock/` folders. It starts no container: the suite's APISIX sidecar answers it.
 
 | Argument | Used for |
 |----------|---------|
 | `harden=True` | opts the APISIX sidecar into gateway-provided defenses — see [Hardening and `security.*` checks](#hardening-and-security-checks) below |
 
-Compatibility aliases still parse:
-
-- `mock.serve`
 
 ### `task`
 
@@ -311,7 +308,7 @@ HTTP-layer security scanning via the APISIX sidecar — no extra containers requ
 | `security.cors` | `security` |
 
 ```python
-api   = service.mock(name="api")
+api   = mock.api(name="api")
 probe = security.probe(name="probe", after=[api],
     exports=[{"path": "/findings/probe.json", "on": "always"}])
 fuzz  = security.fuzz(name="fuzz", technique="sqli", after=[probe],
@@ -344,7 +341,7 @@ Arguments specific to `security.*` nodes:
 | `duration=<float>` | run duration in seconds for `security.flood` |
 | `expect_throttle=True` | assert HTTP 429 is returned under flood conditions |
 
-The APISIX sidecar is provisioned automatically alongside every `service.mock` node, so `security.*` nodes derive their gateway URL from the mock's sidecar without a separate `target=` argument.
+The APISIX sidecar is provisioned automatically alongside every `mock.api` node, so `security.*` nodes derive their gateway URL from the mock's sidecar without a separate `target=` argument.
 
 Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronous JSON findings report: `{"total":N,"passed":N,"failed":N,"findings":[...]}`.
 
@@ -352,7 +349,7 @@ Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronou
 
 By default the gateway adds nothing on top of your backend: `security.headers` and `security.flood` observe whatever your real API actually returns, so a backend that's genuinely missing security headers or rate-limiting will genuinely fail those checks.
 
-Pass `harden=True` to `service.mock(...)` to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:
+Pass `harden=True` to `mock.api(...)` to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:
 
 - a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s
 - a synthetic rate-limited route at `/api/v1/resource` (HTTP 429 after 20 requests/second) for `security.flood` to validate against when the suite has no rate-limited surface of its own
@@ -382,7 +379,7 @@ Emits a structured log line at a specific point in the execution graph — no co
 
 ```python
 checkpoint = log.info("schema migrated — starting API warmup", after=[migrate])
-api = service.run(after=[checkpoint])
+api = service.run(image="payments-api:latest", after=[checkpoint])
 ```
 
 The message can be passed as a positional argument or via `message=`:
@@ -395,7 +392,7 @@ log.warn(message="feature flag disabled — skipping canary step", after=[db])
 
 ```python
 def pg(name="db", ...):
-    cluster = service.run(name=name, ...)
+    cluster = service.run(name=name, image=image, ...)
     ready   = log.info("postgres cluster ready at " + name + ":5432", after=[cluster])
     return {"service": cluster, "ready": ready, "name": name}
 ```
@@ -448,7 +445,7 @@ User-registered Lua plugins. Plugins are not part of the built-in runtime librar
 ```python
 load("@plugins/spice-sim", "transient")
 
-spice_mock = service.mock(name="spice-service")
+spice_mock = mock.api(name="spice-service")
 rc_filter  = transient(name="rc-filter", netlist="...", probe_node="2", after=[spice_mock])
 ```
 
@@ -707,7 +704,7 @@ network:
   mode: execution   # isolated bridge — containers reach each other by node name
 ```
 
-Every container in the execution joins a shared Docker bridge network, and the node's `name` becomes its DNS hostname — a `service.run(name="redis")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required.
+Every container in the execution joins a shared Docker bridge network, and the node's `name` becomes its DNS hostname — a `service.run(name="redis", image="redis:7-alpine")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required.
 
 !!! warning "`network.mode` is read but not yet acted on"
     The Docker backend creates and joins the per-execution network
@@ -761,7 +758,7 @@ than silently reading another suite's database.
 - quoted `after=["db"]` still parses, but identifier references are the preferred style
 - `task.run(file="...")` resolves from `tasks/`; `task.run(commands=[...])` is the inline alternative — both require `image=`
 - `test.run(file="...")` resolves from `tests/`; `test.run(commands=[...])` is the inline alternative — both require `image=`
-- `service.run(image="...")` starts a detached container; `commands=` is accepted here too
+- `service.run(image="...")` starts a detached container — `image=` is required; `commands=` is accepted here too
 - `traffic.*(plan="...")` resolves from `traffic/` — only applies when `plan=` is specified
 - `ref=` is required for `suite.run`; the parser errors if it is missing
 - duplicate `after` entries are deduplicated automatically

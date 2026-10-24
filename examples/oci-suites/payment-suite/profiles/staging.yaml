@@ -4,7 +4,7 @@ description: Production-like topology with execution network and Vault secrets.
 default: false
 
 # network.mode: execution — containers reach each other by name
-# (payment-gateway, db, stripe-mock all on the same bridge)
+# (db, stripe-mock and the test steps all on the same bridge)
 network:
   mode: execution
 
@@ -20,10 +20,7 @@ secretRefs:
     ref: kv/payment-suite/staging-db-password
 
 services:
-  payment-gateway:
+  checkout-smoke:
     env:
       API_PORT: 8080
       ROUTING_MODE: staging
-  fraud-worker-0:
-    env:
-      DECISION_MODE: strict

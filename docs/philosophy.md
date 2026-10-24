@@ -19,7 +19,7 @@ A `suite.star` file describes a topology graph, not a script. You name nodes and
 ```python
 db      = pg()
 migrate = task.run(file="migrate.py", image="python:3.12", after=[db])
-api     = service.run(after=[db, migrate])
+api     = service.run(image="payments-api:latest", after=[db, migrate])
 smoke   = test.run(file="smoke_test.go", image="golang:1.24", after=[api])
 ```
 
@@ -37,7 +37,7 @@ BabelSuite avoids this through the APISIX sidecar model:
 
 The sidecar is already there. The checks are Lua running inside OpenResty. The backend just POSTs a config and reads a JSON findings report back. No extra image pull. No extra container lifecycle.
 
-The only steps that need a container are `task.run` and `test.run` — because those run user-supplied scripts that BabelSuite cannot anticipate. Everything else runs in the sidecar or in the control plane itself.
+The steps that need a container are the ones running your own code: `service.run` starts your services from their `image=`, and `task.run` and `test.run` run scripts BabelSuite cannot anticipate. Everything else runs in the sidecar or in the control plane itself.
 
 ## APISIX as the Execution Surface
 
@@ -46,11 +46,12 @@ APISIX serves as the gateway and execution surface for all built-in runtime chec
 ```
 suite.star topology
       │
-      ├── service.mock ──► BabelSuite mocking engine  (internal, no container)
+      ├── mock.api ──────► BabelSuite mocking engine  (internal, no container)
       │        │
       │        └── APISIX sidecar ──► traffic.* Lua plugin  (no extra container)
       │                          └──► security.* Lua plugin (no extra container)
       │
+      ├── service.run ───► Docker container  (your service, from image=)
       ├── task.run ──────► Docker container  (user script — container needed)
       └── test.run ──────► Docker container  (user script — container needed)
 ```

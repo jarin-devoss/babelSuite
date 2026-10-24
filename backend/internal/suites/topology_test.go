@@ -16,9 +16,9 @@ func TestResolveTopologyExpandsNestedSuiteDependencies(t *testing.T) {
 		Repository: "localhost:5000/core/auth-suite",
 		Version:    "workspace",
 		SuiteStar: strings.Join([]string{
-			`db = service.run()`,
-			`stub = service.mock(after=[db])`,
-			`api = service.run(after=[stub])`,
+			`db = service.run(image="alpine:3.19")`,
+			`stub = mock.api(after=[db])`,
+			`api = service.run(image="alpine:3.19", after=[stub])`,
 		}, "\n"),
 		Profiles: []ProfileOption{
 			{FileName: "local.yaml", Default: true},
@@ -46,7 +46,7 @@ services:
 		Repository: "localhost:5000/core/parent-suite",
 		Version:    "workspace",
 		SuiteStar: strings.Join([]string{
-			`global_db = service.run(id="global-db")`,
+			`global_db = service.run(image="alpine:3.19", id="global-db")`,
 			`auth = suite.run(ref="auth-module", after=[global_db])`,
 			`smoke = test.run(file="smoke_test.py", image="python:3.12", after=[auth])`,
 		}, "\n"),
@@ -133,7 +133,7 @@ func TestResolveTopologyDefaultsNodeIDToAssignmentAndSupportsIdentifierDependenc
 	suite := Definition{
 		ID:        "implicit-suite",
 		Title:     "Implicit Suite",
-		SuiteStar: strings.Join([]string{`db = service.run()`, `seed_data = task.run(file="seed.sh", image="bash:5.2", after=[db])`, `smoke_test = test.run(file="smoke_test.py", image="python:3.12", after=[seed_data])`}, "\n"),
+		SuiteStar: strings.Join([]string{`db = service.run(image="alpine:3.19")`, `seed_data = task.run(file="seed.sh", image="bash:5.2", after=[db])`, `smoke_test = test.run(file="smoke_test.py", image="python:3.12", after=[seed_data])`}, "\n"),
 	}
 
 	topology, err := ResolveTopology(suite, []Definition{suite})
@@ -224,7 +224,7 @@ func TestResolveTopologyParsesFailureFlowControls(t *testing.T) {
 		ID:    "failure-flow-suite",
 		Title: "Failure Flow Suite",
 		SuiteStar: strings.Join([]string{
-			`billing_mock = service.mock()`,
+			`billing_mock = mock.api()`,
 			`lint = test.run(file="lint.sh", image="bash:5.2", expect_logs="THIS STRING DOES NOT EXIST", continue_on_failure=True, reset_mocks=[billing_mock])`,
 			`rollback = task.run(file="rollback.sh", image="bash:5.2", on_failure=[lint])`,
 		}, "\n"),
@@ -346,7 +346,7 @@ func TestResolveTopologyRejectsLatestDependencyTag(t *testing.T) {
 		Title:      "Auth Suite",
 		Repository: "localhost:5000/core/auth-suite",
 		Version:    "workspace",
-		SuiteStar:  `db = service.run(name="db")`,
+		SuiteStar:  `db = service.run(image="alpine:3.19", name="db")`,
 	}
 
 	parent := Definition{
@@ -375,7 +375,7 @@ func TestResolveTopologyAcceptsLockedDigestWithoutManifestVersion(t *testing.T) 
 		Title:      "Auth Suite",
 		Repository: "localhost:5000/core/auth-suite",
 		Version:    "workspace",
-		SuiteStar:  `db = service.run(name="db")`,
+		SuiteStar:  `db = service.run(image="alpine:3.19", name="db")`,
 	}
 
 	parent := Definition{
@@ -434,7 +434,7 @@ func TestResolveTopologyParsesLogNodes(t *testing.T) {
 		ID:    "log-suite",
 		Title: "Log Suite",
 		SuiteStar: strings.Join([]string{
-			`db     = service.run()`,
+			`db     = service.run(image="alpine:3.19")`,
 			`notice = log.info("database ready", after=[db])`,
 			`smoker = test.run(file="smoke.py", image="python:3.12", after=[notice])`,
 		}, "\n"),

@@ -108,7 +108,7 @@ func TestBuildGatewayConfigAlwaysIncludesTrafficCannon(t *testing.T) {
 	// Even with no mock metadata, every suite gets a base gateway config
 	// with the traffic cannon sidecar route so load tests and security scans work.
 	files := map[string]string{
-		"suite.star":          `api = service.run(name="api")`,
+		"suite.star":          `api = service.run(image="alpine:3.19", name="api")`,
 		"profiles/local.yaml": "name: Local\ndefault: true\n",
 	}
 	result := buildGatewayConfig("no-meta-suite", files, nil)

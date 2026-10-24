@@ -1,12 +1,10 @@
-load("@babelsuite/runtime", "service", "task", "test", "traffic", "log")
+load("@babelsuite/runtime", "mock", "task", "test", "traffic", "log")
 load("@babelsuite/postgres", "pg", "connect")
 
 # ── environment knobs ────────────────────────────────────────────────────────
 PROVIDERS         = env.get("AUTH_PROVIDERS", "oidc,saml,ldap").split(",")
 REALM_COUNT       = int(env.get("REALM_COUNT", "3"))
 ENABLE_MFA        = env.get("ENABLE_MFA", "true") == "true"
-ENABLE_CANARY     = env.get("ENABLE_CANARY", "false") == "true"
-SESSION_BACKENDS  = env.get("SESSION_BACKENDS", "jwt,cookie").split(",")
 
 PROVIDER_IMAGES = {
     "oidc": "python:3.12",
@@ -44,59 +42,28 @@ provider_mocks = {}
 for provider in PROVIDERS:
     if provider not in PROVIDER_MOCK_FILES:
         continue
-    mock = service.mock(
+    provider_mock = mock.api(
         name=provider + "-mock",
         definition=PROVIDER_MOCK_FILES[provider],
         after=[conn],
     )
-    provider_mocks[provider] = mock
+    provider_mocks[provider] = provider_mock
 
-# ── optional MFA service ─────────────────────────────────────────────────────
+# ── optional MFA mock ────────────────────────────────────────────────────────
 if ENABLE_MFA:
-    totp_service  = service.run(name="totp-service",  after=list(provider_mocks.values()) + [conn])
-    webauthn_stub = service.mock(name="webauthn-stub", after=[conn])
-    mfa_deps      = [totp_service, webauthn_stub]
+    webauthn_stub = mock.api(name="webauthn-stub", after=[conn])
+    mfa_deps      = [webauthn_stub]
 else:
     mfa_deps = []
 
-# ── broker API ───────────────────────────────────────────────────────────────
 providers_ready = log.info("provider mocks up — seeded " + str(REALM_COUNT) + " realms", after=list(provider_mocks.values()) + [seed_realms])
-broker_api = service.run(
-    name  = "broker-api",
-    after = [providers_ready] + mfa_deps,
-    env   = {"ENABLED_PROVIDERS": ",".join(PROVIDERS), "MFA_ENABLED": str(ENABLE_MFA).lower()},
-)
-
-# ── session workers (one per backend type) ───────────────────────────────────
-session_workers = []
-for backend in SESSION_BACKENDS:
-    worker = service.run(
-        name="session-worker-" + backend,
-        after=[broker_api],
-        env={"SESSION_BACKEND": backend},
-    )
-    session_workers.append(worker)
-
-# ── canary broker (optional) ─────────────────────────────────────────────────
-if ENABLE_CANARY:
-    canary_broker = service.run(
-        name="broker-api-canary",
-        after=list(provider_mocks.values()) + [seed_realms],
-        env={"ENABLED_PROVIDERS": ",".join(PROVIDERS), "FEATURE_FLAGS": "token_binding=true"},
-    )
-    api_targets = [broker_api, canary_broker]
-else:
-    api_targets = [broker_api]
 
 # ── login traffic ────────────────────────────────────────────────────────────
-traffic_nodes = []
-for target in api_targets:
-    t = traffic.baseline(
-        name="login-baseline-" + target.name,
-        target="http://" + target.name + ":9000",
-        after=session_workers + [target],
-    )
-    traffic_nodes.append(t)
+traffic_nodes = [traffic.baseline(
+    name="login-baseline",
+    target="http://broker-api:9000",
+    after=[providers_ready] + mfa_deps,
+)]
 
 # ── smoke tests — one per provider ───────────────────────────────────────────
 smoke_nodes = []
