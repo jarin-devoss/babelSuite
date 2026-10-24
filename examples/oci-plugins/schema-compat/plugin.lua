@@ -64,6 +64,96 @@ local function run_enforce(cfg)
     return check_registry(registry_url, subject, new_schema, "FULL", severity)
 end
 
+local function registry_call(method, url, body)
+    local httpc = http.new()
+    httpc:set_timeout(10000)
+    local res, err = httpc:request_uri(url, {
+        method  = method,
+        body    = body,
+        headers = {["Content-Type"] = "application/vnd.schemaregistry.v1+json"},
+    })
+    if err then return nil, "registry request failed: " .. err end
+    return res, nil
+end
+
+-- check_registered: asks the registry whether new_schema is already a version
+-- of the subject. Use it after the step that publishes a schema, to prove the
+-- schema the service will look up by id is really there.
+local function run_check_registered(cfg)
+    local registry_url = (cfg.registry_url or ""):gsub("/$", "")
+    local subject      = cfg.subject or ""
+    local severity     = cfg.severity or "critical"
+
+    local res, err = registry_call("POST", registry_url .. "/subjects/" .. subject,
+        json.encode({schema = cfg.new_schema or "", schemaType = "AVRO"}))
+    if err then return nil, err end
+
+    local findings = {}
+    local ok, data = pcall(json.decode, res.body or "{}")
+    if res.status == 404 then
+        table.insert(findings, {
+            label    = "schema.not_registered",
+            severity = severity,
+            detail   = "subject " .. subject .. " has no version matching this schema: " .. (res.body or ""),
+        })
+    elseif res.status ~= 200 or not ok then
+        table.insert(findings, {
+            label    = "schema.registry_error",
+            severity = severity,
+            detail   = "registry returned HTTP " .. tostring(res.status) .. ": " .. (res.body or ""),
+        })
+    end
+
+    local version = ok and type(data) == "table" and data.version or nil
+    local id      = ok and type(data) == "table" and data.id or nil
+    return {passed = #findings == 0, findings = as_array(findings),
+            version = version, schema_id = id,
+            summary = string.format("check_registered: subject=%s version=%s id=%s",
+                subject, tostring(version or "none"), tostring(id or "none"))}, nil
+end
+
+-- check_mode: reads the compatibility level the registry enforces for the
+-- subject, falling back to the global level when the subject has none. A
+-- subject quietly set to NONE accepts any change, which makes every
+-- check_compat against it meaningless.
+local function run_check_mode(cfg)
+    local registry_url = (cfg.registry_url or ""):gsub("/$", "")
+    local subject      = cfg.subject or ""
+    local expected     = cfg.mode or "BACKWARD"
+    local severity     = cfg.severity or "critical"
+
+    local level, source = nil, "subject"
+    local res, err = registry_call("GET", registry_url .. "/config/" .. subject)
+    if err then return nil, err end
+    if res.status == 404 then
+        source = "global"
+        res, err = registry_call("GET", registry_url .. "/config")
+        if err then return nil, err end
+    end
+    local ok, data = pcall(json.decode, res.body or "{}")
+    if res.status == 200 and ok and type(data) == "table" then
+        level = data.compatibilityLevel or data.compatibility
+    end
+
+    local findings = {}
+    if not level then
+        table.insert(findings, {
+            label    = "schema.registry_error",
+            severity = severity,
+            detail   = "could not read the compatibility level: HTTP " .. tostring(res.status) .. ": " .. (res.body or ""),
+        })
+    elseif level ~= expected then
+        table.insert(findings, {
+            label    = "schema.mode_mismatch",
+            severity = severity,
+            detail   = string.format("subject %s enforces %s (%s setting), expected %s",
+                subject, level, source, expected),
+        })
+    end
+    return {passed = #findings == 0, findings = as_array(findings),
+            mode = level, mode_source = source}, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -75,15 +165,25 @@ function _M.access(conf, ctx)
     local op  = payload.op or "check_compat"
     local cfg = payload.config or {}
 
-    if (cfg.registry_url or "") == "" or (cfg.subject or "") == "" or (cfg.new_schema or "") == "" then
+    if (cfg.registry_url or "") == "" or (cfg.subject or "") == "" then
         ngx.status = 400
-        ngx.say(json.encode({error = "registry_url, subject, and new_schema are required"}))
+        ngx.say(json.encode({error = "registry_url and subject are required"}))
+        return ngx.exit(400)
+    end
+    -- check_mode reads the registry's settings; every other op sends a schema.
+    if op ~= "check_mode" and (cfg.new_schema or "") == "" then
+        ngx.status = 400
+        ngx.say(json.encode({error = "new_schema is required for " .. op}))
         return ngx.exit(400)
     end
 
     local result, err
     if op == "enforce" then
         result, err = run_enforce(cfg)
+    elseif op == "check_registered" then
+        result, err = run_check_registered(cfg)
+    elseif op == "check_mode" then
+        result, err = run_check_mode(cfg)
     else
         result, err = run_check_compat(cfg)
     end

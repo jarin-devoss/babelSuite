@@ -101,6 +101,95 @@ local function run_check(cfg)
         cfg.ignore_fields or {}, tonumber(cfg.threshold) or 0, "warn")
 end
 
+-- compare_paths: primary and shadow are base URLs and each path is diffed on
+-- both. A migration is rarely one endpoint, and one step per path would bury
+-- the pattern of which routes disagree.
+local function run_compare_paths(cfg)
+    local base_p   = (cfg.primary or ""):gsub("/$", "")
+    local base_s   = (cfg.shadow or ""):gsub("/$", "")
+    local ignored  = cfg.ignore_fields or {}
+    local severity = cfg.severity or "warn"
+    local findings, differing = {}, 0
+
+    for _, path in ipairs(cfg.paths or {}) do
+        local result, err = compare(base_p .. path, base_s .. path, ignored, math.huge, severity)
+        if err then return nil, path .. ": " .. err end
+        -- as_array hands back cjson's empty_array sentinel, not a table, when
+        -- the path matched.
+        local diffs = type(result.findings) == "table" and result.findings or {}
+        if #diffs > 0 then differing = differing + 1 end
+        for _, f in ipairs(diffs) do
+            table.insert(findings, {label = f.label, severity = f.severity, detail = path .. " — " .. f.detail})
+        end
+    end
+
+    local threshold = tonumber(cfg.threshold) or 0
+    return {
+        passed   = #findings <= threshold,
+        findings = as_array(findings),
+        summary  = string.format("compare_paths: %d of %d paths differ, %d differences",
+            differing, #(cfg.paths or {}), #findings),
+        attributes = {
+            ["shadow.diffs"]     = tostring(#findings),
+            ["shadow.threshold"] = tostring(threshold),
+            ["shadow.paths"]     = tostring(#(cfg.paths or {})),
+            ["shadow.differing"] = tostring(differing),
+        },
+    }, nil
+end
+
+local function median_latency_ms(url, samples)
+    local times = {}
+    for _ = 1, samples do
+        local httpc = http.new()
+        httpc:set_timeout(10000)
+        ngx.update_time()
+        local started = ngx.now()
+        local _, err = httpc:request_uri(url, {method = "GET"})
+        if err then return nil, err end
+        ngx.update_time()
+        times[#times + 1] = (ngx.now() - started) * 1000
+    end
+    table.sort(times)
+    return times[math.ceil(#times / 2)], nil
+end
+
+-- compare_latency: a shadow that returns identical payloads twice as slowly is
+-- not ready to take traffic. Medians, not means, so one cold request does not
+-- decide the step.
+local function run_compare_latency(cfg)
+    local samples   = tonumber(cfg.samples) or 10
+    local max_ratio = tonumber(cfg.max_ratio) or 1.5
+    local severity  = cfg.severity or "warn"
+
+    local primary_ms, err = median_latency_ms(cfg.primary or "", samples)
+    if err then return nil, "primary request failed: " .. err end
+    local shadow_ms
+    shadow_ms, err = median_latency_ms(cfg.shadow or "", samples)
+    if err then return nil, "shadow request failed: " .. err end
+
+    -- Below a millisecond the ratio is clock noise, not a regression.
+    local ratio = shadow_ms / math.max(primary_ms, 1)
+    local findings = {}
+    if ratio > max_ratio then
+        table.insert(findings, {
+            label    = "shadow.latency_regression",
+            severity = severity,
+            detail   = string.format("shadow median %.1fms is %.2fx primary median %.1fms (max %.2fx)",
+                shadow_ms, ratio, primary_ms, max_ratio),
+        })
+    end
+    return {
+        passed   = #findings == 0,
+        findings = as_array(findings),
+        attributes = {
+            ["shadow.primary_ms"]    = string.format("%.1f", primary_ms),
+            ["shadow.shadow_ms"]     = string.format("%.1f", shadow_ms),
+            ["shadow.latency_ratio"] = string.format("%.2f", ratio),
+        },
+    }, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -119,6 +208,10 @@ function _M.access(conf, ctx)
     local result, err
     if op == "check" then
         result, err = run_check(cfg)
+    elseif op == "compare_paths" then
+        result, err = run_compare_paths(cfg)
+    elseif op == "compare_latency" then
+        result, err = run_compare_latency(cfg)
     else
         result, err = run_diff(cfg)
     end

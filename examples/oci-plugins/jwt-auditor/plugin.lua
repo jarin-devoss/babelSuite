@@ -206,6 +206,103 @@ local function run_audit_endpoint(cfg)
     }, nil
 end
 
+-- check_claims: fetches a token and checks its claims against expected values —
+-- the issuer and audience it must carry, and scopes it must not. A token that
+-- is structurally sound can still name the wrong issuer or grant a broader
+-- scope than the service should ever hand out.
+local function run_check_claims(cfg)
+    local findings = {}
+    local severity = cfg.severity or "high"
+
+    local token, err = fetch_token(cfg.auth_url or "", cfg.username or "", cfg.password or "", cfg.token_field)
+    if err then return nil, err end
+    local jwt_data, jerr = decode_jwt(token)
+    if jerr then return nil, jerr end
+    local pld = jwt_data.payload
+
+    if cfg.expected_issuer and cfg.expected_issuer ~= "" and pld.iss ~= cfg.expected_issuer then
+        table.insert(findings, {
+            label    = "jwt.claims.issuer_mismatch",
+            severity = severity,
+            detail   = string.format("iss is '%s', expected '%s'", tostring(pld.iss), cfg.expected_issuer),
+        })
+    end
+
+    if cfg.expected_audience and cfg.expected_audience ~= "" then
+        -- aud is a string or a list of strings.
+        local aud, matched = pld.aud, false
+        if type(aud) == "table" then
+            for _, a in ipairs(aud) do if a == cfg.expected_audience then matched = true; break end end
+        elseif aud == cfg.expected_audience then
+            matched = true
+        end
+        if not matched then
+            table.insert(findings, {
+                label    = "jwt.claims.audience_mismatch",
+                severity = severity,
+                detail   = "aud does not include '" .. cfg.expected_audience .. "'",
+            })
+        end
+    end
+
+    -- Scopes the token must not carry. scope is space-delimited; scp is a list.
+    local granted = {}
+    if type(pld.scope) == "string" then
+        for s in pld.scope:gmatch("%S+") do granted[s] = true end
+    end
+    if type(pld.scp) == "table" then
+        for _, s in ipairs(pld.scp) do granted[s] = true end
+    end
+    for _, forbidden in ipairs(cfg.forbidden_scopes or {}) do
+        if granted[forbidden] then
+            table.insert(findings, {
+                label    = "jwt.claims.forbidden_scope",
+                severity = severity,
+                detail   = "token carries scope '" .. forbidden .. "', which this credential should never be granted",
+            })
+        end
+    end
+
+    local ok = #findings == 0
+    return {
+        passed   = ok,
+        findings = as_array(findings),
+        summary  = string.format("check_claims: iss=%s aud=%s findings=%d",
+            tostring(pld.iss or "none"), tostring(pld.aud or "none"), #findings),
+        level    = ok and "info" or "warn",
+    }, nil
+end
+
+-- audit_endpoints: runs the audit_endpoint checks over a list of endpoints, so
+-- one step covers every protected route instead of one step per route. Each
+-- endpoint's findings are prefixed with its URL.
+local function run_audit_endpoints(cfg)
+    local endpoints = cfg.endpoints or {}
+    if #endpoints == 0 then return nil, "endpoints must be a non-empty list for audit_endpoints" end
+
+    local findings, audited = {}, 0
+    for _, endpoint in ipairs(endpoints) do
+        local single = {}
+        for k, v in pairs(cfg) do single[k] = v end
+        single.endpoint = endpoint
+        local result, err = run_audit_endpoint(single)
+        if err then return nil, endpoint .. ": " .. err end
+        audited = audited + 1
+        local list = type(result.findings) == "table" and result.findings or {}
+        for _, f in ipairs(list) do
+            table.insert(findings, {label = f.label, severity = f.severity, detail = endpoint .. " — " .. f.detail})
+        end
+    end
+
+    local ok = #findings == 0
+    return {
+        passed   = ok,
+        findings = as_array(findings),
+        summary  = string.format("audit_endpoints: %d endpoints, %d findings", audited, #findings),
+        level    = ok and "info" or "warn",
+    }, nil
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
@@ -226,6 +323,10 @@ function _M.access(conf, ctx)
     local result, err
     if op == "audit_endpoint" then
         result, err = run_audit_endpoint(cfg)
+    elseif op == "check_claims" then
+        result, err = run_check_claims(cfg)
+    elseif op == "audit_endpoints" then
+        result, err = run_audit_endpoints(cfg)
     else
         result, err = run_check_token(cfg)
     end

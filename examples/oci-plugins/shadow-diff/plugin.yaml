@@ -2,7 +2,7 @@ name: shadow-diff
 version: 1.1.0
 kind: plugin
 variants: [shadow-diff]
-operations: [diff, check]
+operations: [diff, check, compare_paths, compare_latency]
 schema: schema.cue
 lua: plugin.lua
 star: plugin.star

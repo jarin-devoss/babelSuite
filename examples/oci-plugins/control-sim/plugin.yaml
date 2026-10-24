@@ -1,8 +1,8 @@
 name: control-sim
-version: 1.0.0
+version: 1.1.0
 kind: plugin
 variants: [control-sim]
-operations: [step_response, monitor]
+operations: [step_response, monitor, impulse_response, frequency_response]
 schema: schema.cue
 lua: plugin.lua
 star: plugin.star

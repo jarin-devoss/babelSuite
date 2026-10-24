@@ -158,8 +158,10 @@ Sends Verilog source and a testbench to an Icarus-compatible simulation backend 
 |-----------|--------------|
 | `simulate` | Runs the testbench. Fails if compile errors exceed zero or simulation errors exceed `max_errors`. X-state assertion is configurable via `assert_no_x`. |
 | `strict` | Same as `simulate` but zero-tolerance: any X-state signal, any compile error, any simulation error fails the step immediately. |
+| `lint` | Compiles the design without running a testbench — a fast gate for syntax and elaboration errors before the slower `simulate`. Needs no testbench. `fail_on_warnings` promotes compiler warnings to failures. |
+| `check_coverage` | Runs the testbench and fails if the simulator's reported toggle coverage falls below `min_coverage_pct` — catches modules that pass every assertion while leaving branches unexercised. |
 
-Required config: `sim_url`, `top_module`. Optional: `verilog`, `testbench`, `timeout_ns`, `max_errors`, `assert_no_x`, `severity`.
+Required config: `sim_url`, `top_module`. Optional: `verilog`, `testbench` (required except for `lint`), `timeout_ns`, `max_errors`, `assert_no_x`, `fail_on_warnings` (`lint`), `min_coverage_pct` (`check_coverage`, default `80`), `severity`.
 
 ---
 
@@ -171,8 +173,10 @@ Sends a transfer function (numerator/denominator polynomial coefficients) to a s
 |-----------|--------------|
 | `step_response` | Runs a step response simulation. Checks stability (poles in right-half plane), settling time, overshoot percentage, and DC gain. Fails the step on violation. |
 | `monitor` | Same checks, but always emits `warn`-level findings — never blocks the suite. Use this for passive observability of control system health. |
+| `impulse_response` | Runs an impulse response. Checks stability and settling, plus that the response has decayed back to near zero by `time_end` (`max_residual`) — a marginal system the step test's final-value check can miss. |
+| `frequency_response` | Runs a Bode analysis and checks the stability margins: gain margin against `min_gain_margin_db` and phase margin against `min_phase_margin_deg`. These report the headroom a time-domain step never shows. |
 
-Required config: `sim_url`, `numerator`, `denominator`. Optional: `time_end`, `max_settling_time`, `max_overshoot_pct`, `min_dc_gain`, `max_dc_gain`, `severity`.
+Required config: `sim_url`, `numerator`, `denominator`. Optional: `time_end`, `max_settling_time`, `max_overshoot_pct`, `min_dc_gain`, `max_dc_gain`, `max_residual` (`impulse_response`), `min_gain_margin_db` / `min_phase_margin_deg` (`frequency_response`), `severity`.
 
 ---
 
@@ -184,8 +188,10 @@ Application-level JWT security checks. The built-in `security.*` modes check HTT
 |-----------|--------------|
 | `check_token` | POSTs credentials to `auth_url`, extracts the JWT from the response, decodes the header and payload, and audits: algorithm (`none` is critical, HMAC symmetric is a warning), missing `exp` claim, token lifetime exceeding `max_lifetime_hours`, and missing required claims (`sub`, `iss`, `exp`, `iat` by default). |
 | `audit_endpoint` | Gets a valid token first, then probes `endpoint` three ways: no Authorization header (must be 401/403), tampered signature (must be 401/403), and valid token (must be 2xx). Flags any case where the endpoint accepts what it shouldn't. |
+| `check_claims` | Fetches a token and checks its claims against expected values: the `expected_issuer` it must carry, the `expected_audience` it must include, and any `forbidden_scopes` it must not grant. A structurally valid token can still name the wrong issuer or carry an over-broad scope. |
+| `audit_endpoints` | Runs the `audit_endpoint` checks over a list of `endpoints`, so one step covers every protected route. Each endpoint's findings are prefixed with its URL. |
 
-Required config: `auth_url`, `username`, `password`. Optional: `token_field` (default `token`), `endpoint` (required for `audit_endpoint`), `max_lifetime_hours` (default `24`), `required_claims`, `severity`.
+Required config: `auth_url`, `username`, `password`. Optional: `token_field` (default `token`), `endpoint` (required for `audit_endpoint`), `endpoints` (required for `audit_endpoints`), `expected_issuer` / `expected_audience` / `forbidden_scopes` (`check_claims`), `max_lifetime_hours` (default `24`), `required_claims`, `severity`.
 
 ---
 
@@ -199,8 +205,10 @@ Sends N requests to a target URL and counts how many responses carry a canary he
 |-----------|--------------|
 | `validate` | Checks the observed canary ratio against `expected_ratio ± tolerance`. Fails if out of range. |
 | `watch_ratio` | Same check but with a wider default tolerance and `warn`-level findings — passive monitoring mode. |
+| `sticky` | Sends every request with the same `session_value` on `session_header` and fails if they do not all land on one side. A session that reaches both the canary and stable versions means a user would bounce between them mid-session. |
+| `compare_errors` | Splits the sample by which side answered and compares the 5xx rate of each. Fails if the canary's error rate exceeds stable's by more than `max_error_delta`, or if no canary traffic was seen at all. |
 
-Required config: `target`. Optional: `canary_header` (default `X-Canary`), `expected_ratio` (default `0.1`), `tolerance` (default `0.05`), `sample_size` (default `100`), `severity`.
+Required config: `target`. Optional: `canary_header` (default `X-Canary`), `expected_ratio` (default `0.1`), `tolerance` (default `0.05`), `sample_size` (default `100`), `session_header` / `session_value` (`sticky`), `max_error_delta` (`compare_errors`, default `0.01`), `severity`.
 
 ---
 
@@ -212,8 +220,10 @@ Queries a Kafka REST Proxy for a consumer group's partition offsets and checks w
 |-----------|--------------|
 | `check_lag` | Checks every partition in the group. Fails with `critical` if any partition lag exceeds `max_lag`. |
 | `watch_lag` | Same check but always `warn`-level — use for continuous observability. |
+| `wait_caught_up` | Polls until the group's total lag drops to `max_lag` or `timeout_s` passes. A load test ends long before its consumers drain, so a single `check_lag` right after it reports lag that would have cleared. |
+| `check_trend` | Samples the total lag twice, `interval_s` apart, and fails if it grew by more than `max_growth`. A high but shrinking lag is a consumer catching up; a growing one cannot keep pace with its producers. |
 
-Required config: `kafka_rest_url`, `group`. Optional: `max_lag` (default `1000`), `severity`.
+Required config: `kafka_rest_url`, `group`. Optional: `max_lag` (default `1000`), `timeout_s` / `interval_s` (`wait_caught_up`, defaults `60` / `2`), `interval_s` / `max_growth` (`check_trend`, defaults `10` / `0`), `severity`.
 
 ---
 
@@ -225,8 +235,10 @@ Checks the latest offset of a Kafka DLQ topic via the REST Proxy. A non-zero (or
 |-----------|--------------|
 | `inspect` | Fails the step if the DLQ topic has more messages than `max_messages`. |
 | `watch_dlq` | Same check but always `warn`-level — never blocks the suite. |
+| `check_growth` | Samples the DLQ's message count twice, `interval_s` apart, and fails if it grew by more than `max_growth`. The absolute count includes everything dead-lettered before the run; growth isolates what is being dead-lettered right now. |
+| `inspect_topics` | Runs `inspect` over a list of `topics` in one step, each over-limit topic its own finding — no need for an `inspect` step per DLQ. |
 
-Required config: `kafka_rest_url`, `topic`. Optional: `max_messages` (default `0`), `severity`.
+Required config: `kafka_rest_url`, `topic` (or `topics` for `inspect_topics`). Optional: `max_messages` (default `0`), `interval_s` / `max_growth` (`check_growth`, defaults `10` / `0`), `severity`.
 
 ---
 
@@ -240,8 +252,10 @@ Fetches a URL and scans the response body for PII patterns using regex. Ships wi
 |-----------|--------------|
 | `scan` | Fetches `target` and fails if any PII pattern matches. Use this as a hard gate in your pipeline. |
 | `probe` | Same scan but always `warn`-level — passive auditing mode. |
+| `scan_headers` | Scans the response *headers* rather than the body — an email in a `Set-Cookie`, a card number echoed in a debug header, a token in `Location`. Each header is named in its finding. |
+| `scan_many` | Scans a list of `targets` in one step, so a suite can sweep every read path of an API. An unreachable target is a `warn`-level finding, not a hard failure. |
 
-Required config: `target`. Optional: `patterns` (list of extra regex strings), `severity`.
+Required config: `target` (or `targets` for `scan_many`). Optional: `patterns` (list of extra regex strings), `severity`.
 
 ---
 
@@ -253,8 +267,10 @@ Posts a new schema to a Confluent-compatible Schema Registry compatibility endpo
 |-----------|--------------|
 | `check_compat` | Checks compatibility using the mode in `mode` (`BACKWARD`, `FORWARD`, `FULL`, etc.). |
 | `enforce` | Always checks `FULL` compatibility (both backward and forward). Use this as a hard gate before publishing a new schema version. |
+| `check_registered` | Asks the registry whether `new_schema` is already a registered version of the subject. Run it after the step that publishes a schema, to prove the schema the service will look up by id is really there; reports the version and id. |
+| `check_mode` | Reads the compatibility level the registry actually enforces for the subject (falling back to the global level) and fails if it is not `mode`. A subject quietly set to `NONE` accepts any change, which makes every `check_compat` against it meaningless. Needs no `new_schema`. |
 
-Required config: `registry_url`, `subject`, `new_schema`. Optional: `mode` (default `BACKWARD`), `severity`.
+Required config: `registry_url`, `subject`, `new_schema` (not needed for `check_mode`). Optional: `mode` (default `BACKWARD`), `severity`.
 
 ---
 
@@ -268,8 +284,10 @@ Fetches the same endpoint from two targets — a primary and a shadow — and co
 |-----------|--------------|
 | `diff` | Fails the step if the number of field-level differences exceeds `threshold`. Useful as a hard gate during migration. |
 | `check` | Same diff but always `warn`-level — passive shadow monitoring. |
+| `compare_paths` | Treats `primary` and `shadow` as base URLs and diffs every path in `paths` on both, each differing path named in its findings. A migration is rarely one endpoint. |
+| `compare_latency` | Sends `samples` requests to each side and fails if the shadow's median latency is more than `max_ratio` times the primary's. A shadow that returns identical payloads twice as slowly is not ready for traffic. |
 
-Required config: `primary`, `shadow`. Optional: `ignore_fields` (list of field paths to skip), `threshold` (default `0`), `severity`.
+Required config: `primary`, `shadow` (base URLs for `compare_paths`). Optional: `ignore_fields` (list of field paths to skip), `threshold` (default `0`), `paths` (`compare_paths`), `samples` / `max_ratio` (`compare_latency`, defaults `10` / `1.5`), `severity`.
 
 ---
 
@@ -288,6 +306,8 @@ Grade either text supplied inline with `output`, or the body of a URL named by
 |-----------|--------------|
 | `judge` | Fails the step when the score falls below `threshold`. Use as a gate. |
 | `monitor` | Reports the same verdicts at `warn` level without failing the suite. |
+| `consistency` | Grades the same text `rounds` times and fails if the score varies by more than `max_spread`. A judge whose verdict flips between runs cannot gate a pipeline; this measures that instability directly. |
+| `compare` | Grades two candidate texts (`output_a`, `output_b`) against the same criteria and fails when the `prefer`red side (default `a`, the baseline) does not score highest — so a regression in a new prompt or model shows up as a step failure. |
 
 Required config: `model_url`, `criteria`. One of `output` or `target`. Optional:
 `model` (default `gpt-4o-mini`), `api_key`, `threshold` (default `1.0`),

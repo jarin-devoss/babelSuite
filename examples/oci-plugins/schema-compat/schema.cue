@@ -3,5 +3,11 @@
 
 registry_url: string
 subject:      string
-mode:         "BACKWARD" | "FORWARD" | "FULL" | *"BACKWARD"
-new_schema:   string
+
+// check_compat tests against this mode; check_mode expects the registry to enforce it.
+mode:         "BACKWARD" | "BACKWARD_TRANSITIVE" | "FORWARD" | "FORWARD_TRANSITIVE" |
+              "FULL" | "FULL_TRANSITIVE" | "NONE" | *"BACKWARD"
+
+// Required by every operation except check_mode.
+new_schema?:  string
+severity:     "warn" | "critical" | *"critical"

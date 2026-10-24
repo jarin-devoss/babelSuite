@@ -11,3 +11,10 @@ max_overshoot_pct:   number | *null     // finding if % overshoot exceeds this
 min_dc_gain:         number | *null     // finding if DC gain (steady-state / input) falls below this
 max_dc_gain:         number | *null     // finding if DC gain exceeds this
 severity:            "warn" | "critical" | *"critical"
+
+// impulse_response: how close to zero the response must settle by time_end.
+max_residual:        number | *null
+
+// frequency_response: minimum stability margins from the Bode analysis.
+min_gain_margin_db:   number | *null
+min_phase_margin_deg: number | *null
