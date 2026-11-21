@@ -1400,7 +1400,7 @@
 <tr>
 <td>3</td>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite"><code>payment-suite</code></a></td>
-<td><code>file=</code>, conditionals, profile <code>extendsId</code>, <code>traffic.baseline/stress</code>, <code>reset_mocks=</code>, <code>log.warn</code>, <code>.export(cobertura)</code></td>
+<td><code>file=</code>, conditionals, profile <code>extendsId</code>, <code>traffic.baseline/stress</code>, <code>reset_mocks=</code>, <code>log.warn</code>, <code>exports=</code> with <code>format="cobertura"</code></td>
 </tr>
 <tr>
 <td>4</td>
@@ -1410,7 +1410,7 @@
 <tr>
 <td>5</td>
 <td><a href="https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab"><code>storefront-browser-lab</code></a></td>
-<td>Playwright specs, <code>.export(ctrf)</code>, <code>traffic.soak</code>, <code>reset_mocks=</code>, <code>on_failure=</code></td>
+<td>Playwright specs, <code>exports=</code> with <code>format="ctrf"</code>, <code>traffic.soak</code>, <code>reset_mocks=</code>, <code>on_failure=</code></td>
 </tr>
 <tr>
 <td>6</td>
@@ -1494,7 +1494,7 @@ shows a module that internally composes a plugin.</p>
 <td>payment-suite</td>
 </tr>
 <tr>
-<td><code>traffic.baseline/stress</code>, <code>.export(cobertura)</code></td>
+<td><code>traffic.baseline/stress</code>, <code>exports=</code> with <code>format="cobertura"</code></td>
 <td>payment-suite</td>
 </tr>
 <tr>
@@ -1514,7 +1514,7 @@ shows a module that internally composes a plugin.</p>
 <td>storefront-browser-lab</td>
 </tr>
 <tr>
-<td><code>.export(ctrf)</code>, <code>traffic.soak</code>, <code>log.error</code></td>
+<td><code>exports=</code> with <code>format="ctrf"</code>, <code>traffic.soak</code>, <code>log.error</code></td>
 <td>storefront-browser-lab</td>
 </tr>
 <tr>

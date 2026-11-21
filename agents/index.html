@@ -1722,7 +1722,7 @@
 <li>A service pod's hostname is its network alias and its subdomain the execution's headless Service; every pod of the execution searches that subdomain, so <code>db:5432</code> resolves to that execution's <code>db</code> only. Kubernetes tries the namespace's own domain before that search entry, so keep the namespace for BabelSuite runs: a Service named <code>db</code> there would answer for every execution's <code>db</code>.</li>
 <li>Ports a plugin references on a service (<code>http://broker:8082</code>) are port-forwarded to <code>127.0.0.1</code> on the control plane host, and the plugin config is rewritten to <code>host.docker.internal:&lt;port&gt;</code>, the way Docker-published ports are.</li>
 <li>Pods run as the image's own user, with the profile's <code>services.&lt;name&gt;.memory</code> as their memory limit and no CPU limit, and <code>imagePullPolicy: IfNotPresent</code>.</li>
-<li>Artifact collection uses an <code>emptyDir</code> volume shared between the step container and a <code>busybox</code> sidecar. After the step container exits, artifacts are read through the pod exec API before the pod is deleted.</li>
+<li>Artifact collection uses an <code>emptyDir</code> volume shared between the step container and a <code>busybox</code> sidecar. After the step container exits, every declared export is read through the pod exec API before the pod is deleted, with the same file and size limits as the Docker backend.</li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Reaching the host</p>

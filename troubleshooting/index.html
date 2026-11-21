@@ -1279,6 +1279,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-test-step-fails-on-its-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Test Step Fails On Its Report
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cli-error-no-saved-session" class="md-nav__link">
     <span class="md-ellipsis">
       CLI: error: no saved session
@@ -1430,6 +1439,15 @@
   <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Traffic Step Fails
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-test-step-fails-on-its-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Test Step Fails On Its Report
     </span>
   </a>
   
@@ -1613,6 +1631,48 @@
 </tr>
 </tbody>
 </table>
+<hr />
+<h2 id="a-test-step-fails-on-its-report">A Test Step Fails On Its Report<a class="headerlink" href="#a-test-step-fails-on-its-report" title="Permanent link">&para;</a></h2>
+<p>A <code>test.run</code> step whose <code>exports=</code> declare a <code>junit</code> or <code>ctrf</code> report is checked against that report after its own checks pass, so it can fail although the test command exited 0. The step's log names the report and the reason:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>What it means and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>report "x" (path) was not produced</code></td>
+<td>The step wrote no file at that path. Write it relative to the step's working directory, and check that the test runner is told where to write it.</td>
+</tr>
+<tr>
+<td><code>report "x" (path) is empty</code></td>
+<td>The file exists but has no content. The test runner probably crashed while writing it.</td>
+</tr>
+<tr>
+<td><code>report "x" (path) could not be read: ...</code></td>
+<td>The file is not valid XML (JUnit) or JSON (CTRF), or has the wrong root element. The execution view shows the file as it was written.</td>
+</tr>
+<tr>
+<td><code>report "x" (path) is too large to read</code></td>
+<td>A file is over 10 MB. Split the report, or write a summary.</td>
+</tr>
+<tr>
+<td><code>report "x" (path) lists no tests</code></td>
+<td>The report parsed but holds no test cases. A runner that found no tests is not a pass.</td>
+</tr>
+<tr>
+<td><code>report "x" (path): N of M tests failed</code></td>
+<td>The report lists failures or errors. Open the artifact to see the counts.</td>
+</tr>
+<tr>
+<td><code>report "x" (path) was not collected: remote agents do not return reports yet</code></td>
+<td>The step ran on a remote agent. Add <code>"enforce": False</code> to the export.</td>
+</tr>
+</tbody>
+</table>
+<p>To show a report without letting it fail the step, add <code>"enforce": False</code> to its entry in <code>exports=</code>. See <a href="../runtime-library/#artifact-exports">Artifact Exports</a>.</p>
 <hr />
 <h2 id="cli-error-no-saved-session">CLI: <code>error: no saved session</code><a class="headerlink" href="#cli-error-no-saved-session" title="Permanent link">&para;</a></h2>
 <p>Run <code>babelctl login</code> first. If you've set <code>--server</code> but not logged in, the token won't exist.</p>
