@@ -527,36 +527,71 @@ The variable name is the default node ID. Use `name=` or `id=` only when you nee
 
 ## Artifact Exports
 
-Nodes can attach artifact export rules with chained `.export(...)` calls:
+A node attaches artifact export rules with `exports=[...]`:
 
 ```python
-smoke = test.run(file="go/smoke_test.go", image="golang:1.24") \
-  .export("coverage/*.xml", name="go-coverage", on="always", format="cobertura") \
-  .export("reports/junit.xml", name="go-tests", format="junit") \
-  .export("logs/crash.dump", name="crash-debug", on="failure")
+smoke = test.run(
+    file="go/smoke_test.go",
+    image="golang:1.24",
+    exports=[
+        {"path": "coverage/*.xml", "name": "go-coverage", "on": "always", "format": "cobertura"},
+        {"path": "reports/junit.xml", "name": "go-tests", "format": "junit"},
+        {"path": "logs/crash.dump", "name": "crash-debug", "on": "failure"},
+    ],
+)
 ```
 
-Supported export arguments:
+Each entry is a dict with these keys. Any other key is a suite validation error, so a typo is caught when the suite loads:
 
-- first positional string or `path="..."` for the artifact path or glob
-- `name="..."` for the exported artifact label
-- `on="success" | "failure" | "always"` to control when the export should run
-- `format="junit" | "cobertura"` for structured test and coverage summaries in the execution UI
+- `path` (required): the artifact path or glob, relative to the step's working directory
+- `name`: the exported artifact label
+- `on`: `"success"` (the default), `"failure"` or `"always"`, to control when the export is kept
+- `format`: `"junit"`, `"ctrf"` or `"cobertura"` for structured summaries in the execution UI. Any other value is a validation error
+- `enforce`: `False` stops a `junit` or `ctrf` report from failing its step (see below). It is an error on any other format
 
-Current behavior:
+### What happens to an export
 
-- export rules are parsed into topology metadata
-- export rules flow into execution step payloads
-- the local (Docker) runner bind-mounts the shared execution workspace into every container and reads each declared export path from it after the container exits, so a step writes `reports/junit.xml` relative to its working directory
-- glob patterns in `path=` (e.g. `"coverage/*.xml"`) are expanded on the host mount — the first lexically-ordered match is collected
-- the Kubernetes runner copies files from the artifact sidecar volume using the busybox helper after the step container exits
-- `format="junit"` exports are summarized into pass/fail counts in the live execution view; real XML from the container is parsed when present, synthetic otherwise
-- `format="cobertura"` exports are parsed and line/branch coverage summaries are shown when real content is collected
-- `format="ctrf"` (Common Test Results Format) exports are parsed and test summary counts are shown
+The runner reads every declared export after the step's container exits, and the control plane keeps the ones whose `on=` matches the step's **final** status. That status can differ from the container's exit: a failed `fail_on_logs` check makes the step fail although the container exited 0, and an `on="failure"` export is still kept.
 
-Current limit:
+Every export shows one status in the execution view, and only a `collected` one has counts:
 
-- when a glob matches multiple files only the first (lexical order) is collected; structured formats such as JUnit cannot yet merge across multiple XML files in one pass
+| Status | Meaning |
+|--------|---------|
+| `collected` | A file was read and, for a structured format, parsed |
+| `missing` | No file matched the path |
+| `empty` | The file has no content |
+| `invalid` | The file could not be parsed (not XML, the wrong root element, a cut-off document) |
+| `truncated` | A file is over the size limit, so it was not read |
+| `unreadable` | The file exists but could not be read, for example a directory where a file belongs |
+| `not_collected` | The backend cannot read files from where the step ran (remote agents) |
+
+A report nobody produced is never filled in: a missing, empty or invalid export has no test counts, and the UI says why.
+
+### Test reports decide the step
+
+A `junit` or `ctrf` export is a claim about tests, so when the step's own checks pass (exit code, `expect_logs`, `fail_on_logs`) its reports are checked too. The step **fails** when a report:
+
+- was not produced, is empty, cannot be parsed, or was not collected;
+- lists no tests;
+- lists failures or errors (`report "go-tests" (reports/junit.xml): 2 of 5 tests failed`).
+
+This applies to exports that are kept on success (`on="success"` or `"always"`). `continue_on_failure` and `on_failure=` treat it like any other failure. `cobertura` exports never fail a step.
+
+Add `"enforce": False` to show a report without letting it fail the step. An unenforced report that is not collected adds one warning line to the step's log.
+
+### Several files
+
+A glob collects every matching file, up to 50 files per export and 50 MB per step, each at most 10 MB. `junit` and `ctrf` summaries add up across the files, and the artifact lists the files it matched. A file over a limit makes the export `truncated`. A `cobertura` export summarises only the first file.
+
+### JUnit counting
+
+When a `<testsuite>` lists `<testcase>` elements, those are counted. The `tests`, `failures`, `errors` and `skipped` attributes are used only for a file that lists no cases. If the two disagree, the cases win and the artifact carries a note saying so.
+
+### Where the files come from
+
+- the local (Docker) runner bind-mounts the shared execution workspace into every container and reads each export from it, so a step writes `reports/junit.xml` relative to its working directory
+- the Kubernetes runner reads files from the artifact sidecar volume through the pod exec API
+- remote agents run the step on another machine and do not return files yet, so their exports are `not_collected`, and an enforced `junit` or `ctrf` export fails the step there. Use `"enforce": False` on a suite that runs on a remote agent
 
 ## Evaluation Controls
 
@@ -671,7 +706,7 @@ surface without hardcoding a host and port. It is set only when the suite has
 one, so a step can tell the difference between "no gateway" and "wrong address".
 
 !!! note "`BABELSUITE_ARTIFACTS_DIR` is Kubernetes-only"
-    The Docker backend does not set it. There, `.export(...)` paths are read
+    The Docker backend does not set it. There, `exports=` paths are read
     from the shared workspace mount after the container exits, so write exports
     to a path relative to the working directory (`reports/junit.xml`) and the
     runner collects them.
@@ -794,7 +829,6 @@ than silently reading another suite's database.
 ## Authoring Rules
 
 - one node assignment per logical statement
-- backslash continuations are supported for chained `.export(...)` calls
 - the left-hand assignment becomes the default node ID
 - use `after=[db, api]` to declare ordering; omitting it means the node has no dependencies
 - use `on_failure=[primary]` for rollback or contingency branches

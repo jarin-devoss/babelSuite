@@ -14,9 +14,9 @@ The example suites under [`examples/oci-suites/`](https://github.com/jarin-devos
 |-------|-------|--------------------|
 | 1 | [`notification-hub`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/notification-hub) | `service.run`, `test.run`, `commands=`, profile `env:`, `services.<name>.env:` |
 | 2 | [`identity-broker`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/identity-broker) | `task.run`, `mock.api`, `log.info/debug`, `secretRefs`, `expect_exit=`, `expect_logs=`, `fail_on_logs=`, `continue_on_failure=` |
-| 3 | [`payment-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite) | `file=`, conditionals, profile `extendsId`, `traffic.baseline/stress`, `reset_mocks=`, `log.warn`, `.export(cobertura)` |
+| 3 | [`payment-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite) | `file=`, conditionals, profile `extendsId`, `traffic.baseline/stress`, `reset_mocks=`, `log.warn`, `exports=` with `format="cobertura"` |
 | 4 | [`returns-control-plane`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/returns-control-plane) | `network.mode: execution`, `services.<name>.devices:`, log `{{ }}` templates, `on_failure=`, `traffic.stress/spike` |
-| 5 | [`storefront-browser-lab`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab) | Playwright specs, `.export(ctrf)`, `traffic.soak`, `reset_mocks=`, `on_failure=` |
+| 5 | [`storefront-browser-lab`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab) | Playwright specs, `exports=` with `format="ctrf"`, `traffic.soak`, `reset_mocks=`, `on_failure=` |
 | 6 | [`soap-claims-hub`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/soap-claims-hub) | All 8 `security.*` modes, `traffic.baseline` per SOAP version, hardware profile `/dev/ttyUSB0` |
 | 7 | [`fleet-control-room`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/fleet-control-room) | OCI modules (kafka, redis), `service.run(image=, commands=)` detached, all traffic phases, all log levels, multi-region loops, GPU in perf profile |
 | 8 | [`security-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/security-suite) | Focused security reference — all 8 modes in sequence, hardware device profile |
@@ -44,12 +44,12 @@ shows a module that internally composes a plugin.
 | `continue_on_failure=` | identity-broker |
 | `file=`, conditionals | payment-suite |
 | Profile `extendsId`, `reset_mocks=`, `log.warn` | payment-suite |
-| `traffic.baseline/stress`, `.export(cobertura)` | payment-suite |
+| `traffic.baseline/stress`, `exports=` with `format="cobertura"` | payment-suite |
 | `network.mode: execution`, `services.<name>.devices:` | returns-control-plane |
 | Log `{{ }}` templates, `on_failure=` | returns-control-plane |
 | `traffic.spike` | returns-control-plane |
 | Playwright specs via `browser_test(...)` | storefront-browser-lab |
-| `.export(ctrf)`, `traffic.soak`, `log.error` | storefront-browser-lab |
+| `exports=` with `format="ctrf"`, `traffic.soak`, `log.error` | storefront-browser-lab |
 | All 8 `security.*` modes | soap-claims-hub |
 | `traffic.baseline` against a SOAP mock, hardware device profile | soap-claims-hub |
 | OCI modules, `service.run(image=, commands=)` detached | fleet-control-room |

@@ -215,13 +215,21 @@ clean_test = test.run(file="verify_billing.py", image="python:3.12", reset_mocks
 You can also attach artifact export rules to a node:
 
 ```python
-smoke = test.run(file="go/smoke_test.go", image="golang:1.24", after=[api]) \
-  .export("coverage/*.xml", name="go-coverage", on="always", format="cobertura") \
-  .export("reports/junit.xml", name="go-tests", format="junit") \
-  .export("logs/crash.dump", name="crash-debug", on="failure")
+smoke = test.run(
+    file="go/smoke_test.go",
+    image="golang:1.24",
+    after=[api],
+    exports=[
+        {"path": "coverage/*.xml", "name": "go-coverage", "on": "always", "format": "cobertura"},
+        {"path": "reports/junit.xml", "name": "go-tests", "format": "junit"},
+        {"path": "logs/crash.dump", "name": "crash-debug", "on": "failure"},
+    ],
+)
 ```
 
-Use `format="junit"` when you want the execution view to show pass/fail counts instead of only a raw export label. Use `format="cobertura"` for coverage reports.
+Use `format="junit"` or `"ctrf"` when you want the execution view to show pass/fail counts instead of only a raw export label. Use `format="cobertura"` for coverage reports.
+
+A `junit` or `ctrf` report also decides its step: the step fails when the report is missing, empty, unreadable, lists no tests, or lists failures, even if the test command exited 0. Add `"enforce": False` to an export to show it without gating the step. See [Artifact Exports](runtime-library.md#artifact-exports).
 
 Resolver rules:
 
@@ -285,7 +293,7 @@ verify = test.run(
 )
 ```
 
-Use `BABELSUITE_ARTIFACTS_DIR` with `.export()` when you want BabelSuite to store and display the file in the execution UI (JUnit reports, coverage, crash dumps). Use `BABELSUITE_WORKSPACE_DIR` when you only need the next step to consume it.
+Use `BABELSUITE_ARTIFACTS_DIR` with `exports=` when you want BabelSuite to store and display the file in the execution UI (JUnit reports, coverage, crash dumps). Use `BABELSUITE_WORKSPACE_DIR` when you only need the next step to consume it.
 
 ## Profile-Controlled Hardware, Memory and Networking
 
@@ -342,4 +350,4 @@ Plugins must be registered in platform settings before a suite that references t
 - keep large static assets under `resources/`
 - use profiles for launch-time differences instead of duplicating whole suites
 - use `suite.run(ref="...")` for reusing entire subsystems; use modules for smaller building blocks
-- use `BABELSUITE_WORKSPACE_DIR` to pass files between steps; use `BABELSUITE_ARTIFACTS_DIR` with `.export()` to surface files in the UI
+- use `BABELSUITE_WORKSPACE_DIR` to pass files between steps; use `BABELSUITE_ARTIFACTS_DIR` with `exports=` to surface files in the UI
