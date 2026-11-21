@@ -145,23 +145,23 @@ function JUnitPanel({ summary }: { summary: NonNullable<ExecutionArtifactRecord[
         <div className='artifact-junit__stats'>
           <div className='artifact-stat'>
             <div className='artifact-stat__label'>Total</div>
-            <div className='artifact-stat__value'>{summary.total}</div>
+            <div className='artifact-stat__value' data-testid='artifact-total'>{summary.total}</div>
           </div>
           <div className={`artifact-stat${allPassed ? ' artifact-stat--pass' : ''}`}>
             <div className='artifact-stat__label'>Passed</div>
-            <div className='artifact-stat__value'>{summary.passed}</div>
+            <div className='artifact-stat__value' data-testid='artifact-passed'>{summary.passed}</div>
           </div>
           <div className={`artifact-stat${summary.failures > 0 ? ' artifact-stat--fail' : ''}`}>
             <div className='artifact-stat__label'>Failures</div>
-            <div className='artifact-stat__value'>{summary.failures}</div>
+            <div className='artifact-stat__value' data-testid='artifact-failures'>{summary.failures}</div>
           </div>
           <div className={`artifact-stat${summary.errors > 0 ? ' artifact-stat--fail' : ''}`}>
             <div className='artifact-stat__label'>Errors</div>
-            <div className='artifact-stat__value'>{summary.errors}</div>
+            <div className='artifact-stat__value' data-testid='artifact-errors'>{summary.errors}</div>
           </div>
           <div className='artifact-stat artifact-stat--skip'>
             <div className='artifact-stat__label'>Skipped</div>
-            <div className='artifact-stat__value'>{summary.skipped}</div>
+            <div className='artifact-stat__value' data-testid='artifact-skipped'>{summary.skipped}</div>
           </div>
           {dur && (
             <div className='artifact-stat'>
@@ -170,7 +170,7 @@ function JUnitPanel({ summary }: { summary: NonNullable<ExecutionArtifactRecord[
             </div>
           )}
         </div>
-        <div className={`artifact-junit__verdict${allPassed ? ' artifact-junit__verdict--pass' : ' artifact-junit__verdict--fail'}`}>
+        <div data-testid='artifact-verdict' className={`artifact-junit__verdict${allPassed ? ' artifact-junit__verdict--pass' : ' artifact-junit__verdict--fail'}`}>
           {allPassed ? 'All tests passed' : `${summary.failures + summary.errors} test${summary.failures + summary.errors !== 1 ? 's' : ''} did not pass`}
         </div>
       </div>

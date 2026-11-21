@@ -107,13 +107,25 @@ export default function CronJobs() {
     setDraft((curr) => curr ? { ...curr, suites: curr.suites.filter((_, i) => i !== idx) } : curr)
   }
 
+  // Closing the panel clears its draft after the slide-out animation. Opening
+  // another job before that timer fires must cancel it, or the new draft is
+  // wiped and the panel opens blank.
+  const cancelPendingClear = () => {
+    if (closePanelTimer.current) {
+      clearTimeout(closePanelTimer.current)
+      closePanelTimer.current = null
+    }
+  }
+
   const openNew = () => {
+    cancelPendingClear()
     setDraft({ id: '', lastRunAt: undefined, nextRunAt: undefined, lastError: '', createdAt: '', updatedAt: '', ...emptyJob() })
     setIsNew(true)
     setPanelOpen(true)
   }
 
   const openEdit = (job: CronJob) => {
+    cancelPendingClear()
     setDraft(structuredClone(job))
     setIsNew(false)
     setPanelOpen(true)

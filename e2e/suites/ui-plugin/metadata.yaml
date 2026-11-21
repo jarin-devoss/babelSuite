@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-plugin
+  title: UI Plugin
+spec:
+  repository: localhost:5000/e2e/ui-plugin
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Two steps of the e2e-echo plugin, one passing and one rejected. A fixture for the UI end-to-end tests, not an example.

@@ -276,6 +276,7 @@ export default function Profiles() {
           <div className='profiles-toolbar__filters'>
             <select
               className='profiles-toolbar__select'
+              aria-label='Suite'
               value={selectedSuiteId}
               onChange={(event) => {
                 setSelectedSuiteId(event.target.value)

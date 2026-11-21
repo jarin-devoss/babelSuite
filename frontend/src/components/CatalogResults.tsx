@@ -135,6 +135,7 @@ function CatalogToolbar({
           ref={searchRef}
           value={query}
           onChange={(event) => onChangeQuery(event.target.value)}
+          aria-label='Search packages'
           placeholder={tab === 'suite' ? 'Search suites, teams, registry paths...' : 'Search native extensions and contracts...'}
         />
         {query && (
@@ -145,7 +146,7 @@ function CatalogToolbar({
       </label>
 
       <div className='catalog-toolbar__right'>
-        <span className='catalog-count'>
+        <span className='catalog-count' data-testid='catalog-count'>
           <strong>{itemCount}</strong>
           {' '}{tab === 'suite' ? 'suites' : 'modules'}
         </span>

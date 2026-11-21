@@ -89,6 +89,25 @@ slower than the rest and need a working daemon.
 
 When adding a new package, follow the same pattern: table-driven cases in `*_test.go`, fakes inline in the test file, no network or database access.
 
+## End-to-end tests
+
+Playwright drives the real UI against a throw-away control plane, Docker and the
+registry. It needs MongoDB and Zot from the demo stack, then one command starts
+the rest:
+
+```powershell
+docker compose -f demo/docker-compose.yml up -d mongo zot
+cd frontend
+npm run e2e          # everything
+npm run e2e:smoke    # the subset a pull request runs
+```
+
+The fixture suites live in `e2e/suites/`, outside `examples/`, and are pushed
+with `python scripts/push-to-zot.py --suites-dir e2e/suites`. The control plane
+the tests start listens on port 8090, which the APISIX sidecar needs to reach
+mocks, so stop any other one first. See [`frontend/e2e/README.md`](https://github.com/jarin-devoss/babelSuite/blob/main/frontend/e2e/README.md)
+for the layout, the rules the tests follow, and the known bugs they pin.
+
 ## Useful Backend Commands
 
 Publish example suites, modules and plugins to the local registry. The control

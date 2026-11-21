@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-slow
+  title: UI Slow
+spec:
+  repository: localhost:5000/e2e/ui-slow
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A step that prints a numbered line every 2 seconds for 90 seconds. A fixture for the UI end-to-end tests, not an example.

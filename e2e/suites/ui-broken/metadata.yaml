@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-broken
+  title: UI Broken
+spec:
+  repository: localhost:5000/e2e/ui-broken
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A suite whose suite.star has a Starlark error, so the run cannot start. A fixture for the UI end-to-end tests, not an example.

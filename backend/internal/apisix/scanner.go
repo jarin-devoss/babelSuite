@@ -32,7 +32,7 @@ func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) erro
 	}
 	for name, code := range plugins {
 		p := filepath.Join(destDir, name)
-		if err := os.WriteFile(p, []byte(code), 0600); err != nil {
+		if err := os.WriteFile(p, []byte(code), 0644); err != nil {
 			return fmt.Errorf("write lua plugin %s: %w", name, err)
 		}
 	}

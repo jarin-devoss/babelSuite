@@ -7,19 +7,27 @@ export class CatalogPage {
     await this.page.goto('/catalog')
   }
 
-  packageCards(): Locator {
-    return this.page.locator('.catalog-card')
+  cards(): Locator {
+    return this.page.getByTestId('catalog-card')
+  }
+
+  card(packageId: string): Locator {
+    return this.page.locator(`[data-testid="catalog-card"][data-package="${packageId}"]`)
   }
 
   searchInput(): Locator {
-    return this.page.getByPlaceholder(/search/i)
+    return this.page.getByLabel('Search packages')
+  }
+
+  count(): Locator {
+    return this.page.getByTestId('catalog-count')
+  }
+
+  emptyState(): Locator {
+    return this.page.locator('.catalog-empty')
   }
 
   async search(term: string) {
     await this.searchInput().fill(term)
-  }
-
-  emptyState(): Locator {
-    return this.page.locator('.catalog-empty, [class*="empty"]').first()
   }
 }

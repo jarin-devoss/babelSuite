@@ -29,6 +29,7 @@ export function RowMenu({ items }: { items: RowMenuItem[] }) {
       <button
         type='button'
         className='row-menu__trigger'
+        aria-label='Row actions'
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setConfirming(null) }}
       >
         <FaEllipsisVertical />

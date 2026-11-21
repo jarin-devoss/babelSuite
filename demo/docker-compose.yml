@@ -56,7 +56,7 @@ services:
     ports:
       - "${DEMO_ZOT_PORT:-5000}:5000"
     volumes:
-      - ../tools/zot-config.json:/etc/zot/config.json:ro
+      - ./zot-config.json:/etc/zot/config.json:ro
       - zot-data:/var/lib/zot
     # No healthcheck: the zot image ships no shell or curl, so readiness is
     # probed over HTTP from the host instead — see bootstrap.py.

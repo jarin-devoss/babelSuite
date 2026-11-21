@@ -1,0 +1,30 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/greeting/get-greeting.metadata.yaml
+    operationId: get-greeting
+    sourceArtifact: mock/greeting/get-greeting.cue
+    suite: ui-mock
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "422"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "UNKNOWN_SCENARIO"
+            }
+        headers: []
+    parameterConstraints:
+        - name: scenario
+          source: query
+          required: true
+          forward: false
+          pattern: ^(hello)$
+    resolverUrl: /internal/mock-data/ui-mock/ui-api/get-greeting
+    runtimeUrl: /mocks/rest/ui-mock/ui-api/greeting?scenario=hello
+    state: null

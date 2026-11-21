@@ -11,39 +11,53 @@ export class HomePage {
     return this.page.getByRole('button', { name: 'New Execution' })
   }
 
-  executionModal(): Locator {
+  modal(): Locator {
     return this.page.getByRole('dialog', { name: 'New execution' })
   }
 
   suiteSelect(): Locator {
-    return this.executionModal().locator('.ex-select')
+    return this.modal().getByLabel('Suite')
   }
 
-  profileCards(): Locator {
-    return this.executionModal().locator('.ex-profile-card')
+  profileOption(fileName: string): Locator {
+    return this.modal().locator(`[data-testid="profile-option"][data-profile="${fileName}"]`)
+  }
+
+  profileOptions(): Locator {
+    return this.modal().getByTestId('profile-option')
   }
 
   executeButton(): Locator {
-    return this.executionModal().getByRole('button', { name: 'Execute' })
+    return this.modal().getByRole('button', { name: 'Execute' })
   }
 
   cancelButton(): Locator {
-    return this.executionModal().getByRole('button', { name: 'Cancel' })
+    return this.modal().getByRole('button', { name: 'Cancel' })
   }
 
-  closeButton(): Locator {
-    return this.executionModal().getByRole('button', { name: 'Close' })
+  error(): Locator {
+    return this.modal().locator('.ex-error')
   }
 
-  errorMessage(): Locator {
-    return this.executionModal().locator('.ex-error')
+  runRows(): Locator {
+    return this.page.getByTestId('run-row')
   }
 
-  recentRunsRows(): Locator {
-    return this.page.locator('.runs-table__row')
+  runRow(runId: string): Locator {
+    return this.page.locator(`[data-testid="run-row"][data-run-id="${runId}"]`)
   }
 
-  noExecutionsNotice(): Locator {
+  emptyNotice(): Locator {
     return this.page.locator('.runs-notice')
+  }
+
+  /** Opens the modal, picks a suite (and profile) and presses Execute. */
+  async launch(suiteTitle: string, profileFile?: string) {
+    await this.newExecutionButton().click()
+    await this.suiteSelect().selectOption({ label: suiteTitle })
+    if (profileFile) {
+      await this.profileOption(profileFile).click()
+    }
+    await this.executeButton().click()
   }
 }

@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-pass
+  title: UI Pass
+spec:
+  repository: localhost:5000/e2e/ui-pass
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A three-step run that always succeeds. A fixture for the UI end-to-end tests, not an example.

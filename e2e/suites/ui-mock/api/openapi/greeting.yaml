@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: UI Mock
+  version: v1.0.0
+servers:
+  - url: https://ui-mock.mock.internal
+paths:
+  /greeting:
+    get:
+      operationId: get_greeting
+      summary: Return a fixed greeting.
+      responses:
+        "200":
+          description: Successful mock response

@@ -1,0 +1,123 @@
+name: Frontend E2E
+
+# Drives the real UI against a real control plane, Docker and registry.
+#   - pull requests: the @smoke subset
+#   - nightly and on demand: the whole suite, and a flaky pass counts as a failure
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "e2e/**"
+      - "scripts/push-to-zot.py"
+      - "demo/docker-compose.yml"
+      - ".github/workflows/frontend-e2e.yml"
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright
+    # Not ubuntu-latest: Playwright only installs its browsers on releases it
+    # supports, and the latest image can move ahead of it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.1
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the push script's dependency
+        run: pip install pyyaml
+
+      - name: Start MongoDB and the registry
+        run: |
+          docker compose -f demo/docker-compose.yml up -d mongo zot
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5000/v2/ >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:5000/v2/
+          for i in $(seq 1 60); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' babelsuite-demo-mongo)" = healthy ] && break
+            sleep 2
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' babelsuite-demo-mongo)" = healthy
+
+      - name: Pull the images the fixture suites use
+        run: |
+          docker pull busybox:latest
+          docker pull curlimages/curl:8.7.1
+          docker pull apache/apisix:3.9.0-debian
+
+      - name: Install dependencies and the browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Lint and typecheck the tests
+        working-directory: frontend
+        run: |
+          npx eslint e2e
+          npm run e2e:typecheck
+
+      - name: Run the smoke tests (pull request)
+        if: github.event_name == 'pull_request'
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npx playwright test --grep @smoke
+
+      - name: Run the full suite (nightly or on demand)
+        if: github.event_name != 'pull_request'
+        working-directory: frontend
+        env:
+          CI: "true"
+          E2E_NIGHTLY: "1"
+        run: npx playwright test
+
+      - name: What Docker still holds (leak triage)
+        if: always()
+        run: |
+          docker ps -a --format '{{.Names}}\t{{.Status}}'
+          docker network ls --format '{{.Name}}'
+          # A sidecar that failed to start leaves its reason only in its own log.
+          for c in $(docker ps -aq --filter name=babel-sidecar-); do
+            echo "=== $(docker inspect --format '{{.Name}} exit={{.State.ExitCode}}' "$c")"
+            docker logs --tail 40 "$c" 2>&1
+          done
+
+      - name: Upload the report, traces and videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/e2e-report
+            frontend/test-results
+          retention-days: 7

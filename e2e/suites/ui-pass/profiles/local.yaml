@@ -1,0 +1,6 @@
+name: Local
+description: Local run.
+default: true
+
+env:
+  E2E_VAR: pass-value

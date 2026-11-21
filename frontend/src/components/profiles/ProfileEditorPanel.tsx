@@ -229,6 +229,7 @@ function ProfileEditorHeader({
         <button
           type='button'
           className='profiles-panel-btn profiles-panel-btn--danger'
+          aria-label='Delete profile'
           onClick={onDelete}
           disabled={!draft || (!draft.launchable && !isCreating)}
         >
