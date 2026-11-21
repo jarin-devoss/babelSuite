@@ -28,7 +28,9 @@ permissions:
 jobs:
   e2e:
     name: Playwright
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: Playwright only installs its browsers on releases it
+    # supports, and the latest image can move ahead of it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
