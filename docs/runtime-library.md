@@ -226,6 +226,7 @@ Optionally:
 
 - `plan="..."` pointing at a file under `traffic/` — enables advanced workload definitions with custom users, stages, tasks, and thresholds
 - `rps=<number>` or `arrival_rate=<number>` — override the default request rate
+- `min_users=<number>` — on `traffic.scalability`, the number of users the target must sustain for the step to pass
 
 Recommended meanings:
 
@@ -237,12 +238,53 @@ Recommended meanings:
 - `traffic.scalability`: breaking-point detection — probes successive user-count stages and reports the maximum sustainable load
 - `traffic.step`: increase traffic in discrete blocks
 - `traffic.wave`: oscillating high/low cycles
-- `traffic.staged`: several named phases with different targets
+- `traffic.staged`: several phases of different user counts in one run
 - `traffic.constant_throughput`: cap requests per second independently of user count
 - `traffic.constant_pacing`: fixed interval between iterations per user
 - `traffic.open_model`: fixed arrival-rate style workload independent of response time
 
-When `plan=` is omitted the native executor runs a synthetic baseline against `target=` using the APISIX sidecar — no separate plan file required.
+Every variant has a default shape, used when `plan=` is omitted. The default request is `GET /` on the target.
+
+| Variant | Default shape |
+|---------|---------------|
+| `traffic.smoke` | 1 user for 10 s |
+| `traffic.baseline` | 5 users for 30 s |
+| `traffic.stress`, `traffic.staged` | 5, 20, then 32 users, 20 s each |
+| `traffic.spike` | 5 users, a jump to 32, back to 5, 15 s each |
+| `traffic.soak` | 5 users for 60 s (a plan can ask for up to the 300 s cap) |
+| `traffic.step` | 4, 8, 12, then 16 users, 15 s each |
+| `traffic.wave` | 4, 16, 4, then 16 users, 15 s each |
+| `traffic.scalability` | probes of 1, 2, 4, 8, 16, then 32 users, 10 s each |
+| `traffic.constant_throughput`, `traffic.open_model` | 30 s at `rps=` / `arrival_rate=` (5 requests per second when neither is given) |
+| `traffic.constant_pacing` | 5 users for 30 s, one iteration per user per second |
+
+A closed-model variant given `rps=` runs as an open model at that rate for the same stages' durations, because `rps=` counts arrivals per second, which a number of virtual users cannot honour. Rates are capped at 100 requests per second, users at 32, and a run at 300 seconds.
+
+### Where traffic goes
+
+The target decides where the requests are sent. Nothing is simulated: the requests leave the suite's APISIX sidecar and reach the target, and every number in the log is measured from them.
+
+| Target | Where it goes |
+|--------|---------------|
+| A service of the suite (`http://api:8080` for a `service.run` named `api`) | The sidecar joins the run's network and dials the service's address on it |
+| The suite's mock host (`https://payment-suite.mock.internal`) | The sidecar's own listener, with the mock host as the `Host` header |
+| `localhost` or `127.0.0.1` | The machine running the control plane, through `host.docker.internal` |
+| Any other fully-qualified host or address | Dialled as written |
+
+A bare name that is none of the suite's services is refused when the suite loads, and again when the step runs (`targets host "ghost", which is not a service in this suite`). A target that is a service of a Kubernetes backend is refused too, since the sidecar cannot reach into a cluster.
+
+### When a traffic step fails
+
+A traffic step fails, with the reason in its log, when:
+
+- the run sent no request, or a stage sent none (`no requests were sent to ...`);
+- no request got an answer the step counts as success (`target ... did not answer a single request successfully`), which is reported early, within seconds, instead of after the whole run;
+- a request's status is not expected: any status of 400 or above is a failure unless the task says it expects it with `checks=[traffic.threshold("status", "==", 404)]`;
+- a threshold is broken. `traffic.dropped` counts the arrivals an open-model run could not start because too many requests were already in flight, which means the target could not keep up. `http.error_rate` and the latency metrics are computed from the exact counts the sidecar reports;
+- a `traffic.scalability` run sustained fewer users than `min_users=` (`sustained 4 users, below the min_users=8 the step requires`), or its first probe already broke;
+- the suite's sidecar is not running, or the step has no load spec.
+
+The log lists the most common error categories (`connect`, `timeout`, `http_4xx:404`, and so on) beside the failure.
 
 For advanced workload control, create a `traffic/*.star` file and reference it via `plan=`. The native plan builders available inside those files include:
 
@@ -263,7 +305,8 @@ Current behavior:
 - the selected traffic profile is preserved in topology metadata and execution step payloads
 - `target=` is the only required argument; `plan=` is optional and enables advanced workload definitions
 - the native plan builders define concrete users, tasks, waits, stages, and thresholds
-- the native runner executes real guarded HTTP traffic for supported profiles instead of only emitting synthetic traffic logs
+- the requests are real: they are sent by the suite's APISIX sidecar to the target, and the figures in the log are measured from them (see the target rules above)
+- a run that sent no requests fails; it never passes on zero data
 - the native runner now reports richer latency and throughput summaries, including `min`, `avg`, `max`, `p50`, `p90`, `p95`, `p99`, per-stage summaries, compact throughput timelines, and latency histograms
 
 Native threshold metrics currently supported:
@@ -466,7 +509,7 @@ The parser extracts these topology fields from recognized statements:
 | `image="..."` | container image for `task.run`, `test.run`, and `service.run` |
 | `file="..."` | task/test asset path (alternative to `commands=`) |
 | `commands=["...", "..."]` | inline shell commands (alternative to `file=`) |
-| `plan="..."` | traffic plan file (optional — omit to use the native synthetic baseline) |
+| `plan="..."` | traffic plan file (optional — omit to use the variant's default shape) |
 | `target="..."` | native traffic target |
 | `rps=<float>` or `arrival_rate=<float>` | request rate override for `traffic.*` nodes |
 | `technique="..."` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`) |
@@ -544,7 +587,7 @@ Current behavior:
 
 - exit-code expectations are checked after the runner finishes the step
 - log assertions are matched against the emitted step log stream
-- `traffic.*` steps still use threshold metrics for latency and error budgets
+- `traffic.*` steps use threshold metrics for latency and error budgets, and a run with zero requests fails before any threshold is read
 - `continue_on_failure=true` keeps the suite running even when the node itself finishes as `failed`
 - `on_failure=[primary]` activates rollback or contingency nodes only when one of the referenced nodes fails
 - `reset_mocks=[billing_mock]` clears persisted mock state before a `test.run(...)` step starts

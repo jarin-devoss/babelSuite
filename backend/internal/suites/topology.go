@@ -259,6 +259,9 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 	if err != nil {
 		return resolvedTopology{}, err
 	}
+	if err := validateTrafficTargets(suite, final); err != nil {
+		return resolvedTopology{}, err
+	}
 	result := resolvedTopology{
 		Nodes:        resolved,
 		Dependencies: cloneResolvedDependencies(dependencies),

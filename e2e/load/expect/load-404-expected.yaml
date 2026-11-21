@@ -1,0 +1,3 @@
+status: Healthy
+log_contains:
+  - failures=0

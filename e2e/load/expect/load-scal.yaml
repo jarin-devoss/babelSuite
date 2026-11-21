@@ -1,0 +1,4 @@
+status: Healthy
+count_equals_reported_sum: true
+log_contains:
+  - "Max sustainable load: 4 users"

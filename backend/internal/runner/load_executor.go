@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
-	"net"
-	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -84,48 +82,6 @@ func (b latencyBuckets) percentile(p float64) float64 {
 	return float64(keys[len(keys)-1])
 }
 
-// syntheticBuckets reconstructs a latency histogram from five percentile
-// breakpoints returned by the APISIX sidecar, distributing n samples across
-// four ranges proportionally.
-func syntheticBuckets(minMs, p50, p95, p99, maxMs float64, n int) latencyBuckets {
-	var b latencyBuckets
-	if n <= 0 {
-		return b
-	}
-	b.m = make(map[int]int, 8)
-	type rangeSpec struct{ lo, hi, frac float64 }
-	ranges := []rangeSpec{
-		{minMs, p50, 0.50},
-		{p50, p95, 0.45},
-		{p95, p99, 0.04},
-		{p99, maxMs, 0.01},
-	}
-	for _, r := range ranges {
-		count := int(math.Round(r.frac * float64(n)))
-		if count <= 0 {
-			continue
-		}
-		lo, hi := r.lo, r.hi
-		if lo > hi {
-			lo, hi = hi, lo
-		}
-		ms := int(math.Round((lo + hi) / 2))
-		if ms < 0 {
-			ms = 0
-		}
-		key := bucketLatencyMs(ms)
-		b.m[key] += count
-		b.count += count
-		b.sumMs += int64(ms) * int64(count)
-	}
-	b.minMs = int(math.Round(minMs))
-	b.maxMs = int(math.Round(maxMs))
-	if b.minMs < 0 {
-		b.minMs = 0
-	}
-	return b
-}
-
 type loadSamplerStats struct {
 	Count    int
 	Failures int
@@ -157,242 +113,25 @@ type loadStats struct {
 	ThroughputByS map[int]int
 	Samplers      map[string]*loadSamplerStats
 	Stages        map[int]*loadStageStats
+	// Dropped counts open-model arrivals the generator refused to start because
+	// too many requests were already in flight: the target could not keep up.
+	Dropped int
+	// Errors counts failed requests by category (connect, timeout, http_404, ...).
+	Errors map[string]int
 }
 
-func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
-	if step.Load == nil {
-		step.Load = &suites.LoadSpec{
-			Variant: step.Node.Variant,
-			Stages:  []suites.LoadStage{{Users: 1, Duration: 60 * time.Second}},
-		}
-	}
-
-	emit(line(step, "info", fmt.Sprintf("[%s] Loaded native traffic plan %s against %s.", step.Node.Name, step.Load.PlanPath, step.Load.Target)))
-
-	if step.Load.Variant == "traffic.scalability" {
-		return runScalabilityModel(ctx, step, emit)
-	}
-
-	stats := &loadStats{
+func newLoadStats() *loadStats {
+	return &loadStats{
 		StartedAt:     time.Now(),
 		ThroughputByS: make(map[int]int),
 		Samplers:      make(map[string]*loadSamplerStats),
 		Stages:        make(map[int]*loadStageStats),
+		Errors:        make(map[string]int),
 	}
-
-	if useSyntheticLoadTarget(step.Load.Target) {
-		emit(line(step, "info", fmt.Sprintf("[%s] Target %s resolves as a suite-local symbolic service; using bounded synthetic traffic.", step.Node.Name, step.Load.Target)))
-		if err := runSyntheticLoadModel(ctx, step, emit, stats); err != nil {
-			return err
-		}
-		return finalizeLoadStep(step, emit, stats)
-	}
-
-	if canUseAPISIXTraffic(step) {
-		if err := runAPISIXTraffic(ctx, step, emit, stats); err != nil {
-			return err
-		}
-		return finalizeLoadStep(step, emit, stats)
-	}
-
-	emit(line(step, "info", fmt.Sprintf("[%s] No APISIX gateway configured; using bounded synthetic traffic.", step.Node.Name)))
-	if err := runSyntheticLoadModel(ctx, step, emit, stats); err != nil {
-		return err
-	}
-	return finalizeLoadStep(step, emit, stats)
-}
-
-func finalizeLoadStep(step StepSpec, emit func(logstream.Line), stats *loadStats) error {
-	if err := evaluateLoadThresholds(step, stats); err != nil {
-		return err
-	}
-
-	summary := stats.summary()
-	emit(line(step, "info", fmt.Sprintf("[%s] Native traffic run completed with %d requests, %d failures, and peak concurrency %d.", step.Node.Name, summary.Requests, summary.Failures, summary.PeakUsers)))
-	emit(line(step, "info", fmt.Sprintf("[%s] Latency avg=%.1fms min=%.1fms max=%.1fms p50=%.1fms p90=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, summary.Latency.AvgMillis, summary.Latency.MinMillis, summary.Latency.MaxMillis, summary.Latency.P50Millis, summary.Latency.P90Millis, summary.Latency.P95Millis, summary.Latency.P99Millis)))
-	emit(line(step, "info", fmt.Sprintf("[%s] Throughput avg=%.1frps peak=%.1frps timeline=%s.", step.Node.Name, summary.AverageRPS, summary.PeakRPS, formatThroughputTimeline(summary.Throughput))))
-	if histogram := formatHistogram(summary.Latency.Histogram); histogram != "" {
-		emit(line(step, "info", fmt.Sprintf("[%s] Latency histogram %s.", step.Node.Name, histogram)))
-	}
-	for _, sampler := range summary.Samplers {
-		emit(line(step, "info", fmt.Sprintf("[%s] Sampler %s avg=%.1fms min=%.1fms max=%.1fms p50=%.1fms p90=%.1fms p95=%.1fms p99=%.1fms count=%d failures=%d.", step.Node.Name, sampler.Name, sampler.Latency.AvgMillis, sampler.Latency.MinMillis, sampler.Latency.MaxMillis, sampler.Latency.P50Millis, sampler.Latency.P90Millis, sampler.Latency.P95Millis, sampler.Latency.P99Millis, sampler.Count, sampler.Failures)))
-	}
-	for _, stage := range summary.Stages {
-		emit(line(step, "info", fmt.Sprintf("[%s] Stage %d summary users=%d spawn_rate=%.1f duration=%s requests=%d failures=%d avg_rps=%.1f peak_rps=%.1f avg=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, stage.Index+1, stage.Users, stage.SpawnRate, stage.ActualDuration, stage.Requests, stage.Failures, stage.AverageRPS, stage.PeakRPS, stage.Latency.AvgMillis, stage.Latency.P95Millis, stage.Latency.P99Millis)))
-	}
-	return nil
-}
-
-func useSyntheticLoadTarget(target string) bool {
-	parsed, err := url.Parse(strings.TrimSpace(target))
-	if err != nil {
-		return false
-	}
-	host := strings.TrimSpace(parsed.Hostname())
-	if host == "" {
-		return false
-	}
-	if strings.EqualFold(host, "localhost") || net.ParseIP(host) != nil {
-		return false
-	}
-	return !strings.Contains(host, ".")
-}
-
-func runScalabilityModel(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
-	selector := rand.New(rand.NewSource(time.Now().UnixNano()))
-	var lastPassingUsers int
-
-	for stageIndex, stage := range step.Load.Stages {
-		probeStats := &loadStats{
-			StartedAt:     time.Now(),
-			ThroughputByS: make(map[int]int),
-			Samplers:      make(map[string]*loadSamplerStats),
-			Stages:        make(map[int]*loadStageStats),
-		}
-
-		probeStats.beginStage(0, stage, time.Now())
-		emit(line(step, "info", fmt.Sprintf("[%s] Scalability probe %d: users=%d spawn_rate=%.1f duration=%s.", step.Node.Name, stageIndex+1, stage.Users, stage.SpawnRate, stage.Duration)))
-
-		if err := runSyntheticStage(ctx, step, 0, stage, selector, probeStats); err != nil {
-			return err
-		}
-		probeStats.endStage(0, time.Now())
-
-		probeSummary := probeStats.summary()
-		emit(line(step, "info", fmt.Sprintf("[%s] Probe %d result: users=%d requests=%d failures=%d error_rate=%.4f avg=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, stageIndex+1, stage.Users, probeSummary.Requests, probeSummary.Failures, probeSummary.ErrorRate, probeSummary.Latency.AvgMillis, probeSummary.Latency.P95Millis, probeSummary.Latency.P99Millis)))
-
-		if err := evaluateLoadThresholds(step, probeStats); err != nil {
-			emit(line(step, "warn", fmt.Sprintf("[%s] Breaking point found at %d users: %v.", step.Node.Name, stage.Users, err)))
-			if lastPassingUsers > 0 {
-				emit(line(step, "info", fmt.Sprintf("[%s] Max sustainable load: %d users (last passing probe before breaking point).", step.Node.Name, lastPassingUsers)))
-			} else {
-				emit(line(step, "warn", fmt.Sprintf("[%s] No passing probes recorded; system cannot sustain load at any tested level.", step.Node.Name)))
-			}
-			return nil
-		}
-		lastPassingUsers = stage.Users
-	}
-
-	emit(line(step, "info", fmt.Sprintf("[%s] All %d scalability probes passed. Max sustainable load: %d users.", step.Node.Name, len(step.Load.Stages), lastPassingUsers)))
-	return nil
-}
-
-func runSyntheticLoadModel(ctx context.Context, step StepSpec, emit func(logstream.Line), stats *loadStats) error {
-	selector := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for stageIndex, stage := range step.Load.Stages {
-		stats.beginStage(stageIndex, stage, time.Now())
-		emit(line(step, "info", fmt.Sprintf("[%s] Entering stage %d with target users=%d spawn_rate=%.1f duration=%s.", step.Node.Name, stageIndex+1, stage.Users, stage.SpawnRate, stage.Duration)))
-		if err := runSyntheticStage(ctx, step, stageIndex, stage, selector, stats); err != nil {
-			return err
-		}
-		stats.endStage(stageIndex, time.Now())
-		if stage.Stop {
-			break
-		}
-	}
-	return nil
-}
-
-func runSyntheticStage(ctx context.Context, step StepSpec, stageIndex int, stage suites.LoadStage, selector *rand.Rand, stats *loadStats) error {
-	stageSeconds := int(math.Ceil(stage.Duration.Seconds()))
-	if stageSeconds <= 0 {
-		stageSeconds = 1
-	}
-	stats.recordActiveUsers(stage.Users)
-
-	for tick := 0; tick < stageSeconds; tick++ {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		iterations := maxInt(1, stage.Users)
-		recordSyntheticIterations(step.Load.Users, selector, iterations, stageIndex, stats)
-
-		wait := time.Second
-		if remaining := stage.Duration - (time.Duration(tick+1) * time.Second); remaining < 0 && remaining > -time.Second {
-			wait = time.Second + remaining
-		}
-		if tick == stageSeconds-1 || wait <= 0 {
-			continue
-		}
-		timer := time.NewTimer(wait)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		case <-timer.C:
-		}
-	}
-	return nil
-}
-
-func recordSyntheticIterations(users []suites.LoadUser, selector *rand.Rand, iterations int, stageIndex int, stats *loadStats) {
-	if len(users) == 0 {
-		stats.recordResult("synthetic", 45, false, stageIndex, time.Now())
-		return
-	}
-	for index := 0; index < iterations; index++ {
-		user := pickLoadUser(users, selector)
-		if len(user.Tasks) == 0 {
-			stats.recordResult(strutil.FirstNonEmpty(user.Name, "synthetic"), 45, false, stageIndex, time.Now())
-			continue
-		}
-		task := pickLoadTask(user.Tasks, selector)
-		latencyMs := syntheticTaskLatency(taskSamplerName(task))
-		stats.recordResult(taskSamplerName(task), latencyMs, false, stageIndex, time.Now())
-	}
-}
-
-func syntheticTaskLatency(name string) int {
-	var total int
-	for _, ch := range name {
-		total += int(ch)
-	}
-	return 35 + (total % 25)
-}
-
-func evaluateLoadThresholds(step StepSpec, stats *loadStats) error {
-	thresholds := make([]suites.LoadThreshold, 0, len(step.Load.Thresholds)+4)
-	thresholds = append(thresholds, step.Load.Thresholds...)
-	if !containsLoadMetric(thresholds, "http.error_rate") {
-		thresholds = append(thresholds, suites.LoadThreshold{Metric: "http.error_rate", Op: "<=", Value: 0})
-	}
-	for _, user := range step.Load.Users {
-		for _, task := range user.Tasks {
-			for _, check := range task.Checks {
-				if check.Metric == "status" {
-					continue
-				}
-				normalized := check
-				if normalized.Sampler == "" {
-					normalized.Sampler = taskSamplerName(task)
-				}
-				thresholds = append(thresholds, normalized)
-			}
-		}
-	}
-
-	failures := make([]string, 0)
-	summary := stats.summary()
-	for _, threshold := range thresholds {
-		switch threshold.Metric {
-		case "http.error_rate":
-			if !compareLoadValue(summary.ErrorRate, threshold.Op, threshold.Value) {
-				failures = append(failures, fmt.Sprintf("%s %s %.2f failed (got %.4f)", threshold.Metric, threshold.Op, threshold.Value, summary.ErrorRate))
-			}
-		case "http.min_ms", "latency.min_ms", "http.avg_ms", "latency.avg_ms", "http.max_ms", "latency.max_ms", "http.p50_ms", "latency.p50_ms", "http.p90_ms", "latency.p90_ms", "http.p95_ms", "latency.p95_ms", "http.p99_ms", "latency.p99_ms", "throughput.avg_rps", "traffic.avg_rps", "throughput.peak_rps", "traffic.peak_rps":
-			value, ok := summary.metricValue(threshold.Metric, threshold.Sampler)
-			if !ok || !compareLoadValue(value, threshold.Op, threshold.Value) {
-				failures = append(failures, fmt.Sprintf("%s %s %.2f failed for %s", threshold.Metric, threshold.Op, threshold.Value, strutil.FirstNonEmpty(threshold.Sampler, "all")))
-			}
-		}
-	}
-	if len(failures) == 0 {
-		return nil
-	}
-	return errors.New(strings.Join(failures, "; "))
 }
 
 type loadSummary struct {
+	Dropped        int
 	Requests       int
 	Failures       int
 	ErrorRate      float64
@@ -552,6 +291,7 @@ func (s *loadStats) summary() loadSummary {
 		Requests:   s.Requests,
 		Failures:   s.Failures,
 		PeakUsers:  s.PeakUsers,
+		Dropped:    s.Dropped,
 		Latency:    summarizeLatencies(s.lat),
 		Throughput: summarizeThroughput(s.ThroughputByS),
 		Samplers:   make([]loadSamplerSummary, 0, len(s.Samplers)),
@@ -800,44 +540,6 @@ func formatHistogram(buckets []loadHistogramBucket) string {
 	return strings.Join(parts, ", ")
 }
 
-func pickLoadUser(users []suites.LoadUser, selector *rand.Rand) suites.LoadUser {
-	total := 0
-	for _, user := range users {
-		total += maxInt(1, user.Weight)
-	}
-	if total <= 0 {
-		return users[0]
-	}
-	target := selector.Intn(total)
-	cursor := 0
-	for _, user := range users {
-		cursor += maxInt(1, user.Weight)
-		if target < cursor {
-			return user
-		}
-	}
-	return users[len(users)-1]
-}
-
-func pickLoadTask(tasks []suites.LoadTask, selector *rand.Rand) suites.LoadTask {
-	total := 0
-	for _, task := range tasks {
-		total += maxInt(1, task.Weight)
-	}
-	if total <= 0 {
-		return tasks[0]
-	}
-	target := selector.Intn(total)
-	cursor := 0
-	for _, task := range tasks {
-		cursor += maxInt(1, task.Weight)
-		if target < cursor {
-			return task
-		}
-	}
-	return tasks[len(tasks)-1]
-}
-
 func taskSamplerName(task suites.LoadTask) string {
 	return strutil.FirstNonEmpty(task.Request.Name, task.Name, task.Request.Path)
 }
@@ -882,4 +584,213 @@ func maxInt(left, right int) int {
 		return left
 	}
 	return right
+}
+
+// executeLoadStep runs a traffic step: real requests, from the suite's sidecar,
+// to the target the suite names. It never substitutes made-up traffic: when the
+// run cannot happen (no sidecar, a target nothing provides, an unreachable host)
+// the step fails and says why, and a run that sent nothing is a failure too.
+func executeLoadStep(ctx context.Context, step StepSpec, emit func(logstream.Line)) error {
+	if step.Load == nil {
+		return fmt.Errorf("traffic step %q has no load spec", step.Node.Name)
+	}
+	if !canUseAPISIXTraffic(step) {
+		return fmt.Errorf("traffic step %q: the suite's APISIX sidecar is not running, so no load can be generated", step.Node.Name)
+	}
+
+	plan := "the default " + trafficProfileLabel(step.Node.Variant) + " shape"
+	if step.Load.PlanPath != "" {
+		plan = "traffic plan " + step.Load.PlanPath
+	}
+	emit(line(step, "info", fmt.Sprintf("[%s] Running %s against %s.", step.Node.Name, plan, step.Load.Target)))
+
+	target, err := resolveTrafficTarget(ctx, step)
+	if err != nil {
+		return err
+	}
+	emit(line(step, "info", fmt.Sprintf("[%s] Target %s resolved to %s: %s.", step.Node.Name, step.Load.Target, target.URL, target.Note)))
+
+	runID := trafficRunID(step)
+	if step.Load.Variant == "traffic.scalability" {
+		return runScalabilityModel(ctx, step, emit, target, runID)
+	}
+
+	stats := newLoadStats()
+	if err := runAPISIXTraffic(ctx, step, emit, stats, target, step.Load.Stages, runID); err != nil {
+		return err
+	}
+	return finalizeLoadStep(step, emit, stats)
+}
+
+// trafficRunID names a load run in the sidecar. The sidecar serves every
+// execution of a suite and profile, and keeps each run's counts under its id, so
+// the id has to be unique across all of them.
+func trafficRunID(step StepSpec) string {
+	clean := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			return r
+		default:
+			return '-'
+		}
+	}, step.ExecutionID+"-"+step.Node.ID)
+	return clean + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+}
+
+func finalizeLoadStep(step StepSpec, emit func(logstream.Line), stats *loadStats) error {
+	summary := stats.summary()
+	emit(line(step, "info", fmt.Sprintf("[%s] Traffic run completed with %d requests, %d failures, and peak concurrency %d.", step.Node.Name, summary.Requests, summary.Failures, summary.PeakUsers)))
+	emit(line(step, "info", fmt.Sprintf("[%s] Latency avg=%.1fms min=%.1fms max=%.1fms p50=%.1fms p90=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, summary.Latency.AvgMillis, summary.Latency.MinMillis, summary.Latency.MaxMillis, summary.Latency.P50Millis, summary.Latency.P90Millis, summary.Latency.P95Millis, summary.Latency.P99Millis)))
+	emit(line(step, "info", fmt.Sprintf("[%s] Throughput avg=%.1frps peak=%.1frps timeline=%s.", step.Node.Name, summary.AverageRPS, summary.PeakRPS, formatThroughputTimeline(summary.Throughput))))
+	if histogram := formatHistogram(summary.Latency.Histogram); histogram != "" {
+		emit(line(step, "info", fmt.Sprintf("[%s] Latency histogram %s.", step.Node.Name, histogram)))
+	}
+	for _, sampler := range summary.Samplers {
+		emit(line(step, "info", fmt.Sprintf("[%s] Sampler %s avg=%.1fms min=%.1fms max=%.1fms p50=%.1fms p90=%.1fms p95=%.1fms p99=%.1fms count=%d failures=%d.", step.Node.Name, sampler.Name, sampler.Latency.AvgMillis, sampler.Latency.MinMillis, sampler.Latency.MaxMillis, sampler.Latency.P50Millis, sampler.Latency.P90Millis, sampler.Latency.P95Millis, sampler.Latency.P99Millis, sampler.Count, sampler.Failures)))
+	}
+	for _, stage := range summary.Stages {
+		emit(line(step, "info", fmt.Sprintf("[%s] Stage %d summary users=%d spawn_rate=%.1f duration=%s requests=%d failures=%d avg_rps=%.1f peak_rps=%.1f avg=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, stage.Index+1, stage.Users, stage.SpawnRate, stage.ActualDuration, stage.Requests, stage.Failures, stage.AverageRPS, stage.PeakRPS, stage.Latency.AvgMillis, stage.Latency.P95Millis, stage.Latency.P99Millis)))
+	}
+	return evaluateLoadThresholds(step, stats)
+}
+
+// runScalabilityModel finds how many users a target sustains by running real
+// traffic, one probe per stage, until a probe breaks a threshold. It fails when
+// nothing is sustainable (the first probe already breaks), and when the
+// sustained count is below min_users= if the step names one.
+func runScalabilityModel(ctx context.Context, step StepSpec, emit func(logstream.Line), target resolvedTarget, baseRunID string) error {
+	stages := step.Load.Stages
+	if len(stages) == 0 {
+		return fmt.Errorf("traffic step %q: a scalability run needs at least one probe stage", step.Node.Name)
+	}
+
+	lastPassing := 0
+	for index, stage := range stages {
+		probe := newLoadStats()
+		emit(line(step, "info", fmt.Sprintf("[%s] Scalability probe %d: users=%d spawn_rate=%.1f duration=%s.", step.Node.Name, index+1, stage.Users, stage.SpawnRate, stage.Duration)))
+		if err := runAPISIXTraffic(ctx, step, emit, probe, target, []suites.LoadStage{stage}, fmt.Sprintf("%s-probe-%d", baseRunID, index+1)); err != nil {
+			return err
+		}
+
+		summary := probe.summary()
+		emit(line(step, "info", fmt.Sprintf("[%s] Probe %d result: users=%d requests=%d failures=%d error_rate=%.4f avg=%.1fms p95=%.1fms p99=%.1fms.", step.Node.Name, index+1, stage.Users, summary.Requests, summary.Failures, summary.ErrorRate, summary.Latency.AvgMillis, summary.Latency.P95Millis, summary.Latency.P99Millis)))
+		if summary.Requests == 0 {
+			// Not a breaking point: nothing was measured, so nothing can be concluded.
+			return fmt.Errorf("scalability probe %d sent no requests to %s", index+1, step.Load.Target)
+		}
+
+		if err := evaluateLoadThresholds(step, probe); err != nil {
+			emit(line(step, "warn", fmt.Sprintf("[%s] Breaking point found at %d users: %v.", step.Node.Name, stage.Users, err)))
+			if lastPassing == 0 {
+				return fmt.Errorf("nothing is sustainable: the first probe (%d users) already broke: %w", stage.Users, err)
+			}
+			emit(line(step, "info", fmt.Sprintf("[%s] Max sustainable load: %d users (last passing probe before the breaking point at %d).", step.Node.Name, lastPassing, stage.Users)))
+			return checkMinUsers(step, lastPassing)
+		}
+		lastPassing = stage.Users
+	}
+
+	emit(line(step, "info", fmt.Sprintf("[%s] All %d scalability probes passed. Max sustainable load: %d users.", step.Node.Name, len(stages), lastPassing)))
+	return checkMinUsers(step, lastPassing)
+}
+
+func checkMinUsers(step StepSpec, sustained int) error {
+	if step.Load.MinUsers > 0 && sustained < step.Load.MinUsers {
+		return fmt.Errorf("sustained %d users, below the min_users=%d the step requires", sustained, step.Load.MinUsers)
+	}
+	return nil
+}
+
+// evaluateLoadThresholds checks a run against its thresholds. A run that
+// measured nothing fails before any threshold is read: with no requests every
+// rate is zero, and zero meets "error rate <= 0", which is how a run that sent
+// no traffic used to pass.
+func evaluateLoadThresholds(step StepSpec, stats *loadStats) error {
+	summary := stats.summary()
+	if summary.Requests == 0 {
+		return fmt.Errorf("no requests were sent to %s", step.Load.Target)
+	}
+
+	failures := make([]string, 0)
+	for _, stage := range summary.Stages {
+		if stage.Requests == 0 {
+			failures = append(failures, fmt.Sprintf("stage %d sent no requests", stage.Index+1))
+		}
+	}
+
+	thresholds := make([]suites.LoadThreshold, 0, len(step.Load.Thresholds)+4)
+	thresholds = append(thresholds, step.Load.Thresholds...)
+	if !containsLoadMetric(thresholds, "http.error_rate") {
+		thresholds = append(thresholds, suites.LoadThreshold{Metric: "http.error_rate", Op: "<=", Value: 0})
+	}
+	for _, user := range step.Load.Users {
+		for _, task := range user.Tasks {
+			for _, check := range task.Checks {
+				if check.Metric == "status" {
+					continue
+				}
+				normalized := check
+				if normalized.Sampler == "" {
+					normalized.Sampler = taskSamplerName(task)
+				}
+				thresholds = append(thresholds, normalized)
+			}
+		}
+	}
+
+	for _, threshold := range thresholds {
+		switch threshold.Metric {
+		case "http.error_rate":
+			if !compareLoadValue(summary.ErrorRate, threshold.Op, threshold.Value) {
+				failures = append(failures, fmt.Sprintf("%s %s %.2f failed (got %.4f%s)", threshold.Metric, threshold.Op, threshold.Value, summary.ErrorRate, topErrorSuffix(stats)))
+			}
+		case "traffic.dropped":
+			if !compareLoadValue(float64(summary.Dropped), threshold.Op, threshold.Value) {
+				failures = append(failures, fmt.Sprintf("%s %s %.0f failed (got %d: the target could not keep up)", threshold.Metric, threshold.Op, threshold.Value, summary.Dropped))
+			}
+		case "http.min_ms", "latency.min_ms", "http.avg_ms", "latency.avg_ms", "http.max_ms", "latency.max_ms", "http.p50_ms", "latency.p50_ms", "http.p90_ms", "latency.p90_ms", "http.p95_ms", "latency.p95_ms", "http.p99_ms", "latency.p99_ms", "throughput.avg_rps", "traffic.avg_rps", "throughput.peak_rps", "traffic.peak_rps":
+			value, ok := summary.metricValue(threshold.Metric, threshold.Sampler)
+			if !ok {
+				failures = append(failures, fmt.Sprintf("%s %s %.2f cannot be checked: sampler %s sent no requests", threshold.Metric, threshold.Op, threshold.Value, strutil.FirstNonEmpty(threshold.Sampler, "all")))
+			} else if !compareLoadValue(value, threshold.Op, threshold.Value) {
+				failures = append(failures, fmt.Sprintf("%s %s %.2f failed for %s (got %.2f)", threshold.Metric, threshold.Op, threshold.Value, strutil.FirstNonEmpty(threshold.Sampler, "all"), value))
+			}
+		}
+	}
+	if len(failures) == 0 {
+		return nil
+	}
+	return errors.New(strings.Join(failures, "; "))
+}
+
+// topErrorSuffix names the most frequent failure categories, so a failed error
+// rate says what the failures were.
+func topErrorSuffix(stats *loadStats) string {
+	stats.mu.Lock()
+	defer stats.mu.Unlock()
+	if len(stats.Errors) == 0 {
+		return ""
+	}
+	type entry struct {
+		category string
+		count    int
+	}
+	ranked := make([]entry, 0, len(stats.Errors))
+	for category, count := range stats.Errors {
+		ranked = append(ranked, entry{category, count})
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		if ranked[i].count != ranked[j].count {
+			return ranked[i].count > ranked[j].count
+		}
+		return ranked[i].category < ranked[j].category
+	})
+	if len(ranked) > 3 {
+		ranked = ranked[:3]
+	}
+	parts := make([]string, 0, len(ranked))
+	for _, item := range ranked {
+		parts = append(parts, fmt.Sprintf("%s x%d", item.category, item.count))
+	}
+	return "; " + strings.Join(parts, ", ")
 }

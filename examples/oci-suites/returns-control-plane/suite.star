@@ -28,8 +28,8 @@ ready = log.info(
 )
 
 # ── traffic — stress then spike ───────────────────────────────────────────────
-stress = traffic.stress(name="returns-stress", target="http://returns-api:8080", rps=100, after=[ready])
-spike  = traffic.spike( name="returns-spike",  target="http://returns-api:8080", rps=80,  after=[stress])
+stress = traffic.stress(name="returns-stress", target="https://returns-control-plane.mock.internal", plan="returns.star", rps=100, after=[ready])
+spike  = traffic.spike( name="returns-spike",  target="https://returns-control-plane.mock.internal", plan="returns.star", rps=80,  after=[stress])
 
 # ── tests with failure path ───────────────────────────────────────────────────
 smoke = test.run(

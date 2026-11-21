@@ -28,6 +28,10 @@ const authDir = join(frontendDir, 'e2e', '.auth')
 
 const port = process.env.E2E_API_PORT ?? '8090'
 const registryUrl = process.env.E2E_REGISTRY_URL ?? 'http://localhost:5000'
+// Which suites to push and which registry repositories to show. The load-testing
+// runner (e2e/load/run.py) overrides both to use its own suites.
+const suitesDir = process.env.E2E_SUITES_DIR ?? join(repoRoot, 'e2e', 'suites')
+const registryScope = process.env.E2E_REGISTRY_SCOPE ?? 'e2e'
 const mongoUri = process.env.E2E_MONGO_URI ?? 'mongodb://localhost:27017'
 const exe = process.platform === 'win32' ? '.exe' : ''
 
@@ -44,7 +48,7 @@ function run(command, args, options = {}) {
 
 function pushSuites() {
   const script = join(repoRoot, 'scripts', 'push-to-zot.py')
-  const args = [script, '--registry', registryUrl, '--suites-dir', join(repoRoot, 'e2e', 'suites')]
+  const args = [script, '--registry', registryUrl, '--suites-dir', suitesDir]
   for (const python of ['python', 'python3']) {
     const probe = spawnSync(python, ['--version'], { stdio: 'ignore' })
     if (!probe.error && probe.status === 0) {
@@ -95,7 +99,7 @@ registries:
     registryUrl: ${registryUrl}
     username: ""
     secret: ""
-    repositoryScope: "e2e"
+    repositoryScope: "${registryScope}"
     region: ""
     allowLocalNetwork: true
 secrets:

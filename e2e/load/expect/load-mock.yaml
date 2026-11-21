@@ -1,0 +1,4 @@
+status: Healthy
+log_contains:
+  - is a mock host of this suite
+  - failures=0

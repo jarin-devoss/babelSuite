@@ -8,6 +8,9 @@ type LoadSpec struct {
 	Target       string          `json:"target,omitempty"`
 	RequestsPerS float64         `json:"requestsPerSecond,omitempty"`
 	ArrivalRate  float64         `json:"arrivalRate,omitempty"`
+	// MinUsers is the user count a traffic.scalability step must sustain to pass.
+	// Zero means the step only has to run its first probe without breaking.
+	MinUsers int `json:"minUsers,omitempty"`
 	Users        []LoadUser      `json:"users,omitempty"`
 	Stages       []LoadStage     `json:"stages,omitempty"`
 	Thresholds   []LoadThreshold `json:"thresholds,omitempty"`

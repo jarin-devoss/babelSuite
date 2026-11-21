@@ -55,7 +55,8 @@ for version in SOAP_VERSIONS:
     safe_version = version.replace(".", "_")
     t = traffic.baseline(
         name="claims-baseline-soap-" + safe_version,
-        target="http://claims-bridge:8080",
+        target="https://soap-claims-hub.mock.internal",
+        plan="claims.star",
         after=[mocks_ready, seed_reference_data],
         env={"SOAP_VERSION": version},
     )

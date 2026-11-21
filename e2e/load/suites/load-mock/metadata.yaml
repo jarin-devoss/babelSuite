@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-mock
+  title: Load Mock
+spec:
+  repository: localhost:5000/e2e-load/load-mock
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Load against the suite's own mock surface by its mock host. A proof suite for the traffic steps, not an example.

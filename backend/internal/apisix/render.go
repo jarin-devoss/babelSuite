@@ -221,8 +221,8 @@ func buildPluginCatalog(suite SuiteConfig) []pluginSpec {
 	return output
 }
 
-// trafficTriggerRoute returns the hidden route that accepts the BabelSuite
-// runner's POST /_babelsuite/traffic/start trigger.  The upstream node is a
+// trafficTriggerRoute returns the hidden route that carries the cannon's whole
+// protocol (start, status, result, stop) under /_babelsuite/traffic/.  The upstream node is a
 // loopback placeholder — the cannon plugin short-circuits the request in the
 // access phase and never forwards it.
 func trafficTriggerRoute() routeBlock {
@@ -230,8 +230,8 @@ func trafficTriggerRoute() routeBlock {
 		ID:      "babelsuite-traffic-trigger",
 		Name:    "babelsuite-traffic-trigger",
 		Desc:    "BabelSuite load test trigger — handled entirely by the traffic-cannon Lua plugin.",
-		URI:     TrafficCannonTriggerRoute,
-		Methods: []string{"POST"},
+		URI:     TrafficCannonRoutePrefix + "*",
+		Methods: []string{"GET", "POST"},
 		Plugins: map[string]any{
 			TrafficCannonPluginName: map[string]any{},
 		},

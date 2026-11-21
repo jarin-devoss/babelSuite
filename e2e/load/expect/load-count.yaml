@@ -1,0 +1,5 @@
+status: Healthy
+count_equals_reported: true
+log_contains:
+  - resolved to http://
+  - the sidecar joined the run's network

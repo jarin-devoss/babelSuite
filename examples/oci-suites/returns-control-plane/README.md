@@ -50,3 +50,4 @@ babelctl run localhost:5000/babelsuite/returns-control-plane:latest --profile ca
 - **Parallel seeding** — `seed_topics` and `seed_routes` run concurrently across broker and database, reducing startup time
 - **Worker alongside tests** — `refund_worker` remains running during the smoke test, processing events produced by the API under test
 - **Fallback modes** — mock definitions include fallback responses for unmatched requests, preventing test failures from incomplete fixture coverage
+- **Load test targets the suite's mock** — the traffic steps send real requests to the suite's mock host until a real service is added

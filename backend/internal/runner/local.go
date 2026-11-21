@@ -239,10 +239,12 @@ func runInProcessStep(ctx context.Context, step StepSpec, emitLine func(logstrea
 		return true, nil
 	}
 
-	if step.Node.Kind == "traffic" && step.Load != nil {
-		emitLine(line(step, "info", fmt.Sprintf("[%s] Resolving %s assets from traffic/ before the run begins.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
-		emitLine(line(step, "info", fmt.Sprintf("[%s] Applying the %s profile budgets for users, pacing, and latency thresholds.", step.Node.Name, trafficProfileLabel(step.Node.Variant))))
+	// A traffic step is real load or it fails. There is no simulated fallback: a
+	// step with no load spec, no sidecar or an unreachable target reports that,
+	// rather than printing a plausible summary of traffic that was never sent.
+	if step.Node.Kind == "traffic" {
 		if err := executeLoadStep(ctx, step, emitLine); err != nil {
+			emitLine(line(step, "error", fmt.Sprintf("[%s] Traffic step failed: %v", step.Node.Name, err)))
 			return true, err
 		}
 		return true, evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
@@ -266,9 +268,6 @@ func runSimulatedStep(ctx context.Context, step StepSpec, emitLine func(logstrea
 	case <-timer.C:
 	}
 
-	if step.Node.Kind == "traffic" {
-		emitLine(line(step, "info", fmt.Sprintf("[%s] Synthetic traffic reached the target ramp and streamed aggregate counters back to the runner.", step.Node.Name)))
-	}
 	emitLine(line(step, "info", probeMessage(step)))
 	emitLine(line(step, "info", fmt.Sprintf("[%s] Local runner reported the step healthy and released the lease cycle.", step.Node.Name)))
 	return evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
@@ -368,8 +367,6 @@ func bootMessage(step StepSpec) string {
 		return fmt.Sprintf("[%s] Starting background service infrastructure for %s under the %s profile.", step.Node.Name, step.SuiteTitle, effectiveProfile(step))
 	case "task":
 		return fmt.Sprintf("[%s] Running one-shot task assets from tasks/ under the %s profile.", step.Node.Name, effectiveProfile(step))
-	case "traffic":
-		return fmt.Sprintf("[%s] Starting the %s profile and preparing threshold collectors.", step.Node.Name, trafficProfileLabel(step.Node.Variant))
 	case "test":
 		return fmt.Sprintf("[%s] Running verification assets from tests/ under the %s profile.", step.Node.Name, effectiveProfile(step))
 	default:
@@ -385,8 +382,6 @@ func probeMessage(step StepSpec) string {
 		return fmt.Sprintf("[%s] Background service answered readiness probes and is available to downstream steps.", step.Node.Name)
 	case "task":
 		return fmt.Sprintf("[%s] Task completed successfully and published its derived outputs.", step.Node.Name)
-	case "traffic":
-		return fmt.Sprintf("[%s] %s thresholds passed and result summaries are ready for downstream checks.", step.Node.Name, trafficProfileLabel(step.Node.Variant))
 	case "test":
 		return fmt.Sprintf("[%s] Test checks completed without violating suite assertions.", step.Node.Name)
 	default:
@@ -415,8 +410,6 @@ func nodeDelay(kind string) time.Duration {
 		return 550 * time.Millisecond
 	case "service":
 		return 650 * time.Millisecond
-	case "traffic":
-		return 1100 * time.Millisecond
 	case "test":
 		return 700 * time.Millisecond
 	default:

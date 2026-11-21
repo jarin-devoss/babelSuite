@@ -17,10 +17,9 @@ const AttackScannerTriggerRoute = "/_babelsuite/attack/start"
 // be placed so APISIX can load them by name.
 const LuaPluginMountPath = "/usr/local/openresty/site/lualib/apisix/plugins"
 
-// WriteLuaPluginFiles writes the embedded Lua plugin sources to destDir so they
-// can be bind-mounted into the APISIX sidecar container before it starts.
-// Returns an error if any file cannot be written.
-func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) error {
+// LuaPluginFiles returns every Lua plugin file the sidecar mounts, by file name:
+// the two built-in plugins and each user plugin that carries source.
+func LuaPluginFiles(userPlugins ...CustomPluginConfig) map[string]string {
 	plugins := map[string]string{
 		TrafficCannonPluginName + ".lua": TrafficCannonLua,
 		AttackScannerPluginName + ".lua": AttackScannerLua,
@@ -30,7 +29,17 @@ func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) erro
 			plugins[p.Name+".lua"] = p.Lua
 		}
 	}
-	for name, code := range plugins {
+	return plugins
+}
+
+// WriteLuaPluginFiles writes the Lua plugin sources to destDir so they can be
+// bind-mounted into the APISIX sidecar container before it starts.
+// Returns an error if any file cannot be written.
+//
+// The files are 0644, not 0600: the container runs as the unprivileged user
+// apisix, which on a Linux host cannot read a file only its owner may read.
+func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) error {
+	for name, code := range LuaPluginFiles(userPlugins...) {
 		p := filepath.Join(destDir, name)
 		if err := os.WriteFile(p, []byte(code), 0644); err != nil {
 			return fmt.Errorf("write lua plugin %s: %w", name, err)

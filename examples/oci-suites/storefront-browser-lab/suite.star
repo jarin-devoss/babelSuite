@@ -30,7 +30,8 @@ ready = log.info(
 # ── api smoke + soak ──────────────────────────────────────────────────────────
 soak = traffic.soak(
     name   = "cart-soak",
-    target = "http://storefront:3000",
+    target = "https://storefront-browser-lab.mock.internal",
+    plan   = "catalog.star",
     after  = [ready],
 )
 

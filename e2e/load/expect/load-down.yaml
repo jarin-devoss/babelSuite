@@ -1,0 +1,5 @@
+status: Failed
+log_contains:
+  - did not answer a single request successfully
+log_not_contains:
+  - Traffic run completed

@@ -47,3 +47,4 @@ babelctl run localhost:5000/babelsuite/soap-claims-hub:latest --profile staging
 - **Schema-driven XML rendering** — mock definitions describe the SOAP envelope structure; BabelSuite renders the XML at request time rather than storing static response files
 - **Fault path coverage** — smoke tests explicitly exercise fault envelope responses (malformed requests, unknown claim codes) alongside happy-path flows
 - **Minimal topology** — four steps total make this the simplest suite in the collection, useful for understanding BabelSuite fundamentals before exploring more complex examples
+- **Load test targets the suite's mock** — the baseline sends real requests to the suite's mock host until a real service is added

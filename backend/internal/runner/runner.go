@@ -86,6 +86,13 @@ type StepSpec struct {
 	GatewayURL string
 	// GatewayURLs contains one address per mock node in topology order.
 	GatewayURLs []string
+	// ServiceHosts maps each hostname a service of this execution answers to
+	// onto the id of the node that provides it. A traffic step uses it to turn a
+	// target such as http://api:8080 into the address of that node's container.
+	ServiceHosts map[string]string
+	// MockHosts lists the hostnames the suite's mock surfaces answer to
+	// (for example payment-suite.mock.internal); the sidecar serves them itself.
+	MockHosts []string
 	// PublishPorts lists container ports (e.g. "8082/tcp") that must be bound
 	// to a host port so the shared APISIX sidecar can reach this node's
 	// service over host.docker.internal instead of the per-execution Docker

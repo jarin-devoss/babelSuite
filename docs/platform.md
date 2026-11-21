@@ -50,7 +50,7 @@ The `apisixSidecar` object:
 |-------|-------------|
 | `image` | APISIX container image (e.g. `apache/apisix:3.9.0-debian`) |
 | `configMountPath` | Path of the file APISIX reads its routes from — the generated `apisix.yaml` is mounted onto this exact path, so it must be a file (default `/usr/local/apisix/conf/apisix.yaml`) |
-| `listenPort` | Port APISIX listens on for proxied requests |
+| `listenPort` | Recorded with the sidecar settings; the sidecar listens on 9080 inside its container |
 | `adminPort` | Port APISIX exposes for runtime configuration |
 | `capabilities` | Protocols this sidecar handles — e.g. `rest`, `grpc`, `kafka`, `async`, `websocket` |
 
@@ -156,7 +156,7 @@ as "no findings".
 
 #### APISIX sidecar lifecycle
 
-Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's `apisix.yaml` at startup — the sidecar must be restarted (by removing its Docker container) for plugin changes to take effect on an already-running sidecar.
+Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's `apisix.yaml` at startup — the sidecar is recreated automatically when its configuration or plugin code changes.
 
 The sidecar runs in standalone mode: `deployment.role: data_plane` with `config_provider: yaml`. No etcd is involved.
 

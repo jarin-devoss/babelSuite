@@ -204,7 +204,7 @@ Each entry in `agents` defines one execution target.
 | `serviceAccountToken` | Kubernetes service account token |
 | `apisixSidecar.image` | APISIX container image used for the mock gateway sidecar |
 | `apisixSidecar.configMountPath` | Path of the **file** APISIX reads its routes from. The suite's generated `apisix.yaml` is bind-mounted onto exactly this path, so it must name a file, not a directory. Default `/usr/local/apisix/conf/apisix.yaml`. |
-| `apisixSidecar.listenPort` | Port APISIX listens on for proxied traffic |
+| `apisixSidecar.listenPort` | Recorded with the sidecar settings; the sidecar listens on 9080 inside its container |
 | `apisixSidecar.adminPort` | Port APISIX exposes for configuration updates |
 | `apisixSidecar.capabilities` | Protocols the sidecar handles — e.g. `rest`, `grpc`, `kafka`, `async` |
 

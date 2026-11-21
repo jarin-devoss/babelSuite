@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-count
+  title: Load Count
+spec:
+  repository: localhost:5000/e2e-load/load-count
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Load against a service of the suite; the reported requests must equal what the service counted. A proof suite for the traffic steps, not an example.
