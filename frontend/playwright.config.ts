@@ -23,7 +23,9 @@ export default defineConfig({
   globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    // On the first failure, not only on the retry: the trace is what shows where
+    // a request really went (a cross-site API call showed up only there).
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
@@ -42,7 +44,14 @@ export default defineConfig({
       url: baseURL,
       reuseExistingServer: !CI,
       timeout: 240_000,
-      env: { BABELSUITE_API_URL: `http://127.0.0.1:${apiPort}` },
+      env: {
+        BABELSUITE_API_URL: `http://127.0.0.1:${apiPort}`,
+        // Call the API through this server's proxy, same-origin. Without it the
+        // build falls back to http://localhost:8090 when there is no repo-root
+        // .env, which is cross-site, so the SameSite=Strict CSRF cookie is never
+        // sent and sign-in fails with "CSRF token missing".
+        VITE_API_URL: '/',
+      },
     },
   ],
   projects: [

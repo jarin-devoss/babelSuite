@@ -23,6 +23,8 @@ interface TestFixtures {
   docker: DockerHelper
   /** Records each route the page visits, for route-coverage.spec.ts. */
   visited: void
+  /** On a failure, prints where the page really sent its first API request. */
+  apiOrigin: void
 }
 
 interface WorkerFixtures {
@@ -72,6 +74,22 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       },
     })
   },
+
+  apiOrigin: [
+    async ({ page }, use, testInfo) => {
+      let first = ''
+      page.on('request', (request) => {
+        if (!first && request.url().includes('/api/v1/')) {
+          first = request.url()
+        }
+      })
+      await use()
+      if (testInfo.status !== testInfo.expectedStatus) {
+        console.log(`[e2e] "${testInfo.title}": page at ${page.url()}, first API request went to ${first || '(none)'}`)
+      }
+    },
+    { auto: true },
+  ],
 
   visited: [
     async ({ page }, use) => {

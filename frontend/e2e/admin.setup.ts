@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs'
-import { test as setup, expect } from '@playwright/test'
+import { test as setup, expect } from './fixtures'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_STATE, ADMIN_TOKEN_FILE, readSession } from './support/session'
 

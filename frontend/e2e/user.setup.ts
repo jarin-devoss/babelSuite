@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
-import { test as setup, expect } from '@playwright/test'
+import { test as setup, expect } from './fixtures'
 import { SignInPage } from './pages/SignInPage'
 import { USER_FILE, USER_STATE, USER_TOKEN_FILE, readSession } from './support/session'
 
