@@ -1270,9 +1270,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mock-service-not-receiving-traffic" class="md-nav__link">
+  <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
-      Mock Service Not Receiving Traffic
+      A Traffic Step Fails
     </span>
   </a>
   
@@ -1427,9 +1427,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mock-service-not-receiving-traffic" class="md-nav__link">
+  <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
-      Mock Service Not Receiving Traffic
+      A Traffic Step Fails
     </span>
   </a>
   
@@ -1565,12 +1565,54 @@
 <li>Whether the step has a dependency that failed, causing the execution engine to cancel downstream steps.</li>
 </ol>
 <hr />
-<h2 id="mock-service-not-receiving-traffic">Mock Service Not Receiving Traffic<a class="headerlink" href="#mock-service-not-receiving-traffic" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Confirm the mock node started: check the execution log for <code>[mock-name] Mock server listening on ...</code>.</li>
-<li>Confirm the step's <code>target:</code> field uses the symbolic service name, not <code>localhost</code>.</li>
-<li>Check that the APISIX sidecar started successfully if the suite uses an API gateway.</li>
-</ol>
+<h2 id="a-traffic-step-fails">A Traffic Step Fails<a class="headerlink" href="#a-traffic-step-fails" title="Permanent link">&para;</a></h2>
+<p>A <code>traffic.*</code> step sends real requests from the suite's APISIX sidecar, so a failure names what went wrong. Match the message in the step's log:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>What it means and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>targets host "x", which is not a service in this suite</code></td>
+<td>The target is a bare name that no node of the suite provides. Use the name of a <code>service.run</code> node, the suite's mock host (<code>https://&lt;suite&gt;.mock.internal</code>), or a fully-qualified host.</td>
+</tr>
+<tr>
+<td><code>service "x" is not reachable</code></td>
+<td>The service has no address on the run's network. Order the traffic step <code>after=</code> the service and check that its container started.</td>
+</tr>
+<tr>
+<td><code>target ... did not answer a single request successfully</code></td>
+<td>Nothing at the target answered with a success. The log lists the error categories (<code>connect</code>, <code>timeout</code>, <code>http_4xx:404</code>); check that the target is listening on the port the URL names.</td>
+</tr>
+<tr>
+<td><code>no requests were sent to ...</code></td>
+<td>The run finished without a request. Check the plan's stages, users and waits.</td>
+</tr>
+<tr>
+<td><code>http_4xx:404</code> in the failure</td>
+<td>A request got a 404. Fix the path, or declare the status expected with <code>checks=[traffic.threshold("status", "==", 404)]</code>.</td>
+</tr>
+<tr>
+<td><code>traffic.dropped ... the target could not keep up</code></td>
+<td>An open-model run could not start every arrival because too many requests were in flight. Lower <code>rps=</code> or <code>arrival_rate=</code>.</td>
+</tr>
+<tr>
+<td><code>below the min_users=N the step requires</code></td>
+<td>A scalability run broke before reaching <code>min_users=</code>. The log shows the probe that failed.</td>
+</tr>
+<tr>
+<td><code>the suite's APISIX sidecar is not running, so no load can be generated</code></td>
+<td>The traffic cannon runs in the sidecar. Run the suite on the local Docker backend.</td>
+</tr>
+<tr>
+<td><code>load against a service is supported only on the local Docker backend</code></td>
+<td>The target is a service of a Kubernetes backend. Target the suite's mock host or a fully-qualified host instead.</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="cli-error-no-saved-session">CLI: <code>error: no saved session</code><a class="headerlink" href="#cli-error-no-saved-session" title="Permanent link">&para;</a></h2>
 <p>Run <code>babelctl login</code> first. If you've set <code>--server</code> but not logged in, the token won't exist.</p>

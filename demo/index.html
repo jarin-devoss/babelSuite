@@ -1531,9 +1531,8 @@ session, so it works before the control plane has ever started.</p>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>python<span class="w"> </span>scripts/push-to-zot.py<span class="w"> </span>--suite<span class="w"> </span>payment-suite<span class="w"> </span><span class="c1"># just one</span>
 </span></code></pre></div>
 <p><code>GET /api/v1/suites/&lt;id&gt;</code> lists the package's <code>sourceFiles</code> — the quickest
-way to confirm an edit reached the backend. A changed plugin also needs its
-sidecar removed (<code>docker rm -f babel-sidecar-&lt;suite&gt;-&lt;profile&gt;</code>) so APISIX
-reloads the Lua.</p>
+way to confirm an edit reached the backend. A changed plugin is picked up on the
+suite's next run: the sidecar is recreated when its plugin files change.</p>
 </div>
 <h2 id="good-first-runs">Good first runs<a class="headerlink" href="#good-first-runs" title="Permanent link">&para;</a></h2>
 <table>

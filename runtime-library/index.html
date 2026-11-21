@@ -945,6 +945,24 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#where-traffic-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where traffic goes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-a-traffic-step-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      When a traffic step fails
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#security" class="md-nav__link">
     <span class="md-ellipsis">
       security
@@ -1642,6 +1660,24 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#where-traffic-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where traffic goes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-a-traffic-step-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      When a traffic step fails
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#security" class="md-nav__link">
     <span class="md-ellipsis">
       security
@@ -2150,6 +2186,7 @@ rather than branching on it here.</p>
 <ul>
 <li><code>plan="..."</code> pointing at a file under <code>traffic/</code> — enables advanced workload definitions with custom users, stages, tasks, and thresholds</li>
 <li><code>rps=&lt;number&gt;</code> or <code>arrival_rate=&lt;number&gt;</code> — override the default request rate</li>
+<li><code>min_users=&lt;number&gt;</code> — on <code>traffic.scalability</code>, the number of users the target must sustain for the step to pass</li>
 </ul>
 <p>Recommended meanings:</p>
 <ul>
@@ -2161,12 +2198,103 @@ rather than branching on it here.</p>
 <li><code>traffic.scalability</code>: breaking-point detection — probes successive user-count stages and reports the maximum sustainable load</li>
 <li><code>traffic.step</code>: increase traffic in discrete blocks</li>
 <li><code>traffic.wave</code>: oscillating high/low cycles</li>
-<li><code>traffic.staged</code>: several named phases with different targets</li>
+<li><code>traffic.staged</code>: several phases of different user counts in one run</li>
 <li><code>traffic.constant_throughput</code>: cap requests per second independently of user count</li>
 <li><code>traffic.constant_pacing</code>: fixed interval between iterations per user</li>
 <li><code>traffic.open_model</code>: fixed arrival-rate style workload independent of response time</li>
 </ul>
-<p>When <code>plan=</code> is omitted the native executor runs a synthetic baseline against <code>target=</code> using the APISIX sidecar — no separate plan file required.</p>
+<p>Every variant has a default shape, used when <code>plan=</code> is omitted. The default request is <code>GET /</code> on the target.</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Default shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>traffic.smoke</code></td>
+<td>1 user for 10 s</td>
+</tr>
+<tr>
+<td><code>traffic.baseline</code></td>
+<td>5 users for 30 s</td>
+</tr>
+<tr>
+<td><code>traffic.stress</code>, <code>traffic.staged</code></td>
+<td>5, 20, then 32 users, 20 s each</td>
+</tr>
+<tr>
+<td><code>traffic.spike</code></td>
+<td>5 users, a jump to 32, back to 5, 15 s each</td>
+</tr>
+<tr>
+<td><code>traffic.soak</code></td>
+<td>5 users for 60 s (a plan can ask for up to the 300 s cap)</td>
+</tr>
+<tr>
+<td><code>traffic.step</code></td>
+<td>4, 8, 12, then 16 users, 15 s each</td>
+</tr>
+<tr>
+<td><code>traffic.wave</code></td>
+<td>4, 16, 4, then 16 users, 15 s each</td>
+</tr>
+<tr>
+<td><code>traffic.scalability</code></td>
+<td>probes of 1, 2, 4, 8, 16, then 32 users, 10 s each</td>
+</tr>
+<tr>
+<td><code>traffic.constant_throughput</code>, <code>traffic.open_model</code></td>
+<td>30 s at <code>rps=</code> / <code>arrival_rate=</code> (5 requests per second when neither is given)</td>
+</tr>
+<tr>
+<td><code>traffic.constant_pacing</code></td>
+<td>5 users for 30 s, one iteration per user per second</td>
+</tr>
+</tbody>
+</table>
+<p>A closed-model variant given <code>rps=</code> runs as an open model at that rate for the same stages' durations, because <code>rps=</code> counts arrivals per second, which a number of virtual users cannot honour. Rates are capped at 100 requests per second, users at 32, and a run at 300 seconds.</p>
+<h3 id="where-traffic-goes">Where traffic goes<a class="headerlink" href="#where-traffic-goes" title="Permanent link">&para;</a></h3>
+<p>The target decides where the requests are sent. Nothing is simulated: the requests leave the suite's APISIX sidecar and reach the target, and every number in the log is measured from them.</p>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Where it goes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A service of the suite (<code>http://api:8080</code> for a <code>service.run</code> named <code>api</code>)</td>
+<td>The sidecar joins the run's network and dials the service's address on it</td>
+</tr>
+<tr>
+<td>The suite's mock host (<code>https://payment-suite.mock.internal</code>)</td>
+<td>The sidecar's own listener, with the mock host as the <code>Host</code> header</td>
+</tr>
+<tr>
+<td><code>localhost</code> or <code>127.0.0.1</code></td>
+<td>The machine running the control plane, through <code>host.docker.internal</code></td>
+</tr>
+<tr>
+<td>Any other fully-qualified host or address</td>
+<td>Dialled as written</td>
+</tr>
+</tbody>
+</table>
+<p>A bare name that is none of the suite's services is refused when the suite loads, and again when the step runs (<code>targets host "ghost", which is not a service in this suite</code>). A target that is a service of a Kubernetes backend is refused too, since the sidecar cannot reach into a cluster.</p>
+<h3 id="when-a-traffic-step-fails">When a traffic step fails<a class="headerlink" href="#when-a-traffic-step-fails" title="Permanent link">&para;</a></h3>
+<p>A traffic step fails, with the reason in its log, when:</p>
+<ul>
+<li>the run sent no request, or a stage sent none (<code>no requests were sent to ...</code>);</li>
+<li>no request got an answer the step counts as success (<code>target ... did not answer a single request successfully</code>), which is reported early, within seconds, instead of after the whole run;</li>
+<li>a request's status is not expected: any status of 400 or above is a failure unless the task says it expects it with <code>checks=[traffic.threshold("status", "==", 404)]</code>;</li>
+<li>a threshold is broken. <code>traffic.dropped</code> counts the arrivals an open-model run could not start because too many requests were already in flight, which means the target could not keep up. <code>http.error_rate</code> and the latency metrics are computed from the exact counts the sidecar reports;</li>
+<li>a <code>traffic.scalability</code> run sustained fewer users than <code>min_users=</code> (<code>sustained 4 users, below the min_users=8 the step requires</code>), or its first probe already broke;</li>
+<li>the suite's sidecar is not running, or the step has no load spec.</li>
+</ul>
+<p>The log lists the most common error categories (<code>connect</code>, <code>timeout</code>, <code>http_4xx:404</code>, and so on) beside the failure.</p>
 <p>For advanced workload control, create a <code>traffic/*.star</code> file and reference it via <code>plan=</code>. The native plan builders available inside those files include:</p>
 <ul>
 <li><code>traffic.plan</code></li>
@@ -2186,7 +2314,8 @@ rather than branching on it here.</p>
 <li>the selected traffic profile is preserved in topology metadata and execution step payloads</li>
 <li><code>target=</code> is the only required argument; <code>plan=</code> is optional and enables advanced workload definitions</li>
 <li>the native plan builders define concrete users, tasks, waits, stages, and thresholds</li>
-<li>the native runner executes real guarded HTTP traffic for supported profiles instead of only emitting synthetic traffic logs</li>
+<li>the requests are real: they are sent by the suite's APISIX sidecar to the target, and the figures in the log are measured from them (see the target rules above)</li>
+<li>a run that sent no requests fails; it never passes on zero data</li>
 <li>the native runner now reports richer latency and throughput summaries, including <code>min</code>, <code>avg</code>, <code>max</code>, <code>p50</code>, <code>p90</code>, <code>p95</code>, <code>p99</code>, per-stage summaries, compact throughput timelines, and latency histograms</li>
 </ul>
 <p>Native threshold metrics currently supported:</p>
@@ -2490,7 +2619,7 @@ rather than branching on it here.</p>
 </tr>
 <tr>
 <td><code>plan="..."</code></td>
-<td>traffic plan file (optional — omit to use the native synthetic baseline)</td>
+<td>traffic plan file (optional — omit to use the variant's default shape)</td>
 </tr>
 <tr>
 <td><code>target="..."</code></td>
@@ -2597,7 +2726,7 @@ rather than branching on it here.</p>
 <ul>
 <li>exit-code expectations are checked after the runner finishes the step</li>
 <li>log assertions are matched against the emitted step log stream</li>
-<li><code>traffic.*</code> steps still use threshold metrics for latency and error budgets</li>
+<li><code>traffic.*</code> steps use threshold metrics for latency and error budgets, and a run with zero requests fails before any threshold is read</li>
 <li><code>continue_on_failure=true</code> keeps the suite running even when the node itself finishes as <code>failed</code></li>
 <li><code>on_failure=[primary]</code> activates rollback or contingency nodes only when one of the referenced nodes fails</li>
 <li><code>reset_mocks=[billing_mock]</code> clears persisted mock state before a <code>test.run(...)</code> step starts</li>

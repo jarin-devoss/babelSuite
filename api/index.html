@@ -1668,7 +1668,7 @@ registration. Suites using those must come from a registry instead.</p>
 </tr>
 </tbody>
 </table>
-<p>A run whose containers still run after the process in <code>babelsuite.orchestrator_pid</code> has died — a control plane that crashed or was killed — is reported as a <strong>Zombie</strong>, and reaping it removes its containers and network. Sidecars carry no pid: a restarted control plane reuses a running sidecar, so it is never a zombie, and reaping one only removes it until the suite's next run starts it again.</p>
+<p>While a traffic step runs, the run's network also lists the suite's sidecar as an attached endpoint. A run whose containers still run after the process in <code>babelsuite.orchestrator_pid</code> has died — a control plane that crashed or was killed — is reported as a <strong>Zombie</strong>, and reaping it removes its containers and network. Sidecars carry no pid: a restarted control plane reuses a running sidecar, so it is never a zombie, and reaping one only removes it until the suite's next run starts it again.</p>
 <p>Every enabled Kubernetes and remote-agent backend is listed too, each environment naming its backend (<code>backend</code>, <code>backendLabel</code>, <code>backendKind</code>):</p>
 <table>
 <thead>

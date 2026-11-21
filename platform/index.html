@@ -1655,7 +1655,7 @@
 </tr>
 <tr>
 <td><code>listenPort</code></td>
-<td>Port APISIX listens on for proxied requests</td>
+<td>Recorded with the sidecar settings; the sidecar listens on 9080 inside its container</td>
 </tr>
 <tr>
 <td><code>adminPort</code></td>
@@ -1950,7 +1950,7 @@
 because Lua's <code>cjson</code> serialises an empty table as an object; both are accepted
 as "no findings".</p>
 <h4 id="apisix-sidecar-lifecycle">APISIX sidecar lifecycle<a class="headerlink" href="#apisix-sidecar-lifecycle" title="Permanent link">&para;</a></h4>
-<p>Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's <code>apisix.yaml</code> at startup — the sidecar must be restarted (by removing its Docker container) for plugin changes to take effect on an already-running sidecar.</p>
+<p>Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's <code>apisix.yaml</code> at startup — the sidecar is recreated automatically when its configuration or plugin code changes.</p>
 <p>The sidecar runs in standalone mode: <code>deployment.role: data_plane</code> with <code>config_provider: yaml</code>. No etcd is involved.</p>
 <h2 id="ui-pages">UI Pages<a class="headerlink" href="#ui-pages" title="Permanent link">&para;</a></h2>
 <table>
