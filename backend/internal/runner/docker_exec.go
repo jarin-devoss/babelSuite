@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -29,7 +28,6 @@ import (
 
 const (
 	containerWorkspaceMount = "/babelsuite/workspace"
-	maxArtifactBytes        = 10 * 1024 * 1024  // 10 MB per artifact file
 	containerMemoryLimit    = 512 * 1024 * 1024 // 512 MB per step container
 	// Docker refuses a memory limit under 6 MB. Checking it here turns a
 	// profile typo into a named error instead of an opaque daemon rejection.
@@ -576,19 +574,7 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 
 	if step.OnArtifact != nil && len(step.ArtifactExports) > 0 {
-		exitStatus := "success"
-		if containerRunErr != nil {
-			exitStatus = "failure"
-		}
-		for _, export := range step.ArtifactExports {
-			if !artifactTriggerMatchesStatus(export.On, exitStatus) {
-				continue
-			}
-			content, err := readArtifactFromMount(workspaceDir, export.Path)
-			if err == nil && len(content) > 0 {
-				step.OnArtifact(export.Path, content)
-			}
-		}
+		deliverArtifacts(step, collectMountArtifacts(workspaceDir, step.ArtifactExports))
 	}
 
 	if containerRunErr != nil {
@@ -597,75 +583,6 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Container finished successfully.", step.Node.Name)))
 	return nil
-}
-
-// readArtifactFromMount reads an artifact file from the host-side mount directory.
-// The export path is cleaned and verified to stay within the mount root to
-// prevent any path traversal. Glob patterns (*, ?, [) are expanded; the
-// first matching file's content is returned.
-func readArtifactFromMount(mountDir, exportPath string) ([]byte, error) {
-	exportPath = strings.TrimSpace(exportPath)
-	if strings.ContainsAny(exportPath, "*?[") {
-		return readArtifactGlob(mountDir, exportPath)
-	}
-
-	cleaned := path.Clean("/" + exportPath)
-	hostPath := filepath.Join(mountDir, filepath.FromSlash(cleaned))
-
-	// Reject any path that escapes the mount directory.
-	if !strings.HasPrefix(hostPath+string(filepath.Separator), mountDir+string(filepath.Separator)) {
-		return nil, fmt.Errorf("artifact path %q escapes mount directory", exportPath)
-	}
-
-	f, err := os.Open(hostPath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	return io.ReadAll(io.LimitReader(f, maxArtifactBytes))
-}
-
-// readArtifactGlob expands a glob export path within the mount directory and
-// returns the content of the first matching file. All matches are verified to
-// remain within mountDir before any file is opened.
-func readArtifactGlob(mountDir, exportPath string) ([]byte, error) {
-	pattern := filepath.Join(mountDir, filepath.FromSlash(path.Clean("/"+exportPath)))
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("artifact glob %q: %w", exportPath, err)
-	}
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("artifact glob %q: no matching files in mount", exportPath)
-	}
-
-	prefix := mountDir + string(filepath.Separator)
-	for _, m := range matches {
-		if !strings.HasPrefix(m+string(filepath.Separator), prefix) {
-			return nil, fmt.Errorf("artifact glob match %q escapes mount directory", m)
-		}
-	}
-
-	f, err := os.Open(matches[0])
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	return io.ReadAll(io.LimitReader(f, maxArtifactBytes))
-}
-
-func artifactTriggerMatchesStatus(trigger, status string) bool {
-	switch strings.TrimSpace(trigger) {
-	case "", "success":
-		return status == "success"
-	case "failure":
-		return status == "failure"
-	case "always":
-		return true
-	default:
-		return false
-	}
 }
 
 func resolveStepImage(step StepSpec) string {

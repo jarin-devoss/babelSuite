@@ -528,7 +528,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		return err
 	}
 
-	collectedFiles := make(map[string][]byte)
+	collectedFiles := make(map[string]runner.ArtifactResult)
 
 	err := backend.Run(stepCtx, runner.StepSpec{
 		ExecutionID:       executionID,
@@ -561,10 +561,8 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		Evaluation:        cloneNodeEvaluation(node.Evaluation),
 		OnFailure:         append([]string{}, node.OnFailure...),
 		ArtifactExports:   cloneNodeArtifactExports(node.ArtifactExports),
-		OnArtifact: func(path string, content []byte) {
-			if len(content) > 0 {
-				collectedFiles[path] = content
-			}
+		OnArtifact: func(result runner.ArtifactResult) {
+			collectedFiles[result.Export] = result
 		},
 		NetworkAliases: s.networkPlan(executionID).aliasesForNode(node, suite.ID),
 		GatewayURL:     resolveGatewayURL(executionID, suite, profile),
@@ -590,6 +588,27 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 	}, func(line logstream.Line) {
 		s.appendRunnerLog(executionID, node.ID, line)
 	})
+	// The step's own checks passed. Its structured test reports are the
+	// evidence of what the tests did, so they decide next.
+	var reportGate *reportGateError
+	if err == nil {
+		verdict := gateTestReports(node, collectedFiles)
+		for _, warning := range verdict.Warnings {
+			s.appendEvent(executionID, ExecutionEvent{
+				ID:        node.ID + "-report-warning",
+				Source:    node.ID,
+				Timestamp: s.nextTimestamp(executionID),
+				Text:      fmt.Sprintf("[%s] %s.", node.Name, warning),
+				// The step is still running here; the warning must not move it.
+				Status: "running",
+				Level:  "warn",
+			})
+		}
+		if len(verdict.Failures) > 0 {
+			reportGate = &reportGateError{failures: verdict.Failures}
+			err = reportGate
+		}
+	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) && s.executionHasFailed(executionID) && !s.nodeBelongsToFailurePath(executionID, suite, node.ID) {
 			finished := s.markNodeSkipped(executionID, node.ID, fmt.Sprintf("[%s] Canceled after a fatal failure in another node.", node.Name))
@@ -608,8 +627,11 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 			return context.Canceled
 		}
 		message := fmt.Sprintf("[%s] Runner failed: %v", node.Name, err)
+		if reportGate != nil {
+			message = fmt.Sprintf("[%s] Test report check failed: %v.", node.Name, reportGate)
+		}
 		finished := s.markNodeFailed(executionID, node.ID, message, !node.ContinueOnFailure)
-		s.registerStepArtifacts(executionID, node, "failed", collectedFiles)
+		s.registerStepArtifacts(executionID, node, "failed", reportGate != nil, collectedFiles)
 		s.finishStepObservation(stepCtx, stepSpan, stepStartedAt, executionID, suite, profile, node, err)
 		if finished {
 			s.finishExecutionObservation(executionID, s.executionTerminalError(executionID))
@@ -629,7 +651,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 	}
 
 	finished := s.markNodeHealthy(executionID, node.ID, buildHealthyMessage(node, suite, profile))
-	s.registerStepArtifacts(executionID, node, "healthy", collectedFiles)
+	s.registerStepArtifacts(executionID, node, "healthy", false, collectedFiles)
 	s.finishStepObservation(stepCtx, stepSpan, stepStartedAt, executionID, suite, profile, node, nil)
 	if finished {
 		s.finishExecutionObservation(executionID, s.executionTerminalError(executionID))
@@ -650,6 +672,8 @@ func cloneNodeArtifactExports(input []suites.ArtifactExport) []runner.ArtifactEx
 			Name:   item.Name,
 			On:     item.On,
 			Format: item.Format,
+
+			NotEnforced: item.NotEnforced,
 		}
 	}
 	return output

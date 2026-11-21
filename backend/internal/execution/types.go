@@ -126,13 +126,22 @@ type ExecutionCoverageSummary struct {
 }
 
 type ExecutionArtifact struct {
-	ID              string                    `json:"id"`
-	StepID          string                    `json:"stepId"`
-	StepName        string                    `json:"stepName"`
-	Path            string                    `json:"path"`
-	Name            string                    `json:"name"`
-	On              string                    `json:"on,omitempty"`
-	Format          string                    `json:"format,omitempty"`
+	ID       string `json:"id"`
+	StepID   string `json:"stepId"`
+	StepName string `json:"stepName"`
+	Path     string `json:"path"`
+	Name     string `json:"name"`
+	On       string `json:"on,omitempty"`
+	Format   string `json:"format,omitempty"`
+	// Status says what became of the export: collected, missing, empty,
+	// invalid, truncated, unreadable or not_collected. The summaries below
+	// are set only when it is collected.
+	Status string `json:"status"`
+	// Problem is one line on why the status is not collected, or a note on a
+	// collected report whose own counts disagree.
+	Problem string `json:"problem,omitempty"`
+	// Files lists the files a glob export matched.
+	Files           []string                  `json:"files,omitempty"`
 	Content         string                    `json:"content,omitempty"`
 	TestSummary     *ExecutionTestSummary     `json:"testSummary,omitempty"`
 	CoverageSummary *ExecutionCoverageSummary `json:"coverageSummary,omitempty"`
@@ -235,7 +244,7 @@ type Service struct {
 }
 
 const (
-	maxStoredExecutions    = 200
+	maxStoredExecutions     = 200
 	maxConcurrentExecutions = 10
 )
 

@@ -471,6 +471,17 @@ func (b *captureBackend) Kind() string                     { return "capture" }
 func (b *captureBackend) IsAvailable(context.Context) bool { return true }
 func (b *captureBackend) Run(_ context.Context, step runner.StepSpec, _ func(logstream.Line)) error {
 	b.spec = step
+	// A real backend reports every declared export. This one reports a passing
+	// JUnit report for each, so a test of something else is not failed by the
+	// report check.
+	if step.OnArtifact != nil {
+		for _, export := range step.ArtifactExports {
+			step.OnArtifact(runner.ArtifactResult{
+				Export: export.Path,
+				Files:  []runner.ArtifactFile{{Path: export.Path, Content: []byte(`<testsuite name="capture" tests="1"><testcase name="ok"/></testsuite>`)}},
+			})
+		}
+	}
 	return nil
 }
 

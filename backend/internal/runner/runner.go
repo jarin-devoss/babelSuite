@@ -34,6 +34,9 @@ type ArtifactExport struct {
 	Name   string
 	On     string
 	Format string
+	// NotEnforced keeps a structured report from failing its step. It is shown,
+	// with its status, but never gates.
+	NotEnforced bool
 }
 
 type StepSpec struct {
@@ -67,9 +70,10 @@ type StepSpec struct {
 	Evaluation        *suites.StepEvaluation
 	OnFailure         []string
 	ArtifactExports   []ArtifactExport
-	// OnArtifact is called once per collected artifact file, with its container path and raw bytes.
-	// May be nil when the backend does not support container-level file collection.
-	OnArtifact func(path string, content []byte)
+	// OnArtifact is called once per declared export after the step's container
+	// finishes, with what the backend found for it. May be nil when the caller
+	// does not collect artifacts.
+	OnArtifact func(ArtifactResult)
 	Node       StepNode
 	// NetworkName is the Docker network all step containers in this execution share.
 	// Empty means no dedicated network (default Docker bridge).
