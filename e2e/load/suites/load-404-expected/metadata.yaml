@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-404-expected
+  title: Load 404 Expected
+spec:
+  repository: localhost:5000/e2e-load/load-404-expected
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Load against a path that answers 404, which the task expects. A proof suite for the traffic steps, not an example.

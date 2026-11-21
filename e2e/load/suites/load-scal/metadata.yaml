@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-scal
+  title: Load Scalability
+spec:
+  repository: localhost:5000/e2e-load/load-scal
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A scalability run with real probes against a service of the suite. A proof suite for the traffic steps, not an example.

@@ -1,0 +1,4 @@
+status: Failed
+log_contains:
+  - ghost
+  - not a service in this suite

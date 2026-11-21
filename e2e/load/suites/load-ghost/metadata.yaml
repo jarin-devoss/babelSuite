@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-ghost
+  title: Load Ghost
+spec:
+  repository: localhost:5000/e2e-load/load-ghost
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A traffic target that names a service the suite does not have. A proof suite for the traffic steps, not an example.

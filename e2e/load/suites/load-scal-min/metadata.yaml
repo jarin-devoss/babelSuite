@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-scal-min
+  title: Load Scalability Min
+spec:
+  repository: localhost:5000/e2e-load/load-scal-min
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A scalability run that must sustain more users than the target is asked for. A proof suite for the traffic steps, not an example.

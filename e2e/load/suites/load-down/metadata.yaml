@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: load-down
+  title: Load Down
+spec:
+  repository: localhost:5000/e2e-load/load-down
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Load against a host that does not exist. A proof suite for the traffic steps, not an example.

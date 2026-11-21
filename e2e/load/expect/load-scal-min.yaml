@@ -1,0 +1,3 @@
+status: Failed
+log_contains:
+  - below the min_users=8
