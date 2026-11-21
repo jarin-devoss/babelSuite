@@ -51,3 +51,4 @@ babelctl run localhost:5000/babelsuite/fleet-control-room:latest --profile perf
 - **Cache as a shared dependency** — Redis is declared once and referenced by both the dispatcher and the seeder, with BabelSuite ensuring it is healthy before either starts
 - **gRPC contract coverage** — protobuf definitions in `api/` are used by both the mock layer and the smoke tests for schema-consistent request/response validation
 - **Load test targets the suite's mock** — the traffic phases send real requests to the suite's mock host until a real service is added
+- **Reports fail until the tests write them** — `fleet_smoke` fails with `report … was not produced` until `fleet_smoke.py` writes a real JUnit report

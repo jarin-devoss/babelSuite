@@ -48,3 +48,4 @@ babelctl run localhost:5000/babelsuite/soap-claims-hub:latest --profile staging
 - **Fault path coverage** — smoke tests explicitly exercise fault envelope responses (malformed requests, unknown claim codes) alongside happy-path flows
 - **Minimal topology** — four steps total make this the simplest suite in the collection, useful for understanding BabelSuite fundamentals before exploring more complex examples
 - **Load test targets the suite's mock** — the baseline sends real requests to the suite's mock host until a real service is added
+- **Reports fail until the tests write them** — `claims-smoke-*` fail with `report … was not produced` until `claims_smoke.py` writes a real JUnit report

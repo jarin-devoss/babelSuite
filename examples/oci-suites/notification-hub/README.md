@@ -50,3 +50,4 @@ babelctl run localhost:5000/babelsuite/notification-hub:latest --profile ci
 - **Cache and database as independent roots** — `cache` and `db` start in parallel since neither depends on the other, with the API waiting for both
 - **Background worker in test scope** — `dispatcher` runs as a live service during the smoke test, validating that async delivery completes within the test window
 - **Artifact export** — `notify_smoke` exports a JUnit report on every run for CI test result tracking
+- **Reports fail until the tests run** — `notify-smoke-*` fail until the smoke scripts run and write real JUnit reports

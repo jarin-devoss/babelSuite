@@ -42,3 +42,4 @@ babelctl lock localhost:5000/babelsuite/composite-readiness:latest
 - **Dependency locking** — `dependencies.lock.yaml` pins the imported suite to an exact OCI digest, making runs reproducible across environments
 - **Thin workspace layer** — the workspace suite adds no new services or mocks; it only orchestrates and validates, keeping environment ownership with the imported suite
 - **Profile propagation** — profiles declared in the workspace suite are passed to imported suites at launch time, allowing environment-specific config to flow across composition boundaries
+- **Reports fail until the composed tests write them** — the composed `identity-broker` and `payment-suite` smoke steps fail with `report … was not produced` until they write real JUnit reports
