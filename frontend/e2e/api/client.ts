@@ -14,6 +14,9 @@ export interface RunArtifact {
   name: string
   stepName: string
   format?: string
+  /** collected, missing, empty, invalid, truncated, unreadable or not_collected */
+  status?: string
+  problem?: string
   testSummary?: { total: number; passed: number; failures: number; errors: number; skipped: number }
 }
 
