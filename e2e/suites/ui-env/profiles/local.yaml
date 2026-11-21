@@ -1,0 +1,6 @@
+name: Local
+description: Local run.
+default: true
+
+env:
+  PROFILE_VAR: from-local

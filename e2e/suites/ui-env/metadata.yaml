@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-env
+  title: UI Env
+spec:
+  repository: localhost:5000/e2e/ui-env
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: Prints the profile and global environment so a run shows where a value came from. A fixture for the UI end-to-end tests, not an example.

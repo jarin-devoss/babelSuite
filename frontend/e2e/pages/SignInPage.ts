@@ -8,7 +8,7 @@ export class SignInPage {
   }
 
   async signIn(email: string, password: string) {
-    await this.page.locator('input[autocomplete="email"]').fill(email)
+    await this.page.getByLabel('Email Address').fill(email)
     await this.page.locator('input[autocomplete="current-password"]').fill(password)
     await this.page.getByRole('button', { name: 'Sign In' }).click()
   }

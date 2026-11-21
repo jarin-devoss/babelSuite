@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-continue
+  title: UI Continue
+spec:
+  repository: localhost:5000/e2e/ui-continue
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A failing step marked continue_on_failure, followed by a passing step. A fixture for the UI end-to-end tests, not an example.

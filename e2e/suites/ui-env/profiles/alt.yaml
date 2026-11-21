@@ -1,0 +1,5 @@
+name: Alt
+description: Alternate profile.
+
+env:
+  PROFILE_VAR: from-alt

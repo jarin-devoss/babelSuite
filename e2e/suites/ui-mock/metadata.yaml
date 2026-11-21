@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-mock
+  title: UI Mock
+spec:
+  repository: localhost:5000/e2e/ui-mock
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: One mock surface and a step that calls it through the gateway. A fixture for the UI end-to-end tests, not an example.

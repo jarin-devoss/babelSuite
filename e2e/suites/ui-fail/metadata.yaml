@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-fail
+  title: UI Fail
+spec:
+  repository: localhost:5000/e2e/ui-fail
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A run whose last step exits 3. A fixture for the UI end-to-end tests, not an example.
