@@ -64,6 +64,6 @@ export class ExecutionPage {
   }
 
   artifactDialog(): Locator {
-    return this.page.getByRole('dialog').filter({ has: this.page.getByTestId('artifact-total') })
+    return this.page.getByRole('dialog', { name: 'Artifacts' })
   }
 }

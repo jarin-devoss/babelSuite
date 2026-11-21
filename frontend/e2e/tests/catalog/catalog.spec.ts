@@ -4,7 +4,22 @@ import { CatalogPage } from '../../pages/CatalogPage'
 // The e2e registry scope is e2e, so the catalog holds exactly these suites.
 // The catalog derives a card title from the repository name ("ui-pass" becomes
 // "Ui Pass"), whereas the launch modal shows the suite's own metadata title.
-const TITLES = ['Ui Broken', 'Ui Continue', 'Ui Env', 'Ui Fail', 'Ui Junit', 'Ui Junit Missing', 'Ui Mock', 'Ui Pass', 'Ui Plugin', 'Ui Slow']
+const TITLES = [
+  'Ui Broken',
+  'Ui Continue',
+  'Ui Ctrf',
+  'Ui Env',
+  'Ui Fail',
+  'Ui Junit',
+  'Ui Junit Empty',
+  'Ui Junit Invalid',
+  'Ui Junit Missing',
+  'Ui Junit Soft',
+  'Ui Mock',
+  'Ui Pass',
+  'Ui Plugin',
+  'Ui Slow',
+]
 
 test.describe('Catalog', () => {
   test('@smoke lists exactly the fixture suites', async ({ page }) => {

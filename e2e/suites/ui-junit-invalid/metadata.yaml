@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-junit-invalid
+  title: UI JUnit Invalid
+spec:
+  repository: localhost:5000/e2e/ui-junit-invalid
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A step that writes a JUnit file that is not XML. A fixture for the UI end-to-end tests, not an example.

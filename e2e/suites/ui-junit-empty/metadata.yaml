@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-junit-empty
+  title: UI JUnit Empty
+spec:
+  repository: localhost:5000/e2e/ui-junit-empty
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A step that writes a JUnit report listing no tests. A fixture for the UI end-to-end tests, not an example.

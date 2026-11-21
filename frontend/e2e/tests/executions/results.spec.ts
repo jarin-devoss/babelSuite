@@ -36,14 +36,19 @@ test.describe('Run results', () => {
     await expect(live.logLines().filter({ hasText: 'UI-CONTINUE the run went on' }).first()).toBeVisible()
   })
 
-  test('@docker a JUnit export shows its real counts', async ({ page, api }) => {
+  test('@docker a JUnit export shows its real counts, and a report with failures fails the step', async ({ page, api }) => {
     const runId = await api.launch('ui-junit')
     const record = await api.waitForRun(runId)
+    // The step exits 0, but its own report says 2 of 5 tests failed.
+    expect(record.status).toBe('Failed')
+    expect(stepStatuses(record).report).toBe('failed')
     const artifact = record.artifacts?.find((a) => a.name === 'go-tests')
+    expect(artifact?.status).toBe('collected')
     expect(artifact?.testSummary).toMatchObject({ total: 5, failures: 2 })
 
     const live = new ExecutionPage(page)
     await live.goto(runId)
+    await expect(live.node('report')).toHaveAttribute('data-status', 'failed')
     await live.artifactsButton().click()
     await expect(page.getByTestId('artifact-total')).toHaveText('5')
     await expect(page.getByTestId('artifact-passed')).toHaveText('3')
@@ -52,19 +57,79 @@ test.describe('Run results', () => {
   })
 
   test('@docker a JUnit export with no file is not reported as a passing test', async ({ page, api }) => {
-    // FIX-PLAN #7: a missing report is shown as "1 test passed", so a step that
-    // never produced a report looks like a successful test run.
-    knownBug('FIX-PLAN #7: a missing JUnit file becomes "1 test passed"')
-
     const runId = await api.launch('ui-junit-missing')
     const record = await api.waitForRun(runId)
+    expect(record.status).toBe('Failed')
+    expect(stepStatuses(record).report).toBe('failed')
     const artifact = record.artifacts?.find((a) => a.name === 'go-tests')
-    expect(artifact?.testSummary?.passed ?? 0).toBe(0)
+    expect(artifact?.status).toBe('missing')
+    expect(artifact?.testSummary).toBeUndefined()
 
     const live = new ExecutionPage(page)
     await live.goto(runId)
     await live.artifactsButton().click()
+    await expect(page.getByTestId('artifact-status')).toContainText('Report not produced')
     await expect(page.getByTestId('artifact-passed')).toHaveCount(0)
+  })
+
+  test('@docker a JUnit report that lists no tests fails the step', async ({ page, api }) => {
+    const runId = await api.launch('ui-junit-empty')
+    const record = await api.waitForRun(runId)
+    expect(record.status).toBe('Failed')
+    const artifact = record.artifacts?.find((a) => a.name === 'go-tests')
+    expect(artifact?.status).toBe('collected')
+    expect(artifact?.testSummary).toMatchObject({ total: 0 })
+
+    const live = new ExecutionPage(page)
+    await live.goto(runId)
+    await live.artifactsButton().click()
+    await expect(page.getByTestId('artifact-verdict')).toContainText('No tests in this report')
+  })
+
+  test('@docker a JUnit file that is not XML is unreadable, and the step fails', async ({ page, api }) => {
+    const runId = await api.launch('ui-junit-invalid')
+    const record = await api.waitForRun(runId)
+    expect(record.status).toBe('Failed')
+    const artifact = record.artifacts?.find((a) => a.name === 'go-tests')
+    expect(artifact?.status).toBe('invalid')
+    expect(artifact?.testSummary).toBeUndefined()
+
+    const live = new ExecutionPage(page)
+    await live.goto(runId)
+    await live.artifactsButton().click()
+    await expect(page.getByTestId('artifact-status')).toContainText('Report could not be read')
+    await expect(page.getByTestId('artifact-problem')).toBeVisible()
+    // The file as written stays visible, so the author can see what is wrong.
+    await expect(page.getByRole('dialog', { name: 'Artifacts' })).toContainText('this is not xml at all')
+  })
+
+  test('@docker a missing report that is not enforced warns and does not fail the step', async ({ page, api }) => {
+    const runId = await api.launch('ui-junit-soft')
+    const record = await api.waitForRun(runId)
+    expect(record.status).toBe('Healthy')
+    expect(stepStatuses(record).report).toBe('healthy')
+    const artifact = record.artifacts?.find((a) => a.name === 'go-tests')
+    expect(artifact?.status).toBe('missing')
+
+    const live = new ExecutionPage(page)
+    await live.goto(runId)
+    await live.artifactsButton().click()
+    await expect(page.getByTestId('artifact-status')).toContainText('Report not produced')
+  })
+
+  test('@docker a CTRF report shows its summary, and its failure fails the step', async ({ page, api }) => {
+    const runId = await api.launch('ui-ctrf')
+    const record = await api.waitForRun(runId)
+    expect(record.status).toBe('Failed')
+    const artifact = record.artifacts?.find((a) => a.name === 'ctrf-tests')
+    expect(artifact?.testSummary).toMatchObject({ total: 3, passed: 2, failures: 1 })
+
+    const live = new ExecutionPage(page)
+    await live.goto(runId)
+    await live.artifactsButton().click()
+    await expect(page.getByTestId('artifact-total')).toHaveText('3')
+    await expect(page.getByTestId('artifact-failures')).toHaveText('1')
+    await expect(page.getByTestId('artifact-verdict')).toContainText('1 test did not pass')
   })
 })
 

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { FaCopy, FaXmark } from 'react-icons/fa6'
 import { useClipboardFeedback } from '../../hooks/useClipboardFeedback'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
-import type { ExecutionArtifactRecord } from '../../lib/api'
+import type { ExecutionArtifactRecord, ExecutionArtifactStatus } from '../../lib/api'
 import './ExecutionDialogs.css'
 
 export interface MockPreview {
@@ -120,9 +120,14 @@ export function ArtifactsDialog({ artifacts, onClose }: ArtifactsDialogProps) {
               onSelect={setActiveId}
             />
           )}
-          {active?.format === 'junit' && active.testSummary ? (
-            <JUnitPanel summary={active.testSummary} />
-          ) : active?.format === 'cobertura' && active.coverageSummary ? (
+          {active && (active.status ?? 'collected') !== 'collected' ? (
+            <>
+              <StatusPanel artifact={active} />
+              {rawContent && <CodeLines id={active.id} content={rawContent} />}
+            </>
+          ) : active?.testSummary ? (
+            <JUnitPanel summary={active.testSummary} note={active.problem} />
+          ) : active?.coverageSummary ? (
             <CoveragePanel summary={active.coverageSummary} />
           ) : rawContent ? (
             <CodeLines id={active?.id ?? 'artifact'} content={rawContent} />
@@ -136,9 +141,41 @@ export function ArtifactsDialog({ artifacts, onClose }: ArtifactsDialogProps) {
   )
 }
 
-function JUnitPanel({ summary }: { summary: NonNullable<ExecutionArtifactRecord['testSummary']> }) {
+const STATUS_HEADLINES: Record<Exclude<ExecutionArtifactStatus, 'collected'>, string> = {
+  missing: 'Report not produced',
+  empty: 'Report is empty',
+  invalid: 'Report could not be read',
+  truncated: 'Report is too large to read',
+  unreadable: 'Report could not be read',
+  not_collected: 'Report not collected',
+}
+
+/** Says why an export has no usable report. It never shows counts. */
+function StatusPanel({ artifact }: { artifact: ExecutionArtifactRecord }) {
+  const status = (artifact.status ?? 'collected') as Exclude<ExecutionArtifactStatus, 'collected'>
+  return (
+    <div className='exec-source-preview__body'>
+      <div className='artifact-panel'>
+        <div data-testid='artifact-status' data-status={status} className='artifact-junit__verdict artifact-junit__verdict--fail'>
+          {STATUS_HEADLINES[status] ?? `Report ${status}`}
+        </div>
+        <p className='artifact-note'>
+          <code>{artifact.path}</code>
+        </p>
+        {artifact.problem && (
+          <p data-testid='artifact-problem' className='artifact-note'>
+            {artifact.problem}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function JUnitPanel({ summary, note }: { summary: NonNullable<ExecutionArtifactRecord['testSummary']>; note?: string }) {
   const dur = typeof summary.durationSeconds === 'number' ? summary.durationSeconds.toFixed(2) + 's' : null
-  const allPassed = summary.failures === 0 && summary.errors === 0
+  const noTests = summary.total === 0
+  const allPassed = !noTests && summary.failures === 0 && summary.errors === 0
   return (
     <div className='exec-source-preview__body'>
       <div className='artifact-panel artifact-junit'>
@@ -171,8 +208,17 @@ function JUnitPanel({ summary }: { summary: NonNullable<ExecutionArtifactRecord[
           )}
         </div>
         <div data-testid='artifact-verdict' className={`artifact-junit__verdict${allPassed ? ' artifact-junit__verdict--pass' : ' artifact-junit__verdict--fail'}`}>
-          {allPassed ? 'All tests passed' : `${summary.failures + summary.errors} test${summary.failures + summary.errors !== 1 ? 's' : ''} did not pass`}
+          {noTests
+            ? 'No tests in this report'
+            : allPassed
+              ? 'All tests passed'
+              : `${summary.failures + summary.errors} test${summary.failures + summary.errors !== 1 ? 's' : ''} did not pass`}
         </div>
+        {note && (
+          <p data-testid='artifact-problem' className='artifact-note'>
+            {note}
+          </p>
+        )}
       </div>
     </div>
   )
