@@ -20,6 +20,8 @@ export function ProfileCard({
         !profile.launchable ? 'profile-card--base' : '',
         selected ? 'profile-card--selected' : '',
       ].filter(Boolean).join(' ')}
+      data-testid='profile-card'
+      data-profile={profile.fileName}
       onClick={() => onOpen(profile)}
     >
       <div className='profile-card__body'>

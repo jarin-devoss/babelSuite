@@ -264,7 +264,7 @@ export default function LiveExecution() {
         <div className='exec-header'>
           <div className='exec-header__left'>
             <div className='exec-header__row'>
-              <code className='exec-header__id'>{execution.id.slice(0, 12)}</code>
+              <code className='exec-header__id' data-testid='exec-id'>{execution.id.slice(0, 12)}</code>
               <ExecStatusBadge status={execution.status} />
             </div>
             <p className='exec-header__sub'>
@@ -312,6 +312,7 @@ export default function LiveExecution() {
                 <input
                   type='text'
                   className='exec-log-search__input'
+                  aria-label='Search logs'
                   placeholder='Search logs…'
                   value={logSearch}
                   onChange={(e) => setLogSearch(e.target.value)}
@@ -358,6 +359,7 @@ export default function LiveExecution() {
                     {logVirtualizer.getVirtualItems().map((virtualItem) => (
                       <div
                         key={virtualItem.key}
+                        data-testid='log-line'
                         data-index={virtualItem.index}
                         ref={logVirtualizer.measureElement}
                         style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
@@ -378,7 +380,7 @@ export default function LiveExecution() {
             <div className='exec-stream-bar'>
               <StreamPill state={logStreamState} paused={paused} label='logs' />
               <span className='exec-stream-bar__sep'>·</span>
-              <span className='exec-stream-bar__count'>{filteredLogs.length} lines</span>
+              <span className='exec-stream-bar__count' data-testid='log-count'>{filteredLogs.length} lines</span>
               <div className='exec-stream-bar__right'>
                 <StreamPill state={executionStreamState} paused={paused} label='events' />
               </div>
@@ -407,6 +409,9 @@ export default function LiveExecution() {
                       <button
                         key={node.id}
                         type='button'
+                        data-testid='exec-node'
+                        data-node={node.id}
+                        data-status={st ?? 'pending'}
                         className={`exec-node exec-node--${st}${selectedSource === node.id ? ' exec-node--selected' : ''}`}
                         onClick={() => {
                           setSelectedSource(node.id)
@@ -432,19 +437,19 @@ export default function LiveExecution() {
             {/* Stats footer */}
             <div className='exec-sidebar__stats'>
               <div className='exec-stat'>
-                <strong data-color='healthy'>{readyNodes}</strong>
+                <strong data-color='healthy' data-testid='exec-stat-healthy'>{readyNodes}</strong>
                 <small>healthy</small>
               </div>
               <div className='exec-stat'>
-                <strong data-color='running'>{activeNodes}</strong>
+                <strong data-color='running' data-testid='exec-stat-running'>{activeNodes}</strong>
                 <small>running</small>
               </div>
               <div className='exec-stat'>
-                <strong data-color='failed'>{failedNodes}</strong>
+                <strong data-color='failed' data-testid='exec-stat-failed'>{failedNodes}</strong>
                 <small>failed</small>
               </div>
               <div className='exec-stat'>
-                <strong data-color='skipped'>{skippedNodes}</strong>
+                <strong data-color='skipped' data-testid='exec-stat-skipped'>{skippedNodes}</strong>
                 <small>skipped</small>
               </div>
               <div className='exec-stat'>
@@ -510,7 +515,7 @@ function ExecDot({ status }: { status: RuntimeStatus }) {
 
 function ExecStatusBadge({ status }: { status: 'Booting' | 'Healthy' | 'Failed' }) {
   return (
-    <span className={`exec-status-badge exec-status-badge--${status.toLowerCase()}`}>
+    <span className={`exec-status-badge exec-status-badge--${status.toLowerCase()}`} data-testid='exec-status' data-status={status.toLowerCase()}>
       <ExecDot status={statusFromExecution(status)} />
       {status}
     </span>

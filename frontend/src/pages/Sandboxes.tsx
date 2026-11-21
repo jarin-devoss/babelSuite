@@ -201,6 +201,9 @@ export default function Sandboxes() {
                 <button
                   key={sandbox.sandboxId}
                   type='button'
+                  data-testid='environment-card'
+                  data-run-id={sandbox.runId}
+                  data-suite={sandbox.suite}
                   className={`sb-card sb-card--${tone}${isAlarm ? ' sb-card--alarm' : ''}`}
                   onClick={() => openSandbox(sandbox.sandboxId)}
                 >

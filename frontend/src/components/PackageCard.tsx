@@ -33,7 +33,7 @@ export function PackageCard({ item, starred, copiedId, favoriteBusy, onInspect, 
   const versionSummary = publishedVersions > 1 ? `${publishedVersions} versions available` : '1 version available'
 
   return (
-    <article className='catalog-card'>
+    <article className='catalog-card' data-testid='catalog-card' data-package={item.id}>
       {/* Header row: logo + headline + star */}
       <div className='catalog-card__header'>
         <div className='catalog-card__logo' aria-hidden='true' style={{ background: logoGradient(item.id) }}>

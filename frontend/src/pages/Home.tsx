@@ -234,7 +234,7 @@ export default function Home() {
               </div>
 
               {runs.map((run) => (
-                <div key={run.id} className='runs-table__row'>
+                <div key={run.id} className='runs-table__row' data-testid='run-row' data-run-id={run.id} data-suite={run.suiteId}>
                   <div className='runs-table__status'>
                     <RunStatus status={run.status} />
                     <small>{formatRelativeTime(run.startedAt)}</small>
@@ -364,6 +364,7 @@ function ExecutionModal({
                   value={selectedSuite.id}
                   onChange={(e) => onChangeSuite(e.target.value)}
                   className='ex-select'
+                  aria-label='Suite'
                 >
                   {launchSuites.map((item) => (
                     <option key={item.id} value={item.id}>{item.title}</option>
@@ -384,6 +385,8 @@ function ExecutionModal({
                 <button
                   key={item.fileName}
                   type='button'
+                  data-testid='profile-option'
+                  data-profile={item.fileName}
                   className={`ex-profile-card${item.fileName === profile ? ' ex-profile-card--active' : ''}`}
                   onClick={() => onChangeProfile(item.fileName)}
                 >
@@ -444,7 +447,7 @@ function ExecutionModal({
 function RunStatus({ status }: { status: ExecutionOverviewItem['status'] }) {
   if (status === 'Healthy') {
     return (
-      <span className='runs-status runs-status--healthy'>
+      <span className='runs-status runs-status--healthy' data-testid='run-status' data-status='healthy'>
         <FaCircleCheck />
         <span>Healthy</span>
       </span>
@@ -453,7 +456,7 @@ function RunStatus({ status }: { status: ExecutionOverviewItem['status'] }) {
 
   if (status === 'Failed') {
     return (
-      <span className='runs-status runs-status--failed'>
+      <span className='runs-status runs-status--failed' data-testid='run-status' data-status='failed'>
         <FaCircleXmark />
         <span>Failed</span>
       </span>
@@ -461,7 +464,7 @@ function RunStatus({ status }: { status: ExecutionOverviewItem['status'] }) {
   }
 
   return (
-    <span className='runs-status runs-status--booting'>
+    <span className='runs-status runs-status--booting' data-testid='run-status' data-status='booting'>
       <FaSpinner />
       <span>Booting</span>
     </span>

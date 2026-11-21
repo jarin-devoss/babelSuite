@@ -323,7 +323,7 @@ export default function Suites() {
                   <div key={`level-${i + 1}`} className='suite-topology__column'>
                     <span className='suite-topology__label'>Wave {i + 1}</span>
                     {level.map((node) => (
-                      <div key={node.id} className={`suite-node suite-node--${node.kind}`}>
+                      <div key={node.id} className={`suite-node suite-node--${node.kind}`} data-testid='suite-node' data-node={node.id}>
                         <div className='suite-node__header'>
                           <strong>{node.name}</strong>
                           <small>{node.kind}</small>
