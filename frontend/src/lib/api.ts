@@ -351,6 +351,16 @@ export interface ExecutionArtifactCoverageSummary {
   branchesValid?: number
 }
 
+/** What became of a declared export. Only a collected one carries a summary. */
+export type ExecutionArtifactStatus =
+  | 'collected'
+  | 'missing'
+  | 'empty'
+  | 'invalid'
+  | 'truncated'
+  | 'unreadable'
+  | 'not_collected'
+
 export interface ExecutionArtifactRecord {
   id: string
   stepId: string
@@ -359,6 +369,12 @@ export interface ExecutionArtifactRecord {
   name: string
   on?: string
   format?: string
+  /** Absent on executions recorded before report status existed. */
+  status?: ExecutionArtifactStatus
+  /** Why the status is not collected, or a note on a collected report. */
+  problem?: string
+  /** The files a glob export matched. */
+  files?: string[]
   content?: string
   testSummary?: ExecutionArtifactTestSummary
   coverageSummary?: ExecutionArtifactCoverageSummary

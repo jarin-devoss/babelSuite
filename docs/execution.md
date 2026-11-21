@@ -83,7 +83,7 @@ Inside each container two paths are available:
 | Path | Purpose |
 |------|---------|
 | `$BABELSUITE_WORKSPACE_DIR` | Shared volume — readable and writable by every step in the same execution |
-| `$BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only. On Docker, `.export(...)` paths are read from the workspace mount after the step exits |
+| `$BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only. On Docker, `exports=` paths are read from the workspace mount after the step exits |
 
 The workspace is isolated per execution. Two concurrent runs never share one. Files written by one step are immediately visible to any downstream step in the same run without any artifact export configuration.
 

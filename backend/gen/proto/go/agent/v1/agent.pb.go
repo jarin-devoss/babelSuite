@@ -231,6 +231,7 @@ type ArtifactExport struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	On            string                 `protobuf:"bytes,3,opt,name=on,proto3" json:"on,omitempty"`
 	Format        string                 `protobuf:"bytes,4,opt,name=format,proto3" json:"format,omitempty"`
+	NotEnforced   bool                   `protobuf:"varint,5,opt,name=not_enforced,json=notEnforced,proto3" json:"not_enforced,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,6 +292,13 @@ func (x *ArtifactExport) GetFormat() string {
 		return x.Format
 	}
 	return ""
+}
+
+func (x *ArtifactExport) GetNotEnforced() bool {
+	if x != nil {
+		return x.NotEnforced
+	}
+	return false
 }
 
 type LoadThreshold struct {
@@ -1897,12 +1905,13 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	" \x01(\tR\amessage\x12\x18\n" +
 	"\adevices\x18\v \x03(\tR\adevices\x12!\n" +
 	"\fmemory_bytes\x18\f \x01(\x03R\vmemoryBytes\x12\x1b\n" +
-	"\tmilli_cpu\x18\r \x01(\x03R\bmilliCpu\"`\n" +
+	"\tmilli_cpu\x18\r \x01(\x03R\bmilliCpu\"\x83\x01\n" +
 	"\x0eArtifactExport\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02on\x18\x03 \x01(\tR\x02on\x12\x16\n" +
-	"\x06format\x18\x04 \x01(\tR\x06format\"g\n" +
+	"\x06format\x18\x04 \x01(\tR\x06format\x12!\n" +
+	"\fnot_enforced\x18\x05 \x01(\bR\vnotEnforced\"g\n" +
 	"\rLoadThreshold\x12\x16\n" +
 	"\x06metric\x18\x01 \x01(\tR\x06metric\x12\x0e\n" +
 	"\x02op\x18\x02 \x01(\tR\x02op\x12\x14\n" +

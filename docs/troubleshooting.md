@@ -92,6 +92,24 @@ A `traffic.*` step sends real requests from the suite's APISIX sidecar, so a fai
 
 ---
 
+## A Test Step Fails On Its Report
+
+A `test.run` step whose `exports=` declare a `junit` or `ctrf` report is checked against that report after its own checks pass, so it can fail although the test command exited 0. The step's log names the report and the reason:
+
+| Message | What it means and what to do |
+|---------|------------------------------|
+| `report "x" (path) was not produced` | The step wrote no file at that path. Write it relative to the step's working directory, and check that the test runner is told where to write it. |
+| `report "x" (path) is empty` | The file exists but has no content. The test runner probably crashed while writing it. |
+| `report "x" (path) could not be read: ...` | The file is not valid XML (JUnit) or JSON (CTRF), or has the wrong root element. The execution view shows the file as it was written. |
+| `report "x" (path) is too large to read` | A file is over 10 MB. Split the report, or write a summary. |
+| `report "x" (path) lists no tests` | The report parsed but holds no test cases. A runner that found no tests is not a pass. |
+| `report "x" (path): N of M tests failed` | The report lists failures or errors. Open the artifact to see the counts. |
+| `report "x" (path) was not collected: remote agents do not return reports yet` | The step ran on a remote agent. Add `"enforce": False` to the export. |
+
+To show a report without letting it fail the step, add `"enforce": False` to its entry in `exports=`. See [Artifact Exports](runtime-library.md#artifact-exports).
+
+---
+
 ## CLI: `error: no saved session`
 
 Run `babelctl login` first. If you've set `--server` but not logged in, the token won't exist.

@@ -134,7 +134,7 @@ When `type: kubernetes` is set in platform settings, the control plane runs each
 5. A service pod's hostname is its network alias and its subdomain the execution's headless Service; every pod of the execution searches that subdomain, so `db:5432` resolves to that execution's `db` only. Kubernetes tries the namespace's own domain before that search entry, so keep the namespace for BabelSuite runs: a Service named `db` there would answer for every execution's `db`.
 6. Ports a plugin references on a service (`http://broker:8082`) are port-forwarded to `127.0.0.1` on the control plane host, and the plugin config is rewritten to `host.docker.internal:<port>`, the way Docker-published ports are.
 7. Pods run as the image's own user, with the profile's `services.<name>.memory` as their memory limit and no CPU limit, and `imagePullPolicy: IfNotPresent`.
-8. Artifact collection uses an `emptyDir` volume shared between the step container and a `busybox` sidecar. After the step container exits, artifacts are read through the pod exec API before the pod is deleted.
+8. Artifact collection uses an `emptyDir` volume shared between the step container and a `busybox` sidecar. After the step container exits, every declared export is read through the pod exec API before the pod is deleted, with the same file and size limits as the Docker backend.
 
 !!! note "Reaching the host"
     Steps and the sidecar reach the control plane host as `host.docker.internal`, which Docker Desktop and kind resolve inside pods. `BABELSUITE_GATEWAY_URL` is rewritten to that name for pods. A cluster that does not resolve it cannot reach the sidecar from a step.

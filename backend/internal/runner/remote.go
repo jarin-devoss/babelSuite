@@ -135,7 +135,7 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 	}
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Forwarding the step to the remote worker at %s.", step.Node.Name, r.baseURL)))
-	return r.dispatcher.Dispatch(ctx, agent.StepRequest{
+	err = r.dispatcher.Dispatch(ctx, agent.StepRequest{
 		ExecutionID:      step.ExecutionID,
 		SuiteID:          step.SuiteID,
 		SuiteTitle:       step.SuiteTitle,
@@ -181,6 +181,13 @@ func (r *Remote) Run(ctx context.Context, step StepSpec, emit func(logstream.Lin
 		GatewayURLs:    append([]string{}, step.GatewayURLs...),
 		NetworkAliases: append([]string{}, step.NetworkAliases...),
 	}, emit)
+	// The agent runs the step where the control plane cannot read its files, and
+	// the agent protocol returns none, so say that instead of leaving an export
+	// that looks as if nothing was written.
+	if len(step.ArtifactExports) > 0 {
+		deliverArtifacts(step, notCollectedResults(step.ArtifactExports, "remote agents do not return reports yet"))
+	}
+	return err
 }
 
 func cloneRunnerMap(input map[string]string) map[string]string {
@@ -207,6 +214,8 @@ func cloneRunnerArtifactExports(input []ArtifactExport) []agent.ArtifactExport {
 			Name:   item.Name,
 			On:     item.On,
 			Format: item.Format,
+
+			NotEnforced: item.NotEnforced,
 		}
 	}
 	return output

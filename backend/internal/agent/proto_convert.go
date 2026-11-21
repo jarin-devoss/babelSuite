@@ -56,6 +56,8 @@ func stepRequestToProto(r StepRequest) *agentv1.StepRequest {
 			Name:   ae.Name,
 			On:     ae.On,
 			Format: ae.Format,
+
+			NotEnforced: ae.NotEnforced,
 		})
 	}
 	return p
@@ -109,6 +111,8 @@ func protoToStepRequest(p *agentv1.StepRequest) StepRequest {
 			Name:   ae.Name,
 			On:     ae.On,
 			Format: ae.Format,
+
+			NotEnforced: ae.NotEnforced,
 		})
 	}
 	return r

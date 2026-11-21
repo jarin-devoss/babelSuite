@@ -898,6 +898,7 @@ func extractArtifactExports(val starlark.Value, call string) ([]ArtifactExport, 
 			return nil, fmt.Errorf("%s: exports elements must be dicts", call)
 		}
 		export := ArtifactExport{On: "success"}
+		enforceSet := false
 		for _, item := range d.Items() {
 			k, ok := starlark.AsString(item[0])
 			if !ok {
@@ -928,10 +929,27 @@ func extractArtifactExports(val starlark.Value, call string) ([]ArtifactExport, 
 					return nil, fmt.Errorf("%s: exports format must be a string", call)
 				}
 				export.Format = strings.ToLower(strings.TrimSpace(s))
+			case "enforce":
+				b, ok := item[1].(starlark.Bool)
+				if !ok {
+					return nil, fmt.Errorf("%s: exports enforce must be True or False", call)
+				}
+				export.NotEnforced = !bool(b)
+				enforceSet = true
+			default:
+				return nil, fmt.Errorf("%s: exports entry has an unknown key %q; use path, name, on, format or enforce", call, k)
 			}
 		}
 		if strings.TrimSpace(export.Path) == "" {
 			return nil, fmt.Errorf("%s: exports entry missing required path", call)
+		}
+		switch export.Format {
+		case "", "junit", "ctrf", "cobertura":
+		default:
+			return nil, fmt.Errorf("%s: exports format %q is not supported; use junit, ctrf or cobertura", call, export.Format)
+		}
+		if enforceSet && export.Format != "junit" && export.Format != "ctrf" {
+			return nil, fmt.Errorf("%s: exports enforce applies only to a junit or ctrf export", call)
 		}
 		switch export.On {
 		case "", "success":

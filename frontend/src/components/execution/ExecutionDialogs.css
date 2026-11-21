@@ -294,6 +294,13 @@
   color: #e88aa4;
 }
 
+.artifact-note {
+  margin: 12px 0 0;
+  font-size: 0.82rem;
+  color: #8ab0c4;
+  word-break: break-word;
+}
+
 .artifact-coverage {
   display: flex;
   flex-direction: column;

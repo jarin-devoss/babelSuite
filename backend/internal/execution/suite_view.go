@@ -72,6 +72,7 @@ func cloneExecutionArtifacts(input []ExecutionArtifact) []ExecutionArtifact {
 	output := make([]ExecutionArtifact, len(input))
 	for index, artifact := range input {
 		output[index] = artifact
+		output[index].Files = append([]string(nil), artifact.Files...)
 		if artifact.TestSummary != nil {
 			summary := *artifact.TestSummary
 			output[index].TestSummary = &summary

@@ -64,6 +64,10 @@ type ArtifactExport struct {
 	Name   string `json:"name,omitempty"`
 	On     string `json:"on,omitempty"`
 	Format string `json:"format,omitempty"`
+	// NotEnforced is set by enforce=False. A junit or ctrf export normally
+	// fails its step when the report is missing, empty or lists failures;
+	// this one is shown but never fails it.
+	NotEnforced bool `json:"notEnforced,omitempty"`
 }
 
 type StepEvaluation struct {

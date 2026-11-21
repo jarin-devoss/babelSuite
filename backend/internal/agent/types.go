@@ -27,10 +27,11 @@ type StepNode struct {
 }
 
 type ArtifactExport struct {
-	Path   string `json:"path" yaml:"path"`
-	Name   string `json:"name,omitempty" yaml:"name,omitempty"`
-	On     string `json:"on,omitempty" yaml:"on,omitempty"`
-	Format string `json:"format,omitempty" yaml:"format,omitempty"`
+	Path        string `json:"path" yaml:"path"`
+	Name        string `json:"name,omitempty" yaml:"name,omitempty"`
+	On          string `json:"on,omitempty" yaml:"on,omitempty"`
+	Format      string `json:"format,omitempty" yaml:"format,omitempty"`
+	NotEnforced bool   `json:"notEnforced,omitempty" yaml:"notEnforced,omitempty"`
 }
 
 type StepRequest struct {

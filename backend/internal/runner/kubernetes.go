@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -200,11 +201,7 @@ func (k *Kubernetes) runPod(ctx context.Context, client kubernetes.Interface, st
 	}
 
 	if needsArtifacts {
-		exitStatus := "success"
-		if exitCode != 0 {
-			exitStatus = "failure"
-		}
-		k.collectArtifacts(ctx, client, podName, step, exitStatus)
+		k.collectArtifacts(ctx, client, podName, step)
 	}
 
 	emit(line(step, "info", fmt.Sprintf("[%s] Pod finished successfully.", step.Node.Name)))
@@ -534,28 +531,84 @@ func (k *Kubernetes) waitForContainerRunning(ctx context.Context, client kuberne
 	return false
 }
 
-// collectArtifacts reads artifact files from the sidecar container via exec.
-// The sidecar shares an emptyDir volume with the step container and stays running
-// after the step exits, allowing exec-based reads before pod deletion.
-func (k *Kubernetes) collectArtifacts(ctx context.Context, client kubernetes.Interface, podName string, step StepSpec, exitStatus string) {
+// collectArtifacts reads every declared export from the sidecar container via
+// exec. The sidecar shares an emptyDir volume with the step container and stays
+// running after the step exits, allowing exec-based reads before pod deletion.
+func (k *Kubernetes) collectArtifacts(ctx context.Context, client kubernetes.Interface, podName string, step StepSpec) {
 	cfg, err := k.restConfig()
 	if err != nil {
+		deliverArtifacts(step, notCollectedResults(step.ArtifactExports, fmt.Sprintf("the cluster connection failed: %v", err)))
 		return
 	}
-	for _, export := range step.ArtifactExports {
-		if !artifactTriggerMatchesStatus(export.On, exitStatus) {
-			continue
-		}
-		content, err := k.execRead(ctx, client, cfg, podName, export.Path)
-		if err != nil || len(content) == 0 {
-			continue
-		}
-		step.OnArtifact(export.Path, content)
+	run := func(command []string) ([]byte, error) {
+		return k.execRead(ctx, client, cfg, podName, command)
 	}
+	deliverArtifacts(step, collectPodArtifacts(step.ArtifactExports, run))
 }
 
-func (k *Kubernetes) execRead(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, podName, filePath string) ([]byte, error) {
-	cleanPath := k8sArtifactsMount + "/" + strings.TrimPrefix(strings.TrimSpace(filePath), "/")
+// podArtifactListScript prints the regular files a path or glob matches, one per
+// line. The pattern is passed as an argument, so the shell expands it but never
+// parses it as part of the script.
+const podArtifactListScript = `for f in $1; do [ -f "$f" ] && printf '%s\n' "$f"; done; exit 0`
+
+// podArtifactReadScript prints a file, at most one byte past the size limit so
+// that a larger file can be told from one that is exactly the limit.
+const podArtifactReadScript = `head -c %d "$1"`
+
+// collectPodArtifacts reads every declared export through run, which executes a
+// command in the artifact sidecar and returns its output. It applies the same
+// limits as the Docker collector.
+func collectPodArtifacts(exports []ArtifactExport, run func(command []string) ([]byte, error)) []ArtifactResult {
+	results := make([]ArtifactResult, 0, len(exports))
+	budget := int64(maxStepArtifactBytes)
+	for _, export := range exports {
+		exportPath := strings.TrimSpace(export.Path)
+		result := ArtifactResult{Export: exportPath}
+
+		full := k8sArtifactsMount + "/" + strings.TrimPrefix(path.Clean("/"+exportPath), "/")
+		listing, err := run([]string{"sh", "-c", podArtifactListScript, "sh", full})
+		if err != nil {
+			result.Err = err
+			results = append(results, result)
+			continue
+		}
+
+		for _, match := range strings.Split(strings.TrimSpace(string(listing)), "\n") {
+			match = strings.TrimSpace(match)
+			if match == "" {
+				continue
+			}
+			name := strings.TrimPrefix(strings.TrimPrefix(match, k8sArtifactsMount), "/")
+			if len(result.Files) >= maxArtifactFiles {
+				result.Files = append(result.Files, ArtifactFile{Path: name, Truncated: true})
+				continue
+			}
+			limit := int64(maxArtifactBytes)
+			if budget < limit {
+				limit = budget
+			}
+			content, err := run([]string{"sh", "-c", fmt.Sprintf(podArtifactReadScript, limit+1), "sh", match})
+			if err != nil {
+				result.Err = err
+				result.Files = nil
+				break
+			}
+			if int64(len(content)) > limit {
+				result.Files = append(result.Files, ArtifactFile{Path: name, Truncated: true})
+				continue
+			}
+			budget -= int64(len(content))
+			result.Files = append(result.Files, ArtifactFile{Path: name, Content: content})
+		}
+		if result.Err == nil && len(result.Files) == 0 {
+			result.Missing = true
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
+func (k *Kubernetes) execRead(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, podName string, command []string) ([]byte, error) {
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -563,7 +616,7 @@ func (k *Kubernetes) execRead(ctx context.Context, client kubernetes.Interface, 
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: k8sArtifactSidecar,
-			Command:   []string{"cat", cleanPath},
+			Command:   command,
 			Stdout:    true,
 			Stderr:    false,
 		}, scheme.ParameterCodec)
@@ -577,12 +630,7 @@ func (k *Kubernetes) execRead(ctx context.Context, client kubernetes.Interface, 
 	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: &buf}); err != nil {
 		return nil, err
 	}
-
-	content := buf.Bytes()
-	if len(content) > maxArtifactBytes {
-		content = content[:maxArtifactBytes]
-	}
-	return content, nil
+	return buf.Bytes(), nil
 }
 
 func (k *Kubernetes) newClient() (kubernetes.Interface, error) {

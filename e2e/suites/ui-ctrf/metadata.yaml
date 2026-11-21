@@ -1,0 +1,12 @@
+kind: OCIExampleSuite
+metadata:
+  id: ui-ctrf
+  title: UI CTRF
+spec:
+  repository: localhost:5000/e2e/ui-ctrf
+  owner: E2E
+  version: v1.0.0
+  tags:
+    - v1.0.0
+    - latest
+  description: A step that writes a CTRF report with 3 tests and 1 failure. A fixture for the UI end-to-end tests, not an example.

@@ -41,6 +41,7 @@ message ArtifactExport {
   string name = 2;
   string on = 3;
   string format = 4;
+  bool not_enforced = 5;
 }
 
 message LoadThreshold {
