@@ -87,11 +87,11 @@ func SetupExecutionNetwork(executionID string) error {
 // then removes the per-execution bridge network. Service containers may still
 // be running when the execution finishes, so we force-remove them first to
 // avoid leaving orphaned networks that exhaust the Docker address pool. The
-// long-lived APISIX sidecar never joins this network (see EnsureSuiteSidecar
-// and SuiteSidecarURL — it is reached via its host-published port instead),
-// so the disconnect loop below is just a defensive fallback for any container
-// that the label-based removal above missed; Docker refuses to remove a
-// network with any endpoints still attached.
+// long-lived APISIX sidecar is not removed with the run: a traffic step
+// attaches it to this network (AttachSidecarToExecution) so it can reach the
+// run's services, and the disconnect loop below detaches it again, along with
+// any container the label-based removal above missed. Docker refuses to remove
+// a network with any endpoints still attached.
 func RemoveExecutionNetwork(executionID string) {
 	cli, ok := sharedDockerClient()
 	if !ok {
@@ -715,11 +715,26 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	suiteID := suiteConfig.ID
 	containerName := SidecarContainerName(suiteID, profile)
 
-	// Already running — nothing to do.
+	if sidecarImage == "" {
+		sidecarImage = "apache/apisix:latest"
+	}
+	if configMountPath == "" {
+		configMountPath = "/usr/local/apisix/conf/apisix.yaml"
+	}
+
+	// Everything the sidecar reads at startup, rendered first so a running
+	// sidecar can be compared with it: one started from an older configuration
+	// (a fixed cannon, a changed plugin, a new route) is recreated instead of
+	// being reused and silently keeping the old behaviour.
+	apisixYAML := apisix.RenderStandaloneConfig(suiteConfig)
+	luaFiles := apisix.LuaPluginFiles(suiteConfig.CustomPlugins...)
+	configHash := sidecarConfigHash(sidecarImage, apisixYAML, luaFiles)
+
 	ctx2s, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	info, err := cli.ContainerInspect(ctx2s, containerName)
-	if err == nil && info.State != nil && info.State.Running {
+	if err == nil && info.State != nil && info.State.Running &&
+		info.Config != nil && info.Config.Labels[sidecarConfigHashLabel] == configHash {
 		return nil
 	}
 
@@ -728,31 +743,14 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		return fmt.Errorf("sidecar conf dir: %w", err)
 	}
 
-	// config.yaml — override the image default (traditional/etcd) with standalone/yaml mode.
-	if err := writeSidecarConfig(filepath.Join(confDir, "config.yaml")); err != nil {
-		return fmt.Errorf("write config.yaml: %w", err)
-	}
-
-	// apisix.yaml — routes + plugins for this suite.
-	apisixYAML := apisix.RenderStandaloneConfig(suiteConfig)
-	if err := os.WriteFile(filepath.Join(confDir, "apisix.yaml"), []byte(apisixYAML), 0644); err != nil {
-		return fmt.Errorf("write apisix.yaml: %w", err)
-	}
-
-	// Lua plugin files bind-mounted alongside the config.
+	// config.yaml (standalone mode), apisix.yaml (this suite's routes and
+	// plugins) and the Lua plugin files, all bind-mounted into the container.
 	luaDir := filepath.Join(confDir, "..", "plugins")
-	if err := os.MkdirAll(luaDir, 0755); err != nil {
-		return fmt.Errorf("create lua dir: %w", err)
+	writeFiles := func() error {
+		return writeSidecarFiles(confDir, luaDir, apisixYAML, suiteConfig.CustomPlugins)
 	}
-	if err := apisix.WriteLuaPluginFiles(luaDir, suiteConfig.CustomPlugins...); err != nil {
-		return fmt.Errorf("write lua plugins: %w", err)
-	}
-
-	if sidecarImage == "" {
-		sidecarImage = "apache/apisix:latest"
-	}
-	if configMountPath == "" {
-		configMountPath = "/usr/local/apisix/conf/apisix.yaml"
+	if err := writeFiles(); err != nil {
+		return err
 	}
 
 	portBindings := nat.PortMap{
@@ -767,7 +765,7 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 			"APISIX_STAND_ALONE=true",
 			"BABELSUITE_ENGINE_ADDR=host.docker.internal:8090",
 		},
-		Labels: sidecarLabels(suiteID, profile),
+		Labels: sidecarLabelsWithHash(suiteID, profile, configHash),
 	}
 	// On Linux, host.docker.internal is not pre-seeded (unlike Mac/Windows which run
 	// Docker in a VM). Adding it via host-gateway makes BABELSUITE_ENGINE_ADDR resolve
@@ -809,24 +807,49 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	// Remove any stopped container with the same name before recreating.
 	cli.ContainerRemove(ctx30s, containerName, container.RemoveOptions{Force: true}) //nolint:errcheck
 
-	created, err := cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
-	if errdefs.IsNotFound(err) {
-		pullOut, pullErr := cli.ImagePull(ctx30s, sidecarImage, image.PullOptions{})
-		if pullErr != nil {
-			return fmt.Errorf("pull apisix image: %w", pullErr)
+	createAndStart := func() (string, error) {
+		created, err := cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
+		if errdefs.IsNotFound(err) {
+			pullOut, pullErr := cli.ImagePull(ctx30s, sidecarImage, image.PullOptions{})
+			if pullErr != nil {
+				return "", fmt.Errorf("pull apisix image: %w", pullErr)
+			}
+			io.Copy(io.Discard, pullOut) //nolint:errcheck
+			pullOut.Close()
+			created, err = cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
 		}
-		io.Copy(io.Discard, pullOut) //nolint:errcheck
-		pullOut.Close()
-		created, err = cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
-	}
-	if err != nil {
-		return fmt.Errorf("create sidecar container: %w", err)
+		if err != nil {
+			return "", fmt.Errorf("create sidecar container: %w", err)
+		}
+		if err := cli.ContainerStart(ctx30s, created.ID, container.StartOptions{}); err != nil {
+			cli.ContainerRemove(context.Background(), created.ID, container.RemoveOptions{Force: true}) //nolint:errcheck
+			return "", fmt.Errorf("start sidecar container: %w", err)
+		}
+		return created.ID, nil
 	}
 
-	if err := cli.ContainerStart(ctx30s, created.ID, container.StartOptions{}); err != nil {
-		cli.ContainerRemove(context.Background(), created.ID, container.RemoveOptions{Force: true}) //nolint:errcheck
-		return fmt.Errorf("start sidecar container: %w", err)
+	// On Docker Desktop the files above were written a moment ago, and the VM
+	// that runs Docker may not see them yet. A bind source it cannot find is
+	// created as an empty directory, and the mount of a directory onto a file
+	// then fails with "not a directory" — on a suite's first start, and again on
+	// every start after it, because the directory stays. Clear the directories,
+	// write the files again, give the file share a moment, and try once more.
+	var containerID string
+	var startErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		containerID, startErr = createAndStart()
+		if startErr == nil || !isMountSourceError(startErr) {
+			break
+		}
+		time.Sleep(2 * time.Second)
+		if err := writeFiles(); err != nil {
+			return err
+		}
 	}
+	if startErr != nil {
+		return startErr
+	}
+	created := struct{ ID string }{ID: containerID}
 
 	// Brief window to catch immediate crash (bad config, wrong image, etc.).
 	crashCh, _ := cli.ContainerWait(ctx30s, created.ID, container.WaitConditionNotRunning)
@@ -839,9 +862,43 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	return nil
 }
 
-// standaloneSidecarConfig puts APISIX in standalone mode, reading its routes
-// from apisix.yaml instead of etcd.
-const standaloneSidecarConfig = "deployment:\n  role: data_plane\n  role_data_plane:\n    config_provider: yaml\n"
+// writeSidecarFiles writes everything the sidecar mounts. A path that is a
+// directory where a file belongs (left there by a failed first start, see
+// EnsureSuiteSidecar) is removed first, so it can never block a later start.
+func writeSidecarFiles(confDir, luaDir, apisixYAML string, plugins []apisix.CustomPluginConfig) error {
+	configPath := filepath.Join(confDir, "config.yaml")
+	routesPath := filepath.Join(confDir, "apisix.yaml")
+	for _, path := range []string{configPath, routesPath} {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			if err := os.RemoveAll(path); err != nil {
+				return fmt.Errorf("clear %s, which is a directory: %w", path, err)
+			}
+		}
+	}
+	if err := os.MkdirAll(confDir, 0755); err != nil {
+		return fmt.Errorf("sidecar conf dir: %w", err)
+	}
+	if err := writeSidecarConfig(configPath); err != nil {
+		return fmt.Errorf("write config.yaml: %w", err)
+	}
+	if err := os.WriteFile(routesPath, []byte(apisixYAML), 0644); err != nil {
+		return fmt.Errorf("write apisix.yaml: %w", err)
+	}
+	if err := os.MkdirAll(luaDir, 0755); err != nil {
+		return fmt.Errorf("create lua dir: %w", err)
+	}
+	if err := apisix.WriteLuaPluginFiles(luaDir, plugins...); err != nil {
+		return fmt.Errorf("write lua plugins: %w", err)
+	}
+	return nil
+}
+
+// isMountSourceError reports whether a container start failed because a bind
+// mount's source was not what Docker expected (a directory where a file belongs).
+func isMountSourceError(err error) bool {
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "not a directory") || strings.Contains(text, "error mounting")
+}
 
 // writeSidecarConfig writes the sidecar's config.yaml so the container can
 // rewrite it. The APISIX image runs as the unprivileged user apisix (uid 636),
@@ -854,7 +911,7 @@ const standaloneSidecarConfig = "deployment:\n  role: data_plane\n  role_data_pl
 // the process umask would otherwise strip the group and other write bits from
 // the mode passed to WriteFile.
 func writeSidecarConfig(path string) error {
-	if err := os.WriteFile(path, []byte(standaloneSidecarConfig), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(apisix.SidecarConfigYAML), 0o644); err != nil {
 		return err
 	}
 	return os.Chmod(path, 0o666)

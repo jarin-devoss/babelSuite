@@ -165,3 +165,16 @@ func ensureTrailingNewline(value string) string {
 	}
 	return value + "\n"
 }
+
+// SidecarConfigYAML is the config.yaml the sidecar runs with. It puts APISIX in
+// standalone mode, reading its routes from apisix.yaml instead of etcd, and
+// declares the shared dictionary the traffic cannon counts into: without it
+// the plugin has nothing to count in and every load run fails.
+const SidecarConfigYAML = "deployment:\n" +
+	"  role: data_plane\n" +
+	"  role_data_plane:\n" +
+	"    config_provider: yaml\n" +
+	"nginx_config:\n" +
+	"  http:\n" +
+	"    custom_lua_shared_dict:\n" +
+	"      " + TrafficSharedDictName + ": 50m\n"

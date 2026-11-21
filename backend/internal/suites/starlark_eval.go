@@ -40,6 +40,7 @@ type starlarkNode struct {
 	floodThrottle   bool
 	rps             float64
 	arrivalRate     float64
+	minUsers        float64
 	message         string
 	harden          bool
 	after           []*starlarkNode
@@ -705,6 +706,13 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 					node.arrivalRate = f
 				}
 
+			case "min_users":
+				f, ok := starlark.AsFloat(val)
+				if !ok {
+					return nil, fmt.Errorf("%s: min_users must be a number", variant)
+				}
+				node.minUsers = f
+
 			case "expect_exit":
 				code, ok := val.(starlark.Int)
 				if !ok {
@@ -999,6 +1007,9 @@ func buildStarlarkArguments(node *starlarkNode) string {
 	}
 	if node.arrivalRate > 0 {
 		parts = append(parts, fmt.Sprintf(`arrival_rate=%g`, node.arrivalRate))
+	}
+	if node.minUsers > 0 {
+		parts = append(parts, fmt.Sprintf(`min_users=%g`, node.minUsers))
 	}
 	if node.technique != "" {
 		parts = append(parts, fmt.Sprintf(`technique="%s"`, node.technique))

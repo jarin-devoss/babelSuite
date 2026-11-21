@@ -40,10 +40,12 @@ func resolveLoadSpec(raw rawTopologyNode, sourceFiles []SourceFile) (*LoadSpec, 
 		Target:       target,
 		RequestsPerS: topologyNamedNumberArgument(raw.Arguments, "rps", "target_rps"),
 		ArrivalRate:  topologyNamedNumberArgument(raw.Arguments, "arrival_rate"),
+		MinUsers:     int(topologyNamedNumberArgument(raw.Arguments, "min_users")),
 	}
 
 	planPath := normalizeLoadPlanPath(topologyNamedStringArgument(raw.Arguments, "plan"))
 	if planPath == "" {
+		applyDefaultShape(spec)
 		if err := validateLoadSpec(spec); err != nil {
 			return nil, err
 		}
@@ -911,8 +913,27 @@ func validateLoadSpec(spec *LoadSpec) error {
 		return fmt.Errorf("invalid suite topology: traffic target %q must be an absolute URL", spec.Target)
 	}
 
-	// When no plan file is configured the spec carries only target/rps for
-	// the native runner; users and stages are not required.
+	if spec.MinUsers < 0 || spec.MinUsers > maxLoadUsers {
+		return fmt.Errorf("invalid suite topology: min_users must be between 0 and %d, got %d", maxLoadUsers, spec.MinUsers)
+	}
+	if spec.MinUsers > 0 && spec.Variant != "traffic.scalability" {
+		return fmt.Errorf("invalid suite topology: min_users applies only to traffic.scalability, not %s", spec.Variant)
+	}
+
+	// A task's status check names the status it expects, so only equality can be
+	// honoured: the generator is told which statuses are successes.
+	for _, user := range spec.Users {
+		for _, task := range user.Tasks {
+			for _, check := range append(append([]LoadThreshold{}, task.Checks...), task.Request.Checks...) {
+				if check.Metric == "status" && check.Op != "==" {
+					return fmt.Errorf("invalid suite topology: traffic task %q: a status check supports only ==, got %q", task.Name, check.Op)
+				}
+			}
+		}
+	}
+
+	// With no plan file the spec holds the variant's default shape (see
+	// applyDefaultShape), so only the target and the rates need checking.
 	if spec.PlanPath == "" {
 		if spec.RequestsPerS > maxLoadRequestRate {
 			return fmt.Errorf("invalid suite topology: traffic target %q exceeds the %.0f requests-per-second safety limit", spec.Target, maxLoadRequestRate)

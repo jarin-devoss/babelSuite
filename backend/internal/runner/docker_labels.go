@@ -55,3 +55,11 @@ func sidecarLabels(suiteID, profile string) map[string]string {
 func sidecarRunID(suiteID, profile string) string {
 	return "sidecar-" + sanitizeID(suiteID) + "-" + sanitizeID(profile)
 }
+
+// sidecarLabelsWithHash is sidecarLabels plus the digest of the configuration
+// the sidecar was started with.
+func sidecarLabelsWithHash(suiteID, profile, configHash string) map[string]string {
+	labels := sidecarLabels(suiteID, profile)
+	labels[sidecarConfigHashLabel] = configHash
+	return labels
+}

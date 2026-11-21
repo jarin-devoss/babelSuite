@@ -359,7 +359,7 @@ func buildStartMessage(node topologyNode, suite *suites.Definition, profile stri
 	case suites.NodeKindTask:
 		return fmt.Sprintf("[%s] Executing one-shot task assets from tasks/ before exposing dependent services.", node.Name)
 	case suites.NodeKindTraffic:
-		return fmt.Sprintf("[%s] Starting the traffic harness from traffic/ with the %s profile and collecting throughput thresholds.", node.Name, profile)
+		return fmt.Sprintf("[%s] Starting traffic under the %s profile.", node.Name, profile)
 	case suites.NodeKindTest:
 		return fmt.Sprintf("[%s] Executing verification assets from tests/ with the %s profile.", node.Name, profile)
 	case suites.NodeKindLog:
@@ -382,7 +382,7 @@ func buildHealthyMessage(node topologyNode, suite *suites.Definition, profile st
 	case suites.NodeKindTask:
 		return fmt.Sprintf("[%s] Task completed successfully. Outputs were registered for the %s execution context.", node.Name, profile)
 	case suites.NodeKindTraffic:
-		return fmt.Sprintf("[%s] Traffic phase completed. Threshold budgets and synthetic-user ramps stayed within the %s profile.", node.Name, profile)
+		return fmt.Sprintf("[%s] Traffic phase finished; the figures are in the lines above.", node.Name)
 	case suites.NodeKindTest:
 		return fmt.Sprintf("[%s] Test phase passed. Contract assertions and payload policies remained green.", node.Name)
 	case suites.NodeKindLog:

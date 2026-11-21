@@ -347,18 +347,18 @@ playwright_smoke = test.run(name="checkout-ui", file="playwright/checkout.spec.t
 
 func TestParseSuiteTopologySupportsTrafficModuleEntrypoints(t *testing.T) {
 	suiteStar := `load("@babelsuite/runtime", "traffic")
-smoke = traffic.smoke(name="smoke-traffic", plan="smoke.star", target="http://payments-api:8080")
-baseline = traffic.baseline(name="baseline-traffic", plan="baseline.star", target="http://payments-api:8080", after=[smoke])
-stress = traffic.stress(name="stress-traffic", plan="stress.star", target="http://payments-api:8080", after=[baseline])
-spike = traffic.spike(name="spike-traffic", plan="spike.star", target="http://payments-api:8080", after=[stress])
-soak = traffic.soak(name="soak-traffic", plan="soak.star", target="http://payments-api:8080", after=[spike])
-scalability = traffic.scalability(name="scalability-traffic", plan="scalability.star", target="http://payments-api:8080", after=[soak])
-step = traffic.step(name="step-traffic", plan="step.star", target="http://payments-api:8080", after=[scalability])
-wave = traffic.wave(name="wave-traffic", plan="wave.star", target="http://payments-api:8080", after=[step])
-staged = traffic.staged(name="staged-traffic", plan="staged.star", target="http://payments-api:8080", after=[wave])
-throughput = traffic.constant_throughput(name="constant-throughput-traffic", plan="throughput.star", target="http://payments-api:8080", after=[staged])
-pacing = traffic.constant_pacing(name="constant-pacing-traffic", plan="pacing.star", target="http://payments-api:8080", after=[throughput])
-arrival = traffic.open_model(name="open-model-traffic", plan="open_model.star", target="http://payments-api:8080", after=[pacing])`
+smoke = traffic.smoke(name="smoke-traffic", plan="smoke.star", target="http://payments-api.example.com:8080")
+baseline = traffic.baseline(name="baseline-traffic", plan="baseline.star", target="http://payments-api.example.com:8080", after=[smoke])
+stress = traffic.stress(name="stress-traffic", plan="stress.star", target="http://payments-api.example.com:8080", after=[baseline])
+spike = traffic.spike(name="spike-traffic", plan="spike.star", target="http://payments-api.example.com:8080", after=[stress])
+soak = traffic.soak(name="soak-traffic", plan="soak.star", target="http://payments-api.example.com:8080", after=[spike])
+scalability = traffic.scalability(name="scalability-traffic", plan="scalability.star", target="http://payments-api.example.com:8080", after=[soak])
+step = traffic.step(name="step-traffic", plan="step.star", target="http://payments-api.example.com:8080", after=[scalability])
+wave = traffic.wave(name="wave-traffic", plan="wave.star", target="http://payments-api.example.com:8080", after=[step])
+staged = traffic.staged(name="staged-traffic", plan="staged.star", target="http://payments-api.example.com:8080", after=[wave])
+throughput = traffic.constant_throughput(name="constant-throughput-traffic", plan="throughput.star", target="http://payments-api.example.com:8080", after=[staged])
+pacing = traffic.constant_pacing(name="constant-pacing-traffic", plan="pacing.star", target="http://payments-api.example.com:8080", after=[throughput])
+arrival = traffic.open_model(name="open-model-traffic", plan="open_model.star", target="http://payments-api.example.com:8080", after=[pacing])`
 
 	topology, err := parseSuiteTopology(suiteStar)
 	if err != nil {
