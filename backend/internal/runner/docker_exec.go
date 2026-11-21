@@ -729,8 +729,7 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	}
 
 	// config.yaml — override the image default (traditional/etcd) with standalone/yaml mode.
-	const standaloneCfg = "deployment:\n  role: data_plane\n  role_data_plane:\n    config_provider: yaml\n"
-	if err := os.WriteFile(filepath.Join(confDir, "config.yaml"), []byte(standaloneCfg), 0644); err != nil {
+	if err := writeSidecarConfig(filepath.Join(confDir, "config.yaml")); err != nil {
 		return fmt.Errorf("write config.yaml: %w", err)
 	}
 
@@ -838,6 +837,27 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	}
 
 	return nil
+}
+
+// standaloneSidecarConfig puts APISIX in standalone mode, reading its routes
+// from apisix.yaml instead of etcd.
+const standaloneSidecarConfig = "deployment:\n  role: data_plane\n  role_data_plane:\n    config_provider: yaml\n"
+
+// writeSidecarConfig writes the sidecar's config.yaml so the container can
+// rewrite it. The APISIX image runs as the unprivileged user apisix (uid 636),
+// and with APISIX_STAND_ALONE set its entrypoint rewrites an existing
+// config.yaml in place. On a Linux host a bind-mounted file keeps the owner and
+// mode it was created with, so a file written 0644 by the control plane's user
+// is read-only to uid 636: the entrypoint fails and the sidecar exits with
+// code 1 before serving anything. Docker Desktop hides this by presenting bind
+// mounts as world-writable. The mode is set with Chmod after the write because
+// the process umask would otherwise strip the group and other write bits from
+// the mode passed to WriteFile.
+func writeSidecarConfig(path string) error {
+	if err := os.WriteFile(path, []byte(standaloneSidecarConfig), 0o644); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o666)
 }
 
 // SuiteSidecarURL returns the host-accessible URL for the running APISIX sidecar
