@@ -17,7 +17,7 @@ The example suites under [`examples/oci-suites/`](https://github.com/jarin-devos
 | 3 | [`payment-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/payment-suite) | `file=`, conditionals, profile `extendsId`, `traffic.baseline/stress`, `reset_mocks=`, `log.warn`, `.export(cobertura)` |
 | 4 | [`returns-control-plane`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/returns-control-plane) | `network.mode: execution`, `services.<name>.devices:`, log `{{ }}` templates, `on_failure=`, `traffic.stress/spike` |
 | 5 | [`storefront-browser-lab`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/storefront-browser-lab) | Playwright specs, `.export(ctrf)`, `traffic.soak`, `reset_mocks=`, `on_failure=` |
-| 6 | [`soap-claims-hub`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/soap-claims-hub) | All 8 `security.*` modes, `traffic.scalability`, hardware profile `/dev/ttyUSB0` |
+| 6 | [`soap-claims-hub`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/soap-claims-hub) | All 8 `security.*` modes, `traffic.baseline` per SOAP version, hardware profile `/dev/ttyUSB0` |
 | 7 | [`fleet-control-room`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/fleet-control-room) | OCI modules (kafka, redis), `service.run(image=, commands=)` detached, all traffic phases, all log levels, multi-region loops, GPU in perf profile |
 | 8 | [`security-suite`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/security-suite) | Focused security reference — all 8 modes in sequence, hardware device profile |
 | 9 | [`composite-readiness`](https://github.com/jarin-devoss/babelSuite/tree/main/examples/oci-suites/composite-readiness) | `suite.run` cross-suite orchestration, all log levels, dynamic topology from dict |
@@ -51,9 +51,9 @@ shows a module that internally composes a plugin.
 | Playwright specs via `browser_test(...)` | storefront-browser-lab |
 | `.export(ctrf)`, `traffic.soak`, `log.error` | storefront-browser-lab |
 | All 8 `security.*` modes | soap-claims-hub |
-| `traffic.scalability`, hardware device profile | soap-claims-hub |
+| `traffic.baseline` against a SOAP mock, hardware device profile | soap-claims-hub |
 | OCI modules, `service.run(image=, commands=)` detached | fleet-control-room |
-| `traffic.wave`, all log levels | fleet-control-room |
+| `traffic.stress/spike/soak` phases, all log levels | fleet-control-room |
 | `suite.run` | composite-readiness |
 | `load("@plugins/...")` plugin steps | electronics-lab |
 

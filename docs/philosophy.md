@@ -35,7 +35,7 @@ BabelSuite avoids this through the APISIX sidecar model:
 - **Traffic testing** — all `traffic.*` profiles — is executed by a Lua plugin (`babelsuite-traffic-cannon`) running inside the APISIX sidecar that is already provisioned alongside every mock node. No k6, no Locust, no Gatling.
 - **Security scanning** — all `security.*` modes (probe, fuzz, headers, verbs, CORS, auth, GraphQL, flood) — is executed by a second Lua plugin (`babelsuite-attack-scanner`) inside the same APISIX sidecar. No ZAP, no Nuclei.
 
-The sidecar is already there. The checks are Lua running inside OpenResty. The backend just POSTs a config and reads a JSON findings report back. No extra image pull. No extra container lifecycle.
+The sidecar is already there. The checks are Lua running inside OpenResty. The backend starts a run, polls its status, and reads the result back. No extra image pull. No extra container lifecycle.
 
 The steps that need a container are the ones running your own code: `service.run` starts your services from their `image=`, and `task.run` and `test.run` run scripts BabelSuite cannot anticipate. Everything else runs in the sidecar or in the control plane itself.
 

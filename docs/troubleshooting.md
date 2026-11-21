@@ -74,11 +74,21 @@ The execution was cancelled (e.g. by a `reap` call or a timeout). Check:
 
 ---
 
-## Mock Service Not Receiving Traffic
+## A Traffic Step Fails
 
-1. Confirm the mock node started: check the execution log for `[mock-name] Mock server listening on ...`.
-2. Confirm the step's `target:` field uses the symbolic service name, not `localhost`.
-3. Check that the APISIX sidecar started successfully if the suite uses an API gateway.
+A `traffic.*` step sends real requests from the suite's APISIX sidecar, so a failure names what went wrong. Match the message in the step's log:
+
+| Message | What it means and what to do |
+|---------|------------------------------|
+| `targets host "x", which is not a service in this suite` | The target is a bare name that no node of the suite provides. Use the name of a `service.run` node, the suite's mock host (`https://<suite>.mock.internal`), or a fully-qualified host. |
+| `service "x" is not reachable` | The service has no address on the run's network. Order the traffic step `after=` the service and check that its container started. |
+| `target ... did not answer a single request successfully` | Nothing at the target answered with a success. The log lists the error categories (`connect`, `timeout`, `http_4xx:404`); check that the target is listening on the port the URL names. |
+| `no requests were sent to ...` | The run finished without a request. Check the plan's stages, users and waits. |
+| `http_4xx:404` in the failure | A request got a 404. Fix the path, or declare the status expected with `checks=[traffic.threshold("status", "==", 404)]`. |
+| `traffic.dropped ... the target could not keep up` | An open-model run could not start every arrival because too many requests were in flight. Lower `rps=` or `arrival_rate=`. |
+| `below the min_users=N the step requires` | A scalability run broke before reaching `min_users=`. The log shows the probe that failed. |
+| `the suite's APISIX sidecar is not running, so no load can be generated` | The traffic cannon runs in the sidecar. Run the suite on the local Docker backend. |
+| `load against a service is supported only on the local Docker backend` | The target is a service of a Kubernetes backend. Target the suite's mock host or a fully-qualified host instead. |
 
 ---
 

@@ -21,7 +21,7 @@ There are actually **three kinds of topology nodes** in BabelSuite, not two:
 | **Startup cost** | Container pull + boot | Zero — sidecar already running | Zero — same sidecar |
 | **Use it when** | Spin up infrastructure: broker, database, cache | Load test or security scan a running service | Custom verification: domain-specific checks, external simulators |
 
-`traffic.*` and `security.*` **are plugins** — they are Lua code (`babelsuite-traffic-cannon` and `babelsuite-attack-scanner`) that runs inside the APISIX sidecar, exactly like a user plugin. The only difference is they ship bundled with BabelSuite instead of being registered manually. User plugins follow the exact same dispatch pattern: the backend POSTs a config payload to the sidecar, and reads `passed` / `findings` / `summary` / `level` back.
+`traffic.*` and `security.*` **are plugins** — they are Lua code (`babelsuite-traffic-cannon` and `babelsuite-attack-scanner`) that runs inside the APISIX sidecar, exactly like a user plugin. The only difference is they ship bundled with BabelSuite instead of being registered manually. `security.*` and user plugins follow the same dispatch pattern: the backend POSTs a config payload to the sidecar and reads `passed` / `findings` / `summary` / `level` back. The traffic cannon is asynchronous instead: the backend starts a run, polls its status, and reads the counts when it finishes. All statistics are computed by the backend from those counts.
 
 **Rule of thumb:** if the answer to "does my service need this running while tests execute?" is yes — it's a module. If the answer is "does my pipeline need to verify or probe something?" — it's a plugin (built-in or user-defined).
 
@@ -437,9 +437,9 @@ The plugin name is taken from the URL — the `name` field in the body is ignore
 
 ## APISIX Sidecar Lifecycle
 
-Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua is bind-mounted and the generated `apisix.yaml` names each plugin, both read at sidecar startup — so removing the sidecar container is what forces it to pick up changed plugin code on the next execution.
+Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua is bind-mounted and the generated `apisix.yaml` names each plugin, both read at sidecar startup. The sidecar carries a hash of its configuration, plugin files and image as a label; when a run finds the hash changed, it recreates the sidecar, so a changed plugin is picked up without removing anything by hand.
 
-Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component: it never joins the per-execution network and is reached over its host-published port.
+Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component. It is reached over its host-published port, and while a traffic step runs it joins that run's network, so it can dial the suite's services; it leaves with the run's network when the run ends.
 
 The sidecar runs in **standalone mode**: `deployment.role: data_plane` with `config_provider: yaml`. No etcd is involved.
 

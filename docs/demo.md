@@ -81,9 +81,8 @@ session, so it works before the control plane has ever started.
     ```
 
     `GET /api/v1/suites/<id>` lists the package's `sourceFiles` — the quickest
-    way to confirm an edit reached the backend. A changed plugin also needs its
-    sidecar removed (`docker rm -f babel-sidecar-<suite>-<profile>`) so APISIX
-    reloads the Lua.
+    way to confirm an edit reached the backend. A changed plugin is picked up on the
+    suite's next run: the sidecar is recreated when its plugin files change.
 
 ## Good first runs
 

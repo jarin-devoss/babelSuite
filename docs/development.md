@@ -67,6 +67,18 @@ Run a single package:
 go test ./internal/cronjobs/...
 ```
 
+The traffic cannon has tests that drive a real APISIX sidecar. They need Docker and are kept out of the default run by a build tag:
+
+```powershell
+go test -tags integration ./internal/runner -run Integration -count=1
+```
+
+The load-testing proof suites in `e2e/load/` launch real runs through the API and check what a traffic step reports against what its target counted:
+
+```powershell
+python e2e/load/run.py
+```
+
 ### Test coverage
 
 Tests live beside the code they cover, in most `internal/` packages. They are

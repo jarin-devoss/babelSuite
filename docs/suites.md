@@ -93,7 +93,7 @@ The public authoring model is intentionally aligned with the suite folder struct
 - `mock.api(...)` is backed by `api/` and `mock/`
 - `task.run(file="...")` reads from `tasks/`
 - `test.run(file="...")` reads from `tests/`
-- `traffic.*(plan="...")` reads from `traffic/` — only needed when using advanced plan files; omitting `plan=` runs a synthetic baseline without a file
+- `traffic.*(plan="...")` reads from `traffic/` — only needed when using advanced plan files; omitting `plan=` runs the variant's default shape (see the runtime library) without a file
 - `security.*` nodes derive their target from the APISIX sidecar provisioned alongside every `mock.api` node — no file or folder needed
 - `resources/` holds passive assets such as certificates and static datasets
 
