@@ -22,9 +22,9 @@ infra_ready = log.info("db migrated and seeded", after=[seed, stripe_mock])
 
 # ── traffic ───────────────────────────────────────────────────────────────────
 if ACTIVE_TRAFFIC == "stress":
-    t = traffic.stress(  name="checkout-stress",   target="http://payment-gateway:8080", rps=200, after=[infra_ready])
+    t = traffic.stress(  name="checkout-stress",   target="https://payment-suite.mock.internal", plan="checkout.star", rps=100, after=[infra_ready])
 else:
-    t = traffic.baseline(name="checkout-baseline", target="http://payment-gateway:8080", rps=50,  after=[infra_ready])
+    t = traffic.baseline(name="checkout-baseline", target="https://payment-suite.mock.internal", plan="checkout.star", rps=50,  after=[infra_ready])
 
 # ── tests — reset_mocks clears stripe-mock state before each test run ─────────
 checkout_smoke = test.run(

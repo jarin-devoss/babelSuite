@@ -54,3 +54,4 @@ babelctl run localhost:5000/babelsuite/payment-suite:2.1.0 --profile ci
 - **Parallel task execution** — `bootstrap_topics` and `migrations` run concurrently since neither depends on the other
 - **Traffic before tests** — the smoke test only starts after the baseline traffic plan completes
 - **Always-export artifacts** — JUnit and Cobertura reports are exported even when tests fail (`"on": "always"`)
+- **Load test targets the suite's mock** — the traffic step sends real requests to the suite's mock host until a real service is added

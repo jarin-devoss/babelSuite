@@ -1,0 +1,30 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/dispatch/get-fleet-status.metadata.yaml
+    operationId: get-fleet-status
+    sourceArtifact: mock/dispatch/get-fleet-status.cue
+    suite: fleet-control-room
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "422"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "UNKNOWN_SCENARIO"
+            }
+        headers: []
+    parameterConstraints:
+        - name: scenario
+          source: query
+          required: true
+          forward: false
+          pattern: ^(live)$
+    resolverUrl: /internal/mock-data/fleet-control-room/dispatcher-api/get-fleet-status
+    runtimeUrl: /mocks/rest/fleet-control-room/dispatcher-api/fleet/status?scenario=live
+    state: null

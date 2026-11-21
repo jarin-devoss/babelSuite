@@ -37,7 +37,8 @@ for region in REGIONS:
     if region in LOAD_TEST_REGIONS:
         traffic.stress(
             name   = "stress-" + region,
-            target = "http://dispatcher-" + region + ":8080",
+            target = "https://fleet-control-room.mock.internal",
+            plan   = "status.star",
             rps    = min(20 * SPIKE_MULTIPLIER, 80),
             after  = infra_ready,
             env    = {"REGION": region},
@@ -55,13 +56,13 @@ for phase in TRAFFIC_PHASES:
     after_nodes = [fleet_ready] + ([prev_phase] if prev_phase != None else [])
 
     if phase == "ramp":
-        t = traffic.baseline(name="fleet-ramp",   target="http://control-room:8080", after=after_nodes)
+        t = traffic.baseline(name="fleet-ramp",   target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes)
     elif phase == "steady":
-        t = traffic.baseline(name="fleet-steady",  target="http://control-room:8080", after=after_nodes)
+        t = traffic.baseline(name="fleet-steady",  target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes)
     elif phase == "spike":
-        t = traffic.spike(   name="fleet-spike",   target="http://control-room:8080", after=after_nodes, rps=10 * SPIKE_MULTIPLIER)
+        t = traffic.spike(   name="fleet-spike",   target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes, rps=10 * SPIKE_MULTIPLIER)
     else:
-        t = traffic.soak(    name="fleet-drain",   target="http://control-room:8080", after=after_nodes)
+        t = traffic.soak(    name="fleet-drain",   target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes)
 
     phase_nodes.append(t)
     prev_phase = t

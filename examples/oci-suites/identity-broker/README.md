@@ -50,3 +50,4 @@ babelctl run localhost:5000/babelsuite/identity-broker:latest --profile staging
 - **Seeding before the API** — `seed_realms` runs after the database is healthy and before `broker_api` starts, ensuring realm config is in place at boot
 - **Secret injection** — session storage credentials are injected at launch time through the profile system rather than hardcoded in the topology
 - **Deterministic failure scenarios** — the OIDC mock includes state machine definitions for expired JWKS and misconfigured issuer responses
+- **Load test targets the suite's mock** — the login traffic sends real requests to the suite's mock host until a real service is added

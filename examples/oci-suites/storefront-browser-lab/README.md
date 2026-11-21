@@ -50,3 +50,4 @@ babelctl run localhost:5000/babelsuite/storefront-browser-lab:latest --profile c
 - **Mock API composition** — `catalog_mock` and `orders_mock` both depend on the broker, wiring event production into the mock layer
 - **UI after API** — `storefront_ui` only starts after both mocks and the API are healthy, ensuring the UI has live backends on first load
 - **Event consumer alongside tests** — `event_consumer` runs as a long-lived service during the Playwright session, validating downstream event handling in real time
+- **Load test targets the suite's mock** — the soak sends real requests to the suite's mock host until a real service is added

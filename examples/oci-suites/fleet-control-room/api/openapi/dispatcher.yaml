@@ -5,6 +5,13 @@ info:
 servers:
   - url: https://fleet-control-room.mock.internal
 paths:
+  /fleet/status:
+    get:
+      operationId: get_fleet_status
+      summary: Report the control room's dispatch status.
+      responses:
+        "200":
+          description: Successful mock response
   /telemetry/events:
     post:
       operationId: stream_telemetry

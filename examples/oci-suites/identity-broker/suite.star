@@ -61,7 +61,8 @@ providers_ready = log.info("provider mocks up — seeded " + str(REALM_COUNT) + 
 # ── login traffic ────────────────────────────────────────────────────────────
 traffic_nodes = [traffic.baseline(
     name="login-baseline",
-    target="http://broker-api:9000",
+    target="https://identity-broker.mock.internal",
+    plan="login.star",
     after=[providers_ready] + mfa_deps,
 )]
 
