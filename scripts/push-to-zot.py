@@ -125,16 +125,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry", default="http://localhost:5000")
     parser.add_argument("--suite", action="append", help="only push these suite ids")
+    parser.add_argument(
+        "--suites-dir",
+        type=pathlib.Path,
+        default=SUITES_DIR,
+        help="folder holding <name>/metadata.yaml suite packages (default: examples/oci-suites). "
+        "When set to anything else, the example modules are not pushed.",
+    )
     args = parser.parse_args()
 
     registry = args.registry.rstrip("/")
 
-    if not SUITES_DIR.is_dir():
-        print(f"no example suites at {SUITES_DIR}", file=sys.stderr)
+    suites_dir = args.suites_dir.resolve()
+    if not suites_dir.is_dir():
+        print(f"no suites at {suites_dir}", file=sys.stderr)
         return 1
 
     pushed = 0
-    manifests = sorted(SUITES_DIR.glob("*/metadata.yaml")) + sorted(MODULES_DIR.glob("*/module.yaml"))
+    manifests = sorted(suites_dir.glob("*/metadata.yaml"))
+    if suites_dir == SUITES_DIR.resolve():
+        manifests += sorted(MODULES_DIR.glob("*/module.yaml"))
     for metadata_path in manifests:
         suite_dir = metadata_path.parent
         if args.suite and suite_dir.name not in args.suite:
