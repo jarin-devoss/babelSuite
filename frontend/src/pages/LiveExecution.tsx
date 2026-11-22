@@ -513,7 +513,7 @@ function ExecDot({ status }: { status: RuntimeStatus }) {
   return <span className={`exec-dot exec-dot--${status}`} />
 }
 
-function ExecStatusBadge({ status }: { status: 'Booting' | 'Healthy' | 'Failed' }) {
+function ExecStatusBadge({ status }: { status: 'Booting' | 'Healthy' | 'Failed' | 'Interrupted' }) {
   return (
     <span className={`exec-status-badge exec-status-badge--${status.toLowerCase()}`} data-testid='exec-status' data-status={status.toLowerCase()}>
       <ExecDot status={statusFromExecution(status)} />
@@ -623,9 +623,9 @@ function LogLine({
 
 /* ── Helpers ────────────────────────────────────────────── */
 
-function statusFromExecution(status: 'Booting' | 'Healthy' | 'Failed'): RuntimeStatus {
+function statusFromExecution(status: 'Booting' | 'Healthy' | 'Failed' | 'Interrupted'): RuntimeStatus {
   if (status === 'Healthy') return 'healthy'
-  if (status === 'Failed') return 'failed'
+  if (status === 'Failed' || status === 'Interrupted') return 'failed'
   return 'running'
 }
 

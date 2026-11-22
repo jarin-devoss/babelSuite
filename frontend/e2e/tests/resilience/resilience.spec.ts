@@ -1,5 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { Api } from '../../api/client'
-import { knownBug, test, expect } from '../../fixtures'
+import { test, expect } from '../../fixtures'
 import { restartControlPlane, startSecondControlPlane } from '../../support/stack'
 import { readSession } from '../../support/session'
 
@@ -44,14 +45,21 @@ test.describe('Session expiry', () => {
   })
 })
 
+/** What Docker still holds for a run: its containers and its network. */
+function leftovers(runId: string): string {
+  const ids = (args: string[]) => execFileSync('docker', args, { encoding: 'utf-8' }).trim()
+  return [
+    ids(['ps', '-aq', '--filter', `label=babelsuite.run_id=${runId}`]),
+    ids(['network', 'ls', '-q', '--filter', `name=babel-net-${runId}`]),
+  ].join('')
+}
+
 test.describe('Restarts', () => {
   test.describe.configure({ mode: 'serial', timeout: 240_000 })
 
   test('@docker a finished run is still there after the control plane restarts', async ({ api }) => {
-    // FIX-PLAN #27/#28: executions live only in memory, so a restart loses
-    // every run: GET /executions/{id} is 404 and the list is empty.
-    knownBug('FIX-PLAN #27/#28: executions are not persisted')
-
+    // A restarted control plane lost the workspace of every saved run, so each
+    // was 404 for the signed-in user and the list was empty.
     const runId = await api.launch('ui-pass')
     await api.waitForRun(runId)
 
@@ -64,11 +72,33 @@ test.describe('Restarts', () => {
     await again.dispose()
   })
 
-  test('@docker a second control plane on the same database sees the same runs', async ({ api }) => {
-    // FIX-PLAN #27/#28 again: run state is per process, so another instance
-    // that shares the database cannot see a run started on the first.
-    knownBug('FIX-PLAN #27/#28: run state is not shared between instances')
+  test('@docker a run that was running when the control plane was killed ends Interrupted, and its leftovers are removed', async ({ api }) => {
+    const runId = await api.launch('ui-slow')
+    await expect
+      .poll(async () => (await api.logs(runId)).some((line) => line.includes('TICK 1')), { timeout: 60_000 })
+      .toBe(true)
 
+    await restartControlPlane()
+
+    const again = await Api.admin()
+    try {
+      // Its lease runs out and the restarted control plane ends it; nothing resumes it.
+      await expect
+        .poll(async () => (await again.run(runId)).status, { timeout: 90_000, intervals: [2_000] })
+        .toBe('Interrupted')
+      const record = await again.run(runId)
+      expect(record.events.some((event) => /interrupted/i.test(event.text))).toBe(true)
+      expect((await again.runs()).map((r) => r.id)).toContain(runId)
+
+      // The run's container and network were left by a process that is gone.
+      await expect.poll(() => leftovers(runId), { timeout: 60_000, intervals: [2_000] }).toBe('')
+    } finally {
+      await again.dispose()
+    }
+  })
+
+  test('@docker a second control plane on the same database sees the same runs', async ({ api }) => {
+    // A second control plane lists the runs saved before it started.
     const runId = await api.launch('ui-pass')
     await api.waitForRun(runId)
 

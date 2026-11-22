@@ -60,7 +60,7 @@ export interface PlatformSettings {
   plugins: { name: string; trigger?: string; operations?: string[]; lua?: string; star?: string }[]
 }
 
-const TERMINAL = new Set(['healthy', 'failed', 'cancelled', 'error', 'completed', 'success', 'passed'])
+const TERMINAL = new Set(['healthy', 'failed', 'interrupted', 'cancelled', 'error', 'completed', 'success', 'passed'])
 
 /** The final status of each step, derived from its events (the record has no steps key). */
 export function stepStatuses(record: RunRecord): Record<string, string> {

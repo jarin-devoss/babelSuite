@@ -2,6 +2,7 @@ package environments
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -90,6 +91,78 @@ func (s *Service) ReapAll(ctx context.Context) (*ReapResult, error) {
 	return result, nil
 }
 
+// ReapZombies removes the resources of every run on the control plane's Docker
+// whose orchestrator is gone: the containers, the network and the volumes it
+// left behind. A run whose orchestrator is alive is never touched, so this is
+// safe to run while other control planes use the same Docker.
+func (s *Service) ReapZombies(ctx context.Context) (*ReapResult, error) {
+	containers, networks, volumes, dockerAvailable, _, err := s.collectResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !dockerAvailable {
+		return nil, ErrDockerUnavailable
+	}
+
+	inventory := s.buildInventory(ctx, containers, networks, volumes, nil)
+	var (
+		leftContainers []Container
+		leftNetworks   []Network
+		leftVolumes    []Volume
+		runs           int
+	)
+	for _, sandbox := range inventory.Sandboxes {
+		if !sandbox.IsZombie {
+			continue
+		}
+		runs++
+		leftContainers = append(leftContainers, sandbox.Containers...)
+		leftNetworks = append(leftNetworks, sandbox.Networks...)
+		leftVolumes = append(leftVolumes, sandbox.Volumes...)
+	}
+	result, err := s.reapResources(ctx, "zombies", fmt.Sprintf("%d-zombie-runs", runs), leftContainers, leftNetworks, leftVolumes)
+	if err != nil {
+		return nil, err
+	}
+	if runs > 0 {
+		_ = s.publishLatestSnapshot(ctx, "zombie-reap", false)
+	}
+	return result, nil
+}
+
+// detachSharedContainers disconnects, from the networks about to be removed,
+// every container that is not itself being removed. A suite's APISIX sidecar
+// serves every run of the suite and joins each run's network, and Docker will
+// not remove a network that still has an endpoint on it.
+func (s *Service) detachSharedContainers(ctx context.Context, networkIDs, removing []string) {
+	gone := make(map[string]struct{}, len(removing))
+	for _, id := range removing {
+		gone[id] = struct{}{}
+	}
+	for _, networkID := range networkIDs {
+		out, err := s.runDockerOutput(ctx, "network", "inspect", networkID)
+		if err != nil {
+			continue
+		}
+		var found []struct {
+			Containers map[string]struct {
+				Name string `json:"Name"`
+			} `json:"Containers"`
+		}
+		if json.Unmarshal(out, &found) != nil {
+			continue
+		}
+		for _, network := range found {
+			for containerID := range network.Containers {
+				if _, removed := gone[containerID]; removed {
+					continue
+				}
+				_ = s.runDocker(ctx, "network", "disconnect", "-f", networkID, containerID)
+			}
+		}
+	}
+}
+
 func (s *Service) reapResources(ctx context.Context, scope, target string, containers []Container, networks []Network, volumes []Volume) (*ReapResult, error) {
 	result := &ReapResult{
 		Scope:             scope,
@@ -122,6 +195,11 @@ func (s *Service) reapResources(ctx context.Context, scope, target string, conta
 			}
 		}
 		if len(ids) > 0 {
+			removing := make([]string, 0, len(containers))
+			for _, item := range containers {
+				removing = append(removing, item.ID)
+			}
+			s.detachSharedContainers(ctx, ids, removing)
 			if err := s.runDocker(ctx, append([]string{"network", "rm"}, ids...)...); err != nil {
 				result.Warnings = append(result.Warnings, fmt.Sprintf("Network cleanup reported an error: %s", humanizeDockerError(err)))
 			}

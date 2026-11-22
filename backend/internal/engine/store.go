@@ -93,7 +93,7 @@ func buildOverview(state State) Overview {
 		switch execution.Status {
 		case "Healthy":
 			overview.Summary.HealthyExecutions++
-		case "Failed":
+		case "Failed", "Interrupted":
 			overview.Summary.FailedExecutions++
 		default:
 			overview.Summary.BootingExecutions++

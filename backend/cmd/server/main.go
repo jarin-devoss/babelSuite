@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -44,6 +45,13 @@ func main() {
 	if !strings.Contains(addr, ":") {
 		addr = ":" + addr
 	}
+	// A suite's gateway proxies mocks back to this process from inside its
+	// container, so it has to be told the port this one listens on.
+	if os.Getenv("BABELSUITE_ENGINE_ADDR") == "" {
+		if _, port, err := net.SplitHostPort(addr); err == nil && port != "" {
+			_ = os.Setenv("BABELSUITE_ENGINE_ADDR", "host.docker.internal:"+port)
+		}
+	}
 
 	server := &http.Server{
 		Addr:              addr,
@@ -67,6 +75,14 @@ func main() {
 			slog.Error("server shutdown", "error", err)
 		}
 	}()
+
+	if os.Getenv("BABELSUITE_REAP_ON_START") != "false" {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			a.ReapLeftovers(ctx)
+		}()
+	}
 
 	slog.Info("babelsuite server listening", "addr", addr)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -135,7 +135,8 @@
   color: #15a07e;
 }
 
-.exec-status-badge--failed {
+.exec-status-badge--failed,
+.exec-status-badge--interrupted {
   background: rgba(233, 109, 118, 0.1);
   color: #c5404e;
 }

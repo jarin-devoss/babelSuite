@@ -227,7 +227,7 @@ func (s *Service) waitForExecution(ctx context.Context, execID string, timeout t
 		if err != nil {
 			return nil, err
 		}
-		if rec.Status == "Healthy" || rec.Status == "Failed" {
+		if execution.IsTerminalStatus(rec.Status) {
 			return rec, nil
 		}
 		select {
@@ -264,7 +264,7 @@ func formatResults(jobName string, results []suiteResult) string {
 
 	allHealthy := true
 	for _, r := range results {
-		if r.err != nil || (r.record != nil && r.record.Status == "Failed") {
+		if r.err != nil || (r.record != nil && execution.IsFailureStatus(r.record.Status)) {
 			allHealthy = false
 			break
 		}
