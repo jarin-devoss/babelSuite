@@ -73,6 +73,14 @@ The traffic cannon has tests that drive a real APISIX sidecar. They need Docker 
 go test -tags integration ./internal/runner -run Integration -count=1
 ```
 
+The example plugins have tests too. They load every plugin under `examples/oci-plugins/` into a real APISIX sidecar and run each operation against stub servers and, for the Kafka and schema-registry plugins, against real Kafka, Confluent REST Proxy and Redpanda containers (the first run pulls their images and takes a few minutes):
+
+```powershell
+go test -tags integration ./internal/runner -run IntegrationPlugin -count=1
+```
+
+A plain `go test ./internal/suites` also checks, without Docker, that each plugin's wrapper, manifest and CUE schema agree.
+
 The load-testing proof suites in `e2e/load/` launch real runs through the API and check what a traffic step reports against what its target counted:
 
 ```powershell

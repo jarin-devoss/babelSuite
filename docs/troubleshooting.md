@@ -92,6 +92,22 @@ A `traffic.*` step sends real requests from the suite's APISIX sidecar, so a fai
 
 ---
 
+## A Plugin Step Fails
+
+A plugin step fails with the plugin's own reason. Match the message in the step's log:
+
+| Message | What it means and what to do |
+|---------|------------------------------|
+| `plugin X config: <field>: ...` | The step's config does not satisfy the plugin's schema (a missing required setting, a wrong type, a value out of range). Fix the call; nothing was sent to the plugin. |
+| `plugin X: the reply has no boolean "passed" field` | The plugin replied without a verdict, or with one that is not a boolean. A plugin must reply `{"passed": true|false, ...}`. See the [response contract](plugins.md#plugin-response-contract). |
+| `plugin X: <message> (HTTP 500)` | The plugin could not run its check and said why: a target it could not reach, an endpoint its server does not serve, an unexpected response shape. The message names the URL and status. |
+| `plugin X: N finding(s) exceeded thresholds` | The plugin found blocking (`critical`) findings. They are listed above this line. A finding at `warn` level does not block. |
+| `unknown op Y; supported: ...` | The operation is not one the plugin has. A wrapper function's name is the operation. |
+| `this REST proxy does not serve consumer-group lag` / `... partition offsets` | `consumer-lag` and `dlq-inspector` need the Confluent REST Proxy (v3 lag, v2 offsets). Redpanda's HTTP Proxy serves neither. |
+| `plugin X: the suite's APISIX sidecar is not running` | Plugins run in the suite's sidecar. Run the suite on the local Docker backend. |
+
+---
+
 ## A Test Step Fails On Its Report
 
 A `test.run` step whose `exports=` declare a `junit` or `ctrf` report is checked against that report after its own checks pass, so it can fail although the test command exited 0. The step's log names the report and the reason:

@@ -335,7 +335,7 @@ rc_filter = transient(
 )
 ```
 
-Plugin nodes behave like any other topology node: they accept `after=`, `continue_on_failure=`, and `on_failure=`. The backend dispatches them to the APISIX sidecar at the plugin's registered trigger path and reads the `passed`, `findings`, `summary`, `level`, `stderr` and `attributes` fields from the JSON response.
+Plugin nodes behave like any other topology node: they accept `after=`, `on_failure=`, `continue_on_failure=`, `expect_logs=` and `fail_on_logs=`, which the engine applies and never sends to the plugin. A plugin step passes when the plugin's reply says `passed`; findings at `warn` level never block it. See the [response contract](plugins.md#plugin-response-contract). The backend dispatches them to the APISIX sidecar at the plugin's registered trigger path and reads the `passed`, `findings`, `summary`, `level`, `stderr` and `attributes` fields from the JSON response.
 
 Plugin variants (e.g. `transient`, `dc_sweep`) correspond to the `operations` list in the plugin definition. If a plugin defines `operations`, a step that requests an unlisted operation is rejected before dispatch.
 
