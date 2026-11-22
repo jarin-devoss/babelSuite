@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures'
 import { CatalogPage } from '../../pages/CatalogPage'
+import { registryHost } from '../../support/session'
 
 // The e2e registry scope is e2e, so the catalog holds exactly these suites.
 // The catalog derives a card title from the repository name ("ui-pass" becomes
@@ -64,7 +65,7 @@ test.describe('Catalog', () => {
     await expect(card.locator('.catalog-card__title')).toHaveText('Ui Pass')
     // The owner comes from the repository path ("e2e"), title-cased, not from metadata.owner.
     await expect(card.locator('.catalog-card__origin')).toContainText('E2e')
-    await expect(card.locator('.catalog-card__origin')).toContainText('localhost:5000/e2e/ui-pass')
+    await expect(card.locator('.catalog-card__origin')).toContainText(`${registryHost()}/e2e/ui-pass`)
     await expect(card.locator('.catalog-card__version')).toHaveText('v1.0.0')
     // A catalog card is built from registry discovery, so its description names the registry.
     await expect(card.locator('.catalog-card__description')).toContainText('E2E Registry')

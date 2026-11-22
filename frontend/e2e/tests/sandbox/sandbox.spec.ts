@@ -3,6 +3,7 @@ import { recordRun } from '../../api/client'
 import { test, expect } from '../../fixtures'
 import { CatalogPage } from '../../pages/CatalogPage'
 import { ExecutionPage } from '../../pages/ExecutionPage'
+import { registryHost } from '../../support/session'
 
 /** Drops text on the Sandbox drop zone, as dragging a copied command or reference would. */
 async function dropText(page: Page, text: string) {
@@ -24,19 +25,19 @@ test.describe('Sandbox', () => {
     await catalog.search('ui-pass')
     await catalog.cards().first().getByRole('button', { name: 'Run command' }).click()
     const copied = await page.evaluate(() => navigator.clipboard.readText())
-    expect(copied).toBe('babelctl run localhost:5000/e2e/ui-pass:v1.0.0')
+    expect(copied).toBe(`babelctl run ${registryHost()}/e2e/ui-pass:v1.0.0`)
 
     await page.goto('/sandbox')
     await dropText(page, copied)
     const card = page.locator('.sbx-suite-card')
     await expect(card).toContainText('UI Pass')
-    await expect(card).toContainText('localhost:5000/e2e/ui-pass')
+    await expect(card).toContainText(`${registryHost()}/e2e/ui-pass`)
     await expect(card.locator('.sbx-choice', { hasText: 'local.yaml' })).toHaveClass(/sbx-choice--active/)
   })
 
   test('@docker Run in Sandbox launches the resolved suite and it finishes healthy', async ({ page, api }) => {
     await page.goto('/sandbox')
-    await dropText(page, 'babelctl run localhost:5000/e2e/ui-pass:v1.0.0')
+    await dropText(page, `babelctl run ${registryHost()}/e2e/ui-pass:v1.0.0`)
     await page.getByRole('button', { name: 'Run in Sandbox' }).click()
 
     await expect(page).toHaveURL(/\/executions\/[^/]+$/)
@@ -49,7 +50,7 @@ test.describe('Sandbox', () => {
   test('a reference that is not in the registry cannot start a run', async ({ page, api }) => {
     const before = (await api.runs()).length
     await page.goto('/sandbox')
-    await dropText(page, 'localhost:5000/e2e/does-not-exist:v9.9.9')
+    await dropText(page, `${registryHost()}/e2e/does-not-exist:v9.9.9`)
 
     await expect(page.locator('.sbx-suite-card')).toContainText('Ref not found')
     await page.getByRole('button', { name: 'Try Launch' }).click()

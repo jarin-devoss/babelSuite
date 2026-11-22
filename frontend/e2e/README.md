@@ -6,11 +6,11 @@ produced any other way.
 
 ## Running them
 
-You need Docker, Go, Node and Python (with `pyyaml`), and MongoDB and the Zot
-registry from the demo stack:
+You need Docker, Go, Node and Python (with `pyyaml`), and MongoDB from the demo
+stack. The registry is not needed from it: the stack starts one of its own.
 
 ```bash
-docker compose -f demo/docker-compose.yml up -d mongo zot   # from the repo root
+docker compose -f demo/docker-compose.yml up -d mongo   # from the repo root
 cd frontend
 npm ci
 npx playwright install chromium
@@ -21,9 +21,14 @@ npm run e2e:ui         # Playwright's UI mode
 
 One command starts everything it needs (`playwright.config.ts` → `webServer`):
 
-1. `e2e/stack/backend.mjs` pushes the fixture suites from `e2e/suites/` to the
-   registry, builds and starts a **throw-away control plane** with its own
-   Mongo database, a random admin password and a registry scope of `e2e`.
+1. `e2e/stack/backend.mjs` starts (or reuses) a Zot container of its own,
+   `babelsuite-e2e-zot` on port **5001**, pushes the fixture suites from
+   `e2e/suites/` to it, then builds and starts a **throw-away control plane**
+   with its own Mongo database, a random admin password and a registry scope of
+   `e2e`. The demo registry on port 5000 is never touched, so the suites you
+   browse do not fill up with fixtures. `E2E_REGISTRY_URL` overrides the
+   registry (CI sets it), and the demo registry is refused outside CI.
+   `docker rm -f babelsuite-e2e-zot` removes it.
 2. `vite preview` serves the built frontend, proxying `/api` to it.
 
 The control plane listens on **:8090**. The APISIX sidecar reaches it at

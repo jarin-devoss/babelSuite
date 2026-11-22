@@ -103,19 +103,24 @@ When adding a new package, follow the same pattern: table-driven cases in `*_tes
 
 ## End-to-end tests
 
-Playwright drives the real UI against a throw-away control plane, Docker and the
-registry. It needs MongoDB and Zot from the demo stack, then one command starts
-the rest:
+Playwright drives the real UI against a throw-away control plane, Docker and a
+registry of its own. It needs MongoDB from the demo stack, then one command
+starts the rest:
 
 ```powershell
-docker compose -f demo/docker-compose.yml up -d mongo zot
+docker compose -f demo/docker-compose.yml up -d mongo
 cd frontend
 npm run e2e          # everything
 npm run e2e:smoke    # the subset a pull request runs
 ```
 
-The fixture suites live in `e2e/suites/`, outside `examples/`, and are pushed
-with `python scripts/push-to-zot.py --suites-dir e2e/suites`. The control plane
+The fixture suites live in `e2e/suites/`, outside `examples/`. They are pushed
+to a Zot container the stack starts for itself, `babelsuite-e2e-zot` on port
+5001, and reuses on later runs, so a test run never adds suites to the demo
+registry on port 5000 that you browse. Remove it with
+`docker rm -f babelsuite-e2e-zot`. Set `E2E_REGISTRY_URL` to use another
+registry (CI points it at the one its job starts); pointing it at the demo
+registry is refused outside CI. The control plane
 the tests start listens on port 8090, which the APISIX sidecar needs to reach
 mocks, so stop any other one first. See [`frontend/e2e/README.md`](https://github.com/jarin-devoss/babelSuite/blob/main/frontend/e2e/README.md)
 for the layout, the rules the tests follow, and the known bugs they pin.

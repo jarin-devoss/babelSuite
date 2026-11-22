@@ -13,8 +13,9 @@ suite through the API, and compares the outcome with its expectations:
                                 count its target service read back
     count_equals_reported_sum   the same, summed over a scalability run's probes
 
-Needs Docker, Go, Node and Python with pyyaml, plus MongoDB and the Zot registry
-from demo/docker-compose.yml. The control plane listens on :8090.
+Needs Docker, Go, Node and Python with pyyaml, plus MongoDB from
+demo/docker-compose.yml. The suites go to the registry the stack manages for
+itself (port 5001), never the demo registry. The control plane listens on :8090.
 
     python e2e/load/run.py                  # every suite
     python e2e/load/run.py --suite load-count --suite load-ghost

@@ -12,13 +12,20 @@
 // The sidecar reaches the control plane at host.docker.internal:8090, so the
 // server has to listen on 8090 for mock-backed steps to work. Set E2E_API_PORT
 // to move it anyway when you do not run any suite that needs a mock.
+//
+// The fixture suites go into a registry of their own. Left alone, the stack
+// starts (or reuses) a Zot container named babelsuite-e2e-zot on port 5001, so
+// a test run can never put its suites into the demo registry on port 5000 that
+// a developer browses. CI sets E2E_REGISTRY_URL to the registry its job started.
 
 import { spawn, spawnSync } from 'node:child_process'
+import { get } from 'node:http'
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath, URL } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const frontendDir = resolve(here, '..', '..')
@@ -27,7 +34,10 @@ const stackDir = join(frontendDir, 'e2e', '.stack')
 const authDir = join(frontendDir, 'e2e', '.auth')
 
 const port = process.env.E2E_API_PORT ?? '8090'
-const registryUrl = process.env.E2E_REGISTRY_URL ?? 'http://localhost:5000'
+const ownRegistry = !process.env.E2E_REGISTRY_URL
+const registryUrl = process.env.E2E_REGISTRY_URL ?? 'http://localhost:5001'
+const registryContainer = 'babelsuite-e2e-zot'
+const demoRegistry = 'http://localhost:5000'
 // Which suites to push and which registry repositories to show. The load-testing
 // runner (e2e/load/run.py) overrides both to use its own suites.
 const suitesDir = process.env.E2E_SUITES_DIR ?? join(repoRoot, 'e2e', 'suites')
@@ -44,6 +54,62 @@ function run(command, args, options = {}) {
   if (result.error || result.status !== 0) {
     throw new Error(`${command} ${args.join(' ')} failed (${result.error?.message ?? `exit ${result.status}`})`)
   }
+}
+
+// The demo registry is the one a developer browses. Pushing the fixture suites
+// into it is what filled the New Execution list with verify-*, e2e-* and
+// e2e-load-* entries nobody asked for, so it is refused unless CI says it is
+// a throw-away one.
+function refuseTheDemoRegistry() {
+  if (registryUrl.replace(/\/$/, '') === demoRegistry && !process.env.CI && !process.env.E2E_ALLOW_DEMO_REGISTRY) {
+    throw new Error(
+      `E2E_REGISTRY_URL points at the demo registry (${demoRegistry}). The e2e run would push its fixture suites ` +
+        'into the list you browse. Leave E2E_REGISTRY_URL unset to use the registry the stack manages for itself, ' +
+        'or set E2E_ALLOW_DEMO_REGISTRY=1 if you really mean it.',
+    )
+  }
+}
+
+async function ensureRegistry() {
+  if (!ownRegistry) {
+    return
+  }
+  const port = new URL(registryUrl).port || '5001'
+  const state = spawnSync('docker', ['inspect', '--format', '{{.State.Running}}', registryContainer], { encoding: 'utf-8' })
+  if (state.status === 0) {
+    if (state.stdout.trim() !== 'true') {
+      log(`starting ${registryContainer}`)
+      run('docker', ['start', registryContainer])
+    }
+  } else {
+    log(`creating ${registryContainer} on port ${port}`)
+    run('docker', [
+      'run', '-d', '--name', registryContainer, '-p', `${port}:5000`,
+      '-v', `${join(repoRoot, 'demo', 'zot-config.json')}:/etc/zot/config.json:ro`,
+      `ghcr.io/project-zot/zot-linux-amd64:${process.env.DEMO_ZOT_TAG ?? 'latest'}`,
+    ])
+  }
+  const deadline = Date.now() + 60_000
+  while (!(await registryAnswers())) {
+    if (Date.now() > deadline) {
+      throw new Error(`${registryUrl} did not answer; check \`docker logs ${registryContainer}\``)
+    }
+    await sleep(1000)
+  }
+}
+
+function registryAnswers() {
+  return new Promise((done) => {
+    const request = get(`${registryUrl}/v2/`, (response) => {
+      response.resume()
+      done(response.statusCode === 200)
+    })
+    request.on('error', () => done(false))
+    request.setTimeout(2000, () => {
+      request.destroy()
+      done(false)
+    })
+  })
 }
 
 function pushSuites() {
@@ -120,6 +186,8 @@ plugins: []
   return { configuration, profiles, agents: join(dir, 'babelsuite-agents.yaml') }
 }
 
+refuseTheDemoRegistry()
+await ensureRegistry()
 const bin = (pushSuites(), buildServer())
 if (!existsSync(bin)) {
   throw new Error(`server binary not found at ${bin}`)
@@ -133,6 +201,7 @@ const session = {
   password: process.env.E2E_ADMIN_PASSWORD ?? randomBytes(12).toString('hex'),
   mongoUri,
   mongoDb: `babelsuite_e2e_${randomBytes(4).toString('hex')}`,
+  registryUrl,
   apiUrl: `http://127.0.0.1:${port}`,
   jwtSecret,
   workDir,
