@@ -1560,16 +1560,21 @@ table-driven and use <code>t.Parallel()</code>. Some highlights rather than a fu
 slower than the rest and need a working daemon.</p>
 <p>When adding a new package, follow the same pattern: table-driven cases in <code>*_test.go</code>, fakes inline in the test file, no network or database access.</p>
 <h2 id="end-to-end-tests">End-to-end tests<a class="headerlink" href="#end-to-end-tests" title="Permanent link">&para;</a></h2>
-<p>Playwright drives the real UI against a throw-away control plane, Docker and the
-registry. It needs MongoDB and Zot from the demo stack, then one command starts
-the rest:</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">docker</span> <span class="n">compose</span> <span class="o">-f</span> <span class="n">demo</span><span class="p">/</span><span class="n">docker-compose</span><span class="p">.</span><span class="n">yml</span> <span class="n">up</span> <span class="n">-d</span> <span class="n">mongo</span> <span class="n">zot</span>
+<p>Playwright drives the real UI against a throw-away control plane, Docker and a
+registry of its own. It needs MongoDB from the demo stack, then one command
+starts the rest:</p>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">docker</span> <span class="n">compose</span> <span class="o">-f</span> <span class="n">demo</span><span class="p">/</span><span class="n">docker-compose</span><span class="p">.</span><span class="n">yml</span> <span class="n">up</span> <span class="n">-d</span> <span class="n">mongo</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nb">cd </span><span class="n">frontend</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">npm</span> <span class="n">run</span> <span class="n">e2e</span>          <span class="c"># everything</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">npm</span> <span class="n">run</span> <span class="n">e2e</span><span class="p">:</span><span class="n">smoke</span>    <span class="c"># the subset a pull request runs</span>
 </span></code></pre></div>
-<p>The fixture suites live in <code>e2e/suites/</code>, outside <code>examples/</code>, and are pushed
-with <code>python scripts/push-to-zot.py --suites-dir e2e/suites</code>. The control plane
+<p>The fixture suites live in <code>e2e/suites/</code>, outside <code>examples/</code>. They are pushed
+to a Zot container the stack starts for itself, <code>babelsuite-e2e-zot</code> on port
+5001, and reuses on later runs, so a test run never adds suites to the demo
+registry on port 5000 that you browse. Remove it with
+<code>docker rm -f babelsuite-e2e-zot</code>. Set <code>E2E_REGISTRY_URL</code> to use another
+registry (CI points it at the one its job starts); pointing it at the demo
+registry is refused outside CI. The control plane
 the tests start listens on port 8090, which the APISIX sidecar needs to reach
 mocks, so stop any other one first. See <a href="https://github.com/jarin-devoss/babelSuite/blob/main/frontend/e2e/README.md"><code>frontend/e2e/README.md</code></a>
 for the layout, the rules the tests follow, and the known bugs they pin.</p>
