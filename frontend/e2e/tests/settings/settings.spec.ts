@@ -1,6 +1,7 @@
 import type { Api, PlatformSettings } from '../../api/client'
 import { test, expect } from '../../fixtures'
 import { field } from '../../support/field'
+import { readSession, registryHost } from '../../support/session'
 
 /** Restores the platform settings to what they were before the test. */
 function restoreSettings(api: Api, snapshot: PlatformSettings) {
@@ -55,7 +56,7 @@ test.describe('Settings — Registries', () => {
     await page.getByRole('button', { name: 'Add Registry' }).first().click()
     await field(page, 'Registry ID').fill(id)
     await field(page, 'Display Name').fill('E2E Extra Registry')
-    await field(page, 'Registry URL').fill('http://localhost:5000')
+    await field(page, 'Registry URL').fill(readSession().registryUrl)
     // A scope no repository matches, so the catalog is unchanged by this registry.
     await field(page, 'Repository Scope').fill('no-such-scope')
     await page.getByRole('button', { name: 'Save', exact: true }).click()
@@ -63,7 +64,7 @@ test.describe('Settings — Registries', () => {
     await expect(page.locator('.platform-alert--success').first()).toBeVisible()
 
     const stored = (await api.settings()).registries.find((r) => r.registryId === id)
-    expect(stored?.registryUrl).toBe('http://localhost:5000')
+    expect(stored?.registryUrl).toBe(readSession().registryUrl)
     expect(stored?.repositoryScope).toBe('no-such-scope')
 
     const row = page.locator('.bs-table-list__row', { hasText: 'E2E Extra Registry' })
@@ -76,7 +77,7 @@ test.describe('Settings — Registries', () => {
     await page.goto('/settings/registries')
     const row = page.locator('.bs-table-list__row', { hasText: 'E2E Registry' })
     await expect(row).toBeVisible()
-    await expect(row).toContainText('localhost:5000')
+    await expect(row).toContainText(registryHost())
   })
 })
 

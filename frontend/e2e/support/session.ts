@@ -10,6 +10,8 @@ export interface StackSession {
   password: string
   mongoUri: string
   mongoDb: string
+  /** The registry holding the fixture suites; 5001 locally, the job's own in CI. */
+  registryUrl: string
   apiUrl: string
   jwtSecret: string
   workDir: string
@@ -28,6 +30,11 @@ export const USER_FILE = resolve(AUTH_DIR, 'user-credentials.json')
 
 export function readSession(): StackSession {
   return JSON.parse(readFileSync(SESSION_FILE, 'utf-8')) as StackSession
+}
+
+/** host:port of the fixture registry, as a suite reference spells it. */
+export function registryHost(): string {
+  return new URL(readSession().registryUrl).host
 }
 
 /** The suites pushed from e2e/suites, by id. */

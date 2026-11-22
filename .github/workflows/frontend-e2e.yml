@@ -32,6 +32,10 @@ jobs:
     # supports, and the latest image can move ahead of it.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      # The registry this job starts below. Locally the stack manages a registry
+      # of its own on port 5001, so a run never fills the demo registry.
+      E2E_REGISTRY_URL: http://localhost:5000
 
     steps:
       - uses: actions/checkout@v4
