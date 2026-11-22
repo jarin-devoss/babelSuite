@@ -68,6 +68,15 @@ func (s *stubMockResetter) ResetSuiteState(_ context.Context, suiteID string) er
 	return nil
 }
 
+func (s *stubMockResetter) ResetExecutionState(_ context.Context, _, suiteID string) error {
+	s.suiteIDs = append(s.suiteIDs, suiteID)
+	return nil
+}
+
+func (s *stubMockResetter) RegisterExecution(string, string) {}
+func (s *stubMockResetter) RegisterIngress(string, string)   {}
+func (s *stubMockResetter) DropExecutionState(string)        {}
+
 func (o *captureObserver) SyncExecution(snapshot Snapshot) {
 	select {
 	case o.events <- snapshot:

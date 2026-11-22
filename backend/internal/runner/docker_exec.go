@@ -364,16 +364,34 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 		env = append(env, k+"="+v)
 	}
 	env = append(env, "BABELSUITE_WORKSPACE_DIR="+containerWorkspaceMount)
+	// A step that calls a stateful mock names its run, so the mock keeps this
+	// run's state apart from every other run of the suite.
+	env = append(env, "BABELSUITE_EXECUTION_ID="+step.ExecutionID)
 	// The sidecar address the step can actually reach. The traffic, plugin and
 	// security executors already use step.GatewayURL, but a plain task or test
 	// had no way to learn it, so a script that wanted to call a mock surface had
 	// to hardcode a host and port. Exported only when there is one, so a suite
 	// with no mock surfaces does not advertise an empty address.
-	if gateway := strings.TrimSpace(step.GatewayURL); gateway != "" {
-		env = append(env, "BABELSUITE_GATEWAY_URL="+gateway)
+	//
+	// The address the control plane uses (127.0.0.1:<published port>) is the
+	// container itself from in here. When the sidecar is on the run's network,
+	// the container gets its address there instead, and the same gateway for
+	// every mock; otherwise it gets the host one, which only a process on the
+	// host can use.
+	gatewayURL, gatewayURLs := strings.TrimSpace(step.GatewayURL), step.GatewayURLs
+	if gatewayURL != "" && sidecarAttached(ctx, step) {
+		inNetwork := "http://" + GatewayAlias + ":9080"
+		gatewayURL = inNetwork
+		gatewayURLs = make([]string, len(step.GatewayURLs))
+		for i := range gatewayURLs {
+			gatewayURLs[i] = inNetwork
+		}
 	}
-	if len(step.GatewayURLs) > 0 {
-		env = append(env, "BABELSUITE_GATEWAY_URLS="+strings.Join(step.GatewayURLs, ","))
+	if gatewayURL != "" {
+		env = append(env, "BABELSUITE_GATEWAY_URL="+gatewayURL)
+	}
+	if len(gatewayURLs) > 0 {
+		env = append(env, "BABELSUITE_GATEWAY_URLS="+strings.Join(gatewayURLs, ","))
 	}
 
 	containerName := fmt.Sprintf("babel-%s-%s", sanitizeID(step.ExecutionID), sanitizeID(step.Node.ID))
@@ -648,7 +666,9 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	// being reused and silently keeping the old behaviour.
 	apisixYAML := apisix.RenderStandaloneConfig(suiteConfig)
 	luaFiles := apisix.LuaPluginFiles(suiteConfig.CustomPlugins...)
-	configHash := sidecarConfigHash(sidecarImage, apisixYAML, luaFiles)
+	engineAddr := sidecarEngineAddr()
+	// The address the sidecar proxies mocks to is part of what it starts with.
+	configHash := sidecarConfigHash(sidecarImage+" engine="+engineAddr, apisixYAML, luaFiles)
 
 	ctx2s, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -680,7 +700,7 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		ExposedPorts: exposedPorts,
 		Env: []string{
 			"APISIX_STAND_ALONE=true",
-			"BABELSUITE_ENGINE_ADDR=host.docker.internal:8090",
+			"BABELSUITE_ENGINE_ADDR=" + engineAddr,
 		},
 		Labels: sidecarLabelsWithHash(suiteID, profile, configHash),
 	}
@@ -798,6 +818,16 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	return waitForSidecar(cli, containerName, "http://127.0.0.1:"+hostPort, sidecarStartupWait)
 }
 
+// sidecarEngineAddr is where the sidecar reaches the control plane's mock
+// engine from inside its container. BABELSUITE_ENGINE_ADDR overrides the
+// default, for a control plane that does not listen on 8090.
+func sidecarEngineAddr() string {
+	if addr := strings.TrimSpace(os.Getenv("BABELSUITE_ENGINE_ADDR")); addr != "" {
+		return addr
+	}
+	return "host.docker.internal:8090"
+}
+
 // sidecarStartupWait is how long a freshly started sidecar gets to begin
 // serving. A cold container on a busy host takes several seconds, and its
 // published port refuses connections until the gateway is listening.
@@ -886,7 +916,7 @@ func writeSidecarFiles(confDir, luaDir, apisixYAML string, plugins []apisix.Cust
 	if err := writeSidecarConfig(configPath); err != nil {
 		return fmt.Errorf("write config.yaml: %w", err)
 	}
-	if err := os.WriteFile(routesPath, []byte(apisixYAML), 0644); err != nil {
+	if err := writeFileSynced(routesPath, []byte(apisixYAML), 0644); err != nil {
 		return fmt.Errorf("write apisix.yaml: %w", err)
 	}
 	if err := os.MkdirAll(luaDir, 0755); err != nil {
@@ -916,10 +946,31 @@ func isMountSourceError(err error) bool {
 // the process umask would otherwise strip the group and other write bits from
 // the mode passed to WriteFile.
 func writeSidecarConfig(path string) error {
-	if err := os.WriteFile(path, []byte(apisix.SidecarConfigYAML), 0o644); err != nil {
+	if err := writeFileSynced(path, []byte(apisix.SidecarConfigYAML), 0o644); err != nil {
 		return err
 	}
 	return os.Chmod(path, 0o666)
+}
+
+// writeFileSynced writes a file and flushes it to disk before returning, so a
+// container started right after finds the content: Docker may see the file
+// through a VM's file share that has not caught up with a write still in the
+// host's cache, and a bind source it cannot find is created as an empty
+// directory.
+func writeFileSynced(path string, data []byte, perm os.FileMode) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }
 
 // SuiteSidecarURL returns the host-accessible URL for the running APISIX sidecar

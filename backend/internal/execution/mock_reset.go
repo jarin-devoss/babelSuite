@@ -40,7 +40,7 @@ func (s *Service) resetMockState(ctx context.Context, executionID string, suite 
 	})
 
 	for _, suiteID := range suiteIDs {
-		if err := resetter.ResetSuiteState(ctx, suiteID); err != nil {
+		if err := resetter.ResetExecutionState(ctx, executionID, suiteID); err != nil {
 			return err
 		}
 	}

@@ -251,6 +251,7 @@ func (s *Service) finishExecutionObservation(executionID string, err error) {
 	// The backend removes what it set up — on Docker, the execution's
 	// containers and network.
 	defer s.destroyExecutionBackend(executionID)
+	defer s.dropMockRun(executionID)
 
 	if s.signals == nil {
 		return

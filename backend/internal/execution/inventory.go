@@ -68,6 +68,8 @@ func (s *Service) RunOwned(executionID string) bool {
 	switch item.record.Status {
 	case "Healthy", "Failed":
 		return time.Since(item.record.UpdatedAt) < runOwnedGrace
+	case StatusInterrupted:
+		return false
 	}
 	return true
 }

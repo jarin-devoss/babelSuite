@@ -50,6 +50,7 @@ func TestSecurityStepReachesAServiceOfTheSuiteAndLeavesItsReportInTheWorkspace(t
 				`ready = test.run(name="ready", image="python:3.12-alpine", commands=["until python -c \"import urllib.request; urllib.request.urlopen('http://vuln:8000/ready')\"; do sleep 1; done"], after=[vuln])`,
 				`probe = security.probe(name="probe", target="http://vuln:8000", continue_on_failure=True, after=[ready])`,
 				`headers = security.headers(name="headers", target="http://vuln:8000", continue_on_failure=True, exports=[{"path": "/findings/headers.json", "on": "always"}], after=[ready])`,
+				`gw = test.run(name="gw", image="python:3.12-alpine", commands=["echo GATEWAY-URL=$BABELSUITE_GATEWAY_URL", "wget -S -O /dev/null \"$BABELSUITE_GATEWAY_URL/\" 2>&1 | grep -m1 'HTTP/' | sed 's/^ */GATEWAY-STATUS /'"], after=[ready])`,
 				`read = task.run(name="read", image="python:3.12-alpine", commands=["cat findings/headers.json"], after=[headers, probe])`,
 			}, "\n"),
 			SourceFiles: []suites.SourceFile{{Path: "tasks/vuln.py", Content: vulnServer}},
@@ -101,6 +102,12 @@ func TestSecurityStepReachesAServiceOfTheSuiteAndLeavesItsReportInTheWorkspace(t
 	}
 	if !strings.Contains(all, "Finding [admin-panel]") {
 		t.Fatalf("the probe must report what it found on the service:\n%s", all)
+	}
+	if !strings.Contains(all, "GATEWAY-URL=http://babelsuite-gateway:9080") {
+		t.Fatalf("a step must be given the gateway's address on the run's network, not the host's:\n%s", all)
+	}
+	if !strings.Contains(all, "GATEWAY-STATUS HTTP/") {
+		t.Fatalf("a step must be able to reach the gateway and get an HTTP answer:\n%s", all)
 	}
 	if !strings.Contains(all, `"mode": "headers"`) || !strings.Contains(all, `"target": "http://vuln:8000"`) {
 		t.Fatalf("the report must be in the workspace for the next step to read:\n%s", all)

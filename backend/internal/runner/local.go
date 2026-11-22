@@ -90,6 +90,17 @@ func (l *Local) SetupExecution(_ context.Context, executionID string) error {
 	return SetupExecutionNetwork(executionID)
 }
 
+// AttachSidecar joins the suite's sidecar to the execution's network.
+func (l *Local) AttachSidecar(ctx context.Context, suiteID, profile, executionID string, mockHosts []string) (string, error) {
+	if _, ok := sharedDockerClient(); !ok {
+		return "", nil // no Docker, so no sidecar was started
+	}
+	if err := AttachSidecarToExecution(ctx, suiteID, profile, executionID, append([]string{GatewayAlias}, mockHosts...)...); err != nil {
+		return "", err
+	}
+	return SidecarAddressOnExecutionNetwork(ctx, suiteID, profile, executionID)
+}
+
 // DestroyExecution removes the execution's containers, detached services
 // included, and its network.
 func (l *Local) DestroyExecution(_ context.Context, executionID string) error {

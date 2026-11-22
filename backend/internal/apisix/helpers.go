@@ -41,6 +41,10 @@ func proxyRewrite(suiteID, surfaceID string, operation OperationConfig) map[stri
 		"X-Babelsuite-Dispatcher": "apisix",
 		"X-Babelsuite-Operation":  operation.ID,
 		"Authorization":           "Bearer babelsuite-internal",
+		// The address this request arrived on. The sidecar has a different one
+		// on every run's network, so the mock engine can tell which run is
+		// asking. proxy-rewrite sets the header, replacing any the client sent.
+		"X-Babelsuite-Ingress": "$server_addr",
 	}
 
 	target := runtimeTargetPath(suiteID, surfaceID, operation)

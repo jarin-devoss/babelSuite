@@ -37,7 +37,15 @@ func (s *Service) sidecarServiceHosts(executionID string, suite *suites.Definiti
 // a traffic or security step that targets one is sent to the sidecar's own
 // listener.
 func sidecarMockHosts(suite *suites.Definition, node topologyNode) []string {
-	if !runsInSidecar(node) || suite == nil {
+	if !runsInSidecar(node) {
+		return nil
+	}
+	return suiteMockHosts(suite)
+}
+
+// suiteMockHosts lists the hostnames the suite's mock surfaces answer to.
+func suiteMockHosts(suite *suites.Definition) []string {
+	if suite == nil {
 		return nil
 	}
 	seen := make(map[string]struct{}, len(suite.APISurfaces))
