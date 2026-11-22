@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -76,6 +79,58 @@ func (r *Registry) expireStaleAgents(now time.Time) {
 			r.agents[id] = agent
 		}
 	}
+}
+
+// ErrAgentOnline is returned by Claim when the id belongs to an agent on another
+// host that is still sending heartbeats.
+var ErrAgentOnline = errors.New("agent id is in use by an agent that is still online")
+
+// AgentOnlineError says which agent holds the id.
+type AgentOnlineError struct {
+	AgentID  string
+	HostURL  string
+	LastSeen time.Time
+}
+
+func (e *AgentOnlineError) Error() string {
+	return fmt.Sprintf("agent %q is online at %s (last heartbeat %s); stop it, wait %s for it to expire, or register with force", e.AgentID, e.HostURL, e.LastSeen.UTC().Format(time.RFC3339), heartbeatExpiry)
+}
+
+func (e *AgentOnlineError) Is(target error) bool { return target == ErrAgentOnline }
+
+// Claim registers an agent unless its id belongs to an agent on another host
+// that is still online. The same host may register again at once (an agent that
+// restarted), and force takes the id over; either way the registration is
+// recorded as Register records it.
+func (r *Registry) Claim(request RegisterRequest) (Registration, error) {
+	if existing, found := r.Get(request.AgentID); found && !request.Force &&
+		isOnline(existing, time.Now().UTC()) && !sameHost(existing.HostURL, request.HostURL) {
+		return Registration{}, &AgentOnlineError{AgentID: existing.AgentID, HostURL: existing.HostURL, LastSeen: existing.LastHeartbeatAt}
+	}
+	return r.Register(request), nil
+}
+
+// isOnline reports whether the agent has sent a heartbeat recently enough to be
+// taken for alive.
+func isOnline(record Registration, now time.Time) bool {
+	status := strings.ToLower(strings.TrimSpace(record.Status))
+	if status != "online" && status != "ready" {
+		return false
+	}
+	return record.LastHeartbeatAt.IsZero() || now.Sub(record.LastHeartbeatAt) <= heartbeatExpiry
+}
+
+// sameHost compares the machines two agent URLs name, ignoring the port: an
+// agent that restarts often listens on a new one.
+func sameHost(a, b string) bool {
+	host := func(raw string) string {
+		parsed, err := url.Parse(strings.TrimSpace(raw))
+		if err != nil || parsed.Hostname() == "" {
+			return strings.ToLower(strings.TrimSpace(raw))
+		}
+		return strings.ToLower(parsed.Hostname())
+	}
+	return strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" || host(a) == host(b)
 }
 
 func (r *Registry) Register(request RegisterRequest) Registration {

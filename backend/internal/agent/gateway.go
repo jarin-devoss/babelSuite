@@ -96,7 +96,12 @@ func RegisterGateway(mux *http.ServeMux, registry *Registry, coordinator *Coordi
 			writeGatewayJSON(w, http.StatusBadRequest, map[string]string{"error": "registration payload is invalid"})
 			return
 		}
-		writeGatewayJSON(w, http.StatusCreated, registry.Register(request))
+		record, err := registry.Claim(request)
+		if errors.Is(err, ErrAgentOnline) {
+			writeGatewayJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
+		writeGatewayJSON(w, http.StatusCreated, record)
 	}, auth)
 	httpserver.HandleFunc(mux, "POST /api/v1/agents/{agentId}/heartbeat", func(w http.ResponseWriter, r *http.Request) {
 		if registry == nil {

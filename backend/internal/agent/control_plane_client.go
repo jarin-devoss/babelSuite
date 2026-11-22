@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -40,8 +42,34 @@ func (c *ControlPlaneClient) addAuth(r *http.Request) {
 	}
 }
 
+// ErrAgentIDInUse is returned by Register when the control plane refuses the
+// registration because another agent on another host holds the id.
+var ErrAgentIDInUse = errors.New("agent id is in use")
+
 func (c *ControlPlaneClient) Register(ctx context.Context, request RegisterRequest) error {
-	return c.postJSON(ctx, c.baseURL+"/api/v1/agents/register", request)
+	err := c.postJSON(ctx, c.baseURL+"/api/v1/agents/register", request)
+	var refused *statusError
+	if errors.As(err, &refused) && refused.status == http.StatusConflict {
+		return fmt.Errorf("%w: %s", ErrAgentIDInUse, refused.message)
+	}
+	return err
+}
+
+// statusError is a response with an error status, with the message the control
+// plane gave.
+type statusError struct {
+	status  int
+	message string
+}
+
+func (e *statusError) Error() string { return fmt.Sprintf("request returned status %d", e.status) }
+
+func errorFromResponse(response *http.Response) error {
+	var body struct {
+		Error string `json:"error"`
+	}
+	_ = json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&body)
+	return &statusError{status: response.StatusCode, message: body.Error}
 }
 
 func (c *ControlPlaneClient) Heartbeat(ctx context.Context, agentID string) error {
@@ -160,7 +188,7 @@ func (c *ControlPlaneClient) postJSON(ctx context.Context, url string, payload a
 	defer response.Body.Close()
 
 	if response.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("request returned status %d", response.StatusCode)
+		return errorFromResponse(response)
 	}
 	return nil
 }

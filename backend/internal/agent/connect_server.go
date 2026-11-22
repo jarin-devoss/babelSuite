@@ -126,13 +126,16 @@ func (s *registryServiceServer) Register(
 	if s.registry == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("registry unavailable"))
 	}
-	reg := s.registry.Register(RegisterRequest{
+	reg, err := s.registry.Claim(RegisterRequest{
 		AgentID:      req.Msg.AgentId,
 		Name:         req.Msg.Name,
 		HostURL:      req.Msg.HostUrl,
 		Capabilities: req.Msg.Capabilities,
 		Capacity:     int(req.Msg.Capacity),
 	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeAlreadyExists, err)
+	}
 	return connect.NewResponse(registrationToProto(reg)), nil
 }
 
