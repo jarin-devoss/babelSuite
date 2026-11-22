@@ -568,8 +568,9 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		GatewayURL:     resolveGatewayURL(executionID, suite, profile),
 		GatewayURLs:    resolveGatewayURLs(executionID, suite, profile),
 		PublishPorts:   pluginHostPortRefs(suite)[node.Name],
-		ServiceHosts:   s.trafficServiceHosts(executionID, suite, node),
-		MockHosts:      trafficMockHosts(suite, node),
+		ServiceHosts:   s.sidecarServiceHosts(executionID, suite, node),
+		MockHosts:      sidecarMockHosts(suite, node),
+		Hardened:       suiteHardened(suite, node),
 		Node: runner.StepNode{
 			ID:          node.ID,
 			Name:        node.Name,

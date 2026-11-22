@@ -27,8 +27,19 @@ type resolvedTarget struct {
 	Note string
 }
 
-// resolveTrafficTarget turns the target a suite wrote into an address the
+// resolveTrafficTarget turns the target of a traffic step into an address the
 // sidecar's load generator can really reach.
+func resolveTrafficTarget(ctx context.Context, step StepSpec) (resolvedTarget, error) {
+	if step.Load == nil {
+		return resolvedTarget{}, fmt.Errorf("traffic step %q has no load spec", step.Node.Name)
+	}
+	return resolveSidecarTarget(ctx, step, "traffic", "load against a service", step.Load.Target)
+}
+
+// resolveSidecarTarget turns the target a suite wrote into an address the
+// sidecar can really reach. Traffic and security steps both run inside the
+// sidecar, so both resolve their targets here; kind and activity only word the
+// errors ("traffic", "load against a service").
 //
 // The generator runs inside the sidecar's container, not on the control plane
 // host and not on the run's network, so a name that is meaningful to the suite
@@ -45,14 +56,11 @@ type resolvedTarget struct {
 //
 // A bare name that is none of the above is an error: it used to be given
 // made-up traffic, which let a typo or a removed service pass every run.
-func resolveTrafficTarget(ctx context.Context, step StepSpec) (resolvedTarget, error) {
-	if step.Load == nil {
-		return resolvedTarget{}, fmt.Errorf("traffic step %q has no load spec", step.Node.Name)
-	}
-	raw := strings.TrimSpace(step.Load.Target)
+func resolveSidecarTarget(ctx context.Context, step StepSpec, kind, activity, raw string) (resolvedTarget, error) {
+	raw = strings.TrimSpace(raw)
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Hostname() == "" {
-		return resolvedTarget{}, fmt.Errorf("traffic step %q: target %q is not a URL", step.Node.Name, raw)
+		return resolvedTarget{}, fmt.Errorf("%s step %q: target %q is not a URL", kind, step.Node.Name, raw)
 	}
 	scheme := parsed.Scheme
 	if scheme == "" {
@@ -80,14 +88,14 @@ func resolveTrafficTarget(ctx context.Context, step StepSpec) (resolvedTarget, e
 
 	if nodeID, isService := step.ServiceHosts[host]; isService {
 		if step.BackendKind == "kubernetes" {
-			return resolvedTarget{}, fmt.Errorf("traffic step %q: target %q is a service of the suite, and load against a service is supported only on the local Docker backend, not on %s", step.Node.Name, host, step.BackendKind)
+			return resolvedTarget{}, fmt.Errorf("%s step %q: target %q is a service of the suite, and %s is supported only on the local Docker backend, not on %s", kind, step.Node.Name, host, activity, step.BackendKind)
 		}
 		if err := AttachSidecarToExecution(ctx, step.SuiteID, step.Profile, step.ExecutionID); err != nil {
-			return resolvedTarget{}, fmt.Errorf("traffic step %q: %w", step.Node.Name, err)
+			return resolvedTarget{}, fmt.Errorf("%s step %q: %w", kind, step.Node.Name, err)
 		}
 		ip, err := ContainerIPOnExecutionNetwork(ctx, step.ExecutionID, nodeID)
 		if err != nil {
-			return resolvedTarget{}, fmt.Errorf("traffic step %q: service %q is not reachable: %w", step.Node.Name, host, err)
+			return resolvedTarget{}, fmt.Errorf("%s step %q: service %q is not reachable: %w", kind, step.Node.Name, host, err)
 		}
 		return resolvedTarget{
 			URL:  scheme + "://" + net.JoinHostPort(ip, portOr(parsed, scheme)) + path,
@@ -96,7 +104,7 @@ func resolveTrafficTarget(ctx context.Context, step StepSpec) (resolvedTarget, e
 	}
 
 	if !strings.Contains(host, ".") && net.ParseIP(host) == nil {
-		return resolvedTarget{}, fmt.Errorf("traffic step %q: target host %q is not a service of this suite, one of its mock hosts, or a fully-qualified host", step.Node.Name, host)
+		return resolvedTarget{}, fmt.Errorf("%s step %q: target host %q is not a service of this suite, one of its mock hosts, or a fully-qualified host", kind, step.Node.Name, host)
 	}
 	return resolvedTarget{URL: scheme + "://" + parsed.Host + path, Note: fmt.Sprintf("%s is used as written", host)}, nil
 }

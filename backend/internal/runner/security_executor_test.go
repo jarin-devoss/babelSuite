@@ -178,7 +178,10 @@ func TestBuildScannerConfigFlood(t *testing.T) {
 		FloodDuration: 10,
 		FloodThrottle: true,
 	}
-	cfg := buildScannerConfig(spec)
+	cfg := buildScannerConfig(spec, resolvedTarget{URL: "http://127.0.0.1:9080", HostHeader: "shop.mock.internal"})
+	if cfg.Target != "http://127.0.0.1:9080" || cfg.HostHeader != "shop.mock.internal" {
+		t.Fatalf("target = %q host header = %q, want the resolved ones", cfg.Target, cfg.HostHeader)
+	}
 	if cfg.Mode != "flood" {
 		t.Fatalf("mode = %q, want flood", cfg.Mode)
 	}
