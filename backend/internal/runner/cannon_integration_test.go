@@ -87,7 +87,7 @@ const (
 // TestMain removes the sidecar the tests share once they are all done.
 func TestMain(m *testing.M) {
 	code := m.Run()
-	_ = exec.Command("docker", "rm", "-f", SidecarContainerName(integrationSuite, integrationProfile)).Run()
+	removeIntegrationContainers()
 	os.Exit(code)
 }
 
