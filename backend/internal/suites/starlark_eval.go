@@ -38,6 +38,7 @@ type starlarkNode struct {
 	floodRate       float64
 	floodDuration   float64
 	floodThrottle   bool
+	failOn          string
 	rps             float64
 	arrivalRate     float64
 	minUsers        float64
@@ -602,6 +603,13 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 			key := string(kwarg[0].(starlark.String))
 			val := kwarg[1]
 
+			// A misspelled option on a security call used to be dropped, and
+			// the check then ran without it: expect_throtle=True asked for a
+			// rate limit to be required and required nothing.
+			if kind == NodeKindSecurity && !securityKeyAllowed(variant, key) {
+				return nil, fmt.Errorf("%s: unknown argument %q; allowed: %s", variant, key, securityKeyList(variant))
+			}
+
 			switch key {
 			case "name", "name_or_id", "id":
 				s, ok := starlark.AsString(val)
@@ -763,7 +771,10 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 				if !ok {
 					return nil, fmt.Errorf("%s: technique must be a string", variant)
 				}
-				node.technique = strings.TrimSpace(s)
+				node.technique = strings.ToLower(strings.TrimSpace(s))
+				if node.technique != "" && !containsString(SecurityTechniques, node.technique) {
+					return nil, fmt.Errorf("%s: technique %q is not one of %s", variant, s, strings.Join(SecurityTechniques, ", "))
+				}
 
 			case "path":
 				s, ok := starlark.AsString(val)
@@ -774,11 +785,17 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 
 			case "rate":
 				if f, ok := starlark.AsFloat(val); ok {
+					if kind == NodeKindSecurity && (f <= 0 || f > MaxSecurityFloodRate) {
+						return nil, fmt.Errorf("%s: rate must be above 0 and at most %g requests per second, got %g", variant, MaxSecurityFloodRate, f)
+					}
 					node.floodRate = f
 				}
 
 			case "duration":
 				if f, ok := starlark.AsFloat(val); ok {
+					if kind == NodeKindSecurity && (f <= 0 || f > MaxSecurityFloodDuration) {
+						return nil, fmt.Errorf("%s: duration must be above 0 and at most %g seconds, got %g", variant, MaxSecurityFloodDuration, f)
+					}
 					node.floodDuration = f
 				}
 
@@ -788,6 +805,17 @@ func buildNodeFunc(reg *starlarkRegistry, variant string) starlarkBuilderFunc {
 					return nil, fmt.Errorf("%s: expect_throttle must be a bool", variant)
 				}
 				node.floodThrottle = bool(b)
+
+			case "fail_on":
+				s, ok := starlark.AsString(val)
+				if !ok {
+					return nil, fmt.Errorf("%s: fail_on must be a string", variant)
+				}
+				level := strings.ToLower(strings.TrimSpace(s))
+				if !containsString(SecurityFailLevels, level) {
+					return nil, fmt.Errorf("%s: fail_on %q is not one of %s", variant, s, strings.Join(SecurityFailLevels, ", "))
+				}
+				node.failOn = level
 
 			case "harden":
 				b, ok := val.(starlark.Bool)
@@ -1134,6 +1162,7 @@ func buildRawNodes(reg *starlarkRegistry) []rawTopologyNode {
 			FloodRate:         node.floodRate,
 			FloodDuration:     node.floodDuration,
 			FloodThrottle:     node.floodThrottle,
+			FailOn:            node.failOn,
 			Message:           node.message,
 			Harden:            node.harden,
 			Arguments:         buildStarlarkArguments(node),

@@ -2,10 +2,13 @@ package runner
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -670,9 +673,6 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		return err
 	}
 
-	portBindings := nat.PortMap{
-		"9080/tcp": []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}},
-	}
 	exposedPorts := nat.PortSet{"9080/tcp": struct{}{}}
 
 	containerCfg := &container.Config{
@@ -701,10 +701,14 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		}
 	}
 
+	// The host port is chosen here rather than left to Docker. A port Docker
+	// picks can change when a run network becomes the container's gateway (see
+	// AttachSidecarToExecution), and everything that was handed the sidecar's
+	// address would then be talking to nothing. A bound port never moves.
+	var hostPort string
 	hostCfg := &container.HostConfig{
-		AutoRemove:   false,
-		PortBindings: portBindings,
-		ExtraHosts:   extraHosts,
+		AutoRemove: false,
+		ExtraHosts: extraHosts,
 		Binds: []string{
 			// File-level mounts so APISIX can still write nginx.conf to its own conf dir.
 			// config.yaml is writable: with APISIX_STAND_ALONE set, the 3.9
@@ -725,6 +729,14 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	cli.ContainerRemove(ctx30s, containerName, container.RemoveOptions{Force: true}) //nolint:errcheck
 
 	createAndStart := func() (string, error) {
+		port, err := freeLoopbackPort()
+		if err != nil {
+			return "", fmt.Errorf("choose a host port for the sidecar: %w", err)
+		}
+		hostPort = port
+		hostCfg.PortBindings = nat.PortMap{
+			"9080/tcp": []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: hostPort}},
+		}
 		created, err := cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
 		if errdefs.IsNotFound(err) {
 			pullOut, pullErr := cli.ImagePull(ctx30s, sidecarImage, image.PullOptions{})
@@ -755,7 +767,14 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	var startErr error
 	for attempt := 1; attempt <= 3; attempt++ {
 		containerID, startErr = createAndStart()
-		if startErr == nil || !isMountSourceError(startErr) {
+		if startErr == nil {
+			break
+		}
+		// Another process took the port between choosing it and starting.
+		if isPortInUseError(startErr) {
+			continue
+		}
+		if !isMountSourceError(startErr) {
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -776,7 +795,76 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	case <-time.After(1500 * time.Millisecond):
 	}
 
-	return nil
+	return waitForSidecar(cli, containerName, "http://127.0.0.1:"+hostPort, sidecarStartupWait)
+}
+
+// sidecarStartupWait is how long a freshly started sidecar gets to begin
+// serving. A cold container on a busy host takes several seconds, and its
+// published port refuses connections until the gateway is listening.
+const sidecarStartupWait = 45 * time.Second
+
+// waitForSidecar returns once the gateway answers HTTP on base, so every step
+// that uses the sidecar can rely on it serving. Any answer counts, including a
+// 404 for a path no route serves. A container that stopped, or never answered,
+// is an error that carries its last log lines.
+func waitForSidecar(cli *client.Client, containerName, base string, within time.Duration) error {
+	httpClient := &http.Client{Timeout: 2 * time.Second}
+	deadline := time.Now().Add(within)
+	var last error
+	for {
+		resp, err := httpClient.Get(base + "/")
+		if err == nil {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
+			resp.Body.Close()
+			return nil
+		}
+		last = err
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		info, inspectErr := cli.ContainerInspect(ctx, containerName)
+		cancel()
+		if inspectErr == nil && info.State != nil && !info.State.Running {
+			return fmt.Errorf("apisix sidecar stopped during startup (code %d)%s", info.State.ExitCode, sidecarLogTail(cli, containerName))
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("apisix sidecar did not start serving at %s within %s: %w%s", base, within, last, sidecarLogTail(cli, containerName))
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+}
+
+// sidecarLogTail returns the last lines the sidecar logged, ready to append to
+// an error, or "" when there are none to read.
+func sidecarLogTail(cli *client.Client, containerName string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	reader, err := cli.ContainerLogs(ctx, containerName, container.LogsOptions{ShowStdout: true, ShowStderr: true, Tail: "15"})
+	if err != nil {
+		return ""
+	}
+	defer reader.Close()
+	var out bytes.Buffer
+	_, _ = stdcopy.StdCopy(&out, &out, reader)
+	if text := strings.TrimSpace(out.String()); text != "" {
+		return "\n" + text
+	}
+	return ""
+}
+
+// freeLoopbackPort asks the OS for a TCP port that is free on 127.0.0.1.
+func freeLoopbackPort() (string, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	defer listener.Close()
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	return port, err
+}
+
+func isPortInUseError(err error) bool {
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "port is already allocated") || strings.Contains(text, "address already in use")
 }
 
 // writeSidecarFiles writes everything the sidecar mounts. A path that is a

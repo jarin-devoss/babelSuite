@@ -79,6 +79,12 @@ The example plugins have tests too. They load every plugin under `examples/oci-p
 go test -tags integration ./internal/runner -run IntegrationPlugin -count=1
 ```
 
+The security checks are tested the same way: a careful service must pass all eight, a weak one must fail each, and an unreachable target must come back unknown, never passed:
+
+```powershell
+go test -tags integration ./internal/runner -run IntegrationSecurity -count=1
+```
+
 A plain `go test ./internal/suites` also checks, without Docker, that each plugin's wrapper, manifest and CUE schema agree.
 
 The load-testing proof suites in `e2e/load/` launch real runs through the API and check what a traffic step reports against what its target counted:

@@ -97,6 +97,10 @@ type StepSpec struct {
 	// MockHosts lists the hostnames the suite's mock surfaces answer to
 	// (for example payment-suite.mock.internal); the sidecar serves them itself.
 	MockHosts []string
+	// Hardened is set when the suite's mock opted into gateway-level defences
+	// (mock.api(harden=True)). A security step that scans the mock then measures
+	// the gateway, and says so.
+	Hardened bool
 	// PublishPorts lists container ports (e.g. "8082/tcp") that must be bound
 	// to a host port so the shared APISIX sidecar can reach this node's
 	// service over host.docker.internal instead of the per-execution Docker

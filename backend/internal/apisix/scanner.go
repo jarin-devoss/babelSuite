@@ -56,60 +56,66 @@ func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) erro
 //   - probe:   Requests sensitive paths; flags unexpected status codes.
 //   - fuzz:    Injects SQLi / XSS / traversal / header-injection payloads.
 //   - auth:    Checks protected paths are unreachable without credentials.
-//   - flood:   Verifies rate-limiting (HTTP 429) under sustained traffic.
+//   - flood:   Verifies rate-limiting (HTTP 429), or availability, under sustained traffic.
 //   - headers: Audits security response headers (HSTS, CSP, X-Frame, …).
 //   - verbs:   Probes dangerous HTTP methods (PUT, DELETE, TRACE, TRACK).
 //   - graphql: Detects exposed GraphQL introspection endpoints.
 //   - cors:    Finds CORS misconfigurations (reflected origin, wildcard).
 //
+// Every check ends as exactly one of three outcomes: passed (the target
+// answered and the answer is safe), failed (it answered and the answer is a
+// finding) or unknown (no usable answer: DNS, connect, timeout, reset). A
+// check that could not be determined is never counted as passed. A fuzz payload
+// the scanner's own HTTP client refuses to send is counted as skipped, because
+// it never reached the target.
+//
 // All modes POST to /_babelsuite/attack/start and return a synchronous JSON
 // findings report once the run completes:
 //
-//	{"total":N,"passed":N,"failed":N,"findings":[{...}]}
+//	{"total":N,"passed":N,"failed":N,"unknown":N,"skipped":N,"requests":N,
+//	 "first_error":"...","findings":[{...}]}
 const AttackScannerLua = `
 local json     = require("cjson")
 local http_lib = require("resty.http")
 
 local function as_array(t) return #t == 0 and json.empty_array or t end
 
--- ── helpers ────────────────────────────────────────────────────────────────
+-- ── requests ───────────────────────────────────────────────────────────────
 
-local function send(target, method, path, body, headers, timeout_ms)
+-- send returns status, body, lowercase-keyed response headers and an error. The
+-- Host header is set from cfg.host_header when the target is a mock surface the
+-- sidecar selects by host: without it every request meets "route not found".
+local function send(cfg, method, path, body, headers)
     local httpc = http_lib.new()
-    httpc:set_timeout(timeout_ms or 10000)
-    local res, err = httpc:request_uri(target .. path, {
-        method  = method  or "GET",
-        body    = body    or nil,
-        headers = headers or {},
-    })
-    if err or not res then
-        return nil, nil, err or "no response"
+    httpc:set_timeout(cfg.timeout_ms or 10000)
+    local sent = {}
+    for k, v in pairs(headers or {}) do sent[k] = v end
+    if cfg.host_header and cfg.host_header ~= "" and sent["Host"] == nil and sent["host"] == nil then
+        sent["Host"] = cfg.host_header
     end
-    return res.status, res.body or "", nil
-end
-
--- send_full also returns normalized (lowercase-keyed) response headers.
-local function send_full(target, method, path, body, headers, timeout_ms)
-    local httpc = http_lib.new()
-    httpc:set_timeout(timeout_ms or 10000)
-    local res, err = httpc:request_uri(target .. path, {
-        method  = method  or "GET",
-        body    = body    or nil,
-        headers = headers or {},
+    local res, err = httpc:request_uri(cfg.target .. path, {
+        method  = method or "GET",
+        body    = body   or nil,
+        headers = sent,
     })
-    if err or not res then
-        return nil, nil, {}, err or "no response"
+    if not res then
+        return nil, nil, {}, tostring(err or "no response")
     end
     local norm = {}
     for k, v in pairs(res.headers or {}) do norm[string.lower(k)] = v end
     return res.status, res.body or "", norm, nil
 end
 
-local _technique = ""
+-- ── outcomes ───────────────────────────────────────────────────────────────
 
-local function finding(label, method, path, payload, status, severity, detail)
+local function new_results()
+    return {total = 0, passed = 0, failed = 0, unknown = 0, skipped = 0,
+            requests = 0, first_error = "", findings = {}}
+end
+
+local function finding(cfg, label, method, path, payload, status, severity, detail)
     local lbl = label or path
-    if _technique ~= "" then lbl = _technique .. "/" .. lbl end
+    if cfg.technique and cfg.technique ~= "" then lbl = cfg.technique .. "/" .. lbl end
     return {
         label    = lbl,
         method   = method   or "GET",
@@ -121,12 +127,28 @@ local function finding(label, method, path, payload, status, severity, detail)
     }
 end
 
-local function new_results()
-    return {total = 0, passed = 0, failed = 0, findings = {}}
+-- Every request ends in exactly one of pass, fail, unknown or skip.
+local function pass(r) r.total = r.total + 1; r.passed = r.passed + 1 end
+
+local function fail(r, f)
+    r.total = r.total + 1; r.failed = r.failed + 1
+    r.findings[#r.findings + 1] = f
 end
 
-local function pass(r)  r.total = r.total + 1; r.passed = r.passed + 1 end
-local function fail(r, f) r.total = r.total + 1; r.failed = r.failed + 1; r.findings[#r.findings + 1] = f end
+-- unknown: the target gave no usable answer, so nothing is known about the
+-- check. It is its own outcome, never a pass and never a finding.
+local function unknown(r, method, path, err)
+    r.total = r.total + 1; r.unknown = r.unknown + 1
+    if r.first_error == "" then
+        r.first_error = string.format("%s %s: %s", method or "GET", path or "/", tostring(err))
+    end
+end
+
+local function skip(r) r.skipped = r.skipped + 1 end
+
+local function throttle(cfg)
+    if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+end
 
 local function status_unexpected(status, expected_statuses)
     if not expected_statuses or #expected_statuses == 0 then return false end
@@ -170,40 +192,44 @@ local DEFAULT_PROBE_CHECKS = {
     {label="backup",            path="/backup",              expect_status={401,403,404}, severity="high"},
 }
 
+-- Each fuzz check belongs to one technique family, so technique selects the
+-- payloads that are sent: technique "sqli" sends SQL injection and nothing else.
 local DEFAULT_FUZZ_CHECKS = {
     {
-        label="sqli-query",  method="GET", path="/?id={{payload}}",
+        family="sqli", label="sqli-query",  method="GET", path="/?id={{payload}}",
         payloads={"'", "' OR '1'='1", "' OR '1'='1'--", "1; DROP TABLE users--", "' UNION SELECT NULL--"},
         error_markers={"SQL syntax", "mysql_fetch", "ORA-", "syntax error", "Warning: mysql"},
         expect_status={200,301,302,404}, severity="critical",
     },
     {
-        label="sqli-body",   method="POST", path="/",
+        family="sqli", label="sqli-body",   method="POST", path="/",
         body='{"id":"{{payload}}"}',
         payloads={"'", "' OR '1'='1", "1; DROP TABLE users--"},
         error_markers={"SQL syntax", "mysql_fetch", "ORA-", "syntax error"},
         expect_status={200,400,404}, severity="critical",
     },
     {
-        label="xss-reflect",  method="GET", path="/?q={{payload}}",
+        family="xss", label="xss-reflect",  method="GET", path="/?q={{payload}}",
         payloads={"<script>alert(1)</script>", '"><img src=x onerror=alert(1)>', "javascript:alert(1)"},
         error_markers={"<script>alert", "onerror=alert"},
         expect_status={200,301,302,404}, severity="high",
     },
     {
-        label="path-traversal", method="GET", path="/{{payload}}",
+        family="traversal", label="path-traversal", method="GET", path="/{{payload}}",
         payloads={"../../../etc/passwd", "..%2F..%2F..%2Fetc%2Fpasswd", "....//....//etc/passwd"},
         error_markers={"root:x:", "[boot loader]", "\\[extensions\\]"},
         expect_status={200,301,302,400,404}, severity="critical",
     },
     {
-        label="header-inject",  method="GET", path="/",
+        family="header-injection", label="header-inject",  method="GET", path="/",
         headers={["X-Custom-Header"]="{{payload}}"},
         payloads={"test\r\nX-Injected: evil", "test\nX-Injected: evil"},
         error_markers={"X-Injected"},
         expect_status={200,400,404}, severity="high",
     },
 }
+
+local TECHNIQUES = {sqli = true, xss = true, traversal = true, ["header-injection"] = true}
 
 local DEFAULT_AUTH_CHECKS = {
     {label="admin-no-auth",      path="/admin",         severity="critical"},
@@ -224,18 +250,18 @@ local function run_probe(cfg)
     local checks = cfg.checks
     if not checks or #checks == 0 then checks = DEFAULT_PROBE_CHECKS end
     for _, check in ipairs(checks) do
-        local status, _, err = send(cfg.target, check.method or "GET", check.path or "/",
-            nil, check.headers, cfg.timeout_ms)
+        local method, path = check.method or "GET", check.path or "/"
+        local status, _, _, err = send(cfg, method, path, nil, check.headers)
+        r.requests = r.requests + 1
         if err then
-            fail(r, finding(check.label, check.method, check.path, "", 0, check.severity or "medium",
-                "request failed: " .. err))
+            unknown(r, method, path, err)
         elseif status_unexpected(status, check.expect_status) then
-            fail(r, finding(check.label, check.method, check.path, "", status, check.severity or "medium",
+            fail(r, finding(cfg, check.label, method, path, "", status, check.severity or "medium",
                 "unexpected status " .. status))
         else
             pass(r)
         end
-        if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+        throttle(cfg)
     end
     return r
 end
@@ -245,7 +271,14 @@ end
 local function run_fuzz(cfg)
     local r = new_results()
     local checks = cfg.checks
-    if not checks or #checks == 0 then checks = DEFAULT_FUZZ_CHECKS end
+    if not checks or #checks == 0 then
+        checks = {}
+        for _, check in ipairs(DEFAULT_FUZZ_CHECKS) do
+            if not cfg.technique or cfg.technique == "" or check.family == cfg.technique then
+                checks[#checks + 1] = check
+            end
+        end
+    end
     for _, check in ipairs(checks) do
         for _, payload in ipairs(check.payloads or {""}) do
             local path_payload = payload
@@ -255,35 +288,36 @@ local function run_fuzz(cfg)
                 -- target still sees the decoded malicious value.
                 path_payload = ngx.escape_uri(payload)
             end
+            local method    = check.method or "GET"
             local fuzz_path = inject(check.path or "/", path_payload)
             local fuzz_body = inject(check.body or "", payload)
             local fuzz_hdrs = {}
             for k, v in pairs(check.headers or {}) do
                 fuzz_hdrs[k] = inject(v, payload)
             end
-            local status, body, err = send(cfg.target, check.method or "GET", fuzz_path,
-                fuzz_body ~= "" and fuzz_body or nil, fuzz_hdrs, cfg.timeout_ms)
-            if err then
-                if string.find(err, "invalid characters", 1, true) then
-                    -- The HTTP client itself refuses to construct a request
-                    -- carrying raw control/illegal characters (e.g. literal
-                    -- CRLF in a header value). The attack can't even be sent,
-                    -- so the target is not exposed via this vector — pass.
-                    pass(r)
-                else
-                    fail(r, finding(check.label, check.method, fuzz_path, payload, 0,
-                        check.severity or "medium", "request failed: " .. err))
-                end
-            elseif body_has_marker(body, check.error_markers) then
-                fail(r, finding(check.label, check.method, fuzz_path, payload, status,
-                    check.severity or "high", "response contains error marker"))
-            elseif status_unexpected(status, check.expect_status) then
-                fail(r, finding(check.label, check.method, fuzz_path, payload, status,
-                    check.severity or "medium", "unexpected status " .. status))
+            local status, body, _, err = send(cfg, method, fuzz_path,
+                fuzz_body ~= "" and fuzz_body or nil, fuzz_hdrs)
+            if err and string.find(err, "invalid characters", 1, true) then
+                -- The scanner's HTTP client refuses to build a request that
+                -- carries raw control characters (a literal CRLF in a header
+                -- value). The payload never reached the target, so nothing was
+                -- learned about it either way: it is skipped, not passed.
+                skip(r)
             else
-                pass(r)
+                r.requests = r.requests + 1
+                if err then
+                    unknown(r, method, fuzz_path, err)
+                elseif body_has_marker(body, check.error_markers) then
+                    fail(r, finding(cfg, check.label, method, fuzz_path, payload, status,
+                        check.severity or "high", "response contains error marker"))
+                elseif status_unexpected(status, check.expect_status) then
+                    fail(r, finding(cfg, check.label, method, fuzz_path, payload, status,
+                        check.severity or "medium", "unexpected status " .. status))
+                else
+                    pass(r)
+                end
             end
-            if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+            throttle(cfg)
         end
     end
     return r
@@ -296,26 +330,28 @@ local function run_auth(cfg)
     local checks = cfg.checks
     if not checks or #checks == 0 then checks = DEFAULT_AUTH_CHECKS end
     for _, check in ipairs(checks) do
-        local hdrs = check.headers or {}
-        local status, _, err = send(cfg.target, check.method or "GET", check.path or "/",
-            check.body, hdrs, cfg.timeout_ms)
+        local method, path = check.method or "GET", check.path or "/"
+        local status, _, _, err = send(cfg, method, path, check.body, check.headers or {})
+        r.requests = r.requests + 1
         if err then
-            fail(r, finding(check.label, check.method, check.path, "", 0,
-                check.severity or "high", "request failed: " .. err))
+            unknown(r, method, path, err)
         elseif not status_unexpected(status, {401, 403, 404}) then
             pass(r)
         else
-            fail(r, finding(check.label, check.method, check.path, "", status,
+            fail(r, finding(cfg, check.label, method, path, "", status,
                 check.severity or "high",
                 "endpoint accessible without valid auth (status " .. status .. ")"))
         end
-        if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+        throttle(cfg)
     end
     return r
 end
 
 -- ── flood mode ─────────────────────────────────────────────────────────────
 
+-- A flood is one check, judged on the whole run: with expect_throttle it must
+-- see a 429; without, the target must stay available. A target that answers
+-- almost nothing proves neither, so it is unknown.
 local function run_flood(cfg)
     local r = new_results()
     local path      = cfg.path     or "/"
@@ -323,31 +359,43 @@ local function run_flood(cfg)
     local rate      = cfg.rate     or 20
     local duration  = cfg.duration or 5
     local throttled = false
+    local errors, server_errors, first_error = 0, 0, nil
     local deadline  = ngx.now() + duration
 
     while ngx.now() < deadline do
-        local status, _, err = send(cfg.target, method, path, nil, {}, cfg.timeout_ms)
-        r.total = r.total + 1
+        local status, _, _, err = send(cfg, method, path, nil, {})
+        r.requests = r.requests + 1
         if err then
-            -- connection refused can mean the service gave up under load
+            errors = errors + 1
+            first_error = first_error or err
         elseif status == 429 then
             throttled = true
+        elseif status >= 500 then
+            server_errors = server_errors + 1
         end
         local interval = 1.0 / math.max(rate, 1)
         if interval > 0.001 then ngx.sleep(interval) end
     end
 
-    if cfg.expect_throttle then
+    if errors * 2 > r.requests then
+        unknown(r, method, path, string.format("%d of %d requests got no answer (%s)",
+            errors, r.requests, tostring(first_error)))
+    elseif cfg.expect_throttle then
         if throttled then
             pass(r)
         else
-            fail(r, finding("rate-limit", method, path, "", 0, cfg.severity or "medium",
-                "no 429 observed after " .. r.total .. " requests in " .. duration .. "s"))
+            fail(r, finding(cfg, "rate-limit", method, path, "", 0, cfg.severity or "medium",
+                "no 429 observed after " .. r.requests .. " requests in " .. duration .. "s"))
         end
     else
-        pass(r)
+        local bad = errors + server_errors
+        if r.requests > 0 and bad / r.requests > 0.01 then
+            fail(r, finding(cfg, "availability", method, path, "", 0, cfg.severity or "medium",
+                string.format("%d of %d requests failed under load", bad, r.requests)))
+        else
+            pass(r)
+        end
     end
-
     return r
 end
 
@@ -358,7 +406,7 @@ local SECURITY_HEADERS = {
      validate=function(v) return v ~= "" end,
      detail="HSTS not set; connections may be downgraded to HTTP"},
     {name="x-content-type-options", display="X-Content-Type-Options", severity="medium",
-     validate=function(v) return string.lower(string.gsub(v, "%s+", "")) == "nosniff" end,
+     validate=function(v) return string.lower((string.gsub(v, "%s+", ""))) == "nosniff" end,
      detail="must be 'nosniff' to prevent MIME-type sniffing attacks"},
     {name="x-frame-options", display="X-Frame-Options", severity="medium",
      validate=function(v) local l = string.lower(v); return l == "deny" or string.sub(l,1,10) == "sameorigin" end,
@@ -383,23 +431,25 @@ local function run_headers(cfg)
     if #paths == 0 then paths = DEFAULT_HEADER_PATHS end
 
     for _, path in ipairs(paths) do
-        local status, _, hdrs, err = send_full(cfg.target, "GET", path, nil, {}, cfg.timeout_ms)
+        local status, _, hdrs, err = send(cfg, "GET", path, nil, {})
+        r.requests = r.requests + 1
         if err then
-            fail(r, finding("headers-check", "GET", path, "", 0, "medium", "request failed: " .. err))
+            unknown(r, "GET", path, err)
         else
             for _, hdr in ipairs(SECURITY_HEADERS) do
                 local val = hdrs[hdr.name] or ""
+                if type(val) == "table" then val = table.concat(val, ", ") end
                 if val == "" then
-                    fail(r, finding(hdr.display, "GET", path, "", status, hdr.severity, hdr.detail))
+                    fail(r, finding(cfg, hdr.display, "GET", path, "", status, hdr.severity, hdr.detail))
                 elseif not hdr.validate(val) then
-                    fail(r, finding(hdr.display, "GET", path, "", status, hdr.severity,
+                    fail(r, finding(cfg, hdr.display, "GET", path, "", status, hdr.severity,
                         "weak value '" .. val .. "': " .. hdr.detail))
                 else
                     pass(r)
                 end
             end
         end
-        if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+        throttle(cfg)
     end
     return r
 end
@@ -416,31 +466,33 @@ local function run_verbs(cfg)
     if #paths == 0 then paths = DEFAULT_VERB_PATHS end
 
     for _, path in ipairs(paths) do
-        local base_status, _, _, _ = send_full(cfg.target, "GET", path, nil, {}, cfg.timeout_ms)
+        -- The plain GET only sets how serious a bypass is; it is not a check.
+        local base_status = send(cfg, "GET", path, nil, {})
 
         for _, verb in ipairs(DANGEROUS_VERBS) do
-            local status, _, _, err = send_full(cfg.target, verb, path, nil, {}, cfg.timeout_ms)
-            if not err and status then
-                if verb == "TRACE" or verb == "TRACK" then
-                    if status ~= 405 and status ~= 501 and status ~= 404 then
-                        fail(r, finding(verb .. "-enabled", verb, path, "", status, "medium",
-                            verb .. " method enabled; cross-site tracing is possible"))
-                    else
-                        pass(r)
-                    end
-                elseif status >= 200 and status < 300 then
-                    local sev = "high"
-                    if base_status and (base_status == 401 or base_status == 403) then
-                        sev = "critical"
-                    end
-                    fail(r, finding(verb .. "-bypass", verb, path, "", status, sev,
-                        verb .. " returns " .. status .. " on a protected resource"))
+            local status, _, _, err = send(cfg, verb, path, nil, {})
+            r.requests = r.requests + 1
+            if err then
+                unknown(r, verb, path, err)
+            elseif verb == "TRACE" or verb == "TRACK" then
+                if status ~= 405 and status ~= 501 and status ~= 404 then
+                    fail(r, finding(cfg, verb .. "-enabled", verb, path, "", status, "medium",
+                        verb .. " method enabled; cross-site tracing is possible"))
                 else
                     pass(r)
                 end
+            elseif status >= 200 and status < 300 then
+                local sev = "high"
+                if base_status and (base_status == 401 or base_status == 403) then
+                    sev = "critical"
+                end
+                fail(r, finding(cfg, verb .. "-bypass", verb, path, "", status, sev,
+                    verb .. " returns " .. status .. " on a protected resource"))
+            else
+                pass(r)
             end
         end
-        if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+        throttle(cfg)
     end
     return r
 end
@@ -451,6 +503,8 @@ local GRAPHQL_PATHS       = {"/graphql", "/api/graphql", "/query", "/api/query",
 local GRAPHQL_PROBE_BODY  = '{"query":"{ __schema { queryType { name } } }"}'
 local GRAPHQL_CONTENT_HDR = {["Content-Type"] = "application/json"}
 
+-- A path with no GraphQL endpoint (404, 405) is a pass: nothing is exposed
+-- there. Only a path that answers with the schema is a finding.
 local function run_graphql(cfg)
     local r = new_results()
     local paths = {}
@@ -458,17 +512,17 @@ local function run_graphql(cfg)
     if #paths == 0 then paths = GRAPHQL_PATHS end
 
     for _, path in ipairs(paths) do
-        local status, body, _, err = send_full(cfg.target, "POST", path, GRAPHQL_PROBE_BODY,
-            GRAPHQL_CONTENT_HDR, cfg.timeout_ms)
-        if not err and status and status ~= 404 and status ~= 405 then
-            if string.find(body, "__schema", 1, true) or string.find(body, "queryType", 1, true) then
-                fail(r, finding("graphql-introspection", "POST", path, "", status, "medium",
-                    "GraphQL introspection is enabled; schema is publicly accessible"))
-            elseif status >= 200 and status < 300 then
-                pass(r)
-            end
+        local status, body, _, err = send(cfg, "POST", path, GRAPHQL_PROBE_BODY, GRAPHQL_CONTENT_HDR)
+        r.requests = r.requests + 1
+        if err then
+            unknown(r, "POST", path, err)
+        elseif string.find(body, "__schema", 1, true) or string.find(body, "queryType", 1, true) then
+            fail(r, finding(cfg, "graphql-introspection", "POST", path, "", status, "medium",
+                "GraphQL introspection is enabled; schema is publicly accessible"))
+        else
+            pass(r)
         end
-        if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+        throttle(cfg)
     end
     return r
 end
@@ -486,25 +540,27 @@ local function run_cors(cfg)
 
     for _, path in ipairs(paths) do
         for _, origin in ipairs(CORS_TEST_ORIGINS) do
-            local status, _, hdrs, err = send_full(cfg.target, "GET", path, nil,
-                {["Origin"] = origin}, cfg.timeout_ms)
-            if not err and status then
+            local status, _, hdrs, err = send(cfg, "GET", path, nil, {["Origin"] = origin})
+            r.requests = r.requests + 1
+            if err then
+                unknown(r, "GET", path, err)
+            else
                 local allow = hdrs["access-control-allow-origin"] or ""
                 local creds = string.lower(hdrs["access-control-allow-credentials"] or "")
                 if allow == "*" and creds == "true" then
-                    fail(r, finding("cors-wildcard-credentials", "GET", path, origin, status, "critical",
+                    fail(r, finding(cfg, "cors-wildcard-credentials", "GET", path, origin, status, "critical",
                         "Access-Control-Allow-Origin: * with Allow-Credentials: true"))
                 elseif allow == origin and origin ~= "" then
-                    fail(r, finding("cors-reflect-origin", "GET", path, origin, status, "high",
+                    fail(r, finding(cfg, "cors-reflect-origin", "GET", path, origin, status, "high",
                         "server reflects arbitrary Origin '" .. origin .. "' verbatim"))
                 elseif allow == "*" then
-                    fail(r, finding("cors-wildcard", "GET", path, origin, status, "medium",
+                    fail(r, finding(cfg, "cors-wildcard", "GET", path, origin, status, "medium",
                         "Access-Control-Allow-Origin: * permits any cross-origin caller"))
                 else
                     pass(r)
                 end
             end
-            if cfg.rate_limit and cfg.rate_limit > 0 then ngx.sleep(1.0 / cfg.rate_limit) end
+            throttle(cfg)
         end
     end
     return r
@@ -512,11 +568,23 @@ end
 
 -- ── plugin entry point ─────────────────────────────────────────────────────
 
+local MODES = {
+    probe = run_probe, fuzz = run_fuzz, auth = run_auth, flood = run_flood,
+    headers = run_headers, verbs = run_verbs, graphql = run_graphql, cors = run_cors,
+}
+
 local _M = {}
-_M.version  = 0.1
+_M.version  = 0.2
 _M.priority = 11
 _M.name     = "babelsuite-attack-scanner"
 _M.schema   = {type = "object", properties = {}, additionalProperties = false}
+
+local function reply(status, body)
+    ngx.status = status
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(json.encode(body))
+    return ngx.exit(status)
+end
 
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/attack/start" then
@@ -529,39 +597,24 @@ function _M.access(conf, ctx)
     ngx.req.read_body()
     local ok, cfg = pcall(json.decode, ngx.req.get_body_data() or "{}")
     if not ok or type(cfg) ~= "table" then
-        ngx.status = 400
-        ngx.say(json.encode({error = "invalid JSON"}))
-        return ngx.exit(400)
+        return reply(400, {error = "invalid JSON"})
+    end
+    if type(cfg.target) ~= "string" or cfg.target == "" then
+        return reply(400, {error = "target is required"})
     end
 
-    _technique = cfg.technique or ""
-
-    local results
     local mode = cfg.mode or "probe"
-    if mode == "fuzz" then
-        results = run_fuzz(cfg)
-    elseif mode == "auth" then
-        results = run_auth(cfg)
-    elseif mode == "flood" then
-        results = run_flood(cfg)
-    elseif mode == "headers" then
-        results = run_headers(cfg)
-    elseif mode == "verbs" then
-        results = run_verbs(cfg)
-    elseif mode == "graphql" then
-        results = run_graphql(cfg)
-    elseif mode == "cors" then
-        results = run_cors(cfg)
-    else
-        results = run_probe(cfg)
+    local run = MODES[mode]
+    if not run then
+        return reply(400, {error = "unknown mode " .. tostring(mode) .. "; supported: probe, fuzz, auth, flood, headers, verbs, graphql, cors"})
+    end
+    if cfg.technique and cfg.technique ~= "" and not TECHNIQUES[cfg.technique] then
+        return reply(400, {error = "unknown technique " .. tostring(cfg.technique) .. "; supported: sqli, xss, traversal, header-injection"})
     end
 
+    local results = run(cfg)
     results.findings = as_array(results.findings)
-
-    ngx.status = 200
-    ngx.header["Content-Type"] = "application/json"
-    ngx.say(json.encode(results))
-    return ngx.exit(200)
+    return reply(200, results)
 end
 
 return _M
