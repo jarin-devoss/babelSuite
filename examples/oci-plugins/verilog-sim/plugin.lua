@@ -3,8 +3,19 @@ local http = require("resty.http")
 
 local function as_array(t) return #t == 0 and json.empty_array or t end
 
+-- A finding blocks the step when its severity is critical (high and error mean
+-- the same). warn and info are advisory. The verdict is computed here, once, so
+-- a severity setting decides whether a check gates, whatever the operation.
+local BLOCKING = {critical = true, high = true, error = true}
+local function verdict(findings)
+    for _, f in ipairs(findings) do
+        if BLOCKING[f.severity] then return false end
+    end
+    return true
+end
+
 local _M = {}
-_M.version  = 0.1
+_M.version  = 0.2
 _M.priority = 10
 _M.name     = "verilog-sim"
 _M.schema   = {type = "object", properties = {}, additionalProperties = false}
@@ -72,7 +83,7 @@ local function run_simulate(cfg, sim_url)
     local sim_errors = tonumber(data.sim_errors) or 0
     local summary = string.format("simulate: module=%s compile_ok=%s sim_errors=%d",
         cfg.top_module or "?", tostring(compile_ok), sim_errors)
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             compile_ok = compile_ok, sim_errors = sim_errors,
             stdout = data.stdout or "", summary = summary, level = ok and "info" or "warn"}, nil
@@ -134,11 +145,7 @@ local function run_lint(cfg, sim_url)
     end
 
     local compile_ok = #(data.compile_errors or {}) == 0
-    local blocking = 0
-    for _, f in ipairs(findings) do
-        if f.severity ~= "warn" then blocking = blocking + 1 end
-    end
-    local ok = blocking == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             compile_ok = compile_ok,
             summary = string.format("lint: module=%s compile_ok=%s warnings=%d",
@@ -186,12 +193,26 @@ local function run_check_coverage(cfg, sim_url)
         })
     end
 
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             toggle_coverage_pct = coverage,
             summary = string.format("check_coverage: module=%s coverage=%.1f%% min=%.1f%%",
                 cfg.top_module or "?", coverage or 0, min_cov),
             level = ok and "info" or "warn"}, nil
+end
+
+local OPS = {
+    simulate       = run_simulate,
+    strict         = run_strict,
+    lint           = run_lint,
+    check_coverage = run_check_coverage,
+}
+
+local function reply(status, body)
+    ngx.status = status
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(json.encode(body))
+    return ngx.exit(status)
 end
 
 function _M.access(conf, ctx)
@@ -206,27 +227,18 @@ function _M.access(conf, ctx)
     local cfg     = payload.config or {}
     local sim_url = (cfg.sim_url or ""):gsub("/$", "")
 
+    local handler = OPS[op]
+    if not handler then
+        return reply(400, {error = "unknown op " .. tostring(op) .. "; supported: simulate, strict, lint, check_coverage"})
+    end
+
     if sim_url == "" or (cfg.top_module or "") == "" then
         ngx.status = 400; ngx.say(json.encode({error = "sim_url and top_module are required"})); return ngx.exit(400)
     end
 
-    local result, err
-    if op == "strict" then
-        result, err = run_strict(cfg, sim_url)
-    elseif op == "lint" then
-        result, err = run_lint(cfg, sim_url)
-    elseif op == "check_coverage" then
-        result, err = run_check_coverage(cfg, sim_url)
-    else
-        result, err = run_simulate(cfg, sim_url)
-    end
-
-    if err then ngx.status = 500; ngx.say(json.encode({error = err})); return ngx.exit(500) end
-
-    ngx.status = 200
-    ngx.header["Content-Type"] = "application/json"
-    ngx.say(json.encode(result))
-    return ngx.exit(200)
+    local result, err = handler(cfg, sim_url)
+    if err then return reply(500, {error = err}) end
+    return reply(200, result)
 end
 
 return _M

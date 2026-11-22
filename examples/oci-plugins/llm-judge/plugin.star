@@ -4,7 +4,7 @@ _ref = plugin("llm-judge")
 
 def judge(name, criteria, model_url, output = "", target = "", model = "gpt-4o-mini",
           api_key = "", threshold = 1.0, timeout_ms = 30000, severity = "critical",
-          structured = True, after = []):
+          structured = True, after = [], **kw):
     return _ref.judge(
         name       = name,
         after      = after,
@@ -18,11 +18,12 @@ def judge(name, criteria, model_url, output = "", target = "", model = "gpt-4o-m
         timeout_ms = timeout_ms,
         severity   = severity,
         structured = structured,
+        **kw,
     )
 
 def monitor(name, criteria, model_url, output = "", target = "", model = "gpt-4o-mini",
             api_key = "", threshold = 1.0, timeout_ms = 30000,
-            structured = True, after = []):
+            structured = True, after = [], **kw):
     return _ref.monitor(
         name       = name,
         after      = after,
@@ -35,11 +36,12 @@ def monitor(name, criteria, model_url, output = "", target = "", model = "gpt-4o
         threshold  = threshold,
         timeout_ms = timeout_ms,
         structured = structured,
+        **kw,
     )
 
 def consistency(name, criteria, model_url, output = "", target = "", model = "gpt-4o-mini",
                 api_key = "", rounds = 3, max_spread = 0.0, timeout_ms = 30000,
-                severity = "critical", structured = True, after = []):
+                severity = "critical", structured = True, after = [], **kw):
     return _ref.consistency(
         name       = name,
         after      = after,
@@ -54,11 +56,12 @@ def consistency(name, criteria, model_url, output = "", target = "", model = "gp
         timeout_ms = timeout_ms,
         severity   = severity,
         structured = structured,
+        **kw,
     )
 
 def compare(name, criteria, model_url, output_a, output_b, prefer = "a",
             model = "gpt-4o-mini", api_key = "", timeout_ms = 30000,
-            severity = "critical", structured = True, after = []):
+            severity = "critical", structured = True, after = [], **kw):
     return _ref.compare(
         name       = name,
         after      = after,
@@ -72,4 +75,5 @@ def compare(name, criteria, model_url, output_a, output_b, prefer = "a",
         timeout_ms = timeout_ms,
         severity   = severity,
         structured = structured,
+        **kw,
     )

@@ -1,5 +1,6 @@
 // Dead letter queue inspector plugin config schema.
-// Validates configuration passed to plugin.run(plugin="babelsuite-dlq-inspector", config={...}).
+// Validates the config of a step that calls one of this plugin's operations,
+// as loaded with load("@plugins/dlq-inspector", ...). The runner checks it before dispatch.
 
 kafka_rest_url: string
 topic?:         string          // inspect, watch_dlq, check_growth

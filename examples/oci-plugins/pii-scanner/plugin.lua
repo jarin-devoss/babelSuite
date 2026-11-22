@@ -5,8 +5,19 @@ local http = require("resty.http")
 -- nothing — the passing case — would otherwise emit a findings object.
 local function as_array(t) return #t == 0 and json.empty_array or t end
 
+-- A finding blocks the step when its severity is critical (high and error mean
+-- the same). warn and info are advisory. The verdict is computed here, once, so
+-- a severity setting decides whether a check gates, whatever the operation.
+local BLOCKING = {critical = true, high = true, error = true}
+local function verdict(findings)
+    for _, f in ipairs(findings) do
+        if BLOCKING[f.severity] then return false end
+    end
+    return true
+end
+
 local _M = {}
-_M.version  = 0.1
+_M.version  = 0.2
 _M.priority = 10
 _M.name     = "pii-scanner"
 _M.schema   = {type = "object", properties = {}, additionalProperties = false}
@@ -54,7 +65,7 @@ local function run_scan(cfg)
             detail   = "PII pattern '" .. name .. "' found in response body",
         })
     end
-    return {passed = #findings == 0, findings = as_array(findings)}, nil
+    return {passed = verdict(findings), findings = as_array(findings)}, nil
 end
 
 local function run_probe(cfg)
@@ -70,7 +81,7 @@ local function run_probe(cfg)
             detail   = "PII pattern '" .. name .. "' found in response body",
         })
     end
-    return {passed = #findings == 0, findings = as_array(findings)}, nil
+    return {passed = verdict(findings), findings = as_array(findings)}, nil
 end
 
 -- scan_headers: PII leaks through headers as often as bodies — an email in a
@@ -96,7 +107,7 @@ local function run_scan_headers(cfg)
             })
         end
     end
-    return {passed = #findings == 0, findings = as_array(findings), headers_scanned = scanned}, nil
+    return {passed = verdict(findings), findings = as_array(findings), headers_scanned = scanned}, nil
 end
 
 -- scan_many: one step over a list of endpoints, so a suite can sweep every
@@ -109,7 +120,7 @@ local function run_scan_many(cfg)
         if err then
             table.insert(findings, {
                 label    = "pii.unreachable",
-                severity = "warn",
+                severity = "critical",
                 detail   = target .. " — " .. err,
             })
         else
@@ -126,8 +137,22 @@ local function run_scan_many(cfg)
     for _, f in ipairs(findings) do
         if f.label ~= "pii.unreachable" then leaks = leaks + 1 end
     end
-    return {passed = leaks == 0, findings = as_array(findings),
+    return {passed = verdict(findings), findings = as_array(findings),
             summary = string.format("scan_many: %d targets, %d leaks", #(cfg.targets or {}), leaks)}, nil
+end
+
+local OPS = {
+    scan         = run_scan,
+    probe        = run_probe,
+    scan_headers = run_scan_headers,
+    scan_many    = run_scan_many,
+}
+
+local function reply(status, body)
+    ngx.status = status
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(json.encode(body))
+    return ngx.exit(status)
 end
 
 function _M.access(conf, ctx)
@@ -141,6 +166,11 @@ function _M.access(conf, ctx)
     local op  = payload.op or "scan"
     local cfg = payload.config or {}
 
+    local handler = OPS[op]
+    if not handler then
+        return reply(400, {error = "unknown op " .. tostring(op) .. "; supported: scan, probe, scan_headers, scan_many"})
+    end
+
     if op == "scan_many" then
         if type(cfg.targets) ~= "table" or #cfg.targets == 0 then
             ngx.status = 400; ngx.say(json.encode({error = "targets must be a non-empty list"})); return ngx.exit(400)
@@ -149,23 +179,9 @@ function _M.access(conf, ctx)
         ngx.status = 400; ngx.say(json.encode({error = "target is required"})); return ngx.exit(400)
     end
 
-    local result, err
-    if op == "probe" then
-        result, err = run_probe(cfg)
-    elseif op == "scan_headers" then
-        result, err = run_scan_headers(cfg)
-    elseif op == "scan_many" then
-        result, err = run_scan_many(cfg)
-    else
-        result, err = run_scan(cfg)
-    end
-
-    if err then ngx.status = 500; ngx.say(json.encode({error = err})); return ngx.exit(500) end
-
-    ngx.status = 200
-    ngx.header["Content-Type"] = "application/json"
-    ngx.say(json.encode(result))
-    return ngx.exit(200)
+    local result, err = handler(cfg)
+    if err then return reply(500, {error = err}) end
+    return reply(200, result)
 end
 
 return _M

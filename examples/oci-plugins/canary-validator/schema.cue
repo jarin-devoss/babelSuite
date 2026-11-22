@@ -1,5 +1,6 @@
 // Canary traffic split validator plugin config schema.
-// Validates configuration passed to plugin.run(plugin="babelsuite-canary-validator", config={...}).
+// Validates the config of a step that calls one of this plugin's operations,
+// as loaded with load("@plugins/canary-validator", ...). The runner checks it before dispatch.
 
 target:          string
 canary_header:   string | *"X-Canary"

@@ -111,7 +111,7 @@ damper_watch = monitor(
 )
 ```
 
-Plugin nodes accept `after=`, `continue_on_failure=`, and `on_failure=` just like any other topology node.
+Plugin nodes accept `after=`, `on_failure=`, `continue_on_failure=`, `expect_logs=` and `fail_on_logs=` just like any other topology node. The engine applies them; the plugin never sees them. See [step options belong to the engine](#step-options-belong-to-the-engine).
 
 ## What User Plugins Should NOT Duplicate
 
@@ -146,7 +146,7 @@ POSTs a SPICE netlist to a simulation backend and checks the resulting waveform 
 | `dc_sweep` | Runs a DC operating-point sweep. Checks peak and minimum voltage at the probe node. |
 | `ac_analysis` | Runs a small-signal AC analysis. Checks the gain in dB at the probe node against a minimum threshold. |
 
-Required config: `sim_url`, `netlist`. Optional: `probe_node`, `max_voltage`, `min_voltage`, `max_rise_ms`, `min_gain_db`, `severity`.
+Required config: `sim_url`, `netlist`. Optional: `probe_node`, `max_voltage`, `min_voltage`, `max_rise_ms`, `min_gain_db`, `timeout_ms` (how long to wait for the simulation service, default `60000`), `severity`.
 
 ---
 
@@ -159,7 +159,7 @@ Sends Verilog source and a testbench to an Icarus-compatible simulation backend 
 | `simulate` | Runs the testbench. Fails if compile errors exceed zero or simulation errors exceed `max_errors`. X-state assertion is configurable via `assert_no_x`. |
 | `strict` | Same as `simulate` but zero-tolerance: any X-state signal, any compile error, any simulation error fails the step immediately. |
 | `lint` | Compiles the design without running a testbench — a fast gate for syntax and elaboration errors before the slower `simulate`. Needs no testbench. `fail_on_warnings` promotes compiler warnings to failures. |
-| `check_coverage` | Runs the testbench and fails if the simulator's reported toggle coverage falls below `min_coverage_pct` — catches modules that pass every assertion while leaving branches unexercised. |
+| `check_coverage` | Runs the testbench and fails if the simulator's reported toggle coverage falls below `min_coverage_pct` — catches modules that pass every assertion while leaving branches unexercised. A simulator that reports no coverage at all is a `warn` finding and does not fail the step. |
 
 Required config: `sim_url`, `top_module`. Optional: `verilog`, `testbench` (required except for `lint`), `timeout_ns`, `max_errors`, `assert_no_x`, `fail_on_warnings` (`lint`), `min_coverage_pct` (`check_coverage`, default `80`), `severity`.
 
@@ -172,7 +172,7 @@ Sends a transfer function (numerator/denominator polynomial coefficients) to a s
 | Operation | What it does |
 |-----------|--------------|
 | `step_response` | Runs a step response simulation. Checks stability (poles in right-half plane), settling time, overshoot percentage, and DC gain. Fails the step on violation. |
-| `monitor` | Same checks, but always emits `warn`-level findings — never blocks the suite. Use this for passive observability of control system health. |
+| `monitor` | Same checks, but always emits `warn`-level findings, so it passes on violations. It still fails when the simulation service cannot be reached. Use this for passive observability of control system health. |
 | `impulse_response` | Runs an impulse response. Checks stability and settling, plus that the response has decayed back to near zero by `time_end` (`max_residual`) — a marginal system the step test's final-value check can miss. |
 | `frequency_response` | Runs a Bode analysis and checks the stability margins: gain margin against `min_gain_margin_db` and phase margin against `min_phase_margin_deg`. These report the headroom a time-domain step never shows. |
 
@@ -191,7 +191,9 @@ Application-level JWT security checks. The built-in `security.*` modes check HTT
 | `check_claims` | Fetches a token and checks its claims against expected values: the `expected_issuer` it must carry, the `expected_audience` it must include, and any `forbidden_scopes` it must not grant. A structurally valid token can still name the wrong issuer or carry an over-broad scope. |
 | `audit_endpoints` | Runs the `audit_endpoint` checks over a list of `endpoints`, so one step covers every protected route. Each endpoint's findings are prefixed with its URL. |
 
-Required config: `auth_url`, `username`, `password`. Optional: `token_field` (default `token`), `endpoint` (required for `audit_endpoint`), `endpoints` (required for `audit_endpoints`), `expected_issuer` / `expected_audience` / `forbidden_scopes` (`check_claims`), `max_lifetime_hours` (default `24`), `required_claims`, `severity`.
+A probe that gets no answer (a connection the endpoint drops, a timeout) is a `jwt.endpoint.probe_failed` finding of its own, because only a probe that answered can show the endpoint is right or wrong.
+
+Required config: `auth_url`, `username`, `password`. Optional: `token_field` (default `token`), `endpoint` (required for `audit_endpoint`), `endpoints` (required for `audit_endpoints`), `expected_issuer` / `expected_audience` / `forbidden_scopes` (`check_claims`), `max_lifetime_hours` (default `24`), `required_claims`, `severity` (`warn` or `critical`, default `critical`; it decides whether the configurable findings, such as a symmetric algorithm or a missing claim, block).
 
 ---
 
@@ -204,9 +206,11 @@ Sends N requests to a target URL and counts how many responses carry a canary he
 | Operation | What it does |
 |-----------|--------------|
 | `validate` | Checks the observed canary ratio against `expected_ratio ± tolerance`. Fails if out of range. |
-| `watch_ratio` | Same check but with a wider default tolerance and `warn`-level findings — passive monitoring mode. |
+| `watch_ratio` | Same check but with a wider default tolerance and `warn`-level findings, so it passes on a mismatch — passive monitoring mode. |
 | `sticky` | Sends every request with the same `session_value` on `session_header` and fails if they do not all land on one side. A session that reaches both the canary and stable versions means a user would bounce between them mid-session. |
-| `compare_errors` | Splits the sample by which side answered and compares the 5xx rate of each. Fails if the canary's error rate exceeds stable's by more than `max_error_delta`, or if no canary traffic was seen at all. |
+| `compare_errors` | Splits the sample by which side answered and compares the 5xx rate of each. Fails if the canary's error rate exceeds stable's by more than `max_error_delta`, if no canary traffic was seen at all, or if more than `max_error_delta` of the requests got no answer. |
+
+A request that got no answer (a reset connection, a timeout) is neither canary nor stable. It is counted on its own and left out of the ratio, never read as a stable response, and a target that answers none of the requests fails the step as unreachable.
 
 Required config: `target`. Optional: `canary_header` (default `X-Canary`), `expected_ratio` (default `0.1`), `tolerance` (default `0.05`), `sample_size` (default `100`), `session_header` / `session_value` (`sticky`), `max_error_delta` (`compare_errors`, default `0.01`), `severity`.
 
@@ -214,10 +218,21 @@ Required config: `target`. Optional: `canary_header` (default `X-Canary`), `expe
 
 ### `consumer-lag` — Kafka Consumer Group Lag
 
-Queries a Kafka REST Proxy for a consumer group's partition offsets and checks whether any partition's lag exceeds a threshold. Useful after a load test or data ingestion task to confirm the consumer has fully caught up.
+Reads a consumer group's lag from the **Confluent REST Proxy's v3 API** (`/v3/clusters/{cluster}/consumer-groups/{group}/lags`) and checks whether any partition's lag exceeds a threshold. Useful after a load test or data ingestion task to confirm the consumer has fully caught up.
+
+!!! warning "The REST proxy must serve consumer-group lag"
+    Redpanda's HTTP Proxy does not, and neither does a Confluent proxy without the v3 API. Against one, the step **fails** and says so (`this REST proxy does not serve consumer-group lag`). It never reads a missing answer as "no lag". A group the cluster has never heard of, or one with no committed offsets, fails too: it has not started consuming, so it is not caught up. The plugin never joins the group to read its offsets, because that would rebalance the consumers it is meant to observe.
 
 | Operation | What it does |
 |-----------|--------------|
+| `check_lag` | Checks every partition in the group. Fails with `critical` if any partition lag exceeds `max_lag`. |
+| `watch_lag` | Same check but always `warn`-level, so it passes on lag — use for continuous observability. |
+| `wait_caught_up` | Polls until the group's total lag drops to `max_lag` or `timeout_s` passes. A load test ends long before its consumers drain, so a single `check_lag` right after it reports lag that would have cleared. |
+| `check_trend` | Samples the total lag twice, `interval_s` apart, and fails if it grew by more than `max_growth`. A high but shrinking lag is a consumer catching up; a growing one cannot keep pace with its producers. |
+
+Required config: `kafka_rest_url`, `group`. Optional: `max_lag` (default `1000`), `cluster_id` (read from `/v3/clusters` when omitted), `timeout_s` / `interval_s` (`wait_caught_up`, defaults `60` / `2`), `interval_s` / `max_growth` (`check_trend`, defaults `10` / `0`), `severity`.
+
+-----------|--------------|
 | `check_lag` | Checks every partition in the group. Fails with `critical` if any partition lag exceeds `max_lag`. |
 | `watch_lag` | Same check but always `warn`-level — use for continuous observability. |
 | `wait_caught_up` | Polls until the group's total lag drops to `max_lag` or `timeout_s` passes. A load test ends long before its consumers drain, so a single `check_lag` right after it reports lag that would have cleared. |
@@ -229,10 +244,21 @@ Required config: `kafka_rest_url`, `group`. Optional: `max_lag` (default `1000`)
 
 ### `dlq-inspector` — Dead Letter Queue Inspector
 
-Checks the latest offset of a Kafka DLQ topic via the REST Proxy. A non-zero (or above-threshold) offset means messages were dead-lettered during the test run.
+Counts the messages waiting in a Kafka DLQ topic through the **Confluent REST Proxy's v2 API**: for every partition (`/topics/{topic}/partitions`), the end offset minus the beginning offset (`/topics/{topic}/partitions/{partition}/offsets`), summed. A count above the threshold means messages were dead-lettered during the test run.
+
+!!! warning "The REST proxy must serve partition offsets"
+    Redpanda's HTTP Proxy does not. Against it, the step **fails** and says so (`this REST proxy does not serve partition offsets`), rather than reporting an empty queue. A topic that does not exist fails too, naming the topic.
 
 | Operation | What it does |
 |-----------|--------------|
+| `inspect` | Fails the step if the DLQ topic has more messages than `max_messages`. |
+| `watch_dlq` | Same check but always `warn`-level — it reports and never blocks. |
+| `check_growth` | Samples the DLQ's message count twice, `interval_s` apart, and fails if it grew by more than `max_growth`. The absolute count includes everything dead-lettered before the run; growth isolates what is being dead-lettered right now. |
+| `inspect_topics` | Runs `inspect` over a list of `topics` in one step, each over-limit topic its own finding — no need for an `inspect` step per DLQ. |
+
+Required config: `kafka_rest_url`, `topic` (or `topics` for `inspect_topics`). Optional: `max_messages` (default `0`), `interval_s` / `max_growth` (`check_growth`, defaults `10` / `0`), `severity`.
+
+-----------|--------------|
 | `inspect` | Fails the step if the DLQ topic has more messages than `max_messages`. |
 | `watch_dlq` | Same check but always `warn`-level — never blocks the suite. |
 | `check_growth` | Samples the DLQ's message count twice, `interval_s` apart, and fails if it grew by more than `max_growth`. The absolute count includes everything dead-lettered before the run; growth isolates what is being dead-lettered right now. |
@@ -251,9 +277,9 @@ Fetches a URL and scans the response body for PII patterns using regex. Ships wi
 | Operation | What it does |
 |-----------|--------------|
 | `scan` | Fetches `target` and fails if any PII pattern matches. Use this as a hard gate in your pipeline. |
-| `probe` | Same scan but always `warn`-level — passive auditing mode. |
+| `probe` | Same scan but always `warn`-level, so it passes on a match — passive auditing mode. |
 | `scan_headers` | Scans the response *headers* rather than the body — an email in a `Set-Cookie`, a card number echoed in a debug header, a token in `Location`. Each header is named in its finding. |
-| `scan_many` | Scans a list of `targets` in one step, so a suite can sweep every read path of an API. An unreachable target is a `warn`-level finding, not a hard failure. |
+| `scan_many` | Scans a list of `targets` in one step, so a suite can sweep every read path of an API. A target that could not be scanned is a `critical` `pii.unreachable` finding: a path nobody scanned is not a path without leaks. |
 
 Required config: `target` (or `targets` for `scan_many`). Optional: `patterns` (list of extra regex strings), `severity`.
 
@@ -265,12 +291,14 @@ Posts a new schema to a Confluent-compatible Schema Registry compatibility endpo
 
 | Operation | What it does |
 |-----------|--------------|
-| `check_compat` | Checks compatibility using the mode in `mode` (`BACKWARD`, `FORWARD`, `FULL`, etc.). |
+| `check_compat` | Checks compatibility under the mode in `mode` (`BACKWARD`, `FORWARD`, `FULL`, the `_TRANSITIVE` variants, or `NONE`). |
 | `enforce` | Always checks `FULL` compatibility (both backward and forward). Use this as a hard gate before publishing a new schema version. |
 | `check_registered` | Asks the registry whether `new_schema` is already a registered version of the subject. Run it after the step that publishes a schema, to prove the schema the service will look up by id is really there; reports the version and id. |
 | `check_mode` | Reads the compatibility level the registry actually enforces for the subject (falling back to the global level) and fails if it is not `mode`. A subject quietly set to `NONE` accepts any change, which makes every `check_compat` against it meaningless. Needs no `new_schema`. |
 
-Required config: `registry_url`, `subject`, `new_schema` (not needed for `check_mode`). Optional: `mode` (default `BACKWARD`), `severity`.
+The registry picks the mode from its own configuration for the subject; a request header does not change it. To test a schema under a mode the subject is not set to, the plugin copies the subject's latest version (every version for a `_TRANSITIVE` mode) to a **scratch subject** named `__babelsuite_…`, sets the mode on that subject, asks the registry there, and deletes the scratch subject again, soft and permanently, whatever happened. That needs a registry that allows per-subject compatibility (`PUT /config/{subject}`) and write access. A leftover subject is reported as a `warn` finding naming it. When the subject already enforces the requested mode, the plugin asks directly and writes nothing. A reply with no boolean `is_compatible` fails the step.
+
+Required config: `registry_url`, `subject`, `new_schema` (not needed for `check_mode`). Optional: `mode` (default `BACKWARD`), `schema_type` (`AVRO`, `JSON` or `PROTOBUF`, default `AVRO`), `severity`.
 
 ---
 
@@ -282,12 +310,12 @@ Fetches the same endpoint from two targets — a primary and a shadow — and co
 
 | Operation | What it does |
 |-----------|--------------|
-| `diff` | Fails the step if the number of field-level differences exceeds `threshold`. Useful as a hard gate during migration. |
-| `check` | Same diff but always `warn`-level — passive shadow monitoring. |
+| `diff` | Fails the step if the number of blocking differences exceeds `threshold`. It diffs the union of both sides' fields, so a field only the shadow has is a difference, and an array longer on one side is a difference at the array. Bodies that are not JSON on at least one side are compared as they are, with one `shadow.body_mismatch` finding naming the first differing byte. Useful as a hard gate during migration. |
+| `check` | Same diff but always `warn`-level, so it passes on differences — passive shadow monitoring. |
 | `compare_paths` | Treats `primary` and `shadow` as base URLs and diffs every path in `paths` on both, each differing path named in its findings. A migration is rarely one endpoint. |
 | `compare_latency` | Sends `samples` requests to each side and fails if the shadow's median latency is more than `max_ratio` times the primary's. A shadow that returns identical payloads twice as slowly is not ready for traffic. |
 
-Required config: `primary`, `shadow` (base URLs for `compare_paths`). Optional: `ignore_fields` (list of field paths to skip), `threshold` (default `0`), `paths` (`compare_paths`), `samples` / `max_ratio` (`compare_latency`, defaults `10` / `1.5`), `severity`.
+Required config: `primary`, `shadow` (base URLs for `compare_paths`). Optional: `ignore_fields` (list of field paths to skip), `threshold` (how many blocking differences may remain and still pass, default `0`), `paths` (`compare_paths`), `samples` / `max_ratio` (`compare_latency`, defaults `10` / `1.5`), `severity` (default `critical`; `warn` reports differences without blocking).
 
 ---
 
@@ -305,7 +333,7 @@ Grade either text supplied inline with `output`, or the body of a URL named by
 | Operation | What it does |
 |-----------|--------------|
 | `judge` | Fails the step when the score falls below `threshold`. Use as a gate. |
-| `monitor` | Reports the same verdicts at `warn` level without failing the suite. |
+| `monitor` | Reports the same verdicts at `warn` level, so it never fails on a verdict. |
 | `consistency` | Grades the same text `rounds` times and fails if the score varies by more than `max_spread`. A judge whose verdict flips between runs cannot gate a pipeline; this measures that instability directly. |
 | `compare` | Grades two candidate texts (`output_a`, `output_b`) against the same criteria and fails when the `prefer`red side (default `a`, the baseline) does not score highest — so a regression in a new prompt or model shows up as a step failure. |
 
@@ -339,7 +367,7 @@ to block the suite.
 | `variants` | List of variant names the plugin registers as APISIX Lua extensions |
 | `operations` | Optional list of allowed operation names — the suite call must match one |
 | `lua` | Full Lua source. Written to a file and bind-mounted into the sidecar's plugin directory, where APISIX loads it by name as a native plugin |
-| `schema` | Optional CUE schema; step config is validated against it before dispatch |
+| `schema` | Optional CUE schema. The step's config is validated against it before dispatch: required settings must be present, values must fit their types and bounds, and an unset setting (`None`, or the empty string a wrapper passes for an option nobody gave) takes the schema's default. A setting the schema does not mention is allowed, because the config also carries the profile's environment. A profile value that is text (`max_lag: "500"`) is read as the number it spells |
 | `star` | Starlark wrapper source — defines the typed functions suite authors call via `load("@plugins/<name>", ...)`. See [Plugin Starlark Wrapper](#plugin-starlark-wrapper-pluginstar). |
 | `deprecated` | When `true`, the plugin is flagged in health checks but still dispatched |
 
@@ -349,12 +377,31 @@ The Lua plugin's HTTP handler must return a JSON body. BabelSuite reads these fi
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `passed` | bool | Whether the step should be considered successful |
+| `passed` | bool | **Required.** Whether the step should be considered successful. It alone decides the step |
 | `findings` | array | List of finding objects, each with `label`, `severity` and `detail` |
 | `summary` | string | One-line summary emitted as a log line at the level set by `level` |
 | `level` | string | Log level for the summary: `info`, `debug`, `warn`, or `error`. Defaults to `info` if omitted. |
 | `stderr` | string | Optional raw stderr from the plugin process, shown in the execution log |
 | `attributes` | object | Optional string map recorded on the step's OpenTelemetry span, prefixed `runner.plugin.` |
+
+### The reply decides the step, and a check that cannot run fails
+
+- A reply is **HTTP 200 with a JSON object holding a boolean `passed`**. A reply without one fails the step: `plugin X: the reply has no boolean "passed" field`. A `passed` that is not a boolean (`"true"`) fails too.
+- A plugin that **cannot run its check** replies with a status other than 200 and `{"error": "..."}`: the target is unreachable, an endpoint it needs is not served, the response has an unexpected shape, the operation is unknown. The step fails and shows the plugin's message with the status. Never reply `passed: true` with no findings for a check that did not happen.
+- Before dispatch, the step's config is checked against the plugin's [`schema`](#plugin-fields). An invalid config fails the step without a request to the plugin: `plugin consumer-lag config: max_lag: invalid value -1 (out of bound >=0)`.
+
+### Severity, and which findings block
+
+A finding's `severity` is `info`, `warn` or `critical`. For a check, `passed` is `false` when a `critical` finding exists. `warn` and `info` are advisory: they show in the log and never block. The shipped checks follow this rule, so:
+
+- `severity="warn"` on any check reports its findings without blocking the step;
+- the monitoring operations (`watch_ratio`, `watch_lag`, `watch_dlq`, control-sim `monitor`, pii `probe`, shadow-diff `check`, the judge `monitor`) force `warn`, so they pass on findings and still fail when they cannot run.
+
+The runner accepts `high` and `error` as aliases of `critical` for plugins written before the vocabulary settled. It shows any other severity as a warning and says so once. The runner never second-guesses `passed`: a plugin that grades cases against a threshold (`llm-judge`) passes while a case that missed is reported as a `critical` finding, because the verdict is the score and each finding is one case.
+
+### Step options belong to the engine
+
+A plugin call takes `after`, `on_failure`, `continue_on_failure`, `expect_logs` and `fail_on_logs`. The engine reads these and applies them as it does on every node, and **never sends them to the plugin**. `expect_exit` is refused, because a plugin step has no exit code. An operation's name has no effect on whether a failure stops the run: write `continue_on_failure=True` to let a step fail without stopping it.
 
 ### Reporting to the trace
 
@@ -550,20 +597,22 @@ The `plugin.yaml` field `star: plugin.star` tells BabelSuite where the Starlark 
 1. Load `plugin` from `@babelsuite/runtime` and bind it to your plugin name.
 2. Define one function per operation. Parameter names must match the config keys your Lua handler reads from `payload.config`.
 3. Always forward `name=` and `after=` — these are topology fields, not config fields.
-4. Set sensible defaults so callers only have to specify what they care about.
+4. Take `**kw` and forward it, so `continue_on_failure=`, `on_failure=`, `expect_logs=` and `fail_on_logs=` reach the engine. Without it a wrapper refuses them as unexpected arguments.
+5. Set sensible defaults so callers only have to specify what they care about. A default must satisfy the plugin's schema.
 
 ```python
 load("@babelsuite/runtime", "plugin")
 
 _ref = plugin("my-checker")
 
-def check(name, target, threshold = 100, severity = "critical", after = []):
+def check(name, target, threshold = 100, severity = "critical", after = [], **kw):
     return _ref.check(
         name      = name,
         after     = after,
         target    = target,
         threshold = threshold,
         severity  = severity,
+        **kw,
     )
 ```
 

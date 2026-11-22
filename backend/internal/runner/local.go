@@ -217,7 +217,7 @@ func runInProcessStep(ctx context.Context, step StepSpec, emitLine func(logstrea
 				emitLine(line(step, "error", fmt.Sprintf("[%s] Plugin execution failed: %v", step.Node.Name, err)))
 				return true, err
 			}
-			return true, nil
+			return true, evaluateStepExpectations(step, 0, snapshotLogs(), emitLine)
 		}
 		// canUsePlugin also answers "no plugin" when the step has no plugin call
 		// or no sidecar to reach; say which, rather than dereferencing a nil

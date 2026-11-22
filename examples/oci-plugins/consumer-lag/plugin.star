@@ -2,7 +2,7 @@ load("@babelsuite/runtime", "plugin")
 
 _ref = plugin("consumer-lag")
 
-def check_lag(name, group, max_lag = 1000, kafka_rest_url = "", severity = "critical", after = []):
+def check_lag(name, group, max_lag = 1000, kafka_rest_url = "", severity = "critical", after = [], **kw):
     return _ref.check_lag(
         name          = name,
         after         = after,
@@ -10,19 +10,21 @@ def check_lag(name, group, max_lag = 1000, kafka_rest_url = "", severity = "crit
         max_lag       = max_lag,
         kafka_rest_url = kafka_rest_url,
         severity      = severity,
+        **kw,
     )
 
-def watch_lag(name, group, max_lag = 1000, kafka_rest_url = "", after = []):
+def watch_lag(name, group, max_lag = 1000, kafka_rest_url = "", after = [], **kw):
     return _ref.watch_lag(
         name           = name,
         after          = after,
         group          = group,
         max_lag        = max_lag,
         kafka_rest_url = kafka_rest_url,
+        **kw,
     )
 
 def wait_caught_up(name, group, max_lag = 0, timeout_s = 60, interval_s = 2,
-                   kafka_rest_url = "", severity = "critical", after = []):
+                   kafka_rest_url = "", severity = "critical", after = [], **kw):
     return _ref.wait_caught_up(
         name           = name,
         after          = after,
@@ -32,10 +34,11 @@ def wait_caught_up(name, group, max_lag = 0, timeout_s = 60, interval_s = 2,
         interval_s     = interval_s,
         kafka_rest_url = kafka_rest_url,
         severity       = severity,
+        **kw,
     )
 
 def check_trend(name, group, interval_s = 10, max_growth = 0,
-                kafka_rest_url = "", severity = "critical", after = []):
+                kafka_rest_url = "", severity = "critical", after = [], **kw):
     return _ref.check_trend(
         name           = name,
         after          = after,
@@ -44,4 +47,5 @@ def check_trend(name, group, interval_s = 10, max_growth = 0,
         max_growth     = max_growth,
         kafka_rest_url = kafka_rest_url,
         severity       = severity,
+        **kw,
     )

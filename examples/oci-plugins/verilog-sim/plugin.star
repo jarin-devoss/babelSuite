@@ -3,7 +3,7 @@ load("@babelsuite/runtime", "plugin")
 _ref = plugin("verilog-sim")
 
 def simulate(name, top_module, verilog, testbench, timeout_ns = 200,
-             max_errors = 0, assert_no_x = True, sim_url = "", severity = "critical", after = []):
+             max_errors = 0, assert_no_x = True, sim_url = "", severity = "critical", after = [], **kw):
     return _ref.simulate(
         name        = name,
         after       = after,
@@ -15,10 +15,11 @@ def simulate(name, top_module, verilog, testbench, timeout_ns = 200,
         assert_no_x = assert_no_x,
         sim_url     = sim_url,
         severity    = severity,
+        **kw,
     )
 
 def strict(name, top_module, verilog, testbench, timeout_ns = 200,
-           sim_url = "", severity = "critical", after = []):
+           sim_url = "", severity = "critical", after = [], **kw):
     return _ref.strict(
         name       = name,
         after      = after,
@@ -28,10 +29,11 @@ def strict(name, top_module, verilog, testbench, timeout_ns = 200,
         timeout_ns = timeout_ns,
         sim_url    = sim_url,
         severity   = severity,
+        **kw,
     )
 
 def lint(name, top_module, verilog, testbench = "", timeout_ns = 200,
-         fail_on_warnings = False, sim_url = "", severity = "critical", after = []):
+         fail_on_warnings = False, sim_url = "", severity = "critical", after = [], **kw):
     return _ref.lint(
         name             = name,
         after            = after,
@@ -42,10 +44,11 @@ def lint(name, top_module, verilog, testbench = "", timeout_ns = 200,
         fail_on_warnings = fail_on_warnings,
         sim_url          = sim_url,
         severity         = severity,
+        **kw,
     )
 
 def check_coverage(name, top_module, verilog, testbench, min_coverage_pct = 80,
-                   timeout_ns = 200, sim_url = "", severity = "critical", after = []):
+                   timeout_ns = 200, sim_url = "", severity = "critical", after = [], **kw):
     return _ref.check_coverage(
         name             = name,
         after            = after,
@@ -56,4 +59,5 @@ def check_coverage(name, top_module, verilog, testbench, min_coverage_pct = 80,
         timeout_ns       = timeout_ns,
         sim_url          = sim_url,
         severity         = severity,
+        **kw,
     )

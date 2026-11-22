@@ -1,5 +1,6 @@
 // Schema registry compatibility check plugin config schema.
-// Validates configuration passed to plugin.run(plugin="babelsuite-schema-compat", config={...}).
+// Validates the config of a step that calls one of this plugin's operations,
+// as loaded with load("@plugins/schema-compat", ...). The runner checks it before dispatch.
 
 registry_url: string
 subject:      string
@@ -11,3 +12,6 @@ mode:         "BACKWARD" | "BACKWARD_TRANSITIVE" | "FORWARD" | "FORWARD_TRANSITI
 // Required by every operation except check_mode.
 new_schema?:  string
 severity:     "warn" | "critical" | *"critical"
+
+// The schema language of new_schema and of the subject.
+schema_type?: "AVRO" | "JSON" | "PROTOBUF"
