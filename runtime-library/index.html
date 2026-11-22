@@ -973,6 +973,33 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Targets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Results
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reports
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#hardening-and-security-checks" class="md-nav__link">
     <span class="md-ellipsis">
       Hardening and security.* checks
@@ -1739,6 +1766,33 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Targets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Results
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reports
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#hardening-and-security-checks" class="md-nav__link">
     <span class="md-ellipsis">
       Hardening and security.* checks
@@ -2447,7 +2501,7 @@ rather than branching on it here.</p>
 <li>strict safety caps keep the control plane from self-harming with oversized traffic plans</li>
 </ul>
 <h3 id="security"><code>security</code><a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
-<p>HTTP-layer security scanning via the APISIX sidecar — no extra containers required.</p>
+<p>HTTP-layer security scanning. The scanner runs inside the suite's APISIX sidecar, so it needs no extra containers.</p>
 <table>
 <thead>
 <tr>
@@ -2490,23 +2544,23 @@ rather than branching on it here.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">api</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">api</span>   <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;api&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="s2">&quot;my-api:latest&quot;</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">probe</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8000&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/probe.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">fuzz</span>  <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;fuzz&quot;</span><span class="p">,</span> <span class="n">technique</span><span class="o">=</span><span class="s2">&quot;sqli&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8000&quot;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">probe</span><span class="p">],</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/fuzz.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">flood</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">flood</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;flood&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/api/v1/resource&quot;</span><span class="p">,</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">flood</span> <span class="o">=</span> <span class="n">security</span><span class="o">.</span><span class="n">flood</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;flood&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;http://api:8000&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/api/v1/resource&quot;</span><span class="p">,</span>
 </span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">rate</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">expect_throttle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">api</span><span class="p">],</span>
 </span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="n">exports</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/findings/flood.json&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span> <span class="s2">&quot;always&quot;</span><span class="p">}])</span>
 </span></code></pre></div>
-<p><code>security(...)</code> is intentionally rejected. Use one of the explicit <code>security.*</code> forms.</p>
+<p><code>security(...)</code> is intentionally rejected. Use one of the explicit <code>security.*</code> forms. A key a mode does not use (for example <code>technique=</code> on <code>security.headers</code>) is rejected when the suite loads, with the list of keys it accepts.</p>
 <p>Mode reference:</p>
 <ul>
 <li><code>security.probe</code>: requests sensitive paths; flags unexpected 2xx/3xx responses</li>
 <li><code>security.fuzz</code>: injects SQLi, XSS, path traversal, and header-injection payloads</li>
 <li><code>security.auth</code>: verifies protected endpoints are unreachable without credentials</li>
-<li><code>security.flood</code>: sends sustained traffic and expects HTTP 429 rate-limit responses</li>
-<li><code>security.headers</code>: audits security response headers (HSTS, CSP, X-Frame-Options, …)</li>
+<li><code>security.flood</code>: sends sustained traffic and checks the target throttles it</li>
+<li><code>security.headers</code>: audits security response headers (HSTS, CSP, X-Frame-Options, ...)</li>
 <li><code>security.verbs</code>: probes dangerous HTTP methods (PUT, DELETE, TRACE, TRACK)</li>
 <li><code>security.graphql</code>: detects exposed GraphQL introspection endpoints</li>
 <li><code>security.cors</code>: finds CORS misconfigurations (reflected origin, wildcard credentials)</li>
@@ -2521,8 +2575,16 @@ rather than branching on it here.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>target="..."</code></td>
+<td>what to scan; see <a href="#targets">Targets</a> below</td>
+</tr>
+<tr>
+<td><code>fail_on="low"</code></td>
+<td>lowest severity that fails the step: <code>low</code> (default, any finding fails), <code>medium</code>, <code>high</code> or <code>critical</code></td>
+</tr>
+<tr>
 <td><code>technique="sqli"</code></td>
-<td>payload technique for <code>security.fuzz</code> (<code>sqli</code>, <code>xss</code>, <code>traversal</code>)</td>
+<td>payload technique for <code>security.fuzz</code>: <code>sqli</code>, <code>xss</code>, <code>traversal</code> or <code>header-injection</code> (default: all four)</td>
 </tr>
 <tr>
 <td><code>path="..."</code></td>
@@ -2530,48 +2592,74 @@ rather than branching on it here.</p>
 </tr>
 <tr>
 <td><code>rate=&lt;float&gt;</code></td>
-<td>requests per second for <code>security.flood</code></td>
+<td>requests per second for <code>security.flood</code> (at most 100)</td>
 </tr>
 <tr>
 <td><code>duration=&lt;float&gt;</code></td>
-<td>run duration in seconds for <code>security.flood</code></td>
+<td>run duration in seconds for <code>security.flood</code> (at most 60)</td>
 </tr>
 <tr>
 <td><code>expect_throttle=True</code></td>
-<td>assert HTTP 429 is returned under flood conditions</td>
+<td><code>security.flood</code> only: fail unless the target answers HTTP 429</td>
 </tr>
 </tbody>
 </table>
-<p>The APISIX sidecar is provisioned automatically alongside every <code>mock.api</code> node, so <code>security.*</code> nodes derive their gateway URL from the mock's sidecar without a separate <code>target=</code> argument.</p>
-<p>Each security step POSTs to <code>/_babelsuite/attack/start</code> and returns a synchronous JSON findings report: <code>{"total":N,"passed":N,"failed":N,"findings":[...]}</code>.</p>
-<h4 id="hardening-and-security-checks">Hardening and <code>security.*</code> checks<a class="headerlink" href="#hardening-and-security-checks" title="Permanent link">&para;</a></h4>
-<p>By default the gateway adds nothing on top of your backend: <code>security.headers</code> and <code>security.flood</code> observe whatever your real API actually returns, so a backend that's genuinely missing security headers or rate-limiting will genuinely fail those checks.</p>
-<p>Pass <code>harden=True</code> to <code>mock.api(...)</code> to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:</p>
-<ul>
-<li>a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s</li>
-<li>a synthetic rate-limited route at <code>/api/v1/resource</code> (HTTP 429 after 20 requests/second) for <code>security.flood</code> to validate against when the suite has no rate-limited surface of its own</li>
-</ul>
-<p>This is opt-in and suite-scoped — a suite that doesn't set <code>harden=True</code> gets none of this, so <code>headers</code>/<code>flood</code> checks stay genuine signals about that suite's own backend.</p>
-<p>Security threshold metrics (analogous to traffic thresholds):</p>
+<h4 id="targets">Targets<a class="headerlink" href="#targets" title="Permanent link">&para;</a></h4>
+<p>A security step scans the address in <code>target=</code>, resolved the way a <code>traffic.*</code> target is:</p>
 <table>
 <thead>
 <tr>
-<th>Metric</th>
-<th>Description</th>
+<th><code>target=</code></th>
+<th>Scanned at</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>findings.total</code></td>
-<td>total number of findings emitted</td>
+<td>a <code>service.run</code> node of the suite (<code>http://api:8000</code>)</td>
+<td>the service's address on the run's network; the sidecar joins that network before the scan</td>
 </tr>
 <tr>
-<td><code>findings.failed</code></td>
-<td>number of failed checks</td>
+<td>a <code>mock.api</code> node of the suite</td>
+<td>the mock, through the sidecar's gateway port</td>
+</tr>
+<tr>
+<td><code>localhost</code> / <code>127.0.0.1</code></td>
+<td>the Docker host</td>
+</tr>
+<tr>
+<td>a fully qualified name or an IP</td>
+<td>as written</td>
+</tr>
+<tr>
+<td>any other bare host name</td>
+<td>an error when the suite loads, since nothing could resolve it</td>
+</tr>
+<tr>
+<td>a Kubernetes service</td>
+<td>refused: the scanner cannot reach it from the control plane</td>
 </tr>
 </tbody>
 </table>
-<p>Supported operators: <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>==</code>.</p>
+<p>With no <code>target=</code>, the step scans the suite's <code>mock.api</code> through the gateway. That measures the gateway and the mock, not a service of yours, and the step logs a warning saying so. A suite with no mock and no <code>target=</code> is rejected when it loads.</p>
+<h4 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h4>
+<p>Every check ends <strong>passed</strong>, <strong>failed</strong> or <strong>unknown</strong>. A check is unknown when the scanner could not send its request or got no answer; unknown is never counted as passed. The step fails when:</p>
+<ul>
+<li>a finding is at or above <code>fail_on</code>;</li>
+<li>no check reached the target (no request got an answer), or</li>
+<li>any check is unknown.</li>
+</ul>
+<p>The log ends with <code>Assessment complete: total=N passed=N failed=N unknown=N findings=N requests=N</code>, and each finding is logged with its label, method, path and severity.</p>
+<p><code>security.flood</code> sends <code>rate</code> requests per second for <code>duration</code> seconds. With <code>expect_throttle=True</code> it fails unless some response is HTTP 429. Without it, it fails when more than 1% of the answers are 5xx or errors, since the target did not survive the load. If more than half the requests error, the check is unknown.</p>
+<h4 id="reports">Reports<a class="headerlink" href="#reports" title="Permanent link">&para;</a></h4>
+<p>A security step runs inside the control plane, not in a container, so it has no files of its own. Its JSON report (<code>mode</code>, <code>target</code>, <code>total</code>, <code>passed</code>, <code>failed</code>, <code>unknown</code>, <code>findings</code>, ...) is the artifact <code>exports=</code> collects. On a Docker backend it is also written to the execution's workspace at the exported path, so a later task can read it, as <code>security-suite</code>'s <code>verify-findings</code> does.</p>
+<h4 id="hardening-and-security-checks">Hardening and <code>security.*</code> checks<a class="headerlink" href="#hardening-and-security-checks" title="Permanent link">&para;</a></h4>
+<p>By default the gateway adds nothing on top of your backend: <code>security.headers</code> and <code>security.flood</code> observe whatever the target actually returns, so a backend that is genuinely missing security headers or rate limiting genuinely fails those checks.</p>
+<p>Pass <code>harden=True</code> to <code>mock.api(...)</code> to opt the sidecar into two gateway-provided defenses:</p>
+<ul>
+<li>a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s</li>
+<li>a synthetic rate-limited route at <code>/api/v1/resource</code> (HTTP 429 after 20 requests/second)</li>
+</ul>
+<p>This is opt-in and suite-scoped. When it is on and a security step scans the mock, the header and flood results measure the gateway, not your backend, and the step says so in its log. Scan a <code>service.run</code> target to measure the service itself.</p>
 <h3 id="log"><code>log</code><a class="headerlink" href="#log" title="Permanent link">&para;</a></h3>
 <p>Emits a structured log line at a specific point in the execution graph — no container, no image pull. The node completes instantly after emitting.</p>
 <table>
@@ -2725,15 +2813,19 @@ rather than branching on it here.</p>
 </tr>
 <tr>
 <td><code>target="..."</code></td>
-<td>native traffic target</td>
+<td>native traffic or security target</td>
 </tr>
 <tr>
 <td><code>rps=&lt;float&gt;</code> or <code>arrival_rate=&lt;float&gt;</code></td>
 <td>request rate override for <code>traffic.*</code> nodes</td>
 </tr>
 <tr>
+<td><code>fail_on="..."</code></td>
+<td>lowest severity that fails a <code>security.*</code> step (<code>low</code>, <code>medium</code>, <code>high</code>, <code>critical</code>)</td>
+</tr>
+<tr>
 <td><code>technique="..."</code></td>
-<td>payload technique for <code>security.fuzz</code> (<code>sqli</code>, <code>xss</code>, <code>traversal</code>)</td>
+<td>payload technique for <code>security.fuzz</code> (<code>sqli</code>, <code>xss</code>, <code>traversal</code>, <code>header-injection</code>)</td>
 </tr>
 <tr>
 <td><code>path="..."</code></td>
@@ -2749,7 +2841,7 @@ rather than branching on it here.</p>
 </tr>
 <tr>
 <td><code>expect_throttle=True</code></td>
-<td>assert HTTP 429 is returned under flood for <code>security.flood</code></td>
+<td>fail <code>security.flood</code> unless the target answers HTTP 429</td>
 </tr>
 <tr>
 <td><code>ref="..."</code></td>

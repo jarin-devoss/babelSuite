@@ -1279,6 +1279,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-security-step-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Security Step Fails
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-plugin-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Plugin Step Fails
@@ -1448,6 +1457,15 @@
   <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Traffic Step Fails
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-security-step-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Security Step Fails
     </span>
   </a>
   
@@ -1646,6 +1664,51 @@
 <tr>
 <td><code>load against a service is supported only on the local Docker backend</code></td>
 <td>The target is a service of a Kubernetes backend. Target the suite's mock host or a fully-qualified host instead.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-security-step-fails">A Security Step Fails<a class="headerlink" href="#a-security-step-fails" title="Permanent link">&para;</a></h2>
+<p>A <code>security.*</code> step scans a target from the suite's APISIX sidecar and fails with a message that says why. Match it in the step's log:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>What it means and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>N finding(s) at or above low severity</code></td>
+<td>The target failed checks. Each one is logged as <code>Finding [label] METHOD path ...</code>. Fix the target, or raise <code>fail_on=</code> (<code>medium</code>, <code>high</code>, <code>critical</code>) to let lower findings through.</td>
+</tr>
+<tr>
+<td><code>no check reached &lt;target&gt;: ...</code></td>
+<td>Nothing at the target answered. The reason follows (the first error the scanner hit). Check the address, the port and that the service started.</td>
+</tr>
+<tr>
+<td><code>N of M checks could not be determined: ...</code></td>
+<td>Some requests got no answer, so those checks neither passed nor failed. Check the target stayed up during the scan.</td>
+</tr>
+<tr>
+<td><code>needs target=: the suite has no mock surface to scan by default</code></td>
+<td>The suite has no <code>mock.api</code> and the step names no target. Add <code>target="http://&lt;service&gt;:&lt;port&gt;"</code>.</td>
+</tr>
+<tr>
+<td><code>targets host "x", which is not a service in this suite</code></td>
+<td>The target is a bare name no node provides. Use the name of a <code>service.run</code> node, a mock host, or a fully-qualified host.</td>
+</tr>
+<tr>
+<td><code>unknown argument "x"; allowed: ...</code></td>
+<td>The mode does not take that key (for example <code>technique=</code> on <code>security.headers</code>).</td>
+</tr>
+<tr>
+<td><code>scanning the suite's own mock</code> (a warning)</td>
+<td>The step has no <code>target=</code>, so it measures the gateway and the mock, not a service of yours. Add <code>target=</code> to scan the service.</td>
+</tr>
+<tr>
+<td><code>The report was not written to the execution workspace</code> (a warning)</td>
+<td>A later task will not find the exported report. The log says whether the backend does not give the control plane write access to the workspace or the path was rejected.</td>
 </tr>
 </tbody>
 </table>
