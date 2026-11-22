@@ -120,6 +120,9 @@ func executeSecurityStep(ctx context.Context, step StepSpec, emit func(logstream
 		return fmt.Errorf("security: marshal config: %w", err)
 	}
 
+	if err := waitForScanner(ctx, gatewayURL); err != nil {
+		return fmt.Errorf("security: scanner failed: %w", err)
+	}
 	result, err := triggerScanner(ctx, gatewayURL, cfgJSON)
 	if err != nil {
 		return fmt.Errorf("security: scanner failed: %w", err)
@@ -202,6 +205,51 @@ func buildScannerConfig(spec *suites.SecuritySpec, target resolvedTarget) scanne
 		cfg.ExpectThrottle = spec.FloodThrottle
 	}
 	return cfg
+}
+
+// scannerStartupWait is how long a freshly started sidecar gets to begin
+// serving. A cold container on a busy host takes several seconds; its published
+// port refuses connections until the gateway is listening.
+const scannerStartupWait = 30 * time.Second
+
+// waitForScanner returns once the gateway answers on the scanner's route. It
+// sends an empty configuration, which the scanner rejects with 400 and runs
+// nothing, so the wait never starts a scan; the real request is sent only after
+// it, because a scan is a long synchronous call that must not be repeated.
+func waitForScanner(ctx context.Context, gatewayURL string) error {
+	deadline := time.Now().Add(scannerStartupWait)
+	var last error
+	for {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, gatewayURL+apisix.AttackScannerTriggerRoute, strings.NewReader("{}"))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := scannerHTTPClient.Do(req)
+		if err == nil {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
+			resp.Body.Close()
+			// Any answer means the gateway is listening. A 404 is the one
+			// answer that means its routes are not loaded yet.
+			if resp.StatusCode != http.StatusNotFound {
+				return nil
+			}
+			last = fmt.Errorf("the scanner route answered HTTP %d", resp.StatusCode)
+		} else {
+			last = err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the sidecar did not start serving within %s: %w", scannerStartupWait, last)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
 }
 
 func triggerScanner(ctx context.Context, gatewayURL string, cfgJSON []byte) (*scannerResult, error) {
