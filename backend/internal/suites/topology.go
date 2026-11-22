@@ -47,6 +47,7 @@ type rawTopologyNode struct {
 	FloodRate         float64
 	FloodDuration     float64
 	FloodThrottle     bool
+	FailOn            string
 	Message           string
 	Harden            bool
 	DependsOn         []string
@@ -262,6 +263,9 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 	if err := validateTrafficTargets(suite, final); err != nil {
 		return resolvedTopology{}, err
 	}
+	if err := validateSecurityTargets(suite, final); err != nil {
+		return resolvedTopology{}, err
+	}
 	result := resolvedTopology{
 		Nodes:        resolved,
 		Dependencies: cloneResolvedDependencies(dependencies),
@@ -309,6 +313,7 @@ func topologyNodeFromRaw(raw rawTopologyNode, suite Definition, imports map[stri
 			FloodRate:     raw.FloodRate,
 			FloodDuration: raw.FloodDuration,
 			FloodThrottle: raw.FloodThrottle,
+			FailOn:        raw.FailOn,
 		}
 	}
 	if raw.Kind == NodeKindPlugin {
