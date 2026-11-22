@@ -92,6 +92,23 @@ A `traffic.*` step sends real requests from the suite's APISIX sidecar, so a fai
 
 ---
 
+## A Security Step Fails
+
+A `security.*` step scans a target from the suite's APISIX sidecar and fails with a message that says why. Match it in the step's log:
+
+| Message | What it means and what to do |
+|---------|------------------------------|
+| `N finding(s) at or above low severity` | The target failed checks. Each one is logged as `Finding [label] METHOD path ...`. Fix the target, or raise `fail_on=` (`medium`, `high`, `critical`) to let lower findings through. |
+| `no check reached <target>: ...` | Nothing at the target answered. The reason follows (the first error the scanner hit). Check the address, the port and that the service started. |
+| `N of M checks could not be determined: ...` | Some requests got no answer, so those checks neither passed nor failed. Check the target stayed up during the scan. |
+| `needs target=: the suite has no mock surface to scan by default` | The suite has no `mock.api` and the step names no target. Add `target="http://<service>:<port>"`. |
+| `targets host "x", which is not a service in this suite` | The target is a bare name no node provides. Use the name of a `service.run` node, a mock host, or a fully-qualified host. |
+| `unknown argument "x"; allowed: ...` | The mode does not take that key (for example `technique=` on `security.headers`). |
+| `scanning the suite's own mock` (a warning) | The step has no `target=`, so it measures the gateway and the mock, not a service of yours. Add `target=` to scan the service. |
+| `The report was not written to the execution workspace` (a warning) | A later task will not find the exported report. The log says whether the backend does not give the control plane write access to the workspace or the path was rejected. |
+
+---
+
 ## A Plugin Step Fails
 
 A plugin step fails with the plugin's own reason. Match the message in the step's log:

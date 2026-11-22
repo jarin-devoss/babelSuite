@@ -337,7 +337,7 @@ Current limit:
 
 ### `security`
 
-HTTP-layer security scanning via the APISIX sidecar — no extra containers required.
+HTTP-layer security scanning. The scanner runs inside the suite's APISIX sidecar, so it needs no extra containers.
 
 | Call | Kind |
 |------|------|
@@ -351,25 +351,25 @@ HTTP-layer security scanning via the APISIX sidecar — no extra containers requ
 | `security.cors` | `security` |
 
 ```python
-api   = mock.api(name="api")
-probe = security.probe(name="probe", after=[api],
+api   = service.run(name="api", image="my-api:latest")
+probe = security.probe(name="probe", target="http://api:8000", after=[api],
     exports=[{"path": "/findings/probe.json", "on": "always"}])
-fuzz  = security.fuzz(name="fuzz", technique="sqli", after=[probe],
+fuzz  = security.fuzz(name="fuzz", technique="sqli", target="http://api:8000", after=[probe],
     exports=[{"path": "/findings/fuzz.json", "on": "always"}])
-flood = security.flood(name="flood", path="/api/v1/resource",
+flood = security.flood(name="flood", target="http://api:8000", path="/api/v1/resource",
     rate=50.0, duration=5.0, expect_throttle=True, after=[api],
     exports=[{"path": "/findings/flood.json", "on": "always"}])
 ```
 
-`security(...)` is intentionally rejected. Use one of the explicit `security.*` forms.
+`security(...)` is intentionally rejected. Use one of the explicit `security.*` forms. A key a mode does not use (for example `technique=` on `security.headers`) is rejected when the suite loads, with the list of keys it accepts.
 
 Mode reference:
 
 - `security.probe`: requests sensitive paths; flags unexpected 2xx/3xx responses
 - `security.fuzz`: injects SQLi, XSS, path traversal, and header-injection payloads
 - `security.auth`: verifies protected endpoints are unreachable without credentials
-- `security.flood`: sends sustained traffic and expects HTTP 429 rate-limit responses
-- `security.headers`: audits security response headers (HSTS, CSP, X-Frame-Options, …)
+- `security.flood`: sends sustained traffic and checks the target throttles it
+- `security.headers`: audits security response headers (HSTS, CSP, X-Frame-Options, ...)
 - `security.verbs`: probes dangerous HTTP methods (PUT, DELETE, TRACE, TRACK)
 - `security.graphql`: detects exposed GraphQL introspection endpoints
 - `security.cors`: finds CORS misconfigurations (reflected origin, wildcard credentials)
@@ -378,36 +378,55 @@ Arguments specific to `security.*` nodes:
 
 | Argument | Used for |
 |----------|---------|
-| `technique="sqli"` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`) |
+| `target="..."` | what to scan; see [Targets](#targets) below |
+| `fail_on="low"` | lowest severity that fails the step: `low` (default, any finding fails), `medium`, `high` or `critical` |
+| `technique="sqli"` | payload technique for `security.fuzz`: `sqli`, `xss`, `traversal` or `header-injection` (default: all four) |
 | `path="..."` | target path for `security.flood` |
-| `rate=<float>` | requests per second for `security.flood` |
-| `duration=<float>` | run duration in seconds for `security.flood` |
-| `expect_throttle=True` | assert HTTP 429 is returned under flood conditions |
+| `rate=<float>` | requests per second for `security.flood` (at most 100) |
+| `duration=<float>` | run duration in seconds for `security.flood` (at most 60) |
+| `expect_throttle=True` | `security.flood` only: fail unless the target answers HTTP 429 |
 
-The APISIX sidecar is provisioned automatically alongside every `mock.api` node, so `security.*` nodes derive their gateway URL from the mock's sidecar without a separate `target=` argument.
+#### Targets
 
-Each security step POSTs to `/_babelsuite/attack/start` and returns a synchronous JSON findings report: `{"total":N,"passed":N,"failed":N,"findings":[...]}`.
+A security step scans the address in `target=`, resolved the way a `traffic.*` target is:
+
+| `target=` | Scanned at |
+|-----------|-----------|
+| a `service.run` node of the suite (`http://api:8000`) | the service's address on the run's network; the sidecar joins that network before the scan |
+| a `mock.api` node of the suite | the mock, through the sidecar's gateway port |
+| `localhost` / `127.0.0.1` | the Docker host |
+| a fully qualified name or an IP | as written |
+| any other bare host name | an error when the suite loads, since nothing could resolve it |
+| a Kubernetes service | refused: the scanner cannot reach it from the control plane |
+
+With no `target=`, the step scans the suite's `mock.api` through the gateway. That measures the gateway and the mock, not a service of yours, and the step logs a warning saying so. A suite with no mock and no `target=` is rejected when it loads.
+
+#### Results
+
+Every check ends **passed**, **failed** or **unknown**. A check is unknown when the scanner could not send its request or got no answer; unknown is never counted as passed. The step fails when:
+
+- a finding is at or above `fail_on`;
+- no check reached the target (no request got an answer), or
+- any check is unknown.
+
+The log ends with `Assessment complete: total=N passed=N failed=N unknown=N findings=N requests=N`, and each finding is logged with its label, method, path and severity.
+
+`security.flood` sends `rate` requests per second for `duration` seconds. With `expect_throttle=True` it fails unless some response is HTTP 429. Without it, it fails when more than 1% of the answers are 5xx or errors, since the target did not survive the load. If more than half the requests error, the check is unknown.
+
+#### Reports
+
+A security step runs inside the control plane, not in a container, so it has no files of its own. Its JSON report (`mode`, `target`, `total`, `passed`, `failed`, `unknown`, `findings`, ...) is the artifact `exports=` collects. On a Docker backend it is also written to the execution's workspace at the exported path, so a later task can read it, as `security-suite`'s `verify-findings` does.
 
 #### Hardening and `security.*` checks
 
-By default the gateway adds nothing on top of your backend: `security.headers` and `security.flood` observe whatever your real API actually returns, so a backend that's genuinely missing security headers or rate-limiting will genuinely fail those checks.
+By default the gateway adds nothing on top of your backend: `security.headers` and `security.flood` observe whatever the target actually returns, so a backend that is genuinely missing security headers or rate limiting genuinely fails those checks.
 
-Pass `harden=True` to `mock.api(...)` to opt the sidecar into two gateway-provided defenses instead of relying on the backend for them:
+Pass `harden=True` to `mock.api(...)` to opt the sidecar into two gateway-provided defenses:
 
 - a baseline set of security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) applied to every response, including unmatched-route 404s
-- a synthetic rate-limited route at `/api/v1/resource` (HTTP 429 after 20 requests/second) for `security.flood` to validate against when the suite has no rate-limited surface of its own
+- a synthetic rate-limited route at `/api/v1/resource` (HTTP 429 after 20 requests/second)
 
-This is opt-in and suite-scoped — a suite that doesn't set `harden=True` gets none of this, so `headers`/`flood` checks stay genuine signals about that suite's own backend.
-
-Security threshold metrics (analogous to traffic thresholds):
-
-| Metric | Description |
-|--------|-------------|
-| `findings.total` | total number of findings emitted |
-| `findings.failed` | number of failed checks |
-
-Supported operators: `<`, `<=`, `>`, `>=`, `==`.
-
+This is opt-in and suite-scoped. When it is on and a security step scans the mock, the header and flood results measure the gateway, not your backend, and the step says so in its log. Scan a `service.run` target to measure the service itself.
 
 ### `log`
 
@@ -510,13 +529,14 @@ The parser extracts these topology fields from recognized statements:
 | `file="..."` | task/test asset path (alternative to `commands=`) |
 | `commands=["...", "..."]` | inline shell commands (alternative to `file=`) |
 | `plan="..."` | traffic plan file (optional — omit to use the variant's default shape) |
-| `target="..."` | native traffic target |
+| `target="..."` | native traffic or security target |
 | `rps=<float>` or `arrival_rate=<float>` | request rate override for `traffic.*` nodes |
-| `technique="..."` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`) |
+| `fail_on="..."` | lowest severity that fails a `security.*` step (`low`, `medium`, `high`, `critical`) |
+| `technique="..."` | payload technique for `security.fuzz` (`sqli`, `xss`, `traversal`, `header-injection`) |
 | `path="..."` | target path for `security.flood` |
 | `rate=<float>` | requests per second for `security.flood` |
 | `duration=<float>` | run duration in seconds for `security.flood` |
-| `expect_throttle=True` | assert HTTP 429 is returned under flood for `security.flood` |
+| `expect_throttle=True` | fail `security.flood` unless the target answers HTTP 429 |
 | `ref="..."` | nested suite alias for `suite.run` |
 | `expect_exit=0` | expected process exit code |
 | `expect_logs="..."` or `expect_logs=["...", "..."]` | required log/output matches |
