@@ -4,7 +4,7 @@ _ref = plugin("jwt-auditor")
 
 def check_token(name, auth_url, username, password, token_field = "token",
                 max_lifetime_hours = 24, required_claims = ["sub", "iss", "exp", "iat"],
-                severity = "high", after = []):
+                severity = "critical", after = [], **kw):
     return _ref.check_token(
         name               = name,
         after              = after,
@@ -15,10 +15,11 @@ def check_token(name, auth_url, username, password, token_field = "token",
         max_lifetime_hours = max_lifetime_hours,
         required_claims    = required_claims,
         severity           = severity,
+        **kw,
     )
 
 def audit_endpoint(name, auth_url, username, password, endpoint,
-                   token_field = "token", severity = "high", after = []):
+                   token_field = "token", severity = "critical", after = [], **kw):
     return _ref.audit_endpoint(
         name        = name,
         after       = after,
@@ -28,11 +29,12 @@ def audit_endpoint(name, auth_url, username, password, endpoint,
         endpoint    = endpoint,
         token_field = token_field,
         severity    = severity,
+        **kw,
     )
 
 def check_claims(name, auth_url, username, password, expected_issuer = "",
                  expected_audience = "", forbidden_scopes = [], token_field = "token",
-                 severity = "high", after = []):
+                 severity = "critical", after = [], **kw):
     return _ref.check_claims(
         name              = name,
         after             = after,
@@ -44,10 +46,11 @@ def check_claims(name, auth_url, username, password, expected_issuer = "",
         forbidden_scopes  = forbidden_scopes,
         token_field       = token_field,
         severity          = severity,
+        **kw,
     )
 
 def audit_endpoints(name, auth_url, username, password, endpoints,
-                    token_field = "token", severity = "high", after = []):
+                    token_field = "token", severity = "critical", after = [], **kw):
     return _ref.audit_endpoints(
         name        = name,
         after       = after,
@@ -57,4 +60,5 @@ def audit_endpoints(name, auth_url, username, password, endpoints,
         endpoints   = endpoints,
         token_field = token_field,
         severity    = severity,
+        **kw,
     )

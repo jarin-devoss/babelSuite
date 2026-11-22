@@ -1,5 +1,6 @@
 // Digital circuit simulation plugin config schema (Icarus Verilog backend).
-// Validates configuration passed to plugin.run(plugin="babelsuite-verilog-sim", config={...}).
+// Validates the config of a step that calls one of this plugin's operations,
+// as loaded with load("@plugins/verilog-sim", ...). The runner checks it before dispatch.
 
 sim_url:        string          // HTTP URL of the Icarus Verilog simulation microservice
 top_module:     string          // name of the top-level module to simulate

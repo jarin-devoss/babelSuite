@@ -1,5 +1,6 @@
 // Control system simulation plugin config schema (scipy.signal / python-control backend).
-// Validates configuration passed to plugin.run(plugin="babelsuite-control-sim", config={...}).
+// Validates the config of a step that calls one of this plugin's operations,
+// as loaded with load("@plugins/control-sim", ...). The runner checks it before dispatch.
 
 sim_url:             string              // HTTP URL of the scipy control simulation microservice
 numerator:           [...number]         // transfer function numerator coefficients [b0, b1, ...]

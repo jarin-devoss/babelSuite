@@ -4,7 +4,7 @@ _ref = plugin("spice-sim")
 
 def transient(name, netlist, probe_node = "out", step_time_ms = 0.1, end_time_ms = 10,
               max_rise_ms = None, max_voltage = None, min_voltage = None,
-              sim_url = "", severity = "critical", after = []):
+              sim_url = "", severity = "critical", timeout_ms = None, after = [], **kw):
     return _ref.transient(
         name         = name,
         after        = after,
@@ -17,10 +17,12 @@ def transient(name, netlist, probe_node = "out", step_time_ms = 0.1, end_time_ms
         min_voltage  = min_voltage,
         sim_url      = sim_url,
         severity     = severity,
+        timeout_ms   = timeout_ms,
+        **kw,
     )
 
 def dc_sweep(name, netlist, probe_node = "out", max_voltage = None, min_voltage = None,
-             sim_url = "", severity = "critical", after = []):
+             sim_url = "", severity = "critical", timeout_ms = None, after = [], **kw):
     return _ref.dc_sweep(
         name        = name,
         after       = after,
@@ -30,10 +32,12 @@ def dc_sweep(name, netlist, probe_node = "out", max_voltage = None, min_voltage 
         min_voltage = min_voltage,
         sim_url     = sim_url,
         severity    = severity,
+        timeout_ms   = timeout_ms,
+        **kw,
     )
 
 def ac_analysis(name, netlist, probe_node = "out", min_gain_db = None,
-                sim_url = "", severity = "critical", after = []):
+                sim_url = "", severity = "critical", timeout_ms = None, after = [], **kw):
     return _ref.ac_analysis(
         name        = name,
         after       = after,
@@ -42,4 +46,6 @@ def ac_analysis(name, netlist, probe_node = "out", min_gain_db = None,
         min_gain_db = min_gain_db,
         sim_url     = sim_url,
         severity    = severity,
+        timeout_ms   = timeout_ms,
+        **kw,
     )

@@ -3,8 +3,19 @@ local http = require("resty.http")
 
 local function as_array(t) return #t == 0 and json.empty_array or t end
 
+-- A finding blocks the step when its severity is critical (high and error mean
+-- the same). warn and info are advisory. The verdict is computed here, once, so
+-- a severity setting decides whether a check gates, whatever the operation.
+local BLOCKING = {critical = true, high = true, error = true}
+local function verdict(findings)
+    for _, f in ipairs(findings) do
+        if BLOCKING[f.severity] then return false end
+    end
+    return true
+end
+
 local _M = {}
-_M.version  = 0.1
+_M.version  = 0.2
 _M.priority = 10
 _M.name     = "jwt-auditor"
 _M.schema   = {type = "object", properties = {}, additionalProperties = false}
@@ -67,7 +78,7 @@ local function audit_claims(jwt_data, cfg, findings, severity)
     elseif SYMMETRIC_ALGS[alg] then
         table.insert(findings, {
             label    = "jwt.alg.symmetric",
-            severity = "medium",
+            severity = severity,
             detail   = alg .. " uses a shared secret; prefer RS256 or ES256 for public-facing services",
         })
     end
@@ -85,7 +96,7 @@ local function audit_claims(jwt_data, cfg, findings, severity)
         if exp < ngx.now() then
             table.insert(findings, {
                 label    = "jwt.claims.expired",
-                severity = "low",
+                severity = "critical",
                 detail   = string.format("token expired at %d (now=%d)", exp, math.floor(ngx.now())),
             })
         end
@@ -117,7 +128,7 @@ end
 -- check_token: fetch a JWT from an auth endpoint and audit its structure and claims
 local function run_check_token(cfg)
     local findings = {}
-    local severity = cfg.severity or "high"
+    local severity = cfg.severity or "critical"
 
     local token, err = fetch_token(cfg.auth_url or "", cfg.username or "", cfg.password or "", cfg.token_field)
     if err then return nil, err end
@@ -132,7 +143,7 @@ local function run_check_token(cfg)
     local exp = jwt_data.payload.exp
     local summary = string.format("check_token: alg=%s sub=%s exp=%s findings=%d",
         alg, sub, exp and tostring(exp) or "none", #findings)
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {
         passed   = ok,
         findings = as_array(findings),
@@ -145,7 +156,7 @@ end
 -- audit_endpoint: verify that a protected endpoint correctly enforces JWT validation
 local function run_audit_endpoint(cfg)
     local findings = {}
-    local severity = cfg.severity or "high"
+    local severity = cfg.severity or "critical"
     local endpoint = cfg.endpoint or ""
     if endpoint == "" then return nil, "endpoint is required for audit_endpoint" end
 
@@ -155,9 +166,22 @@ local function run_audit_endpoint(cfg)
     local httpc = http.new()
     httpc:set_timeout(10000)
 
+    -- A probe that gets no answer proves nothing about the endpoint, so it is a
+    -- finding of its own; only a probe that answered can show the endpoint is
+    -- right or wrong.
+    local function probe_failed(name, err)
+        table.insert(findings, {
+            label    = "jwt.endpoint.probe_failed",
+            severity = "critical",
+            detail   = string.format("the %s probe of %s got no answer: %s", name, endpoint, tostring(err)),
+        })
+    end
+
     -- 1. no Authorization header → must be 401/403
-    local res1, _ = httpc:request_uri(endpoint, {method = "GET"})
-    if res1 and res1.status ~= 401 and res1.status ~= 403 then
+    local res1, err1 = httpc:request_uri(endpoint, {method = "GET"})
+    if not res1 then
+        probe_failed("no-auth", err1)
+    elseif res1.status ~= 401 and res1.status ~= 403 then
         table.insert(findings, {
             label    = "jwt.endpoint.no_auth_bypass",
             severity = severity,
@@ -170,11 +194,13 @@ local function run_audit_endpoint(cfg)
     for p in valid_token:gmatch("[^%.]+") do parts[#parts + 1] = p end
     if #parts == 3 then
         local tampered = parts[1] .. "." .. parts[2] .. ".invalidsignatureXXXXXXXXXX"
-        local res2, _ = httpc:request_uri(endpoint, {
+        local res2, err2 = httpc:request_uri(endpoint, {
             method  = "GET",
             headers = {["Authorization"] = "Bearer " .. tampered},
         })
-        if res2 and res2.status ~= 401 and res2.status ~= 403 then
+        if not res2 then
+            probe_failed("tampered-signature", err2)
+        elseif res2.status ~= 401 and res2.status ~= 403 then
             table.insert(findings, {
                 label    = "jwt.endpoint.signature_bypass",
                 severity = "critical",
@@ -184,20 +210,22 @@ local function run_audit_endpoint(cfg)
     end
 
     -- 3. valid token → must be 2xx
-    local res3, _ = httpc:request_uri(endpoint, {
+    local res3, err3 = httpc:request_uri(endpoint, {
         method  = "GET",
         headers = {["Authorization"] = "Bearer " .. valid_token},
     })
-    if not res3 or res3.status >= 400 then
+    if not res3 then
+        probe_failed("valid-token", err3)
+    elseif res3.status >= 400 then
         table.insert(findings, {
             label    = "jwt.endpoint.valid_token_rejected",
-            severity = "medium",
-            detail   = string.format("valid token was rejected (status %d)", res3 and res3.status or 0),
+            severity = "critical",
+            detail   = string.format("valid token was rejected (status %d)", res3.status),
         })
     end
 
     local summary = string.format("audit_endpoint: endpoint=%s findings=%d", endpoint, #findings)
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {
         passed   = ok,
         findings = as_array(findings),
@@ -212,7 +240,7 @@ end
 -- scope than the service should ever hand out.
 local function run_check_claims(cfg)
     local findings = {}
-    local severity = cfg.severity or "high"
+    local severity = cfg.severity or "critical"
 
     local token, err = fetch_token(cfg.auth_url or "", cfg.username or "", cfg.password or "", cfg.token_field)
     if err then return nil, err end
@@ -263,7 +291,7 @@ local function run_check_claims(cfg)
         end
     end
 
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {
         passed   = ok,
         findings = as_array(findings),
@@ -294,7 +322,7 @@ local function run_audit_endpoints(cfg)
         end
     end
 
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {
         passed   = ok,
         findings = as_array(findings),
@@ -303,42 +331,40 @@ local function run_audit_endpoints(cfg)
     }, nil
 end
 
+local OPS = {
+    check_token     = run_check_token,
+    audit_endpoint  = run_audit_endpoint,
+    check_claims    = run_check_claims,
+    audit_endpoints = run_audit_endpoints,
+}
+
+local function reply(status, body)
+    ngx.status = status
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(json.encode(body))
+    return ngx.exit(status)
+end
+
 function _M.access(conf, ctx)
     if ngx.var.uri ~= "/_babelsuite/plugins/" .. _M.name .. "/start" then return ngx.exit(404) end
     if ngx.req.get_method() ~= "POST" then return ngx.exit(405) end
 
     ngx.req.read_body()
     local ok, payload = pcall(json.decode, ngx.req.get_body_data() or "{}")
-    if not ok then
-        ngx.status = 400; ngx.say(json.encode({error = "invalid json"})); return ngx.exit(400)
-    end
+    if not ok then return reply(400, {error = "invalid json"}) end
 
     local op  = payload.op or "check_token"
     local cfg = payload.config or {}
 
-    if (cfg.auth_url or "") == "" then
-        ngx.status = 400; ngx.say(json.encode({error = "auth_url is required"})); return ngx.exit(400)
+    local handler = OPS[op]
+    if not handler then
+        return reply(400, {error = "unknown op " .. tostring(op) .. "; supported: check_token, audit_endpoint, check_claims, audit_endpoints"})
     end
+    if (cfg.auth_url or "") == "" then return reply(400, {error = "auth_url is required"}) end
 
-    local result, err
-    if op == "audit_endpoint" then
-        result, err = run_audit_endpoint(cfg)
-    elseif op == "check_claims" then
-        result, err = run_check_claims(cfg)
-    elseif op == "audit_endpoints" then
-        result, err = run_audit_endpoints(cfg)
-    else
-        result, err = run_check_token(cfg)
-    end
-
-    if err then
-        ngx.status = 500; ngx.say(json.encode({error = err})); return ngx.exit(500)
-    end
-
-    ngx.status = 200
-    ngx.header["Content-Type"] = "application/json"
-    ngx.say(json.encode(result))
-    return ngx.exit(200)
+    local result, err = handler(cfg)
+    if err then return reply(500, {error = err}) end
+    return reply(200, result)
 end
 
 return _M

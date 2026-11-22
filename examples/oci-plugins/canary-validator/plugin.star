@@ -3,7 +3,7 @@ load("@babelsuite/runtime", "plugin")
 _ref = plugin("canary-validator")
 
 def validate(name, target, expected_ratio, canary_header = "X-Canary",
-             tolerance = 0.05, sample_size = 100, severity = "critical", after = []):
+             tolerance = 0.05, sample_size = 100, severity = "critical", after = [], **kw):
     return _ref.validate(
         name           = name,
         after          = after,
@@ -13,10 +13,11 @@ def validate(name, target, expected_ratio, canary_header = "X-Canary",
         tolerance      = tolerance,
         sample_size    = sample_size,
         severity       = severity,
+        **kw,
     )
 
 def watch_ratio(name, target, expected_ratio, canary_header = "X-Canary",
-                tolerance = 0.15, sample_size = 100, after = []):
+                tolerance = 0.15, sample_size = 100, after = [], **kw):
     return _ref.watch_ratio(
         name           = name,
         after          = after,
@@ -25,10 +26,11 @@ def watch_ratio(name, target, expected_ratio, canary_header = "X-Canary",
         canary_header  = canary_header,
         tolerance      = tolerance,
         sample_size    = sample_size,
+        **kw,
     )
 
 def sticky(name, target, session_header = "X-Session-Id", session_value = "babelsuite-sticky-check",
-           canary_header = "X-Canary", sample_size = 20, severity = "critical", after = []):
+           canary_header = "X-Canary", sample_size = 20, severity = "critical", after = [], **kw):
     return _ref.sticky(
         name           = name,
         after          = after,
@@ -38,10 +40,11 @@ def sticky(name, target, session_header = "X-Session-Id", session_value = "babel
         canary_header  = canary_header,
         sample_size    = sample_size,
         severity       = severity,
+        **kw,
     )
 
 def compare_errors(name, target, max_error_delta = 0.01, canary_header = "X-Canary",
-                   sample_size = 100, severity = "critical", after = []):
+                   sample_size = 100, severity = "critical", after = [], **kw):
     return _ref.compare_errors(
         name            = name,
         after           = after,
@@ -50,4 +53,5 @@ def compare_errors(name, target, max_error_delta = 0.01, canary_header = "X-Cana
         canary_header   = canary_header,
         sample_size     = sample_size,
         severity        = severity,
+        **kw,
     )

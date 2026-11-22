@@ -38,7 +38,7 @@ def _dispatch(op, name, after, skills, cases, **config):
 
 def trigger(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
             system = "", threshold = 1.0, timeout_ms = 30000,
-            severity = "critical", after = []):
+            severity = "critical", after = [], **kw):
     return _dispatch("trigger", name, after, skills, cases,
         model_url  = model_url,
         model      = model,
@@ -47,11 +47,12 @@ def trigger(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
         threshold  = threshold,
         timeout_ms = timeout_ms,
         severity   = severity,
+        **kw,
     )
 
 def arguments(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
               system = "", check_schema = True, threshold = 1.0, timeout_ms = 30000,
-              severity = "critical", after = []):
+              severity = "critical", after = [], **kw):
     return _dispatch("arguments", name, after, skills, cases,
         model_url    = model_url,
         model        = model,
@@ -61,12 +62,13 @@ def arguments(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "
         threshold    = threshold,
         timeout_ms   = timeout_ms,
         severity     = severity,
+        **kw,
     )
 
 def outcome(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
             system = "", judge_url = "", judge_model = "", judge_api_key = "",
             threshold = 1.0, timeout_ms = 30000, severity = "critical",
-            structured = True, after = []):
+            structured = True, after = [], **kw):
     return _dispatch("outcome", name, after, skills, cases,
         model_url     = model_url,
         model         = model,
@@ -79,12 +81,13 @@ def outcome(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
         timeout_ms    = timeout_ms,
         severity      = severity,
         structured    = structured,
+        **kw,
     )
 
 def uplift(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
            system = "", judge_url = "", judge_model = "", judge_api_key = "",
            min_gain = 1, threshold = 1.0, timeout_ms = 30000, severity = "critical",
-           structured = True, after = []):
+           structured = True, after = [], **kw):
     return _dispatch("uplift", name, after, skills, cases,
         model_url     = model_url,
         model         = model,
@@ -98,11 +101,12 @@ def uplift(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
         timeout_ms    = timeout_ms,
         severity      = severity,
         structured    = structured,
+        **kw,
     )
 
 def consistency(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
                 system = "", samples = 5, temperature = 0.7, threshold = 1.0,
-                timeout_ms = 30000, severity = "critical", after = []):
+                timeout_ms = 30000, severity = "critical", after = [], **kw):
     return _dispatch("consistency", name, after, skills, cases,
         model_url   = model_url,
         model       = model,
@@ -113,11 +117,12 @@ def consistency(name, skills, cases, model_url, model = "gpt-4o-mini", api_key =
         threshold   = threshold,
         timeout_ms  = timeout_ms,
         severity    = severity,
+        **kw,
     )
 
 def sequence(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
              system = "", sequence_match = "exact", threshold = 1.0, timeout_ms = 30000,
-             severity = "critical", after = []):
+             severity = "critical", after = [], **kw):
     return _dispatch("sequence", name, after, skills, cases,
         model_url      = model_url,
         model          = model,
@@ -127,11 +132,12 @@ def sequence(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = ""
         threshold      = threshold,
         timeout_ms     = timeout_ms,
         severity       = severity,
+        **kw,
     )
 
 def latency(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
             system = "", max_latency_ms = 5000, threshold = 1.0, timeout_ms = 30000,
-            severity = "critical", after = []):
+            severity = "critical", after = [], **kw):
     return _dispatch("latency", name, after, skills, cases,
         model_url      = model_url,
         model          = model,
@@ -141,10 +147,11 @@ def latency(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
         threshold      = threshold,
         timeout_ms     = timeout_ms,
         severity       = severity,
+        **kw,
     )
 
 def monitor(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
-            system = "", threshold = 1.0, timeout_ms = 30000, after = []):
+            system = "", threshold = 1.0, timeout_ms = 30000, after = [], **kw):
     return _dispatch("monitor", name, after, skills, cases,
         model_url  = model_url,
         model      = model,
@@ -152,4 +159,5 @@ def monitor(name, skills, cases, model_url, model = "gpt-4o-mini", api_key = "",
         system     = system,
         threshold  = threshold,
         timeout_ms = timeout_ms,
+        **kw,
     )

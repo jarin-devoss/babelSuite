@@ -3,8 +3,19 @@ local http = require("resty.http")
 
 local function as_array(t) return #t == 0 and json.empty_array or t end
 
+-- A finding blocks the step when its severity is critical (high and error mean
+-- the same). warn and info are advisory. The verdict is computed here, once, so
+-- a severity setting decides whether a check gates, whatever the operation.
+local BLOCKING = {critical = true, high = true, error = true}
+local function verdict(findings)
+    for _, f in ipairs(findings) do
+        if BLOCKING[f.severity] then return false end
+    end
+    return true
+end
+
 local _M = {}
-_M.version  = 0.1
+_M.version  = 0.2
 _M.priority = 10
 _M.name     = "control-sim"
 _M.schema   = {type = "object", properties = {}, additionalProperties = false}
@@ -99,7 +110,7 @@ local function run_step_response(cfg, sim_url)
     local summary = string.format("step_response: stable=%s settling=%.3fs overshoot=%.2f%% dc_gain=%.4f",
         tostring(data.stable or false),
         settling or 0, overshoot or 0, dc_gain or 0)
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             stable = data.stable or false, settling_s = settling,
             overshoot_pct = overshoot, dc_gain = dc_gain, summary = summary, level = ok and "info" or "warn"}, nil
@@ -123,7 +134,7 @@ local function run_monitor(cfg, sim_url)
     local summary = string.format("monitor: stable=%s settling=%.3fs overshoot=%.2f%% dc_gain=%.4f",
         tostring(data.stable or false),
         settling or 0, overshoot or 0, dc_gain or 0)
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             stable = data.stable or false, settling_s = settling,
             overshoot_pct = overshoot, dc_gain = dc_gain, summary = summary, level = ok and "info" or "warn"}, nil
@@ -177,7 +188,7 @@ local function run_impulse_response(cfg, sim_url)
         end
     end
 
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             stable = data.stable or false, settling_s = settling, final_value = final,
             summary = string.format("impulse_response: stable=%s settling=%.3fs final=%.4f",
@@ -221,12 +232,26 @@ local function run_frequency_response(cfg, sim_url)
         })
     end
 
-    local ok = #findings == 0
+    local ok = verdict(findings)
     return {passed = ok, findings = as_array(findings),
             gain_margin_db = gain_margin, phase_margin_deg = phase_margin,
             summary = string.format("frequency_response: gain_margin=%.2fdB phase_margin=%.2f°",
                 gain_margin or 0, phase_margin or 0),
             level = ok and "info" or "warn"}, nil
+end
+
+local OPS = {
+    step_response      = run_step_response,
+    monitor            = run_monitor,
+    impulse_response   = run_impulse_response,
+    frequency_response = run_frequency_response,
+}
+
+local function reply(status, body)
+    ngx.status = status
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(json.encode(body))
+    return ngx.exit(status)
 end
 
 function _M.access(conf, ctx)
@@ -241,27 +266,18 @@ function _M.access(conf, ctx)
     local cfg     = payload.config or {}
     local sim_url = (cfg.sim_url or ""):gsub("/$", "")
 
+    local handler = OPS[op]
+    if not handler then
+        return reply(400, {error = "unknown op " .. tostring(op) .. "; supported: step_response, monitor, impulse_response, frequency_response"})
+    end
+
     if sim_url == "" or not cfg.numerator or not cfg.denominator then
         ngx.status = 400; ngx.say(json.encode({error = "sim_url, numerator, and denominator are required"})); return ngx.exit(400)
     end
 
-    local result, err
-    if op == "monitor" then
-        result, err = run_monitor(cfg, sim_url)
-    elseif op == "impulse_response" then
-        result, err = run_impulse_response(cfg, sim_url)
-    elseif op == "frequency_response" then
-        result, err = run_frequency_response(cfg, sim_url)
-    else
-        result, err = run_step_response(cfg, sim_url)
-    end
-
-    if err then ngx.status = 500; ngx.say(json.encode({error = err})); return ngx.exit(500) end
-
-    ngx.status = 200
-    ngx.header["Content-Type"] = "application/json"
-    ngx.say(json.encode(result))
-    return ngx.exit(200)
+    local result, err = handler(cfg, sim_url)
+    if err then return reply(500, {error = err}) end
+    return reply(200, result)
 end
 
 return _M
