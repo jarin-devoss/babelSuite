@@ -653,6 +653,13 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	suiteID := suiteConfig.ID
 	containerName := SidecarContainerName(suiteID, profile)
 
+	// Two runs of one suite that boot together both land here. Checking and then
+	// creating is not atomic, so without this the slower one failed with "name
+	// already in use", or removed the sidecar the faster one had just started.
+	// The second caller waits, then finds the running sidecar and reuses it.
+	unlock := lockSidecarStart(containerName)
+	defer unlock()
+
 	if sidecarImage == "" {
 		sidecarImage = "apache/apisix:latest"
 	}
@@ -677,6 +684,7 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		info.Config != nil && info.Config.Labels[sidecarConfigHashLabel] == configHash {
 		return nil
 	}
+	exists := err == nil
 
 	confDir := SidecarConfDir(suiteID, profile)
 	if err := os.MkdirAll(confDir, 0755); err != nil {
@@ -745,8 +753,12 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	ctx30s, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel2()
 
-	// Remove any stopped container with the same name before recreating.
-	cli.ContainerRemove(ctx30s, containerName, container.RemoveOptions{Force: true}) //nolint:errcheck
+	// Remove a stopped container, or one started from another configuration, so
+	// its name is free. When there is none, nothing is removed: a container that
+	// appears now was started by someone else a moment ago and is not ours to kill.
+	if exists {
+		cli.ContainerRemove(ctx30s, containerName, container.RemoveOptions{Force: true}) //nolint:errcheck
+	}
 
 	createAndStart := func() (string, error) {
 		port, err := freeLoopbackPort()
@@ -803,6 +815,14 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		}
 	}
 	if startErr != nil {
+		// Another process (an agent on this host, a second control plane) made
+		// the sidecar between our check and our create. If it is the one we
+		// would have made, use it instead of failing the run.
+		if isNameConflict(startErr) {
+			if url := runningSidecarWithHash(cli, containerName, configHash); url != "" {
+				return waitForSidecar(cli, containerName, url, sidecarStartupWait)
+			}
+		}
 		return startErr
 	}
 	created := struct{ ID string }{ID: containerID}
@@ -816,6 +836,40 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	}
 
 	return waitForSidecar(cli, containerName, "http://127.0.0.1:"+hostPort, sidecarStartupWait)
+}
+
+var sidecarStartLocks sync.Map // container name -> *sync.Mutex
+
+// lockSidecarStart serializes starts of one sidecar in this process and returns
+// the function that releases it.
+func lockSidecarStart(containerName string) func() {
+	lock, _ := sidecarStartLocks.LoadOrStore(containerName, &sync.Mutex{})
+	mutex := lock.(*sync.Mutex)
+	mutex.Lock()
+	return mutex.Unlock
+}
+
+// isNameConflict reports whether a container could not be created because its
+// name is taken.
+func isNameConflict(err error) bool {
+	return errdefs.IsConflict(err) || strings.Contains(strings.ToLower(err.Error()), "is already in use")
+}
+
+// runningSidecarWithHash returns the host address of the named container when it
+// is running with the given configuration, and "" otherwise.
+func runningSidecarWithHash(cli *client.Client, containerName, configHash string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	info, err := cli.ContainerInspect(ctx, containerName)
+	if err != nil || info.State == nil || !info.State.Running || info.Config == nil ||
+		info.Config.Labels[sidecarConfigHashLabel] != configHash || info.NetworkSettings == nil {
+		return ""
+	}
+	bindings := info.NetworkSettings.Ports["9080/tcp"]
+	if len(bindings) == 0 || bindings[0].HostPort == "" {
+		return ""
+	}
+	return "http://127.0.0.1:" + bindings[0].HostPort
 }
 
 // sidecarEngineAddr is where the sidecar reaches the control plane's mock

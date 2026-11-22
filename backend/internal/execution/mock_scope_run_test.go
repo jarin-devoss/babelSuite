@@ -90,13 +90,17 @@ func TestOverlappingRunsKeepTheirOwnMockState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create the first execution: %v", err)
 	}
-	time.Sleep(3 * time.Second)
+	// Both start at once: the two runs boot together and both ask for the suite's
+	// sidecar, which used to fail one of them with a name conflict.
 	second, err := service.CreateExecution(context.Background(), CreateRequest{SuiteID: definition.ID, Profile: "local.yaml"})
 	if err != nil {
 		t.Fatalf("create the second execution: %v", err)
 	}
-	waitForExecutionTerminal(t, service, first.ID)
-	waitForExecutionTerminal(t, service, second.ID)
+	for _, run := range []string{first.ID, second.ID} {
+		if snapshot := waitForExecutionTerminal(t, service, run); snapshot.Status != "Healthy" {
+			t.Fatalf("%s ended %s, want Healthy", run, snapshot.Status)
+		}
+	}
 
 	attempts := regexp.MustCompile(`"previousAttempts":\s*"(\d+)"`)
 	for _, run := range []string{first.ID, second.ID} {
