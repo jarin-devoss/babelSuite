@@ -94,7 +94,10 @@ func TestSecurityStepReachesAServiceOfTheSuiteAndLeavesItsReportInTheWorkspace(t
 
 	// probe sends 15 requests and headers 3, so well over 15 must have arrived.
 	if hits < 15 {
-		t.Fatalf("the service saw %d scanner requests, want at least 15; the sidecar did not reach it.\n%s", hits, all)
+		name := runner.SidecarContainerName("sec-run", "local.yaml")
+		state, _ := exec.Command("docker", "inspect", "--format", "{{.State.Status}} exit={{.State.ExitCode}} ports={{json .NetworkSettings.Ports}}", name).CombinedOutput()
+		sidecarLog, _ := exec.Command("docker", "logs", "--tail", "60", name).CombinedOutput()
+		t.Fatalf("the service saw %d scanner requests, want at least 15; the sidecar did not reach it.\nsidecar: %s\n%s\n%s", hits, state, sidecarLog, all)
 	}
 	if !strings.Contains(all, "Finding [admin-panel]") {
 		t.Fatalf("the probe must report what it found on the service:\n%s", all)
