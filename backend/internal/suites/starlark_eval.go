@@ -827,19 +827,26 @@ func (p *starlarkPluginRef) AttrNames() []string {
 	return []string{"run", "watch", "monitor", "check", "assert", "probe"}
 }
 
-// Attr returns a step builder for any operation name. The operation name controls
-// failure behaviour: watch/monitor are non-blocking (continue_on_failure=true),
-// all others are blocking and fail the suite on findings.
+// Attr returns a step builder for any operation name.
+//
+// A plugin call's keywords are of two kinds. The step options — after,
+// on_failure, continue_on_failure, expect_logs and fail_on_logs — are the
+// engine's: they decide how the step is ordered and judged, they mean the same
+// on every node, and they never reach the plugin. Every other keyword is the
+// plugin's own config. The operation name has no say in whether a step may fail
+// the run: a check that only warns passes because its findings are warnings,
+// and an author who wants a failing step not to stop the run says so with
+// continue_on_failure=True.
 func (p *starlarkPluginRef) Attr(op string) (starlark.Value, error) {
-	softFail := op == "watch" || op == "monitor"
 	return starlark.NewBuiltin(op, func(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		node := &starlarkNode{
-			kind:           NodeKindPlugin,
-			variant:        p.pluginName,
-			pluginOp:       op,
-			continueOnFail: softFail,
-			pluginConfig:   make(map[string]any),
+			kind:         NodeKindPlugin,
+			variant:      p.pluginName,
+			pluginOp:     op,
+			pluginConfig: make(map[string]any),
 		}
+		var expectLogs, failOnLogs []string
+		call := "plugin." + op
 		for _, kv := range kwargs {
 			key, _ := starlark.AsString(kv[0])
 			val := kv[1]
@@ -852,17 +859,46 @@ func (p *starlarkPluginRef) Attr(op string) (starlark.Value, error) {
 				node.name = strings.TrimSpace(s)
 				node.explicitName = node.name != ""
 			case "after":
-				nodes, err := extractNodeList(val, "plugin."+op, "after")
+				nodes, err := extractNodeList(val, call, "after")
 				if err != nil {
 					return nil, err
 				}
 				node.after = nodes
+			case "on_failure":
+				nodes, err := extractNodeList(val, call, "on_failure")
+				if err != nil {
+					return nil, err
+				}
+				node.onFailure = nodes
+			case "continue_on_failure":
+				b, ok := val.(starlark.Bool)
+				if !ok {
+					return nil, fmt.Errorf("%s: continue_on_failure must be a bool", call)
+				}
+				node.continueOnFail = bool(b)
+			case "expect_logs":
+				matchers, err := extractStringOrList(val, call, "expect_logs")
+				if err != nil {
+					return nil, err
+				}
+				expectLogs = matchers
+			case "fail_on_logs":
+				matchers, err := extractStringOrList(val, call, "fail_on_logs")
+				if err != nil {
+					return nil, err
+				}
+				failOnLogs = matchers
+			case "expect_exit":
+				return nil, fmt.Errorf("%s: expect_exit does not apply to a plugin step, which has no exit code; use expect_logs or fail_on_logs", call)
 			default:
 				node.pluginConfig[key] = starlarkToGo(val)
 			}
 		}
 		if node.name == "" {
 			return nil, fmt.Errorf("plugin.%s: name is required", op)
+		}
+		if len(expectLogs) > 0 || len(failOnLogs) > 0 {
+			node.evaluation = &StepEvaluation{ExpectLogs: expectLogs, FailOnLogs: failOnLogs}
 		}
 		p.reg.register(node)
 		return node, nil

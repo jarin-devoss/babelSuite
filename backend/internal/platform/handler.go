@@ -7,16 +7,12 @@ import (
 	"regexp"
 	"strings"
 
-	"cuelang.org/go/cue/cuecontext"
-
 	"github.com/babelsuite/babelsuite/internal/auth"
 	"github.com/babelsuite/babelsuite/internal/httpserver"
+	"github.com/babelsuite/babelsuite/internal/pluginschema"
 )
 
-var (
-	pluginNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
-	pluginCueCtx = cuecontext.New()
-)
+var pluginNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 type Handler struct {
 	store Store
@@ -265,9 +261,8 @@ func (h *Handler) checkPlugin(w http.ResponseWriter, r *http.Request) {
 		result.Issues = append(result.Issues, "trigger must start with /")
 	}
 	if plugin.Schema != "" {
-		v := pluginCueCtx.CompileString(plugin.Schema)
-		if v.Err() != nil {
-			result.Issues = append(result.Issues, "schema CUE parse error: "+v.Err().Error())
+		if err := pluginschema.Check(plugin.Schema); err != nil {
+			result.Issues = append(result.Issues, "schema CUE parse error: "+err.Error())
 		}
 	}
 	if len(result.Issues) > 0 {
@@ -307,20 +302,11 @@ func (h *Handler) validatePluginConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schema := pluginCueCtx.CompileString(plugin.Schema)
-	if schema.Err() != nil {
-		httpserver.WriteError(w, http.StatusUnprocessableEntity, "Plugin schema is invalid CUE: "+schema.Err().Error())
+	if err := pluginschema.Check(plugin.Schema); err != nil {
+		httpserver.WriteError(w, http.StatusUnprocessableEntity, "Plugin schema is invalid CUE: "+err.Error())
 		return
 	}
-
-	configJSON, err := json.Marshal(payload.Config)
-	if err != nil {
-		httpserver.WriteError(w, http.StatusBadRequest, "Could not marshal config.")
-		return
-	}
-	configVal := pluginCueCtx.CompileBytes(configJSON)
-	unified := schema.Unify(configVal)
-	if err := unified.Validate(); err != nil {
+	if err := pluginschema.Validate(plugin.Schema, payload.Config); err != nil {
 		httpserver.WriteJSON(w, http.StatusOK, map[string]any{"valid": false, "error": err.Error()})
 		return
 	}

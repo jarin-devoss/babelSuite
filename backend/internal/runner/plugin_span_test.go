@@ -168,7 +168,7 @@ func TestPluginResponseAttributesDecode(t *testing.T) {
 	if result.Attributes["shadow.status"] != "200/200" {
 		t.Fatalf("unexpected value: %q", result.Attributes["shadow.status"])
 	}
-	if result.Passed {
+	if result.Passed == nil || *result.Passed {
 		t.Error("passed should have decoded as false")
 	}
 }

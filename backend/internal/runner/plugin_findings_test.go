@@ -45,7 +45,7 @@ func TestFindingsPreserveFieldsAndPassedFlag(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &result); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if result.Passed {
+	if result.Passed == nil || *result.Passed {
 		t.Fatal("passed should be false")
 	}
 	if len(result.Findings) != 1 {
