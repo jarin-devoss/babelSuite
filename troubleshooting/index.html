@@ -1279,6 +1279,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-plugin-step-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Plugin Step Fails
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-test-step-fails-on-its-report" class="md-nav__link">
     <span class="md-ellipsis">
       A Test Step Fails On Its Report
@@ -1439,6 +1448,15 @@
   <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Traffic Step Fails
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-plugin-step-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Plugin Step Fails
     </span>
   </a>
   
@@ -1628,6 +1646,47 @@
 <tr>
 <td><code>load against a service is supported only on the local Docker backend</code></td>
 <td>The target is a service of a Kubernetes backend. Target the suite's mock host or a fully-qualified host instead.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-plugin-step-fails">A Plugin Step Fails<a class="headerlink" href="#a-plugin-step-fails" title="Permanent link">&para;</a></h2>
+<p>A plugin step fails with the plugin's own reason. Match the message in the step's log:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>What it means and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugin X config: &lt;field&gt;: ...</code></td>
+<td>The step's config does not satisfy the plugin's schema (a missing required setting, a wrong type, a value out of range). Fix the call; nothing was sent to the plugin.</td>
+</tr>
+<tr>
+<td><code>plugin X: the reply has no boolean "passed" field</code></td>
+<td>The plugin replied without a verdict, or with one that is not a boolean. A plugin must reply <code>{"passed": true|false, ...}</code>. See the <a href="../plugins/#plugin-response-contract">response contract</a>.</td>
+</tr>
+<tr>
+<td><code>plugin X: &lt;message&gt; (HTTP 500)</code></td>
+<td>The plugin could not run its check and said why: a target it could not reach, an endpoint its server does not serve, an unexpected response shape. The message names the URL and status.</td>
+</tr>
+<tr>
+<td><code>plugin X: N finding(s) exceeded thresholds</code></td>
+<td>The plugin found blocking (<code>critical</code>) findings. They are listed above this line. A finding at <code>warn</code> level does not block.</td>
+</tr>
+<tr>
+<td><code>unknown op Y; supported: ...</code></td>
+<td>The operation is not one the plugin has. A wrapper function's name is the operation.</td>
+</tr>
+<tr>
+<td><code>this REST proxy does not serve consumer-group lag</code> / <code>... partition offsets</code></td>
+<td><code>consumer-lag</code> and <code>dlq-inspector</code> need the Confluent REST Proxy (v3 lag, v2 offsets). Redpanda's HTTP Proxy serves neither.</td>
+</tr>
+<tr>
+<td><code>plugin X: the suite's APISIX sidecar is not running</code></td>
+<td>Plugins run in the suite's sidecar. Run the suite on the local Docker backend.</td>
 </tr>
 </tbody>
 </table>

@@ -1026,6 +1026,33 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#the-reply-decides-the-step-and-a-check-that-cannot-run-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      The reply decides the step, and a check that cannot run fails
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#severity-and-which-findings-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      Severity, and which findings block
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-options-belong-to-the-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step options belong to the engine
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#reporting-to-the-trace" class="md-nav__link">
     <span class="md-ellipsis">
       Reporting to the trace
@@ -1744,6 +1771,33 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#the-reply-decides-the-step-and-a-check-that-cannot-run-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      The reply decides the step, and a check that cannot run fails
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#severity-and-which-findings-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      Severity, and which findings block
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-options-belong-to-the-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step options belong to the engine
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#reporting-to-the-trace" class="md-nav__link">
     <span class="md-ellipsis">
       Reporting to the trace
@@ -2025,7 +2079,7 @@ than silently reaching something real.</p>
 </span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>    <span class="n">after</span>       <span class="o">=</span> <span class="p">[</span><span class="n">control_mock</span><span class="p">],</span>
 </span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="p">)</span>
 </span></code></pre></div>
-<p>Plugin nodes accept <code>after=</code>, <code>continue_on_failure=</code>, and <code>on_failure=</code> just like any other topology node.</p>
+<p>Plugin nodes accept <code>after=</code>, <code>on_failure=</code>, <code>continue_on_failure=</code>, <code>expect_logs=</code> and <code>fail_on_logs=</code> just like any other topology node. The engine applies them; the plugin never sees them. See <a href="#step-options-belong-to-the-engine">step options belong to the engine</a>.</p>
 <h2 id="what-user-plugins-should-not-duplicate">What User Plugins Should NOT Duplicate<a class="headerlink" href="#what-user-plugins-should-not-duplicate" title="Permanent link">&para;</a></h2>
 <p>Before writing a user plugin, check whether the built-in plugins already cover it:</p>
 <table>
@@ -2107,7 +2161,7 @@ than silently reaching something real.</p>
 </tr>
 </tbody>
 </table>
-<p>Required config: <code>sim_url</code>, <code>netlist</code>. Optional: <code>probe_node</code>, <code>max_voltage</code>, <code>min_voltage</code>, <code>max_rise_ms</code>, <code>min_gain_db</code>, <code>severity</code>.</p>
+<p>Required config: <code>sim_url</code>, <code>netlist</code>. Optional: <code>probe_node</code>, <code>max_voltage</code>, <code>min_voltage</code>, <code>max_rise_ms</code>, <code>min_gain_db</code>, <code>timeout_ms</code> (how long to wait for the simulation service, default <code>60000</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="verilog-sim-digital-logic-simulation"><code>verilog-sim</code> — Digital Logic Simulation<a class="headerlink" href="#verilog-sim-digital-logic-simulation" title="Permanent link">&para;</a></h3>
 <p>Sends Verilog source and a testbench to an Icarus-compatible simulation backend and inspects the results for compile errors, runtime assertion failures, and undefined (X-state) signals.</p>
@@ -2133,7 +2187,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>check_coverage</code></td>
-<td>Runs the testbench and fails if the simulator's reported toggle coverage falls below <code>min_coverage_pct</code> — catches modules that pass every assertion while leaving branches unexercised.</td>
+<td>Runs the testbench and fails if the simulator's reported toggle coverage falls below <code>min_coverage_pct</code> — catches modules that pass every assertion while leaving branches unexercised. A simulator that reports no coverage at all is a <code>warn</code> finding and does not fail the step.</td>
 </tr>
 </tbody>
 </table>
@@ -2155,7 +2209,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>monitor</code></td>
-<td>Same checks, but always emits <code>warn</code>-level findings — never blocks the suite. Use this for passive observability of control system health.</td>
+<td>Same checks, but always emits <code>warn</code>-level findings, so it passes on violations. It still fails when the simulation service cannot be reached. Use this for passive observability of control system health.</td>
 </tr>
 <tr>
 <td><code>impulse_response</code></td>
@@ -2197,7 +2251,8 @@ than silently reaching something real.</p>
 </tr>
 </tbody>
 </table>
-<p>Required config: <code>auth_url</code>, <code>username</code>, <code>password</code>. Optional: <code>token_field</code> (default <code>token</code>), <code>endpoint</code> (required for <code>audit_endpoint</code>), <code>endpoints</code> (required for <code>audit_endpoints</code>), <code>expected_issuer</code> / <code>expected_audience</code> / <code>forbidden_scopes</code> (<code>check_claims</code>), <code>max_lifetime_hours</code> (default <code>24</code>), <code>required_claims</code>, <code>severity</code>.</p>
+<p>A probe that gets no answer (a connection the endpoint drops, a timeout) is a <code>jwt.endpoint.probe_failed</code> finding of its own, because only a probe that answered can show the endpoint is right or wrong.</p>
+<p>Required config: <code>auth_url</code>, <code>username</code>, <code>password</code>. Optional: <code>token_field</code> (default <code>token</code>), <code>endpoint</code> (required for <code>audit_endpoint</code>), <code>endpoints</code> (required for <code>audit_endpoints</code>), <code>expected_issuer</code> / <code>expected_audience</code> / <code>forbidden_scopes</code> (<code>check_claims</code>), <code>max_lifetime_hours</code> (default <code>24</code>), <code>required_claims</code>, <code>severity</code> (<code>warn</code> or <code>critical</code>, default <code>critical</code>; it decides whether the configurable findings, such as a symmetric algorithm or a missing claim, block).</p>
 <hr />
 <h3 id="canary-validator-canary-deployment-traffic-ratio"><code>canary-validator</code> — Canary Deployment Traffic Ratio<a class="headerlink" href="#canary-validator-canary-deployment-traffic-ratio" title="Permanent link">&para;</a></h3>
 <blockquote>
@@ -2218,7 +2273,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>watch_ratio</code></td>
-<td>Same check but with a wider default tolerance and <code>warn</code>-level findings — passive monitoring mode.</td>
+<td>Same check but with a wider default tolerance and <code>warn</code>-level findings, so it passes on a mismatch — passive monitoring mode.</td>
 </tr>
 <tr>
 <td><code>sticky</code></td>
@@ -2226,14 +2281,19 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>compare_errors</code></td>
-<td>Splits the sample by which side answered and compares the 5xx rate of each. Fails if the canary's error rate exceeds stable's by more than <code>max_error_delta</code>, or if no canary traffic was seen at all.</td>
+<td>Splits the sample by which side answered and compares the 5xx rate of each. Fails if the canary's error rate exceeds stable's by more than <code>max_error_delta</code>, if no canary traffic was seen at all, or if more than <code>max_error_delta</code> of the requests got no answer.</td>
 </tr>
 </tbody>
 </table>
+<p>A request that got no answer (a reset connection, a timeout) is neither canary nor stable. It is counted on its own and left out of the ratio, never read as a stable response, and a target that answers none of the requests fails the step as unreachable.</p>
 <p>Required config: <code>target</code>. Optional: <code>canary_header</code> (default <code>X-Canary</code>), <code>expected_ratio</code> (default <code>0.1</code>), <code>tolerance</code> (default <code>0.05</code>), <code>sample_size</code> (default <code>100</code>), <code>session_header</code> / <code>session_value</code> (<code>sticky</code>), <code>max_error_delta</code> (<code>compare_errors</code>, default <code>0.01</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="consumer-lag-kafka-consumer-group-lag"><code>consumer-lag</code> — Kafka Consumer Group Lag<a class="headerlink" href="#consumer-lag-kafka-consumer-group-lag" title="Permanent link">&para;</a></h3>
-<p>Queries a Kafka REST Proxy for a consumer group's partition offsets and checks whether any partition's lag exceeds a threshold. Useful after a load test or data ingestion task to confirm the consumer has fully caught up.</p>
+<p>Reads a consumer group's lag from the <strong>Confluent REST Proxy's v3 API</strong> (<code>/v3/clusters/{cluster}/consumer-groups/{group}/lags</code>) and checks whether any partition's lag exceeds a threshold. Useful after a load test or data ingestion task to confirm the consumer has fully caught up.</p>
+<div class="admonition warning">
+<p class="admonition-title">The REST proxy must serve consumer-group lag</p>
+<p>Redpanda's HTTP Proxy does not, and neither does a Confluent proxy without the v3 API. Against one, the step <strong>fails</strong> and says so (<code>this REST proxy does not serve consumer-group lag</code>). It never reads a missing answer as "no lag". A group the cluster has never heard of, or one with no committed offsets, fails too: it has not started consuming, so it is not caught up. The plugin never joins the group to read its offsets, because that would rebalance the consumers it is meant to observe.</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -2248,7 +2308,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>watch_lag</code></td>
-<td>Same check but always <code>warn</code>-level — use for continuous observability.</td>
+<td>Same check but always <code>warn</code>-level, so it passes on lag — use for continuous observability.</td>
 </tr>
 <tr>
 <td><code>wait_caught_up</code></td>
@@ -2260,10 +2320,20 @@ than silently reaching something real.</p>
 </tr>
 </tbody>
 </table>
+<p>Required config: <code>kafka_rest_url</code>, <code>group</code>. Optional: <code>max_lag</code> (default <code>1000</code>), <code>cluster_id</code> (read from <code>/v3/clusters</code> when omitted), <code>timeout_s</code> / <code>interval_s</code> (<code>wait_caught_up</code>, defaults <code>60</code> / <code>2</code>), <code>interval_s</code> / <code>max_growth</code> (<code>check_trend</code>, defaults <code>10</code> / <code>0</code>), <code>severity</code>.</p>
+<p>-----------|--------------|
+| <code>check_lag</code> | Checks every partition in the group. Fails with <code>critical</code> if any partition lag exceeds <code>max_lag</code>. |
+| <code>watch_lag</code> | Same check but always <code>warn</code>-level — use for continuous observability. |
+| <code>wait_caught_up</code> | Polls until the group's total lag drops to <code>max_lag</code> or <code>timeout_s</code> passes. A load test ends long before its consumers drain, so a single <code>check_lag</code> right after it reports lag that would have cleared. |
+| <code>check_trend</code> | Samples the total lag twice, <code>interval_s</code> apart, and fails if it grew by more than <code>max_growth</code>. A high but shrinking lag is a consumer catching up; a growing one cannot keep pace with its producers. |</p>
 <p>Required config: <code>kafka_rest_url</code>, <code>group</code>. Optional: <code>max_lag</code> (default <code>1000</code>), <code>timeout_s</code> / <code>interval_s</code> (<code>wait_caught_up</code>, defaults <code>60</code> / <code>2</code>), <code>interval_s</code> / <code>max_growth</code> (<code>check_trend</code>, defaults <code>10</code> / <code>0</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="dlq-inspector-dead-letter-queue-inspector"><code>dlq-inspector</code> — Dead Letter Queue Inspector<a class="headerlink" href="#dlq-inspector-dead-letter-queue-inspector" title="Permanent link">&para;</a></h3>
-<p>Checks the latest offset of a Kafka DLQ topic via the REST Proxy. A non-zero (or above-threshold) offset means messages were dead-lettered during the test run.</p>
+<p>Counts the messages waiting in a Kafka DLQ topic through the <strong>Confluent REST Proxy's v2 API</strong>: for every partition (<code>/topics/{topic}/partitions</code>), the end offset minus the beginning offset (<code>/topics/{topic}/partitions/{partition}/offsets</code>), summed. A count above the threshold means messages were dead-lettered during the test run.</p>
+<div class="admonition warning">
+<p class="admonition-title">The REST proxy must serve partition offsets</p>
+<p>Redpanda's HTTP Proxy does not. Against it, the step <strong>fails</strong> and says so (<code>this REST proxy does not serve partition offsets</code>), rather than reporting an empty queue. A topic that does not exist fails too, naming the topic.</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -2278,7 +2348,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>watch_dlq</code></td>
-<td>Same check but always <code>warn</code>-level — never blocks the suite.</td>
+<td>Same check but always <code>warn</code>-level — it reports and never blocks.</td>
 </tr>
 <tr>
 <td><code>check_growth</code></td>
@@ -2290,6 +2360,12 @@ than silently reaching something real.</p>
 </tr>
 </tbody>
 </table>
+<p>Required config: <code>kafka_rest_url</code>, <code>topic</code> (or <code>topics</code> for <code>inspect_topics</code>). Optional: <code>max_messages</code> (default <code>0</code>), <code>interval_s</code> / <code>max_growth</code> (<code>check_growth</code>, defaults <code>10</code> / <code>0</code>), <code>severity</code>.</p>
+<p>-----------|--------------|
+| <code>inspect</code> | Fails the step if the DLQ topic has more messages than <code>max_messages</code>. |
+| <code>watch_dlq</code> | Same check but always <code>warn</code>-level — never blocks the suite. |
+| <code>check_growth</code> | Samples the DLQ's message count twice, <code>interval_s</code> apart, and fails if it grew by more than <code>max_growth</code>. The absolute count includes everything dead-lettered before the run; growth isolates what is being dead-lettered right now. |
+| <code>inspect_topics</code> | Runs <code>inspect</code> over a list of <code>topics</code> in one step, each over-limit topic its own finding — no need for an <code>inspect</code> step per DLQ. |</p>
 <p>Required config: <code>kafka_rest_url</code>, <code>topic</code> (or <code>topics</code> for <code>inspect_topics</code>). Optional: <code>max_messages</code> (default <code>0</code>), <code>interval_s</code> / <code>max_growth</code> (<code>check_growth</code>, defaults <code>10</code> / <code>0</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="pii-scanner-pii-leak-detection"><code>pii-scanner</code> — PII Leak Detection<a class="headerlink" href="#pii-scanner-pii-leak-detection" title="Permanent link">&para;</a></h3>
@@ -2311,7 +2387,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>probe</code></td>
-<td>Same scan but always <code>warn</code>-level — passive auditing mode.</td>
+<td>Same scan but always <code>warn</code>-level, so it passes on a match — passive auditing mode.</td>
 </tr>
 <tr>
 <td><code>scan_headers</code></td>
@@ -2319,7 +2395,7 @@ than silently reaching something real.</p>
 </tr>
 <tr>
 <td><code>scan_many</code></td>
-<td>Scans a list of <code>targets</code> in one step, so a suite can sweep every read path of an API. An unreachable target is a <code>warn</code>-level finding, not a hard failure.</td>
+<td>Scans a list of <code>targets</code> in one step, so a suite can sweep every read path of an API. A target that could not be scanned is a <code>critical</code> <code>pii.unreachable</code> finding: a path nobody scanned is not a path without leaks.</td>
 </tr>
 </tbody>
 </table>
@@ -2337,7 +2413,7 @@ than silently reaching something real.</p>
 <tbody>
 <tr>
 <td><code>check_compat</code></td>
-<td>Checks compatibility using the mode in <code>mode</code> (<code>BACKWARD</code>, <code>FORWARD</code>, <code>FULL</code>, etc.).</td>
+<td>Checks compatibility under the mode in <code>mode</code> (<code>BACKWARD</code>, <code>FORWARD</code>, <code>FULL</code>, the <code>_TRANSITIVE</code> variants, or <code>NONE</code>).</td>
 </tr>
 <tr>
 <td><code>enforce</code></td>
@@ -2353,7 +2429,8 @@ than silently reaching something real.</p>
 </tr>
 </tbody>
 </table>
-<p>Required config: <code>registry_url</code>, <code>subject</code>, <code>new_schema</code> (not needed for <code>check_mode</code>). Optional: <code>mode</code> (default <code>BACKWARD</code>), <code>severity</code>.</p>
+<p>The registry picks the mode from its own configuration for the subject; a request header does not change it. To test a schema under a mode the subject is not set to, the plugin copies the subject's latest version (every version for a <code>_TRANSITIVE</code> mode) to a <strong>scratch subject</strong> named <code>__babelsuite_…</code>, sets the mode on that subject, asks the registry there, and deletes the scratch subject again, soft and permanently, whatever happened. That needs a registry that allows per-subject compatibility (<code>PUT /config/{subject}</code>) and write access. A leftover subject is reported as a <code>warn</code> finding naming it. When the subject already enforces the requested mode, the plugin asks directly and writes nothing. A reply with no boolean <code>is_compatible</code> fails the step.</p>
+<p>Required config: <code>registry_url</code>, <code>subject</code>, <code>new_schema</code> (not needed for <code>check_mode</code>). Optional: <code>mode</code> (default <code>BACKWARD</code>), <code>schema_type</code> (<code>AVRO</code>, <code>JSON</code> or <code>PROTOBUF</code>, default <code>AVRO</code>), <code>severity</code>.</p>
 <hr />
 <h3 id="shadow-diff-shadow-traffic-response-diffing"><code>shadow-diff</code> — Shadow Traffic Response Diffing<a class="headerlink" href="#shadow-diff-shadow-traffic-response-diffing" title="Permanent link">&para;</a></h3>
 <blockquote>
@@ -2370,11 +2447,11 @@ than silently reaching something real.</p>
 <tbody>
 <tr>
 <td><code>diff</code></td>
-<td>Fails the step if the number of field-level differences exceeds <code>threshold</code>. Useful as a hard gate during migration.</td>
+<td>Fails the step if the number of blocking differences exceeds <code>threshold</code>. It diffs the union of both sides' fields, so a field only the shadow has is a difference, and an array longer on one side is a difference at the array. Bodies that are not JSON on at least one side are compared as they are, with one <code>shadow.body_mismatch</code> finding naming the first differing byte. Useful as a hard gate during migration.</td>
 </tr>
 <tr>
 <td><code>check</code></td>
-<td>Same diff but always <code>warn</code>-level — passive shadow monitoring.</td>
+<td>Same diff but always <code>warn</code>-level, so it passes on differences — passive shadow monitoring.</td>
 </tr>
 <tr>
 <td><code>compare_paths</code></td>
@@ -2386,7 +2463,7 @@ than silently reaching something real.</p>
 </tr>
 </tbody>
 </table>
-<p>Required config: <code>primary</code>, <code>shadow</code> (base URLs for <code>compare_paths</code>). Optional: <code>ignore_fields</code> (list of field paths to skip), <code>threshold</code> (default <code>0</code>), <code>paths</code> (<code>compare_paths</code>), <code>samples</code> / <code>max_ratio</code> (<code>compare_latency</code>, defaults <code>10</code> / <code>1.5</code>), <code>severity</code>.</p>
+<p>Required config: <code>primary</code>, <code>shadow</code> (base URLs for <code>compare_paths</code>). Optional: <code>ignore_fields</code> (list of field paths to skip), <code>threshold</code> (how many blocking differences may remain and still pass, default <code>0</code>), <code>paths</code> (<code>compare_paths</code>), <code>samples</code> / <code>max_ratio</code> (<code>compare_latency</code>, defaults <code>10</code> / <code>1.5</code>), <code>severity</code> (default <code>critical</code>; <code>warn</code> reports differences without blocking).</p>
 <hr />
 <h3 id="llm-judge-grading-text-against-criteria"><code>llm-judge</code> — Grading Text Against Criteria<a class="headerlink" href="#llm-judge-grading-text-against-criteria" title="Permanent link">&para;</a></h3>
 <p>Sends a block of text and a list of criteria to any OpenAI-compatible
@@ -2410,7 +2487,7 @@ the model's own reason into a finding.</p>
 </tr>
 <tr>
 <td><code>monitor</code></td>
-<td>Reports the same verdicts at <code>warn</code> level without failing the suite.</td>
+<td>Reports the same verdicts at <code>warn</code> level, so it never fails on a verdict.</td>
 </tr>
 <tr>
 <td><code>consistency</code></td>
@@ -2478,7 +2555,7 @@ to block the suite.</p>
 </tr>
 <tr>
 <td><code>schema</code></td>
-<td>Optional CUE schema; step config is validated against it before dispatch</td>
+<td>Optional CUE schema. The step's config is validated against it before dispatch: required settings must be present, values must fit their types and bounds, and an unset setting (<code>None</code>, or the empty string a wrapper passes for an option nobody gave) takes the schema's default. A setting the schema does not mention is allowed, because the config also carries the profile's environment. A profile value that is text (<code>max_lag: "500"</code>) is read as the number it spells</td>
 </tr>
 <tr>
 <td><code>star</code></td>
@@ -2504,7 +2581,7 @@ to block the suite.</p>
 <tr>
 <td><code>passed</code></td>
 <td>bool</td>
-<td>Whether the step should be considered successful</td>
+<td><strong>Required.</strong> Whether the step should be considered successful. It alone decides the step</td>
 </tr>
 <tr>
 <td><code>findings</code></td>
@@ -2533,6 +2610,21 @@ to block the suite.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="the-reply-decides-the-step-and-a-check-that-cannot-run-fails">The reply decides the step, and a check that cannot run fails<a class="headerlink" href="#the-reply-decides-the-step-and-a-check-that-cannot-run-fails" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A reply is <strong>HTTP 200 with a JSON object holding a boolean <code>passed</code></strong>. A reply without one fails the step: <code>plugin X: the reply has no boolean "passed" field</code>. A <code>passed</code> that is not a boolean (<code>"true"</code>) fails too.</li>
+<li>A plugin that <strong>cannot run its check</strong> replies with a status other than 200 and <code>{"error": "..."}</code>: the target is unreachable, an endpoint it needs is not served, the response has an unexpected shape, the operation is unknown. The step fails and shows the plugin's message with the status. Never reply <code>passed: true</code> with no findings for a check that did not happen.</li>
+<li>Before dispatch, the step's config is checked against the plugin's <a href="#plugin-fields"><code>schema</code></a>. An invalid config fails the step without a request to the plugin: <code>plugin consumer-lag config: max_lag: invalid value -1 (out of bound &gt;=0)</code>.</li>
+</ul>
+<h3 id="severity-and-which-findings-block">Severity, and which findings block<a class="headerlink" href="#severity-and-which-findings-block" title="Permanent link">&para;</a></h3>
+<p>A finding's <code>severity</code> is <code>info</code>, <code>warn</code> or <code>critical</code>. For a check, <code>passed</code> is <code>false</code> when a <code>critical</code> finding exists. <code>warn</code> and <code>info</code> are advisory: they show in the log and never block. The shipped checks follow this rule, so:</p>
+<ul>
+<li><code>severity="warn"</code> on any check reports its findings without blocking the step;</li>
+<li>the monitoring operations (<code>watch_ratio</code>, <code>watch_lag</code>, <code>watch_dlq</code>, control-sim <code>monitor</code>, pii <code>probe</code>, shadow-diff <code>check</code>, the judge <code>monitor</code>) force <code>warn</code>, so they pass on findings and still fail when they cannot run.</li>
+</ul>
+<p>The runner accepts <code>high</code> and <code>error</code> as aliases of <code>critical</code> for plugins written before the vocabulary settled. It shows any other severity as a warning and says so once. The runner never second-guesses <code>passed</code>: a plugin that grades cases against a threshold (<code>llm-judge</code>) passes while a case that missed is reported as a <code>critical</code> finding, because the verdict is the score and each finding is one case.</p>
+<h3 id="step-options-belong-to-the-engine">Step options belong to the engine<a class="headerlink" href="#step-options-belong-to-the-engine" title="Permanent link">&para;</a></h3>
+<p>A plugin call takes <code>after</code>, <code>on_failure</code>, <code>continue_on_failure</code>, <code>expect_logs</code> and <code>fail_on_logs</code>. The engine reads these and applies them as it does on every node, and <strong>never sends them to the plugin</strong>. <code>expect_exit</code> is refused, because a plugin step has no exit code. An operation's name has no effect on whether a failure stops the run: write <code>continue_on_failure=True</code> to let a step fail without stopping it.</p>
 <h3 id="reporting-to-the-trace">Reporting to the trace<a class="headerlink" href="#reporting-to-the-trace" title="Permanent link">&para;</a></h3>
 <p>The runner opens a <code>runner.run</code> span per step carrying what the runner knows — execution, suite, node and backend. <code>attributes</code> is how a plugin adds what it actually did, so the detail reaches your collector alongside everything else BabelSuite traces.</p>
 <div class="language-lua highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kr">return</span><span class="w"> </span><span class="p">{</span>
@@ -2715,20 +2807,22 @@ to block the suite.</p>
 <li>Load <code>plugin</code> from <code>@babelsuite/runtime</code> and bind it to your plugin name.</li>
 <li>Define one function per operation. Parameter names must match the config keys your Lua handler reads from <code>payload.config</code>.</li>
 <li>Always forward <code>name=</code> and <code>after=</code> — these are topology fields, not config fields.</li>
-<li>Set sensible defaults so callers only have to specify what they care about.</li>
+<li>Take <code>**kw</code> and forward it, so <code>continue_on_failure=</code>, <code>on_failure=</code>, <code>expect_logs=</code> and <code>fail_on_logs=</code> reach the engine. Without it a wrapper refuses them as unexpected arguments.</li>
+<li>Set sensible defaults so callers only have to specify what they care about. A default must satisfy the plugin's schema.</li>
 </ol>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">load</span><span class="p">(</span><span class="s2">&quot;@babelsuite/runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;plugin&quot;</span><span class="p">)</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">_ref</span> <span class="o">=</span> <span class="n">plugin</span><span class="p">(</span><span class="s2">&quot;my-checker&quot;</span><span class="p">)</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[]):</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">severity</span> <span class="o">=</span> <span class="s2">&quot;critical&quot;</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="p">[],</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
 </span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="k">return</span> <span class="n">_ref</span><span class="o">.</span><span class="n">check</span><span class="p">(</span>
 </span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>        <span class="n">name</span>      <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
 </span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>        <span class="n">after</span>     <span class="o">=</span> <span class="n">after</span><span class="p">,</span>
 </span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="n">target</span>    <span class="o">=</span> <span class="n">target</span><span class="p">,</span>
 </span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>        <span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span><span class="p">,</span>
 </span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>        <span class="n">severity</span>  <span class="o">=</span> <span class="n">severity</span><span class="p">,</span>
-</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="p">)</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>        <span class="o">**</span><span class="n">kw</span><span class="p">,</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="p">)</span>
 </span></code></pre></div>
 <h2 id="plugin-definition-files">Plugin Definition Files<a class="headerlink" href="#plugin-definition-files" title="Permanent link">&para;</a></h2>
 <p>The example plugins under <a href="../examples/#example-plugins"><code>examples/oci-plugins/</code></a> each ship four files:</p>
