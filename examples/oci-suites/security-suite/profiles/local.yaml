@@ -1,5 +1,5 @@
 name: Default
-description: Standard security scan profile — runs all eight attack modes against the mock API surface.
+description: Standard security scan profile — runs all eight attack modes against a small API served inside the suite.
 default: true
 runtime:
   suite: security-suite
