@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -65,7 +66,7 @@ func TestRegisterAndHeartbeatRetries(t *testing.T) {
 		return client.Register(ctx, agent.RegisterRequest{AgentID: "a", Capacity: 4})
 	}
 	var firstRegistrations atomic.Int32
-	go registerAndHeartbeat(ctx, client, "a", 20*time.Millisecond, register, func() { firstRegistrations.Add(1) })
+	go registerAndHeartbeat(ctx, client, "a", 20*time.Millisecond, register, func() { firstRegistrations.Add(1) }, nil)
 
 	time.Sleep(60 * time.Millisecond)
 	if registrations.Load() != 0 {
@@ -100,5 +101,45 @@ func TestExecutionScopesReleaseAll(t *testing.T) {
 	}
 	if len(scopes.releaseAll()) != 0 {
 		t.Fatal("a second releaseAll found executions again")
+	}
+}
+
+// An agent whose id belongs to another online agent stops instead of fighting
+// for it for ever.
+func TestRegisterAndHeartbeatStopsWhenTheIdIsHeldByAnotherAgent(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"error":"agent \"a\" is online at http://other:1"}`))
+	}))
+	defer server.Close()
+
+	client := agent.NewControlPlaneClient(server.URL, server.Client(), "")
+	register := func(ctx context.Context) error {
+		return client.Register(ctx, agent.RegisterRequest{AgentID: "a"})
+	}
+	conflict := make(chan error, 1)
+	done := make(chan struct{})
+	go func() {
+		registerAndHeartbeat(context.Background(), client, "a", 5*time.Millisecond, register, nil, func(err error) { conflict <- err })
+		close(done)
+	}()
+
+	select {
+	case err := <-conflict:
+		if !errors.Is(err, agent.ErrAgentIDInUse) {
+			t.Fatalf("the conflict must say the id is in use: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the agent never gave up on an id held by another agent")
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("the registration loop kept running after giving up")
+	}
+	if got := attempts.Load(); got != conflictGiveUp {
+		t.Fatalf("attempts = %d, want %d", got, conflictGiveUp)
 	}
 }

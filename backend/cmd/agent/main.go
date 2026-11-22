@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
@@ -158,7 +159,10 @@ func main() {
 			})
 		}
 		registered := make(chan struct{})
-		go registerAndHeartbeat(rootCtx, controlPlane, agentID, heartbeatInterval, register, func() { close(registered) })
+		go registerAndHeartbeat(rootCtx, controlPlane, agentID, heartbeatInterval, register, func() { close(registered) }, func(err error) {
+			slog.Error("this agent cannot register: its id belongs to an agent that is still online. Stopping.", "agentID", agentID, "error", err)
+			stop()
+		})
 		// One claim loop per slot: each claims a step, runs it and claims the
 		// next, so the agent never holds more than maxJobs steps. They start
 		// once the agent is registered, so the control plane schedules
@@ -223,14 +227,31 @@ func main() {
 // plane that was down when the agent started — or restarted since — otherwise
 // keeps the record it had, with the capacity the agent declared last time, or
 // none, and the agent's slots never reach the scheduler.
-func registerAndHeartbeat(ctx context.Context, client *agent.ControlPlaneClient, agentID string, interval time.Duration, register func(context.Context) error, onFirstRegistration func()) {
+//
+// When the control plane refuses the id because an agent on another host holds
+// it, the agent keeps trying for conflictGiveUp attempts, long enough for a
+// crashed holder to expire, and then calls onConflict and stops: two agents
+// fighting over one id would take work from each other.
+func registerAndHeartbeat(ctx context.Context, client *agent.ControlPlaneClient, agentID string, interval time.Duration, register func(context.Context) error, onFirstRegistration func(), onConflict func(error)) {
 	registered := false
 	first := true
+	conflicts := 0
+	gaveUp := false
 	tryRegister := func() {
 		if err := register(ctx); err != nil {
+			if errors.Is(err, agent.ErrAgentIDInUse) {
+				conflicts++
+				slog.Error("agent id is held by another agent; retrying", "error", err, "attempt", conflicts, "of", conflictGiveUp)
+				if conflicts >= conflictGiveUp && onConflict != nil {
+					gaveUp = true
+					onConflict(err)
+				}
+				return
+			}
 			slog.Error("agent register failed; retrying", "error", err)
 			return
 		}
+		conflicts = 0
 		registered = true
 		if first {
 			first = false
@@ -254,6 +275,9 @@ func registerAndHeartbeat(ctx context.Context, client *agent.ControlPlaneClient,
 		}
 		if !registered {
 			tryRegister()
+			if gaveUp {
+				return
+			}
 			continue
 		}
 		heartbeatCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -266,6 +290,10 @@ func registerAndHeartbeat(ctx context.Context, client *agent.ControlPlaneClient,
 		}
 	}
 }
+
+// conflictGiveUp is how many refused registrations, three seconds apart, an
+// agent makes before it concludes its id is really in use.
+const conflictGiveUp = 15
 
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {

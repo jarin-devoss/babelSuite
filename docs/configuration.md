@@ -53,6 +53,8 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 | `AUTH_SIGNUP_ENABLED` | `true` | Allow new accounts to be created via the sign-up page |
 | `MOCK_SHARED_SECRET` | *(empty)* | Shared secret used to authenticate the mock service |
 | `AGENT_SHARED_SECRET` | *(empty)* | Shared secret used to authenticate remote agent workers |
+| `BABELSUITE_ENGINE_ADDR` | `host.docker.internal:<PORT>` | Where a suite's gateway reaches this control plane's mock engine from inside its container. Set from `PORT` when not given, so only a control plane behind a different address needs it |
+| `BABELSUITE_REAP_ON_START` | `true` | On start, remove what runs this host's control plane no longer drives left behind (containers, networks, volumes, workspace directories). `false` turns it off. See [Execution Status And Restarts](execution.md#execution-status-and-restarts) |
 
 ### SSO / OIDC
 

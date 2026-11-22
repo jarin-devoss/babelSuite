@@ -80,6 +80,24 @@ state:
 
 This supports create-update-delete flows, sequence state, and other stateful patterns without a real database.
 
+### Whose state a request uses
+
+State is kept **per run**. Two runs of the same suite, even on the same profile and at the same time, each start from the mock's `defaults`: one run's requests never change what the other sees, and `reset_mocks=` in one run clears only that run's state. A run's state is dropped when the run ends.
+
+The mock engine learns which run a request belongs to in one of two ways:
+
+- **The request goes through the suite's gateway.** On Docker the sidecar joins the run's network, so a step calls `$BABELSUITE_GATEWAY_URL` (or `http://<suite>.mock.internal:9080`) and the gateway tells the engine which network the request arrived on. Nothing in the suite has to change.
+- **The request names its run**, with `X-Babelsuite-Execution: $BABELSUITE_EXECUTION_ID`, for a caller that reaches the engine directly.
+
+A request that does neither (a call from the host, a run on a Kubernetes or remote-agent backend, a header naming a run that does not exist) uses the state **shared by every run of the suite**, as before. The response says which it used:
+
+| `X-Babelsuite-State-Scope` | Meaning |
+|---|---|
+| `execution` | this run's own state |
+| `suite` | the state shared by every run of the suite; concurrent runs can see each other's changes |
+
+The header is absent when the operation keeps no state. `reset_mocks=` in a run with no scope of its own clears the shared state.
+
 ## Where Mock Data Lives In A Suite
 
 ```text

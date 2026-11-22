@@ -51,10 +51,11 @@ func (s *Service) restoreActiveExecutions() {
 		}
 		statuses, completed := buildStepStatus(item.Record.Suite.Topology, item.Record.Events)
 		state := &executionState{
-			record:     item.Record,
-			total:      item.Total,
-			completed:  completed,
-			stepStatus: statuses,
+			record:      item.Record,
+			workspaceID: item.Record.WorkspaceID,
+			total:       item.Total,
+			completed:   completed,
+			stepStatus:  statuses,
 		}
 		if state.total == 0 {
 			state.total = len(item.Record.Suite.Topology)
@@ -80,7 +81,7 @@ func (s *Service) persistExecutionCache() {
 		if state == nil {
 			continue
 		}
-		if state.record.Status == "Healthy" || state.record.Status == "Failed" {
+		if IsTerminalStatus(state.record.Status) {
 			continue
 		}
 		persisted = append(persisted, PersistedExecution{

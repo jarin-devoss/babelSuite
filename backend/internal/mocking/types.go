@@ -24,9 +24,14 @@ type Service struct {
 	suites  suiteReader
 	signals *mockingSignals
 
-	mu         sync.RWMutex
-	state      map[string]map[string]string
-	suiteState map[string]map[string]struct{}
+	mu sync.RWMutex
+	// state is every stateful mock's values, by scope (one run, or a whole suite
+	// when a request cannot be tied to a run), then by the mock's state key.
+	state map[string]map[string]map[string]string
+	// runs maps a registered run to its suite, and ingress maps the gateway's
+	// address on that run's network back to the run.
+	runs    map[string]string
+	ingress map[string]string
 }
 
 type Result struct {
@@ -39,6 +44,9 @@ type Result struct {
 	ResolverURL    string
 	RuntimeURL     string
 	MatchedExample string
+	// StateScope says which state a stateful mock used: ScopeExecution or
+	// ScopeSuite. Empty when the operation keeps no state.
+	StateScope string
 }
 
 type requestSnapshot struct {

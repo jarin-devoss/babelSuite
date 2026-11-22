@@ -68,6 +68,15 @@ func (s *stubMockResetter) ResetSuiteState(_ context.Context, suiteID string) er
 	return nil
 }
 
+func (s *stubMockResetter) ResetExecutionState(_ context.Context, _, suiteID string) error {
+	s.suiteIDs = append(s.suiteIDs, suiteID)
+	return nil
+}
+
+func (s *stubMockResetter) RegisterExecution(string, string) {}
+func (s *stubMockResetter) RegisterIngress(string, string)   {}
+func (s *stubMockResetter) DropExecutionState(string)        {}
+
 func (o *captureObserver) SyncExecution(snapshot Snapshot) {
 	select {
 	case o.events <- snapshot:
@@ -953,11 +962,22 @@ func waitForExecutionTerminal(t *testing.T, service *Service, executionID string
 		if ok && snapshot.RunningSteps == 0 && snapshot.PendingSteps == 0 && snapshot.Status != "Booting" {
 			return snapshot
 		}
+		// A run that could not start ends with every step still pending, and
+		// nothing more will happen to it.
+		if ok && snapshot.RunningSteps == 0 && IsTerminalStatus(snapshot.Status) {
+			return snapshot
+		}
 		time.Sleep(40 * time.Millisecond)
 	}
 
 	snapshot, _ := service.snapshotExecution(executionID)
-	t.Fatalf("timed out waiting for execution %s to finish; last snapshot: %+v", executionID, snapshot)
+	var events strings.Builder
+	if record, err := service.GetExecution(executionID, ""); err == nil {
+		for _, event := range record.Events {
+			events.WriteString("\n  " + event.Text)
+		}
+	}
+	t.Fatalf("timed out waiting for execution %s to finish; last snapshot: %+v\nevents:%s", executionID, snapshot, events.String())
 	return Snapshot{}
 }
 

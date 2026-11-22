@@ -59,8 +59,9 @@ func NewService(suiteService suiteReader) *Service {
 	return &Service{
 		suites:     suiteService,
 		signals:    newMockingSignals(),
-		state:      make(map[string]map[string]string),
-		suiteState: make(map[string]map[string]struct{}),
+		state:   make(map[string]map[string]map[string]string),
+		runs:    make(map[string]string),
+		ingress: make(map[string]string),
 	}
 }
 
@@ -182,10 +183,11 @@ func (s *Service) resolveInner(ctx context.Context, suite *suites.Definition, su
 	}
 
 	stateKey := ""
+	scope := s.scopeFor(suite.ID, request)
 	if operation.MockMetadata.State != nil {
 		stateKey = renderTemplate(operation.MockMetadata.State.LookupKeyTemplate, buildTemplateContext(*suite, surface, operation, snapshot, nil, nil, ""))
 	}
-	state := s.loadState(stateKey, operation.MockMetadata.State)
+	state := s.loadState(scope, stateKey, operation.MockMetadata.State)
 	schemaExamples := loadSchemaExamples(*suite, operation)
 	contextMap := buildTemplateContext(*suite, surface, operation, snapshot, state, nil, "")
 
@@ -203,7 +205,7 @@ func (s *Service) resolveInner(ctx context.Context, suite *suites.Definition, su
 		}
 
 		result := buildSchemaResult(*suite, surface, operation, snapshot, state, adapter, schemaExample)
-		s.applyStateTransition(operation.MockMetadata.State, stateKey, schemaExample.Name, *suite, surface, operation, snapshot, state, result)
+		s.applyStateTransition(operation.MockMetadata.State, scope, stateKey, schemaExample.Name, *suite, surface, operation, snapshot, state, result)
 		return result, nil
 	}
 
@@ -241,7 +243,7 @@ func (s *Service) resolveInner(ctx context.Context, suite *suites.Definition, su
 		MatchedExample: example.Name,
 	}
 
-	s.applyStateTransition(operation.MockMetadata.State, stateKey, example.Name, *suite, surface, operation, snapshot, state, result)
+	s.applyStateTransition(operation.MockMetadata.State, scope, stateKey, example.Name, *suite, surface, operation, snapshot, state, result)
 	return result, nil
 }
 

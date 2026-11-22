@@ -134,6 +134,9 @@ func writeResult(w http.ResponseWriter, result *Result) {
 	if strings.TrimSpace(result.MatchedExample) != "" {
 		w.Header().Set("X-Babelsuite-Mock-Example", result.MatchedExample)
 	}
+	if result.StateScope != "" {
+		w.Header().Set(HeaderStateScope, result.StateScope)
+	}
 	w.WriteHeader(result.Status)
 	_, _ = w.Write(result.Body)
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
-func (s *Service) loadState(key string, config *suites.MockState) map[string]string {
+func (s *Service) loadState(scope, key string, config *suites.MockState) map[string]string {
 	state := cloneStringMap(nil)
 	if config != nil {
 		state = cloneStringMap(config.Defaults)
@@ -22,7 +22,7 @@ func (s *Service) loadState(key string, config *suites.MockState) map[string]str
 	}
 
 	s.mu.RLock()
-	current, ok := s.state[key]
+	current, ok := s.state[scope][key]
 	s.mu.RUnlock()
 	if !ok {
 		if state == nil {
@@ -41,7 +41,7 @@ func (s *Service) loadState(key string, config *suites.MockState) map[string]str
 	return merged
 }
 
-func (s *Service) applyStateTransition(config *suites.MockState, lookupKey, exampleName string, suite suites.Definition, surface suites.APISurface, operation suites.APIOperation, snapshot requestSnapshot, state map[string]string, result *Result) {
+func (s *Service) applyStateTransition(config *suites.MockState, scope, lookupKey, exampleName string, suite suites.Definition, surface suites.APISurface, operation suites.APIOperation, snapshot requestSnapshot, state map[string]string, result *Result) {
 	if config == nil {
 		return
 	}
@@ -73,26 +73,27 @@ func (s *Service) applyStateTransition(config *suites.MockState, lookupKey, exam
 			current, _ := strconv.Atoi(nextState[field])
 			nextState[field] = strconv.Itoa(current + delta)
 		}
-		s.storeState(suite.ID, key, nextState)
+		s.storeState(scope, key, nextState)
 		result.Headers.Set("X-Babelsuite-State-Key", key)
+		result.StateScope = scopeKind(scope)
 		return
 	}
 }
 
-func (s *Service) storeState(suiteID, key string, value map[string]string) {
+func (s *Service) storeState(scope, key string, value map[string]string) {
 	if strings.TrimSpace(key) == "" {
 		return
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state[key] = cloneStringMap(value)
-	if strings.TrimSpace(suiteID) != "" {
-		if s.suiteState[suiteID] == nil {
-			s.suiteState[suiteID] = make(map[string]struct{})
-		}
-		s.suiteState[suiteID][key] = struct{}{}
+	if s.state == nil {
+		s.state = make(map[string]map[string]map[string]string)
 	}
+	if s.state[scope] == nil {
+		s.state[scope] = make(map[string]map[string]string)
+	}
+	s.state[scope][key] = cloneStringMap(value)
 }
 
 func (s *Service) ResetSuiteState(_ context.Context, suiteID string) error {
@@ -107,11 +108,7 @@ func (s *Service) ResetSuiteState(_ context.Context, suiteID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	keys := s.suiteState[suiteID]
-	for key := range keys {
-		delete(s.state, key)
-	}
-	delete(s.suiteState, suiteID)
+	delete(s.state, suiteScope(suiteID))
 	return nil
 }
 

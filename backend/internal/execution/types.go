@@ -164,6 +164,13 @@ type ExecutionRecord struct {
 	Message   string              `json:"message"`
 	Events    []ExecutionEvent    `json:"events"`
 	Artifacts []ExecutionArtifact `json:"artifacts,omitempty"`
+
+	// WorkspaceID, OwnerInstance and LeaseUntil are kept with the record so a
+	// restarted control plane knows whose execution it is and whether the one
+	// that ran it is still alive. They are not shown to clients.
+	WorkspaceID   string     `json:"workspaceId,omitempty"`
+	OwnerInstance string     `json:"ownerInstance,omitempty"`
+	LeaseUntil    *time.Time `json:"leaseUntil,omitempty"`
 }
 
 type CreateRequest struct {
@@ -230,11 +237,19 @@ type Service struct {
 	logs           *logstream.Hub
 	signals        *telemetrySet
 
+	// instanceID names this control plane process, so an execution can say which
+	// one runs it.
+	instanceID string
+
 	mu         sync.Mutex
 	suiteMeta  map[string]suiteRuntimeMeta
 	executions map[string]*executionState
 	subs       map[string]map[chan StreamEvent]struct{}
 	order      []string
+
+	// saved is what each execution looked like when it was last written to the
+	// store, so an unchanged one is not written again. Guarded by mu.
+	saved map[string]saveMark
 
 	persistMu      sync.Mutex
 	persistPending bool
@@ -259,8 +274,15 @@ type platformSource interface {
 	Load() (*platform.PlatformSettings, error)
 }
 
+// mockResetter is the mock engine as the execution service uses it: it tells
+// the engine which runs exist and where their requests arrive, so stateful mocks
+// keep one state per run, and it clears or drops that state.
 type mockResetter interface {
 	ResetSuiteState(ctx context.Context, suiteID string) error
+	ResetExecutionState(ctx context.Context, executionID, suiteID string) error
+	RegisterExecution(executionID, suiteID string)
+	RegisterIngress(executionID, address string)
+	DropExecutionState(executionID string)
 }
 
 type suiteRuntimeMeta struct {

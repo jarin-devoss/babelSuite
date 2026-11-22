@@ -13,6 +13,7 @@ import (
 	"github.com/babelsuite/babelsuite/internal/runner"
 	"github.com/babelsuite/babelsuite/internal/strutil"
 	"github.com/babelsuite/babelsuite/internal/suites"
+	"github.com/google/uuid"
 )
 
 // agentCapacity is the number of steps the remote backend's agent runs at
@@ -60,9 +61,11 @@ func NewServiceWithPlatform(source suiteSource, platforms platformSource, observ
 		executions:     make(map[string]*executionState),
 		subs:           make(map[string]map[chan StreamEvent]struct{}),
 		concurrencySem: make(chan struct{}, maxConcurrentExecutions),
+		instanceID:     "cp-" + uuid.NewString()[:8],
 	}
 	s.signals = newTelemetrySet(s)
 	s.seedHistory()
+	s.startLeaseLoop()
 	return s
 }
 

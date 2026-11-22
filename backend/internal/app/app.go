@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -216,6 +217,30 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		cronService:        cronService,
 		stopBackground:     stopBackground,
 	}, nil
+}
+
+// ReapLeftovers removes what executions that no control plane drives any more
+// left on this host: the containers, networks and volumes of runs whose
+// orchestrator is gone, and workspace directories of finished or long-forgotten
+// runs. A run a live control plane drives is never touched. It is meant to run
+// once, in the background, after the control plane started.
+func (a *App) ReapLeftovers(ctx context.Context) {
+	if a.environmentService != nil {
+		result, err := a.environmentService.ReapZombies(ctx)
+		switch {
+		case errors.Is(err, environments.ErrDockerUnavailable):
+		case err != nil:
+			slog.Warn("could not reap what dead runs left behind", "error", err)
+		case result.RemovedContainers+result.RemovedNetworks+result.RemovedVolumes > 0:
+			slog.Info("reaped what dead runs left behind",
+				"containers", result.RemovedContainers, "networks", result.RemovedNetworks, "volumes", result.RemovedVolumes)
+		}
+	}
+	if a.executionService != nil {
+		if removed := a.executionService.CleanStaleWorkspaces(); removed > 0 {
+			slog.Info("removed workspaces of finished runs", "count", removed)
+		}
+	}
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

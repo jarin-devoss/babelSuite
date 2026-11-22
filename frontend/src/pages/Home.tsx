@@ -463,6 +463,15 @@ function RunStatus({ status }: { status: ExecutionOverviewItem['status'] }) {
     )
   }
 
+  if (status === 'Interrupted') {
+    return (
+      <span className='runs-status runs-status--failed' data-testid='run-status' data-status='interrupted' title='The control plane that ran this stopped; nothing resumes it'>
+        <FaCircleXmark />
+        <span>Interrupted</span>
+      </span>
+    )
+  }
+
   return (
     <span className='runs-status runs-status--booting' data-testid='run-status' data-status='booting'>
       <FaSpinner />

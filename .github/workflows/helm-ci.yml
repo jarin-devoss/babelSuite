@@ -43,11 +43,21 @@ jobs:
             --set ingress.hosts[0].paths[0].path=/ \
             --set ingress.hosts[0].paths[0].pathType=Prefix
 
-      - name: Lint chart (autoscaling enabled)
+      - name: Lint chart (autoscaling enabled, multiple replicas allowed)
         run: |
           helm lint helm/babelsuite \
             --set autoscaling.enabled=true \
-            --set replicaCount=2
+            --set replicaCount=2 \
+            --set allowMultipleReplicas=true
+
+      - name: Refuse more than one control plane unless asked to
+        run: |
+          for args in "--set replicaCount=2" "--set autoscaling.enabled=true"; do
+            if helm template babelsuite helm/babelsuite --set secrets.jwtSecret=test-secret-value $args > /dev/null 2>&1; then
+              echo "the chart rendered with: $args"
+              exit 1
+            fi
+          done
 
       - name: Template render smoke-test
         run: |
@@ -87,6 +97,7 @@ jobs:
             --set secrets.jwtSecret=test-secret-value \
             --set podDisruptionBudget.enabled=true \
             --set replicaCount=2 \
+            --set allowMultipleReplicas=true \
             > /dev/null
 
       - name: Render with configMount enabled

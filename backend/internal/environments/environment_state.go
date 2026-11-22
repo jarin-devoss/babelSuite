@@ -93,7 +93,11 @@ func finalizeSandbox(ctx context.Context, checker processChecker, now time.Time,
 		sandbox.OrchestratorState = "unknown"
 	}
 
-	if !sandbox.IsZombie && running > 0 && (sandbox.OrchestratorState == "dead" || sandbox.OrchestratorState == "stale") {
+	// Whatever a run left behind is a zombie once nothing drives it any more:
+	// not only running containers but also the exited ones, its network and its
+	// volumes. A killed run left its network behind as "Residual" for ever.
+	left := len(sandbox.Containers) + len(sandbox.Networks) + len(sandbox.Volumes)
+	if !sandbox.IsZombie && left > 0 && (sandbox.OrchestratorState == "dead" || sandbox.OrchestratorState == "stale") {
 		sandbox.IsZombie = true
 	}
 
@@ -123,7 +127,7 @@ func finalizeSandbox(ctx context.Context, checker processChecker, now time.Time,
 		sandbox.Warnings = append(sandbox.Warnings, "Resources are missing babelsuite.run_id, so cleanup is grouped by fallback labels.")
 	}
 	if sandbox.IsZombie {
-		sandbox.Warnings = append(sandbox.Warnings, "The orchestrator appears to be gone while managed containers are still alive.")
+		sandbox.Warnings = append(sandbox.Warnings, "The orchestrator appears to be gone while this run's resources are still here.")
 	}
 
 	sandbox.CanReap = len(sandbox.Containers)+len(sandbox.Networks)+len(sandbox.Volumes) > 0

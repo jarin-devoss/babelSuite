@@ -120,6 +120,15 @@ func executeSecurityStep(ctx context.Context, step StepSpec, emit func(logstream
 		return fmt.Errorf("security: marshal config: %w", err)
 	}
 
+	// A flood is a load run; the other modes send a few requests and do not wait.
+	if mode == "flood" {
+		release, err := acquireSidecarLoad(ctx, step, emit)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
+
 	result, err := triggerScanner(ctx, gatewayURL, cfgJSON)
 	if err != nil {
 		return fmt.Errorf("security: scanner failed: %w", err)

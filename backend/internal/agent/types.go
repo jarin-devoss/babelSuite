@@ -98,6 +98,10 @@ type RegisterRequest struct {
 	// Capacity is how many steps the agent runs at once, as it declares at
 	// registration. Zero is read as 1.
 	Capacity int `json:"capacity,omitempty"`
+	// Force takes the id over from an agent that is still online. Without it a
+	// registration from another host is refused, so a second agent started with
+	// the same id by mistake cannot silently replace a working one.
+	Force bool `json:"force,omitempty"`
 }
 
 type Registration struct {

@@ -1,7 +1,14 @@
 ## BabelSuite Helm chart — default values
 ## Override with --set or a custom values.yaml file.
 
+# BabelSuite runs one control plane. An execution runs inside the process that
+# started it, and the step queue and live streams are in its memory, so a second
+# replica could not take over or share a run. It would also start its own
+# runs, with their own queue, and two of them would collide on the Docker host
+# and on mock state. The chart therefore refuses more than one replica, and
+# autoscaling, unless allowMultipleReplicas is set (see docs/operations.md).
 replicaCount: 1
+allowMultipleReplicas: false
 
 image:
   repository: ghcr.io/babelsuite/babelsuite

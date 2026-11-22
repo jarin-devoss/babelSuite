@@ -148,13 +148,22 @@ func (s *Service) beginRunObservation(ctx context.Context, state *executionState
 		return
 	}
 
+	// The record is also written by the lease loop, so it is copied under the
+	// lock, as is the monitor that finishExecutionObservation takes under it.
+	s.mu.Lock()
+	record := state.record
+	s.mu.Unlock()
+
 	spanCtx, span := s.signals.tracer.Start(backgroundContext(ctx), "suite.execution",
-		trace.WithAttributes(executionAttributes(state.record)...),
+		trace.WithAttributes(executionAttributes(record)...),
 	)
-	state.monitor = &liveSpan{
+	monitor := &liveSpan{
 		ctx:  trace.ContextWithSpan(context.Background(), span),
 		span: span,
 	}
+	s.mu.Lock()
+	state.monitor = monitor
+	s.mu.Unlock()
 	_ = spanCtx
 }
 
@@ -251,6 +260,7 @@ func (s *Service) finishExecutionObservation(executionID string, err error) {
 	// The backend removes what it set up — on Docker, the execution's
 	// containers and network.
 	defer s.destroyExecutionBackend(executionID)
+	defer s.dropMockRun(executionID)
 
 	if s.signals == nil {
 		return

@@ -271,7 +271,7 @@ export interface ExecutionSummary {
   backendId: string
   backend: string
   trigger: string
-  status: 'Booting' | 'Healthy' | 'Failed'
+  status: 'Booting' | 'Healthy' | 'Failed' | 'Interrupted'
   duration: string
   startedAt: string
 }
@@ -293,7 +293,7 @@ export interface ExecutionOverviewItem {
   backendId: string
   backend: string
   trigger: string
-  status: 'Booting' | 'Healthy' | 'Failed'
+  status: 'Booting' | 'Healthy' | 'Failed' | 'Interrupted'
   duration: string
   startedAt: string
   updatedAt: string
@@ -397,7 +397,7 @@ export interface ExecutionRecord {
   backendId: string
   backend: string
   trigger: string
-  status: 'Booting' | 'Healthy' | 'Failed'
+  status: 'Booting' | 'Healthy' | 'Failed' | 'Interrupted'
   duration: string
   startedAt: string
   updatedAt: string
@@ -582,7 +582,7 @@ export interface SuiteProfilesResponse {
 export interface ExecutionStreamEvent {
   id: number
   executionId: string
-  executionStatus: 'Booting' | 'Healthy' | 'Failed'
+  executionStatus: 'Booting' | 'Healthy' | 'Failed' | 'Interrupted'
   duration: string
   updatedAt: string
   event: ExecutionEventRecord

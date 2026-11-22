@@ -207,6 +207,12 @@ func (c *cannonClient) stop(ctx context.Context, id string) error {
 //
 // A cancelled step stops the run in the sidecar instead of leaving it sending.
 func runAPISIXTraffic(ctx context.Context, step StepSpec, emit func(logstream.Line), stats *loadStats, target resolvedTarget, stages []suites.LoadStage, runID string) error {
+	release, err := acquireSidecarLoad(ctx, step, emit)
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	client := newCannonClient(step.GatewayURL)
 	cfg := buildAPISIXConfig(step.Load, runID, target, stages)
 

@@ -47,6 +47,9 @@ func (s *Service) Close() {
 	// detached service, after it had been torn down.
 	waitFor(&s.boots, closeDrainTimeout)
 	s.queue.Drain(closeDrainTimeout)
+	// What this control plane still runs ends with it, and says so, instead of
+	// staying Booting until a later one notices.
+	s.interruptOwned(time.Now())
 	s.mu.Lock()
 	pending := make([]string, 0, len(s.executions))
 	for id, item := range s.executions {
@@ -156,6 +159,7 @@ func (s *Service) GetExecution(executionID, workspaceID string) (*ExecutionRecor
 	}
 
 	record := item.record
+	record.WorkspaceID, record.OwnerInstance, record.LeaseUntil = "", "", nil
 	record.Duration = s.durationLocked(item)
 	record.Events = append([]ExecutionEvent{}, item.record.Events...)
 	record.Artifacts = cloneExecutionArtifacts(item.record.Artifacts)
@@ -232,8 +236,10 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 		workspaceID: request.WorkspaceID,
 		stepStatus:  make(map[string]string),
 	}
+	state.record.WorkspaceID = request.WorkspaceID
 
 	s.mu.Lock()
+	s.claimLocked(&state.record, startedAt)
 	s.executions[executionID] = state
 	s.order = append(s.order, executionID)
 	s.evictOldExecutionsLocked()
@@ -388,6 +394,8 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 		s.failBootedExecution(executionID, fmt.Errorf("APISIX sidecar failed to start: %w", err))
 		return
 	}
+	s.registerMockRun(executionID, suite)
+	s.attachSidecar(executionID, suite, profile, selectedBackend.backend)
 
 	if err := s.queue.Enqueue(tasks); err != nil {
 		s.noteRejectedLaunch(context.Background(), suite.ID, "enqueue_failed")
@@ -400,6 +408,54 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 
 	go s.syncObservers(executionID)
+}
+
+// attachSidecar puts the suite's sidecar on the run's network, so the run's
+// steps reach their mock surfaces through it. A step that cannot is told so by
+// its own failure; the run is not stopped for it.
+func (s *Service) attachSidecar(executionID string, suite *suites.Definition, profile string, backend runner.Backend) {
+	attacher, ok := backend.(runner.SidecarAttacher)
+	if !ok || suite == nil || !sidecarNeeded(suite) {
+		return
+	}
+	address, err := attacher.AttachSidecar(context.Background(), suite.ID, profile, executionID, suiteMockHosts(suite))
+	if err != nil {
+		s.appendEvent(executionID, ExecutionEvent{
+			ID:        "sidecar-attach",
+			Source:    "boot",
+			Timestamp: s.nextTimestamp(executionID),
+			Text:      fmt.Sprintf("The suite's gateway could not join this run's network (%v); steps cannot reach it by name.", err),
+			Level:     "warn",
+		})
+		return
+	}
+	s.mu.Lock()
+	resetter := s.mockResetter
+	s.mu.Unlock()
+	if resetter != nil {
+		resetter.RegisterIngress(executionID, address)
+	}
+}
+
+// registerMockRun tells the mock engine this run exists, so a request that
+// names it, or arrives on its network, is given the run's own mock state.
+func (s *Service) registerMockRun(executionID string, suite *suites.Definition) {
+	s.mu.Lock()
+	resetter := s.mockResetter
+	s.mu.Unlock()
+	if resetter != nil && suite != nil {
+		resetter.RegisterExecution(executionID, suite.ID)
+	}
+}
+
+// dropMockRun forgets a finished run's mock state.
+func (s *Service) dropMockRun(executionID string) {
+	s.mu.Lock()
+	resetter := s.mockResetter
+	s.mu.Unlock()
+	if resetter != nil {
+		resetter.DropExecutionState(executionID)
+	}
 }
 
 // ensureSuiteSidecar starts the APISIX sidecar for the suite if it is not
@@ -902,8 +958,7 @@ func (s *Service) evictOldExecutionsLocked() {
 		oldest := s.order[0]
 		item := s.executions[oldest]
 		if item != nil {
-			switch item.record.Status {
-			case "Healthy", "Failed":
+			if IsTerminalStatus(item.record.Status) {
 				delete(s.executions, oldest)
 				s.order = s.order[1:]
 				continue

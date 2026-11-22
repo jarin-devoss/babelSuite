@@ -1,5 +1,5 @@
 import { stepStatuses } from '../../api/client'
-import { knownBug, test, expect } from '../../fixtures'
+import { test, expect } from '../../fixtures'
 import { ExecutionPage } from '../../pages/ExecutionPage'
 
 test.describe('Run results', () => {
@@ -163,11 +163,10 @@ test.describe('Mock surfaces', () => {
   })
 
   test('@docker a step reaches the mock through BABELSUITE_GATEWAY_URL', async ({ api }) => {
-    // E-N6: the variable holds the sidecar's host-published address
-    // (http://127.0.0.1:<port>). Inside a step container 127.0.0.1 is the
-    // container itself, so the documented way to call a mock cannot work.
-    knownBug('E-N6: BABELSUITE_GATEWAY_URL is not reachable from the step container')
-
+    // The variable used to hold the sidecar's host-published address
+    // (http://127.0.0.1:<port>), which inside a step container is the container
+    // itself. The sidecar now joins the run's network and the step is given its
+    // address there.
     const runId = await api.launch('ui-mock')
     const record = await api.waitForRun(runId)
     expect(record.status).toBe('Healthy')

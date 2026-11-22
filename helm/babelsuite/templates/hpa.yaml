@@ -1,4 +1,5 @@
 {{- if .Values.autoscaling.enabled }}
+{{- $_ := include "babelsuite.singleControlPlane" . }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

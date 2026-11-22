@@ -9,11 +9,14 @@ import (
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
 
+const testScope = "suite:s"
+
 func newTestService(suite suites.Definition) *Service {
 	return &Service{
 		suites:     staticSuiteReader{suite: suite},
-		state:      make(map[string]map[string]string),
-		suiteState: make(map[string]map[string]struct{}),
+		state:   make(map[string]map[string]map[string]string),
+		runs:    make(map[string]string),
+		ingress: make(map[string]string),
 	}
 }
 
@@ -21,7 +24,7 @@ func TestLoadState_NilConfig(t *testing.T) {
 	// C1: nil config → empty non-nil map
 	t.Parallel()
 	s := newTestService(suites.Definition{ID: "s"})
-	got := s.loadState("any-key", nil)
+	got := s.loadState(testScope, "any-key", nil)
 	if got == nil {
 		t.Fatal("expected non-nil map, got nil")
 	}
@@ -35,7 +38,7 @@ func TestLoadState_DefaultsKeyNotStored(t *testing.T) {
 	t.Parallel()
 	s := newTestService(suites.Definition{ID: "s"})
 	config := &suites.MockState{Defaults: map[string]string{"mode": "idle"}}
-	got := s.loadState("missing-key", config)
+	got := s.loadState(testScope, "missing-key", config)
 	if got["mode"] != "idle" {
 		t.Errorf("expected mode=idle, got %q", got["mode"])
 	}
@@ -45,9 +48,9 @@ func TestLoadState_StoredOverridesDefaults(t *testing.T) {
 	// C3: stored state overrides defaults
 	t.Parallel()
 	s := newTestService(suites.Definition{ID: "s"})
-	s.storeState("s", "k1", map[string]string{"mode": "active", "extra": "x"})
+	s.storeState(testScope, "k1", map[string]string{"mode": "active", "extra": "x"})
 	config := &suites.MockState{Defaults: map[string]string{"mode": "idle", "base": "val"}}
-	got := s.loadState("k1", config)
+	got := s.loadState(testScope, "k1", config)
 	if got["mode"] != "active" {
 		t.Errorf("stored value should override default: got %q", got["mode"])
 	}
@@ -64,7 +67,7 @@ func TestApplyStateTransition_NilConfig(t *testing.T) {
 	t.Parallel()
 	s := newTestService(suites.Definition{ID: "s"})
 	result := &Result{Headers: make(http.Header)}
-	s.applyStateTransition(nil, "key", "example", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
+	s.applyStateTransition(nil, testScope, "key", "example", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
 	if result.Headers.Get("X-Babelsuite-State-Key") != "" {
 		t.Error("expected no state key header set")
 	}
@@ -80,11 +83,11 @@ func TestApplyStateTransition_TransitionFires(t *testing.T) {
 		},
 	}
 	result := &Result{Headers: make(http.Header)}
-	s.applyStateTransition(config, "state-key", "created", suites.Definition{ID: "suite-1"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
+	s.applyStateTransition(config, testScope, "state-key", "created", suites.Definition{ID: "suite-1"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
 	if result.Headers.Get("X-Babelsuite-State-Key") != "state-key" {
 		t.Errorf("expected state key header, got %q", result.Headers.Get("X-Babelsuite-State-Key"))
 	}
-	loaded := s.loadState("state-key", config)
+	loaded := s.loadState(testScope, "state-key", config)
 	if loaded["status"] != "active" {
 		t.Errorf("expected status=active, got %q", loaded["status"])
 	}
@@ -100,7 +103,7 @@ func TestApplyStateTransition_ExampleMismatch(t *testing.T) {
 		},
 	}
 	result := &Result{Headers: make(http.Header)}
-	s.applyStateTransition(config, "key", "different-example", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
+	s.applyStateTransition(config, testScope, "key", "different-example", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
 	if result.Headers.Get("X-Babelsuite-State-Key") != "" {
 		t.Error("expected no state key header")
 	}
@@ -117,8 +120,8 @@ func TestApplyStateTransition_DeleteField(t *testing.T) {
 		},
 	}
 	result := &Result{Headers: make(http.Header)}
-	s.applyStateTransition(config, "del-key", "", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, initial, result)
-	loaded := s.loadState("del-key", &suites.MockState{})
+	s.applyStateTransition(config, testScope, "del-key", "", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, initial, result)
+	loaded := s.loadState(testScope, "del-key", &suites.MockState{})
 	if _, exists := loaded["count"]; exists {
 		t.Error("count field should have been deleted")
 	}
@@ -137,8 +140,8 @@ func TestApplyStateTransition_IncrementAbsentField(t *testing.T) {
 		},
 	}
 	result := &Result{Headers: make(http.Header)}
-	s.applyStateTransition(config, "inc-key", "", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
-	loaded := s.loadState("inc-key", &suites.MockState{})
+	s.applyStateTransition(config, testScope, "inc-key", "", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
+	loaded := s.loadState(testScope, "inc-key", &suites.MockState{})
 	if loaded["counter"] != "1" {
 		t.Errorf("expected counter=1, got %q", loaded["counter"])
 	}
@@ -149,19 +152,18 @@ func TestResetSuiteState_ClearsAllKeys(t *testing.T) {
 	t.Parallel()
 	suite := suites.Definition{ID: "suite-reset"}
 	s := newTestService(suite)
-	s.storeState("suite-reset", "k1", map[string]string{"a": "1"})
-	s.storeState("suite-reset", "k2", map[string]string{"b": "2"})
+	s.storeState(suiteScope("suite-reset"), "k1", map[string]string{"a": "1"})
+	s.storeState(suiteScope("suite-reset"), "k2", map[string]string{"b": "2"})
 
 	if err := s.ResetSuiteState(context.Background(), "suite-reset"); err != nil {
 		t.Fatalf("ResetSuiteState: %v", err)
 	}
 
 	s.mu.RLock()
-	_, k1exists := s.state["k1"]
-	_, k2exists := s.state["k2"]
+	_, exists := s.state[suiteScope("suite-reset")]
 	s.mu.RUnlock()
 
-	if k1exists || k2exists {
+	if exists {
 		t.Error("expected state cleared after reset")
 	}
 }
@@ -182,8 +184,8 @@ func TestApplyStateTransition_ConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			result := &Result{Headers: make(http.Header)}
-			s.applyStateTransition(config, "race-key", "", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
-			_ = s.loadState("race-key", config)
+			s.applyStateTransition(config, testScope, "race-key", "", suites.Definition{ID: "s"}, suites.APISurface{}, suites.APIOperation{}, requestSnapshot{}, nil, result)
+			_ = s.loadState(testScope, "race-key", config)
 		}()
 	}
 	wg.Wait()

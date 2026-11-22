@@ -277,7 +277,7 @@ func (c *client) watchExecution(ctx context.Context, id string, timeout time.Dur
 		var record struct {
 			Status string `json:"status"`
 		}
-		// The control plane reports "Healthy"/"Failed"; match without regard to
+		// The control plane reports "Healthy", "Failed" or "Interrupted"; match without regard to
 		// case so the watch ends when the run does instead of polling to its
 		// deadline.
 		if json.Unmarshal(data, &record) == nil && isTerminalStatus(record.Status) {
@@ -305,7 +305,7 @@ func (c *client) watchExecution(ctx context.Context, id string, timeout time.Dur
 // differed between the API and this client before, so compare case-insensitively.
 func isTerminalStatus(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "healthy", "failed":
+	case "healthy", "failed", "interrupted":
 		return true
 	}
 	return false
