@@ -257,15 +257,16 @@ helm install babelsuite ./helm/babelsuite \
   --set mongodb.uri=mongodb://mongo:27017
 ```
 
-### Autoscaling
+### One control plane
+
+BabelSuite runs **one** control plane. An execution runs inside the process that started it, and the step queue and the live event and log streams are in that process's memory. A second replica would not run, take over or stream another one's executions, and it would start runs of its own on the same Docker host. The chart therefore refuses `replicaCount` above 1, and autoscaling, at render time:
 
 ```yaml
-autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
+replicaCount: 1
+allowMultipleReplicas: false   # the chart fails to render with more than one replica unless this is true
 ```
+
+What a restart does is safe: executions are kept in the primary store, and one that was running when its control plane stopped is listed as `Interrupted` (see [Execution Status And Restarts](execution.md#execution-status-and-restarts)). `allowMultipleReplicas: true` is for a deployment that keeps replicas for availability only, with a single one receiving traffic.
 
 ### Redis + Telemetry
 

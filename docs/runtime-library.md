@@ -645,7 +645,7 @@ Current behavior:
 - `traffic.*` steps use threshold metrics for latency and error budgets, and a run with zero requests fails before any threshold is read
 - `continue_on_failure=true` keeps the suite running even when the node itself finishes as `failed`
 - `on_failure=[primary]` activates rollback or contingency nodes only when one of the referenced nodes fails
-- `reset_mocks=[billing_mock]` clears persisted mock state before a `test.run(...)` step starts
+- `reset_mocks=[billing_mock]` clears the mock state **of this run** before a `test.run(...)` step starts; another run of the same suite keeps its own (see [Stateful Mocking](mocking.md#stateful-mocking))
 - once a hard failure happens, unrelated branches are skipped while activated failure-path branches continue
 
 Current behavior:
@@ -712,8 +712,9 @@ which Node does from 22.6 on. Only an older runtime falls back to
 |----------|-------|
 | `BABELSUITE_SCRIPT` | base64-encoded script (consumed automatically by the entrypoint) |
 | `BABELSUITE_WORKSPACE_DIR` | path to the shared execution workspace bind-mounted into the container |
-| `BABELSUITE_GATEWAY_URL` | the APISIX sidecar address this step can reach, when the suite has a mock surface |
+| `BABELSUITE_GATEWAY_URL` | the APISIX sidecar address this step can reach, when the suite has a mock surface. On Docker it is `http://babelsuite-gateway:9080`: the sidecar joins the run's network under that name and under the suite's mock hosts (`<suite>.mock.internal`) |
 | `BABELSUITE_GATEWAY_URLS` | comma-separated address per mock node, in topology order |
+| `BABELSUITE_EXECUTION_ID` | the id of this run. Send it as `X-Babelsuite-Execution` to name the run to a stateful mock when the request does not go through the gateway |
 | `BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only — path to the artifacts sidecar mount |
 
 A plugin step's config is its call's keyword arguments over the profile's

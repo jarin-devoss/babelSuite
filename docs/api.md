@@ -113,7 +113,7 @@ The inventory is read from the control plane host's Docker. It lists the resourc
 | A run's step containers and execution network | the execution id | `babelsuite.suite`, `babelsuite.profile`, `babelsuite.orchestrator_pid` |
 | A suite's shared APISIX sidecar | `sidecar-<suite>-<profile>` | `babelsuite.suite`, `babelsuite.profile` |
 
-While a traffic step runs, the run's network also lists the suite's sidecar as an attached endpoint. A run whose containers still run after the process in `babelsuite.orchestrator_pid` has died — a control plane that crashed or was killed — is reported as a **Zombie**, and reaping it removes its containers and network. Sidecars carry no pid: a restarted control plane reuses a running sidecar, so it is never a zombie, and reaping one only removes it until the suite's next run starts it again.
+The run's network also lists the suite's sidecar as an attached endpoint, from the start of the run until it ends. A run whose containers still run after the process in `babelsuite.orchestrator_pid` has died — a control plane that crashed or was killed — is reported as a **Zombie**, and reaping it removes its containers and network. Sidecars carry no pid: a restarted control plane reuses a running sidecar, so it is never a zombie, and reaping one only removes it until the suite's next run starts it again.
 
 Every enabled Kubernetes and remote-agent backend is listed too, each environment naming its backend (`backend`, `backendLabel`, `backendKind`):
 

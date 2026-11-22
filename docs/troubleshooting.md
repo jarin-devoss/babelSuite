@@ -109,6 +109,25 @@ A `security.*` step scans a target from the suite's APISIX sidecar and fails wit
 
 ---
 
+## An Execution Shows `Interrupted`
+
+The control plane that was running it stopped (a crash, a kill, a restart) before it finished, and nothing resumes a run. The execution's events say when and which step was running. Start the suite again. If it happens without a restart, look for the control plane being killed (an out-of-memory kill, a Kubernetes pod eviction) or for two control planes sharing one store and one Docker host.
+
+## A Stateful Mock Remembers Another Run
+
+| Symptom | What it means and what to do |
+|---------|------------------------------|
+| The mock's answer has the other run's counts, and the response header `X-Babelsuite-State-Scope` is `suite` | The request could not be tied to a run, so it used the state every run of the suite shares. Call the mock through `$BABELSUITE_GATEWAY_URL`, or send `X-Babelsuite-Execution: $BABELSUITE_EXECUTION_ID`. A Kubernetes or remote-agent run always shares. |
+| `X-Babelsuite-State-Scope` is `execution` and the state still looks wrong | `reset_mocks=` clears this run's state only; check that the step that sets the state ran before the one that reads it. |
+
+## A Load Step Waits Before It Starts
+
+`Waiting for <run>/<step>, which is generating load on this suite's sidecar`: a `traffic.*` or `security.flood` step is already running in the same suite and profile's sidecar, and two at once would measure each other. The step starts when the other ends, and logs how long it waited. Give the suite's runs different profiles to give them different sidecars.
+
+## An Agent Stops With `agent id is in use`
+
+Another agent on a different host registered with this `AGENT_ID` and is still sending heartbeats. Give each agent its own id, stop the other one, or wait 30 seconds after it stopped. A registration with `"force": true` takes the id over on purpose.
+
 ## A Plugin Step Fails
 
 A plugin step fails with the plugin's own reason. Match the message in the step's log:

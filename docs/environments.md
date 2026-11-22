@@ -34,9 +34,11 @@ Each tracked environment corresponds to one execution run. The page displays:
 An environment is marked as a zombie when:
 
 - The orchestrator process is no longer alive
-- But containers, networks, or volumes from the run still exist
+- But containers, networks, or volumes from the run still exist: running or exited containers, or only the network a killed run left behind
 
-Zombie environments can be reaped individually or all at once.
+Zombie environments can be reaped individually or all at once. The control plane also reaps the zombies of its own Docker once when it starts (`BABELSUITE_REAP_ON_START=false` turns that off). A run whose orchestrator is alive is never reaped that way, so several control planes can share one Docker.
+
+Reaping a run's network first detaches the suite's shared APISIX sidecar from it, because Docker will not remove a network that still has an endpoint on it; the sidecar itself is never removed with a run.
 
 ---
 

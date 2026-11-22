@@ -69,3 +69,15 @@ Secret name — prefer existingSecret, fall back to release-scoped secret.
 {{- include "babelsuite.fullname" . }}
 {{- end }}
 {{- end }}
+
+{{/*
+The replica count, after checking that more than one was asked for on purpose.
+A BabelSuite control plane keeps its executions, queue and live streams in
+memory, so two replicas do not share work. Autoscaling would start more.
+*/}}
+{{- define "babelsuite.singleControlPlane" -}}
+{{- if and (or (gt (int .Values.replicaCount) 1) .Values.autoscaling.enabled) (not .Values.allowMultipleReplicas) -}}
+{{- fail "BabelSuite runs one control plane: an execution lives in the memory of the process that started it, so replicaCount > 1 and autoscaling.enabled would split runs between replicas that cannot see each other. Set allowMultipleReplicas=true only if you accept that (see docs/operations.md)." -}}
+{{- end -}}
+{{- .Values.replicaCount -}}
+{{- end -}}

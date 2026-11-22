@@ -74,6 +74,24 @@ Each topology node becomes a step spec that carries:
 - step index and total step count
 - full node definition
 
+## Execution Status And Restarts
+
+An execution is `Booting` while it runs and ends `Healthy`, `Failed` or `Interrupted`.
+
+**Interrupted** means the control plane that was running the execution stopped before it finished: it crashed, was killed, or was shut down. Nothing resumes the run, so it is over; its unfinished steps are recorded as failed (the one that was running) or skipped (the ones that had not started), and an event says why.
+
+How it is decided:
+
+- Every control plane process has an id and keeps a short *lease* on each execution it runs, renewed every few seconds in the primary store.
+- On start, and every few seconds after, a control plane ends every unfinished execution whose lease has expired and that it does not own itself. A control plane shutting down in an orderly way ends its own the same moment.
+- Executions, their events and logs are kept in the primary store with the workspace that started them, so a restarted control plane lists them again for the same workspace.
+
+A second control plane on the same store lists the executions saved before it started, and ends those whose owner is gone. It does not see another control plane's progress live, and it cannot take over its work: see [Operations](operations.md#kubernetes-deployment-helm).
+
+On start the control plane also removes what runs it no longer drives left on its Docker host (containers, networks, volumes) and the workspace directories of finished runs. Set `BABELSUITE_REAP_ON_START=false` to turn that off. A run whose control plane is alive is never touched; see [Zombie Detection](environments.md#zombie-detection).
+
+Two heavy steps do not run in one suite's sidecar at the same time: a `traffic.*` step and a `security.flood` step on the same suite and profile take turns, and the one that waits says whom it waits for.
+
 ## Execution Workspace
 
 Every execution gets a host directory that is bind-mounted into every container in that run at a fixed path. It is created before the first step starts and removed when the execution environment is reaped.
