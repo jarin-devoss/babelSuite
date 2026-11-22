@@ -97,6 +97,7 @@ jobs:
             --set secrets.jwtSecret=test-secret-value \
             --set podDisruptionBudget.enabled=true \
             --set replicaCount=2 \
+            --set allowMultipleReplicas=true \
             > /dev/null
 
       - name: Render with configMount enabled
