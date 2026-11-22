@@ -29,6 +29,10 @@ func sidecarConfigHash(image, apisixYAML string, luaFiles map[string]string) str
 		fmt.Fprintf(h, "%s\x00%d\x00%s\x00", label, len(content), content)
 	}
 	write("image", image)
+	// The sidecar publishes a host port chosen before it starts. One started by
+	// an older build took whatever port Docker picked, which moves when a run
+	// network takes the gateway, so it is recreated once.
+	write("ports", "fixed")
 	write("config.yaml", apisix.SidecarConfigYAML)
 	write("apisix.yaml", apisixYAML)
 
@@ -59,7 +63,13 @@ func AttachSidecarToExecution(ctx context.Context, suiteID, profile, executionID
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	err := cli.NetworkConnect(ctx, netName, sidecar, &network.EndpointSettings{})
+	// GwPriority -1 keeps the run network from becoming the sidecar's default
+	// gateway. Docker gives that role to the highest priority and, on a tie, to
+	// the network whose name sorts first, and babel-net-... sorts before the
+	// default bridge. The published host port lives on the gateway endpoint, so
+	// a network that took it could move the address every client of the sidecar
+	// was given.
+	err := cli.NetworkConnect(ctx, netName, sidecar, &network.EndpointSettings{GwPriority: -1})
 	if err == nil || errdefs.IsConflict(err) || strings.Contains(strings.ToLower(err.Error()), "already exists") {
 		return nil
 	}

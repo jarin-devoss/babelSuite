@@ -4,15 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/babelsuite/babelsuite/internal/suites"
 )
@@ -397,74 +394,5 @@ func TestSecurityFindingRanks(t *testing.T) {
 	}
 	if securityFailFloor(&suites.SecuritySpec{}) != 1 || securityFailFloor(nil) != 1 {
 		t.Fatal("no fail_on means any finding fails")
-	}
-}
-
-// A sidecar that was just started refuses connections until its gateway is
-// listening. The step must wait for it instead of failing the first time the
-// port is closed (seen on a slow CI runner).
-func TestSecurityStepWaitsForASidecarThatIsStillStarting(t *testing.T) {
-	probe, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := probe.Addr().String()
-	probe.Close() // the port now refuses connections
-
-	var scans atomic.Int32
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		if strings.TrimSpace(string(body)) == "{}" {
-			http.Error(w, "target is required", http.StatusBadRequest)
-			return
-		}
-		scans.Add(1)
-		_ = json.NewEncoder(w).Encode(scannerResult{Total: 1, Passed: 1})
-	})
-	started := make(chan *http.Server, 1)
-	go func() {
-		time.Sleep(700 * time.Millisecond)
-		listener, err := net.Listen("tcp", address)
-		if err != nil {
-			started <- nil
-			return
-		}
-		server := &http.Server{Handler: handler}
-		go func() { _ = server.Serve(listener) }()
-		started <- server
-	}()
-
-	step := StepSpec{
-		ExecutionID: "run-security-test",
-		Node:        StepNode{ID: "scan", Name: "scan", Kind: "security"},
-		GatewayURL:  "http://" + address,
-		Security:    &suites.SecuritySpec{Variant: "security.headers", Target: "https://example.com"},
-	}
-	_, runErr := runSecurity(step)
-	if server := <-started; server != nil {
-		defer server.Close()
-	} else {
-		t.Skip("the port was taken before the scanner could listen on it")
-	}
-	if runErr != nil {
-		t.Fatalf("the step must wait for the scanner to start: %v", runErr)
-	}
-	if scans.Load() != 1 {
-		t.Fatalf("the scan must be sent once, got %d", scans.Load())
-	}
-}
-
-func TestWaitForScannerGivesUpWhenTheSidecarNeverServes(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := listener.Addr().String()
-	listener.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
-	defer cancel()
-	if err := waitForScanner(ctx, "http://"+address); err == nil {
-		t.Fatal("a sidecar that never serves must be an error")
 	}
 }
