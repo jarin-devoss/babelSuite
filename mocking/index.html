@@ -935,6 +935,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stateful Mocking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whose-state-a-request-uses" class="md-nav__link">
+    <span class="md-ellipsis">
+      Whose state a request uses
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1365,6 +1380,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stateful Mocking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whose-state-a-request-uses" class="md-nav__link">
+    <span class="md-ellipsis">
+      Whose state a request uses
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1500,6 +1530,33 @@
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cancelled</span>
 </span></code></pre></div>
 <p>This supports create-update-delete flows, sequence state, and other stateful patterns without a real database.</p>
+<h3 id="whose-state-a-request-uses">Whose state a request uses<a class="headerlink" href="#whose-state-a-request-uses" title="Permanent link">&para;</a></h3>
+<p>State is kept <strong>per run</strong>. Two runs of the same suite, even on the same profile and at the same time, each start from the mock's <code>defaults</code>: one run's requests never change what the other sees, and <code>reset_mocks=</code> in one run clears only that run's state. A run's state is dropped when the run ends.</p>
+<p>The mock engine learns which run a request belongs to in one of two ways:</p>
+<ul>
+<li><strong>The request goes through the suite's gateway.</strong> On Docker the sidecar joins the run's network, so a step calls <code>$BABELSUITE_GATEWAY_URL</code> (or <code>http://&lt;suite&gt;.mock.internal:9080</code>) and the gateway tells the engine which network the request arrived on. Nothing in the suite has to change.</li>
+<li><strong>The request names its run</strong>, with <code>X-Babelsuite-Execution: $BABELSUITE_EXECUTION_ID</code>, for a caller that reaches the engine directly.</li>
+</ul>
+<p>A request that does neither (a call from the host, a run on a Kubernetes or remote-agent backend, a header naming a run that does not exist) uses the state <strong>shared by every run of the suite</strong>, as before. The response says which it used:</p>
+<table>
+<thead>
+<tr>
+<th><code>X-Babelsuite-State-Scope</code></th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>execution</code></td>
+<td>this run's own state</td>
+</tr>
+<tr>
+<td><code>suite</code></td>
+<td>the state shared by every run of the suite; concurrent runs can see each other's changes</td>
+</tr>
+</tbody>
+</table>
+<p>The header is absent when the operation keeps no state. <code>reset_mocks=</code> in a run with no scope of its own clears the shared state.</p>
 <h2 id="where-mock-data-lives-in-a-suite">Where Mock Data Lives In A Suite<a class="headerlink" href="#where-mock-data-lives-in-a-suite" title="Permanent link">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>my-suite/
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  api/       # contracts and OpenAPI/Protobuf schemas

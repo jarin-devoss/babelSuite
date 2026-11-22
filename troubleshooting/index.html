@@ -1288,6 +1288,42 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#an-execution-shows-interrupted" class="md-nav__link">
+    <span class="md-ellipsis">
+      An Execution Shows Interrupted
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-stateful-mock-remembers-another-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Stateful Mock Remembers Another Run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-load-step-waits-before-it-starts" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Load Step Waits Before It Starts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#an-agent-stops-with-agent-id-is-in-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      An Agent Stops With agent id is in use
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-plugin-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Plugin Step Fails
@@ -1466,6 +1502,42 @@
   <a href="#a-security-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Security Step Fails
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#an-execution-shows-interrupted" class="md-nav__link">
+    <span class="md-ellipsis">
+      An Execution Shows Interrupted
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-stateful-mock-remembers-another-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Stateful Mock Remembers Another Run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-load-step-waits-before-it-starts" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Load Step Waits Before It Starts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#an-agent-stops-with-agent-id-is-in-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      An Agent Stops With agent id is in use
     </span>
   </a>
   
@@ -1713,6 +1785,31 @@
 </tbody>
 </table>
 <hr />
+<h2 id="an-execution-shows-interrupted">An Execution Shows <code>Interrupted</code><a class="headerlink" href="#an-execution-shows-interrupted" title="Permanent link">&para;</a></h2>
+<p>The control plane that was running it stopped (a crash, a kill, a restart) before it finished, and nothing resumes a run. The execution's events say when and which step was running. Start the suite again. If it happens without a restart, look for the control plane being killed (an out-of-memory kill, a Kubernetes pod eviction) or for two control planes sharing one store and one Docker host.</p>
+<h2 id="a-stateful-mock-remembers-another-run">A Stateful Mock Remembers Another Run<a class="headerlink" href="#a-stateful-mock-remembers-another-run" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>What it means and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The mock's answer has the other run's counts, and the response header <code>X-Babelsuite-State-Scope</code> is <code>suite</code></td>
+<td>The request could not be tied to a run, so it used the state every run of the suite shares. Call the mock through <code>$BABELSUITE_GATEWAY_URL</code>, or send <code>X-Babelsuite-Execution: $BABELSUITE_EXECUTION_ID</code>. A Kubernetes or remote-agent run always shares.</td>
+</tr>
+<tr>
+<td><code>X-Babelsuite-State-Scope</code> is <code>execution</code> and the state still looks wrong</td>
+<td><code>reset_mocks=</code> clears this run's state only; check that the step that sets the state ran before the one that reads it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a-load-step-waits-before-it-starts">A Load Step Waits Before It Starts<a class="headerlink" href="#a-load-step-waits-before-it-starts" title="Permanent link">&para;</a></h2>
+<p><code>Waiting for &lt;run&gt;/&lt;step&gt;, which is generating load on this suite's sidecar</code>: a <code>traffic.*</code> or <code>security.flood</code> step is already running in the same suite and profile's sidecar, and two at once would measure each other. The step starts when the other ends, and logs how long it waited. Give the suite's runs different profiles to give them different sidecars.</p>
+<h2 id="an-agent-stops-with-agent-id-is-in-use">An Agent Stops With <code>agent id is in use</code><a class="headerlink" href="#an-agent-stops-with-agent-id-is-in-use" title="Permanent link">&para;</a></h2>
+<p>Another agent on a different host registered with this <code>AGENT_ID</code> and is still sending heartbeats. Give each agent its own id, stop the other one, or wait 30 seconds after it stopped. A registration with <code>"force": true</code> takes the id over on purpose.</p>
 <h2 id="a-plugin-step-fails">A Plugin Step Fails<a class="headerlink" href="#a-plugin-step-fails" title="Permanent link">&para;</a></h2>
 <p>A plugin step fails with the plugin's own reason. Match the message in the step's log:</p>
 <table>

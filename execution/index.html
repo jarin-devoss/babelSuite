@@ -962,6 +962,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#execution-status-and-restarts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Status And Restarts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#execution-workspace" class="md-nav__link">
     <span class="md-ellipsis">
       Execution Workspace
@@ -1392,6 +1401,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#execution-status-and-restarts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Status And Restarts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#execution-workspace" class="md-nav__link">
     <span class="md-ellipsis">
       Execution Workspace
@@ -1564,6 +1582,18 @@
 <li>step index and total step count</li>
 <li>full node definition</li>
 </ul>
+<h2 id="execution-status-and-restarts">Execution Status And Restarts<a class="headerlink" href="#execution-status-and-restarts" title="Permanent link">&para;</a></h2>
+<p>An execution is <code>Booting</code> while it runs and ends <code>Healthy</code>, <code>Failed</code> or <code>Interrupted</code>.</p>
+<p><strong>Interrupted</strong> means the control plane that was running the execution stopped before it finished: it crashed, was killed, or was shut down. Nothing resumes the run, so it is over; its unfinished steps are recorded as failed (the one that was running) or skipped (the ones that had not started), and an event says why.</p>
+<p>How it is decided:</p>
+<ul>
+<li>Every control plane process has an id and keeps a short <em>lease</em> on each execution it runs, renewed every few seconds in the primary store.</li>
+<li>On start, and every few seconds after, a control plane ends every unfinished execution whose lease has expired and that it does not own itself. A control plane shutting down in an orderly way ends its own the same moment.</li>
+<li>Executions, their events and logs are kept in the primary store with the workspace that started them, so a restarted control plane lists them again for the same workspace.</li>
+</ul>
+<p>A second control plane on the same store lists the executions saved before it started, and ends those whose owner is gone. It does not see another control plane's progress live, and it cannot take over its work: see <a href="../operations/#kubernetes-deployment-helm">Operations</a>.</p>
+<p>On start the control plane also removes what runs it no longer drives left on its Docker host (containers, networks, volumes) and the workspace directories of finished runs. Set <code>BABELSUITE_REAP_ON_START=false</code> to turn that off. A run whose control plane is alive is never touched; see <a href="../environments/#zombie-detection">Zombie Detection</a>.</p>
+<p>Two heavy steps do not run in one suite's sidecar at the same time: a <code>traffic.*</code> step and a <code>security.flood</code> step on the same suite and profile take turns, and the one that waits says whom it waits for.</p>
 <h2 id="execution-workspace">Execution Workspace<a class="headerlink" href="#execution-workspace" title="Permanent link">&para;</a></h2>
 <p>Every execution gets a host directory that is bind-mounted into every container in that run at a fixed path. It is created before the first step starts and removed when the execution environment is reaped.</p>
 <p>Inside each container two paths are available:</p>

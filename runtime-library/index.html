@@ -2975,7 +2975,7 @@ rather than branching on it here.</p>
 <li><code>traffic.*</code> steps use threshold metrics for latency and error budgets, and a run with zero requests fails before any threshold is read</li>
 <li><code>continue_on_failure=true</code> keeps the suite running even when the node itself finishes as <code>failed</code></li>
 <li><code>on_failure=[primary]</code> activates rollback or contingency nodes only when one of the referenced nodes fails</li>
-<li><code>reset_mocks=[billing_mock]</code> clears persisted mock state before a <code>test.run(...)</code> step starts</li>
+<li><code>reset_mocks=[billing_mock]</code> clears the mock state <strong>of this run</strong> before a <code>test.run(...)</code> step starts; another run of the same suite keeps its own (see <a href="../mocking/#stateful-mocking">Stateful Mocking</a>)</li>
 <li>once a hard failure happens, unrelated branches are skipped while activated failure-path branches continue</li>
 </ul>
 <p>Current behavior:</p>
@@ -3077,11 +3077,15 @@ in one without <code>bash</code>.</p>
 </tr>
 <tr>
 <td><code>BABELSUITE_GATEWAY_URL</code></td>
-<td>the APISIX sidecar address this step can reach, when the suite has a mock surface</td>
+<td>the APISIX sidecar address this step can reach, when the suite has a mock surface. On Docker it is <code>http://babelsuite-gateway:9080</code>: the sidecar joins the run's network under that name and under the suite's mock hosts (<code>&lt;suite&gt;.mock.internal</code>)</td>
 </tr>
 <tr>
 <td><code>BABELSUITE_GATEWAY_URLS</code></td>
 <td>comma-separated address per mock node, in topology order</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_EXECUTION_ID</code></td>
+<td>the id of this run. Send it as <code>X-Babelsuite-Execution</code> to name the run to a stateful mock when the request does not go through the gateway</td>
 </tr>
 <tr>
 <td><code>BABELSUITE_ARTIFACTS_DIR</code></td>

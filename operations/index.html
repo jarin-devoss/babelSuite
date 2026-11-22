@@ -1385,9 +1385,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#autoscaling" class="md-nav__link">
+  <a href="#one-control-plane" class="md-nav__link">
     <span class="md-ellipsis">
-      Autoscaling
+      One control plane
     </span>
   </a>
   
@@ -1697,9 +1697,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#autoscaling" class="md-nav__link">
+  <a href="#one-control-plane" class="md-nav__link">
     <span class="md-ellipsis">
-      Autoscaling
+      One control plane
     </span>
   </a>
   
@@ -2150,13 +2150,12 @@ supported way to switch to it today. <code>DB_DRIVER</code>, <code>POSTGRES_DSN<
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span>--set<span class="w"> </span>config.frontendURL<span class="o">=</span>https://babelsuite.example.com<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span>--set<span class="w"> </span>mongodb.uri<span class="o">=</span>mongodb://mongo:27017
 </span></code></pre></div>
-<h3 id="autoscaling">Autoscaling<a class="headerlink" href="#autoscaling" title="Permanent link">&para;</a></h3>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">autoscaling</span><span class="p">:</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">minReplicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">maxReplicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nt">targetCPUUtilizationPercentage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">70</span>
+<h3 id="one-control-plane">One control plane<a class="headerlink" href="#one-control-plane" title="Permanent link">&para;</a></h3>
+<p>BabelSuite runs <strong>one</strong> control plane. An execution runs inside the process that started it, and the step queue and the live event and log streams are in that process's memory. A second replica would not run, take over or stream another one's executions, and it would start runs of its own on the same Docker host. The chart therefore refuses <code>replicaCount</code> above 1, and autoscaling, at render time:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">replicaCount</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">allowMultipleReplicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">   </span><span class="c1"># the chart fails to render with more than one replica unless this is true</span>
 </span></code></pre></div>
+<p>What a restart does is safe: executions are kept in the primary store, and one that was running when its control plane stopped is listed as <code>Interrupted</code> (see <a href="../execution/#execution-status-and-restarts">Execution Status And Restarts</a>). <code>allowMultipleReplicas: true</code> is for a deployment that keeps replicas for availability only, with a single one receiving traffic.</p>
 <h3 id="redis-telemetry">Redis + Telemetry<a class="headerlink" href="#redis-telemetry" title="Permanent link">&para;</a></h3>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">redis</span><span class="p">:</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>

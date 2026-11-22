@@ -1766,6 +1766,16 @@ Vite proxy and stay same-origin.</p>
 <td><em>(empty)</em></td>
 <td>Shared secret used to authenticate remote agent workers</td>
 </tr>
+<tr>
+<td><code>BABELSUITE_ENGINE_ADDR</code></td>
+<td><code>host.docker.internal:&lt;PORT&gt;</code></td>
+<td>Where a suite's gateway reaches this control plane's mock engine from inside its container. Set from <code>PORT</code> when not given, so only a control plane behind a different address needs it</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_REAP_ON_START</code></td>
+<td><code>true</code></td>
+<td>On start, remove what runs this host's control plane no longer drives left behind (containers, networks, volumes, workspace directories). <code>false</code> turns it off. See <a href="../execution/#execution-status-and-restarts">Execution Status And Restarts</a></td>
+</tr>
 </tbody>
 </table>
 <h3 id="sso-oidc">SSO / OIDC<a class="headerlink" href="#sso-oidc" title="Permanent link">&para;</a></h3>
