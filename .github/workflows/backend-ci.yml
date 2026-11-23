@@ -81,6 +81,13 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Docker version
         run: docker version
+      # The tests pull what they need, so this is not what makes them pass; it
+      # keeps a slow registry from being charged to whichever test runs first.
+      - name: Pull test database images
+        run: |
+          docker pull -q postgres:16 &
+          docker pull -q mongo:7.0 &
+          wait
       - name: Run tests
         working-directory: backend
         env:
