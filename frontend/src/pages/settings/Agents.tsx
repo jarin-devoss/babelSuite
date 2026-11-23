@@ -635,7 +635,7 @@ function capacityLabel(capacity: number) {
 
 function defaultAPISIXSidecar(): APISIXSidecarConfig {
   return {
-    image: 'apache/apisix:latest',
+    image: 'apache/apisix:3.9.0-debian',
     configMountPath: '/usr/local/apisix/conf/apisix.yaml',
     listenPort: 9080,
     adminPort: 9180,

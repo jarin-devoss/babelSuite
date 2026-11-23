@@ -162,6 +162,9 @@ The standalone worker process exposes:
 - `/mocks/rest/`
 - `POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}`
 - `POST /mocks/async/{suiteId}/{surfaceId}/{operationId}`
+- `GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}`
+
+These are the suite gateway's back end. They are not session-authenticated: each requires the gateway's token (see `MOCK_SHARED_SECRET`) and answers `401` without it. A test reaches a mock through the gateway.
 
 ## Authentication Requirement
 

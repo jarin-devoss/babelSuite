@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -389,6 +392,9 @@ func runInDocker(ctx context.Context, step StepSpec, emit func(logstream.Line)) 
 	}
 	if gatewayURL != "" {
 		env = append(env, "BABELSUITE_GATEWAY_URL="+gatewayURL)
+		// The same port serves gRPC: the gateway speaks HTTP/2 next to HTTP/1.1.
+		env = append(env, "BABELSUITE_GRPC_GATEWAY="+gatewayHostPort(gatewayURL))
+		env = append(env, streamMockEnv(step, gatewayURL, sidecarAttached(ctx, step))...)
 	}
 	if len(gatewayURLs) > 0 {
 		env = append(env, "BABELSUITE_GATEWAY_URLS="+strings.Join(gatewayURLs, ","))
@@ -661,8 +667,9 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	defer unlock()
 
 	if sidecarImage == "" {
-		sidecarImage = "apache/apisix:latest"
+		sidecarImage = apisix.DefaultSidecarImage
 	}
+	warnUntestedSidecarImage(sidecarImage)
 	if configMountPath == "" {
 		configMountPath = "/usr/local/apisix/conf/apisix.yaml"
 	}
@@ -672,10 +679,12 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	// (a fixed cannon, a changed plugin, a new route) is recreated instead of
 	// being reused and silently keeping the old behaviour.
 	apisixYAML := apisix.RenderStandaloneConfig(suiteConfig)
-	luaFiles := apisix.LuaPluginFiles(suiteConfig.CustomPlugins...)
+	configYAML := apisix.SidecarConfig(suiteConfig)
+	streamEndpoints := apisix.StreamEndpoints(suiteConfig)
 	engineAddr := sidecarEngineAddr()
-	// The address the sidecar proxies mocks to is part of what it starts with.
-	configHash := sidecarConfigHash(sidecarImage+" engine="+engineAddr, apisixYAML, luaFiles)
+	engineGRPCAddr := sidecarEngineGRPCAddr()
+	mockToken := currentMockToken()
+	configHash := sidecarHash(suiteConfig, sidecarImage)
 
 	ctx2s, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -695,13 +704,16 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	// plugins) and the Lua plugin files, all bind-mounted into the container.
 	luaDir := filepath.Join(confDir, "..", "plugins")
 	writeFiles := func() error {
-		return writeSidecarFiles(confDir, luaDir, apisixYAML, suiteConfig.CustomPlugins)
+		return writeSidecarFiles(confDir, luaDir, configYAML, apisixYAML, suiteConfig.CustomPlugins)
 	}
 	if err := writeFiles(); err != nil {
 		return err
 	}
 
 	exposedPorts := nat.PortSet{"9080/tcp": struct{}{}}
+	for _, endpoint := range streamEndpoints {
+		exposedPorts[nat.Port(fmt.Sprintf("%d/%s", endpoint.Port, endpoint.Transport))] = struct{}{}
+	}
 
 	containerCfg := &container.Config{
 		Image:        sidecarImage,
@@ -709,6 +721,8 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		Env: []string{
 			"APISIX_STAND_ALONE=true",
 			"BABELSUITE_ENGINE_ADDR=" + engineAddr,
+			"BABELSUITE_ENGINE_GRPC_ADDR=" + engineGRPCAddr,
+			"BABELSUITE_MOCK_TOKEN=" + mockToken,
 		},
 		Labels: sidecarLabelsWithHash(suiteID, profile, configHash),
 	}
@@ -718,8 +732,11 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	extraHosts := []string{"host.docker.internal:host-gateway"}
 	seen := map[string]bool{}
 	for _, surface := range suiteConfig.APISurfaces {
-		if u, err := url.Parse(surface.MockHost); err == nil {
-			if h := strings.TrimSpace(u.Host); h != "" && !seen[h] {
+		if u, err := url.Parse(surface.MockHost); err == nil && !brokerScheme(u.Scheme) {
+			// A broker's host is where the broker is, not a name the gateway
+			// answers to: mapping it to the sidecar's own loopback would point a
+			// publisher at the wrong place.
+			if h := strings.TrimSpace(u.Hostname()); h != "" && !seen[h] {
 				// Map mock surface hostname to 127.0.0.1 so Lua plugins calling
 				// e.g. spice-service.mock.internal:9080 loop back through APISIX's
 				// own proxy-rewrite route (which adds the Authorization header).
@@ -747,6 +764,8 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 			filepath.Join(confDir, "config.yaml") + ":/usr/local/apisix/conf/config.yaml",
 			filepath.Join(confDir, "apisix.yaml") + ":" + configMountPath + ":ro",
 			luaDir + ":" + apisix.LuaPluginMountPath + ":ro",
+			// Stream plugins load from a directory of their own.
+			filepath.Join(luaDir, apisix.StreamPluginDir) + ":" + apisix.StreamLuaMountPath + ":ro",
 		},
 	}
 
@@ -768,6 +787,15 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 		hostPort = port
 		hostCfg.PortBindings = nat.PortMap{
 			"9080/tcp": []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: hostPort}},
+		}
+		// Each TCP and UDP mock is published on a host port chosen the same way,
+		// for the same reason.
+		for _, endpoint := range streamEndpoints {
+			streamPort, err := freeLoopbackPort()
+			if err != nil {
+				return "", fmt.Errorf("choose a host port for the %s mock %s: %w", endpoint.Transport, endpoint.Operation, err)
+			}
+			hostCfg.PortBindings[nat.Port(fmt.Sprintf("%d/%s", endpoint.Port, endpoint.Transport))] = []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: streamPort}}
 		}
 		created, err := cli.ContainerCreate(ctx30s, containerCfg, hostCfg, nil, nil, containerName)
 		if errdefs.IsNotFound(err) {
@@ -838,6 +866,22 @@ func EnsureSuiteSidecar(suiteConfig apisix.SuiteConfig, profile, sidecarImage, c
 	return waitForSidecar(cli, containerName, "http://127.0.0.1:"+hostPort, sidecarStartupWait)
 }
 
+var untestedImageWarned sync.Map // image -> struct{}
+
+// warnUntestedSidecarImage says once per image that the sidecar is not the
+// version it is tested on. It is a warning, not a refusal: an operator may have
+// a reason, and a newer image often works.
+func warnUntestedSidecarImage(image string) {
+	if image == apisix.DefaultSidecarImage {
+		return
+	}
+	if _, seen := untestedImageWarned.LoadOrStore(image, struct{}{}); seen {
+		return
+	}
+	slog.Warn("the APISIX sidecar image is not the tested one; mocks, load and scans are verified on "+apisix.DefaultSidecarImage,
+		"image", image)
+}
+
 var sidecarStartLocks sync.Map // container name -> *sync.Mutex
 
 // lockSidecarStart serializes starts of one sidecar in this process and returns
@@ -871,6 +915,60 @@ func runningSidecarWithHash(cli *client.Client, containerName, configHash string
 	}
 	return "http://127.0.0.1:" + bindings[0].HostPort
 }
+
+// sidecarHash digests everything a sidecar of this suite starts with, so a running
+// one can be told from one that needs recreating. What the sidecar proxies mocks
+// to, and the secret it presents, are part of it: a different one recreates it.
+// The secret enters the hash as a digest, never as itself.
+func sidecarHash(suiteConfig apisix.SuiteConfig, image string) string {
+	luaFiles := apisix.LuaPluginFiles(suiteConfig.CustomPlugins...)
+	for name, code := range apisix.StreamLuaPluginFiles() {
+		luaFiles[apisix.StreamPluginDir+"/"+name] = code
+	}
+	return sidecarConfigHash(
+		image+" engine="+sidecarEngineAddr()+" grpc="+sidecarEngineGRPCAddr()+" token="+tokenDigest(currentMockToken()),
+		apisix.SidecarConfig(suiteConfig), apisix.RenderStandaloneConfig(suiteConfig), luaFiles)
+}
+
+var (
+	mockTokenMu sync.RWMutex
+	mockToken   string
+)
+
+// ConfigureSidecarSecrets sets the secret every suite's sidecar presents to the
+// control plane's mock engine. It is called once, when the control plane starts.
+func ConfigureSidecarSecrets(token string) {
+	mockTokenMu.Lock()
+	mockToken = strings.TrimSpace(token)
+	mockTokenMu.Unlock()
+}
+
+func currentMockToken() string {
+	mockTokenMu.RLock()
+	defer mockTokenMu.RUnlock()
+	return mockToken
+}
+
+// tokenDigest identifies a secret without revealing it, for the sidecar's
+// configuration hash (which is stored in a container label).
+func tokenDigest(token string) string {
+	sum := sha256.Sum256([]byte("sidecar-token\x00" + token))
+	return hex.EncodeToString(sum[:8])
+}
+
+// sidecarEngineGRPCAddr is where the sidecar reaches the control plane's gRPC
+// mock front end from inside its container. BABELSUITE_ENGINE_GRPC_ADDR
+// overrides the default.
+func sidecarEngineGRPCAddr() string {
+	if addr := strings.TrimSpace(os.Getenv("BABELSUITE_ENGINE_GRPC_ADDR")); addr != "" {
+		return addr
+	}
+	return "host.docker.internal:" + DefaultGRPCMockPort
+}
+
+// DefaultGRPCMockPort is the port of the gRPC mock front end unless
+// BABELSUITE_GRPC_MOCK_PORT says otherwise.
+const DefaultGRPCMockPort = "8095"
 
 // sidecarEngineAddr is where the sidecar reaches the control plane's mock
 // engine from inside its container. BABELSUITE_ENGINE_ADDR overrides the
@@ -954,7 +1052,7 @@ func isPortInUseError(err error) bool {
 // writeSidecarFiles writes everything the sidecar mounts. A path that is a
 // directory where a file belongs (left there by a failed first start, see
 // EnsureSuiteSidecar) is removed first, so it can never block a later start.
-func writeSidecarFiles(confDir, luaDir, apisixYAML string, plugins []apisix.CustomPluginConfig) error {
+func writeSidecarFiles(confDir, luaDir, configYAML, apisixYAML string, plugins []apisix.CustomPluginConfig) error {
 	configPath := filepath.Join(confDir, "config.yaml")
 	routesPath := filepath.Join(confDir, "apisix.yaml")
 	for _, path := range []string{configPath, routesPath} {
@@ -967,7 +1065,7 @@ func writeSidecarFiles(confDir, luaDir, apisixYAML string, plugins []apisix.Cust
 	if err := os.MkdirAll(confDir, 0755); err != nil {
 		return fmt.Errorf("sidecar conf dir: %w", err)
 	}
-	if err := writeSidecarConfig(configPath); err != nil {
+	if err := writeSidecarConfig(configPath, configYAML); err != nil {
 		return fmt.Errorf("write config.yaml: %w", err)
 	}
 	if err := writeFileSynced(routesPath, []byte(apisixYAML), 0644); err != nil {
@@ -999,8 +1097,8 @@ func isMountSourceError(err error) bool {
 // mounts as world-writable. The mode is set with Chmod after the write because
 // the process umask would otherwise strip the group and other write bits from
 // the mode passed to WriteFile.
-func writeSidecarConfig(path string) error {
-	if err := writeFileSynced(path, []byte(apisix.SidecarConfigYAML), 0o644); err != nil {
+func writeSidecarConfig(path, content string) error {
+	if err := writeFileSynced(path, []byte(content), 0o644); err != nil {
 		return err
 	}
 	return os.Chmod(path, 0o666)
@@ -1030,6 +1128,16 @@ func writeFileSynced(path string, data []byte, perm os.FileMode) error {
 // SuiteSidecarURL returns the host-accessible URL for the running APISIX sidecar
 // of a suite. Returns "" when the sidecar is not running.
 func SuiteSidecarURL(suiteID, profile string) string {
+	port := SuiteSidecarHostPort(suiteID, profile, "9080/tcp")
+	if port == "" {
+		return ""
+	}
+	return "http://127.0.0.1:" + port
+}
+
+// SuiteSidecarHostPort returns the host port the sidecar publishes a container
+// port on (for example "9100/tcp"), or "" when it is not published.
+func SuiteSidecarHostPort(suiteID, profile, containerPort string) string {
 	cli, ok := sharedDockerClient()
 	if !ok {
 		return ""
@@ -1038,14 +1146,14 @@ func SuiteSidecarURL(suiteID, profile string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	info, err := cli.ContainerInspect(ctx, containerName)
-	if err != nil {
+	if err != nil || info.NetworkSettings == nil {
 		return ""
 	}
-	bindings := info.NetworkSettings.Ports["9080/tcp"]
+	bindings := info.NetworkSettings.Ports[nat.Port(containerPort)]
 	if len(bindings) == 0 || bindings[0].HostPort == "" {
 		return ""
 	}
-	return "http://127.0.0.1:" + bindings[0].HostPort
+	return bindings[0].HostPort
 }
 
 // ContainerHostPort returns the host-bound port for a given container port on
@@ -1088,4 +1196,13 @@ func sanitizeID(id string) string {
 		s = s[:40]
 	}
 	return strings.Trim(s, "-")
+}
+
+// brokerScheme reports whether a surface's host URL names a message broker.
+func brokerScheme(scheme string) bool {
+	switch strings.ToLower(strings.TrimSpace(scheme)) {
+	case "kafka", "rocketmq", "mqtt", "amqp", "nats":
+		return true
+	}
+	return false
 }

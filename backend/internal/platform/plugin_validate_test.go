@@ -58,3 +58,21 @@ func TestValidatePluginConfigRefusesAMissingRequiredSetting(t *testing.T) {
 		t.Fatalf("expected the missing setting to be named, got %v", reply)
 	}
 }
+
+func TestCreatePluginRefusesTheGatewaysOwnNames(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"babelsuite-mock", "BabelSuite-anything"} {
+		store := &fakeStore{}
+		h := NewHandler(store, nil)
+		body := `{"name": "` + name + `", "lua": "return {}"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/platform-settings/plugins", strings.NewReader(body))
+		rec := httptest.NewRecorder()
+		h.createPlugin(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s: status = %d, want 400 (body %s)", name, rec.Code, rec.Body.String())
+		}
+		if len(store.settings.Plugins) != 0 {
+			t.Fatalf("%s: a reserved plugin was stored", name)
+		}
+	}
+}

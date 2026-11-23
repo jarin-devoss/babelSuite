@@ -21,9 +21,12 @@ For each incoming mock request, the service locates:
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /mocks/rest/...` | REST mock handler |
-| `POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}` | gRPC mock handler |
-| `POST /mocks/async/{suiteId}/{surfaceId}/{operationId}` | Async mock handler |
+| `POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}` | gRPC mock handler (the HTTP form; gRPC clients are served by the gRPC front end) |
+| `POST /mocks/async/{suiteId}/{surfaceId}/{operationId}` | Async mock handler, which the TCP and UDP plugins and the publisher call |
+| `GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}` | WebSocket mock handler |
 | `/internal/mock-data/` | Internal metadata resolver |
+
+These are the gateway's back end, not an address for a test to call: every one answers `401` unless the request carries the gateway's token. Call the suite's gateway (`BABELSUITE_GATEWAY_URL`, or a mock by its node's name); see [Mock Traffic](architecture.md#mock-traffic) for how each protocol is served.
 
 ## Operation Metadata
 

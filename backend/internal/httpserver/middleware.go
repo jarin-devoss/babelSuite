@@ -329,7 +329,7 @@ func CSRFMiddleware() Middleware {
 			next = http.NotFoundHandler()
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if bearerTokenPresent(r) {
+			if bearerTokenPresent(r) || authenticatesItself(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -352,6 +352,22 @@ func CSRFMiddleware() Middleware {
 			}
 		})
 	}
+}
+
+// selfAuthenticatingPrefixes are the paths whose handlers verify a secret of
+// their own on every call: the mock engine, which only a suite's gateway calls.
+// A browser never sends a cookie-authenticated request there, so CSRF has
+// nothing to protect, and they must not depend on the gateway happening to send
+// a bearer header to get past it.
+var selfAuthenticatingPrefixes = []string{"/mocks/", "/internal/mock-data/"}
+
+func authenticatesItself(path string) bool {
+	for _, prefix := range selfAuthenticatingPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func bearerTokenPresent(r *http.Request) bool {

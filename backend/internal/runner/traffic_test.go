@@ -432,16 +432,16 @@ func TestResolveTrafficTarget(t *testing.T) {
 }
 
 func TestSidecarConfigHashChangesWithAnyInput(t *testing.T) {
-	base := sidecarConfigHash("img", "routes", map[string]string{"a.lua": "one"})
-	if base != sidecarConfigHash("img", "routes", map[string]string{"a.lua": "one"}) {
+	base := sidecarConfigHash("img", "conf", "routes", map[string]string{"a.lua": "one"})
+	if base != sidecarConfigHash("img", "conf", "routes", map[string]string{"a.lua": "one"}) {
 		t.Fatal("the hash must be stable")
 	}
 	for name, other := range map[string]string{
-		"image":   sidecarConfigHash("img2", "routes", map[string]string{"a.lua": "one"}),
-		"routes":  sidecarConfigHash("img", "routes2", map[string]string{"a.lua": "one"}),
-		"plugin":  sidecarConfigHash("img", "routes", map[string]string{"a.lua": "two"}),
-		"added":   sidecarConfigHash("img", "routes", map[string]string{"a.lua": "one", "b.lua": ""}),
-		"renamed": sidecarConfigHash("img", "routes", map[string]string{"b.lua": "one"}),
+		"image":   sidecarConfigHash("img2", "conf", "routes", map[string]string{"a.lua": "one"}),
+		"routes":  sidecarConfigHash("img", "conf", "routes2", map[string]string{"a.lua": "one"}),
+		"plugin":  sidecarConfigHash("img", "conf", "routes", map[string]string{"a.lua": "two"}),
+		"added":   sidecarConfigHash("img", "conf", "routes", map[string]string{"a.lua": "one", "b.lua": ""}),
+		"renamed": sidecarConfigHash("img", "conf", "routes", map[string]string{"b.lua": "one"}),
 	} {
 		if other == base {
 			t.Errorf("changing the %s must change the hash", name)

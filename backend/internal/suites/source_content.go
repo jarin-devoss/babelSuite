@@ -143,13 +143,9 @@ func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 				Name:            operation.Name,
 				Summary:         operation.Summary,
 				ContractPath:    operation.ContractPath,
-				ContractContent: contractSourceContent(suite, operation.ContractPath),
 				MockURL:         operation.MockURL,
 				MockMetadata: apisix.OperationMetadataConfig{
-					Adapter:         operation.MockMetadata.Adapter,
-					DispatcherRules: operation.MockMetadata.DispatcherRules,
-					ResolverURL:     operation.MockMetadata.ResolverURL,
-					RuntimeURL:      operation.MockMetadata.RuntimeURL,
+					Adapter: operation.MockMetadata.Adapter,
 				},
 			})
 		}

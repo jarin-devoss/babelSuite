@@ -1,8 +1,6 @@
 package apisix
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -36,55 +34,6 @@ func matchURI(operation OperationConfig) string {
 	return replaced
 }
 
-func proxyRewrite(suiteID, surfaceID string, operation OperationConfig) map[string]any {
-	headers := map[string]string{
-		"X-Babelsuite-Dispatcher": "apisix",
-		"X-Babelsuite-Operation":  operation.ID,
-		"Authorization":           "Bearer babelsuite-internal",
-		// The address this request arrived on. The sidecar has a different one
-		// on every run's network, so the mock engine can tell which run is
-		// asking. proxy-rewrite sets the header, replacing any the client sent.
-		"X-Babelsuite-Ingress": "$server_addr",
-	}
-
-	target := runtimeTargetPath(suiteID, surfaceID, operation)
-	if !hasPathParams(publicPath(operation)) {
-		return map[string]any{
-			"uri": target,
-			"headers": map[string]any{
-				"set": headers,
-			},
-		}
-	}
-
-	pattern, replacement := rewritePattern(publicPath(operation), target)
-	return map[string]any{
-		"regex_uri": []string{pattern, replacement},
-		"headers": map[string]any{
-			"set": headers,
-		},
-	}
-}
-
-func resolverPlugin(transport string, operation OperationConfig) map[string]any {
-	value, _ := json.Marshal(map[string]string{
-		"resolver_url":      resolverPath(operation.MockMetadata.ResolverURL),
-		"public_path":       publicPath(operation),
-		"protocol":          strings.ToUpper(strings.TrimSpace(transport)),
-		"operation_id":      operation.ID,
-		"compatibility_url": runtimePath(operation.MockMetadata.RuntimeURL),
-	})
-	return map[string]any{
-		"allow_degradation": true,
-		"conf": []map[string]any{
-			{
-				"name":  "babelsuite-resolver",
-				"value": string(value),
-			},
-		},
-	}
-}
-
 func httpMethod(operation OperationConfig) string {
 	method := strings.ToUpper(strings.TrimSpace(operation.Method))
 	if method == "" || method == "RPC" || method == "EVENT" {
@@ -93,30 +42,28 @@ func httpMethod(operation OperationConfig) string {
 	return method
 }
 
-func routeHosts(surface SurfaceConfig) []string {
+// routeHosts are the hosts a mock route answers to: the surface's own host and the
+// names of the suite's mock nodes. A surface with no host of its own is routed by
+// path alone, so it answers on any host and needs no list.
+func routeHosts(suite SuiteConfig, surface SurfaceConfig) []string {
 	host := strings.TrimSpace(hostOnly(surface.MockHost))
 	if host == "" {
 		return nil
 	}
-	return []string{host}
-}
-
-func runtimePath(runtimeURL string) string {
-	raw := strings.TrimSpace(runtimeURL)
-	if raw == "" {
-		return "/"
+	hosts := []string{host}
+	seen := map[string]struct{}{strings.ToLower(host): {}}
+	for _, name := range suite.MockNames {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" {
+			continue
+		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+		hosts = append(hosts, name)
 	}
-	if parsed, err := url.Parse(raw); err == nil && strings.TrimSpace(parsed.Path) != "" {
-		return parsed.Path
-	}
-	if index := strings.Index(raw, "?"); index >= 0 {
-		return raw[:index]
-	}
-	return raw
-}
-
-func resolverPath(resolverURL string) string {
-	return runtimePath(resolverURL)
+	return hosts
 }
 
 func hostOnly(raw string) string {
@@ -125,7 +72,9 @@ func hostOnly(raw string) string {
 		return ""
 	}
 	if parsed, err := url.Parse(trimmed); err == nil {
-		if host := strings.TrimSpace(parsed.Host); host != "" {
+		// Without the port: a route's hosts are names, and APISIX matches the Host
+		// header's name.
+		if host := strings.TrimSpace(parsed.Hostname()); host != "" {
 			return host
 		}
 	}
@@ -136,49 +85,50 @@ func hasPathParams(path string) bool {
 	return pathParameterPattern.MatchString(path)
 }
 
-func rewritePattern(publicPath, targetPath string) (string, string) {
-	matches := pathParameterPattern.FindAllString(publicPath, -1)
-	pattern := "^" + pathParameterPattern.ReplaceAllString(publicPath, "([^/]+)") + "$"
-	replacement := targetPath
-	for index := range matches {
-		replacement = strings.Replace(replacement, matches[index], fmt.Sprintf("$%d", index+1), 1)
+// SidecarConfig is the config.yaml the sidecar runs with. It puts APISIX in
+// standalone mode, reading its routes from apisix.yaml instead of etcd (and with
+// no Admin API at all), and declares the shared dictionary the traffic cannon
+// counts into: without it the plugin has nothing to count in and every load run
+// fails.
+//
+// enable_http2 makes the gateway's port accept HTTP/2 without TLS (h2c) next to
+// HTTP/1.1, which is what a gRPC client speaks: the same port serves a REST mock
+// and a gRPC one. In 3.9 it is a setting of APISIX itself; the per-port form is
+// deprecated and stops APISIX from starting.
+//
+// A suite with TCP or UDP mocks also gets the stream subsystem and a listener
+// for each of its mocks: APISIX renders no stream server unless proxy_mode says
+// so. The lists are written in flow style because APISIX's own YAML parser
+// cannot read every nested block form.
+func SidecarConfig(suite SuiteConfig) string {
+	var out strings.Builder
+	out.WriteString("deployment:\n")
+	out.WriteString("  role: data_plane\n")
+	out.WriteString("  role_data_plane:\n")
+	out.WriteString("    config_provider: yaml\n")
+	out.WriteString("apisix:\n")
+	out.WriteString("  enable_http2: true\n")
+	if endpoints := StreamEndpoints(suite); len(endpoints) > 0 {
+		var tcp, udp []string
+		for _, endpoint := range endpoints {
+			if endpoint.Transport == "udp" {
+				udp = append(udp, portString(endpoint.Port))
+			} else {
+				tcp = append(tcp, portString(endpoint.Port))
+			}
+		}
+		out.WriteString("  proxy_mode: http&stream\n")
+		out.WriteString("  stream_proxy:\n")
+		if len(tcp) > 0 {
+			out.WriteString("    tcp: [" + strings.Join(tcp, ", ") + "]\n")
+		}
+		if len(udp) > 0 {
+			out.WriteString("    udp: [" + strings.Join(udp, ", ") + "]\n")
+		}
 	}
-
-	return pattern, replacement
+	out.WriteString("nginx_config:\n")
+	out.WriteString("  http:\n")
+	out.WriteString("    custom_lua_shared_dict:\n")
+	out.WriteString("      " + TrafficSharedDictName + ": 50m\n")
+	return out.String()
 }
-
-func runtimeTargetPath(suiteID, surfaceID string, operation OperationConfig) string {
-	path := strings.TrimSpace(operation.Name)
-	if path == "" {
-		path = publicPath(operation)
-	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + strings.Trim(path, "/")
-	}
-	return "/mocks/rest/" + strings.Trim(suiteID, "/") + "/" + strings.Trim(surfaceID, "/") + path
-}
-
-func contractSourcePath(contractPath string) string {
-	base, _, _ := strings.Cut(strings.TrimSpace(contractPath), "#")
-	return strings.TrimSpace(base)
-}
-
-func ensureTrailingNewline(value string) string {
-	if value == "" || strings.HasSuffix(value, "\n") {
-		return value
-	}
-	return value + "\n"
-}
-
-// SidecarConfigYAML is the config.yaml the sidecar runs with. It puts APISIX in
-// standalone mode, reading its routes from apisix.yaml instead of etcd, and
-// declares the shared dictionary the traffic cannon counts into: without it
-// the plugin has nothing to count in and every load run fails.
-const SidecarConfigYAML = "deployment:\n" +
-	"  role: data_plane\n" +
-	"  role_data_plane:\n" +
-	"    config_provider: yaml\n" +
-	"nginx_config:\n" +
-	"  http:\n" +
-	"    custom_lua_shared_dict:\n" +
-	"      " + TrafficSharedDictName + ": 50m\n"

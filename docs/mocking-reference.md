@@ -134,6 +134,9 @@ The backend currently exposes mock routes for:
 - `GET /mocks/rest/...`
 - `POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}`
 - `POST /mocks/async/{suiteId}/{surfaceId}/{operationId}`
+- `GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}`
+
+All of them require the gateway's token (`401` otherwise), and are meant to be called by a suite's gateway rather than directly. gRPC clients are served by the control plane's gRPC front end, which the gateway forwards to.
 
 There is also an internal resolver path rooted under:
 

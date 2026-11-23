@@ -287,13 +287,16 @@ func TestSOAPMockRendersXMLResponses(t *testing.T) {
 	}
 }
 
+const testGatewayToken = "test-gateway-token"
+
 func TestResolverEndpointReturnsNormalizedEnvelope(t *testing.T) {
 	service := NewService(suites.NewWorkspaceService())
-	handler := NewHandler(service, "")
+	handler := NewHandler(service, testGatewayToken)
 	mux := http.NewServeMux()
 	handler.Register(mux)
 
 	req := httptest.NewRequest("POST", "/internal/mock-data/returns-control-plane/returns-api/create-return?scenario=approved", strings.NewReader(`{"orderId":"ord_1001","returnReason":"damaged","amountCents":4200}`))
+	req.Header.Set("Authorization", "Bearer "+testGatewayToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Babelsuite-Original-Method", "POST")
 	req.Header.Set("X-Babelsuite-Original-Path", "/returns")
@@ -363,11 +366,12 @@ func TestResolverEndpointPreservesPathParamsForRESTOperations(t *testing.T) {
 		t.Fatal("expected generated return id")
 	}
 
-	handler := NewHandler(service, "")
+	handler := NewHandler(service, testGatewayToken)
 	mux := http.NewServeMux()
 	handler.Register(mux)
 
 	req := httptest.NewRequest("POST", "/internal/mock-data/returns-control-plane/returns-api/get-return", nil)
+	req.Header.Set("Authorization", "Bearer "+testGatewayToken)
 	req.Header.Set("X-Babelsuite-Original-Method", "GET")
 	req.Header.Set("X-Babelsuite-Original-Path", "/returns/"+returnID)
 	req.Header.Set("X-Request-Id", "req-777")

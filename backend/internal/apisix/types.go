@@ -2,13 +2,22 @@ package apisix
 
 import "regexp"
 
+// DefaultSidecarImage is the APISIX image a sidecar runs when settings name
+// none. It is the version the sidecar is built and tested against: the
+// standalone configuration, the writable config.yaml the 3.9 entrypoint
+// rewrites, and the HTTP/2 and stream settings all depend on it, and a floating
+// tag would change them under a running installation.
+const DefaultSidecarImage = "apache/apisix:3.9.0-debian"
+
+// The sidecar resolves ${{NAME}} in its routes from its own environment, which
+// the runner sets when it starts the container.
 const (
-	engineAddrEnv        = "${{BABELSUITE_ENGINE_ADDR}}"
-	grpcUpstreamAddrEnv  = "${{APISIX_GRPC_UPSTREAM_ADDR}}"
-	kafkaUpstreamAddrEnv = "${{APISIX_KAFKA_UPSTREAM_ADDR}}"
-	mqttUpstreamAddrEnv  = "${{APISIX_MQTT_UPSTREAM_ADDR}}"
-	tcpUpstreamAddrEnv   = "${{APISIX_TCP_UPSTREAM_ADDR}}"
-	udpUpstreamAddrEnv   = "${{APISIX_UDP_UPSTREAM_ADDR}}"
+	// engineAddrEnv is the control plane's HTTP mock engine.
+	engineAddrEnv = "${{BABELSUITE_ENGINE_ADDR}}"
+	// engineGRPCAddrEnv is the control plane's gRPC mock front end.
+	engineGRPCAddrEnv = "${{BABELSUITE_ENGINE_GRPC_ADDR}}"
+	// mockTokenEnv is the secret the control plane requires on every mock call.
+	mockTokenEnv = "${{BABELSUITE_MOCK_TOKEN}}"
 )
 
 var pathParameterPattern = regexp.MustCompile(`\{[^/]+\}`)
@@ -17,6 +26,10 @@ type SuiteConfig struct {
 	ID            string
 	APISurfaces   []SurfaceConfig
 	CustomPlugins []CustomPluginConfig
+	// MockNames are the names of the suite's mock nodes. A service of the suite
+	// reaches a mock by that name (http://stripe-mock:9080), so a route with a
+	// host of its own also answers to them.
+	MockNames []string
 	// Harden opts the rendered gateway into platform-provided defenses
 	// (baseline security response headers, a rate-limited synthetic probe
 	// target) on top of the suite's real backend. It must stay opt-in: a
@@ -41,42 +54,30 @@ type SurfaceConfig struct {
 }
 
 type OperationConfig struct {
-	ID              string
-	Method          string
-	Name            string
-	Summary         string
-	ContractPath    string
-	ContractContent string
-	MockURL         string
-	MockMetadata    OperationMetadataConfig
+	ID           string
+	Method       string
+	Name         string
+	Summary      string
+	ContractPath string
+	MockURL      string
+	MockMetadata OperationMetadataConfig
 }
 
 type OperationMetadataConfig struct {
-	Adapter         string
-	DispatcherRules string
-	ResolverURL     string
-	RuntimeURL      string
+	Adapter string
 }
 
 type routeDocument struct {
-	Deployment      deploymentBlock      `yaml:"deployment"`
-	Plugins         []pluginSpec         `yaml:"plugins,omitempty"`
-	PluginMetadata  map[string]any       `yaml:"plugin_metadata,omitempty"`
-	Protos          []protoBlock         `yaml:"protos,omitempty"`
-	Upstreams       []namedUpstreamBlock `yaml:"upstreams,omitempty"`
-	Routes          []routeBlock         `yaml:"routes,omitempty"`
-	StreamRoutes    []streamRouteBlock   `yaml:"stream_routes,omitempty"`
-	GlobalRules     []globalRuleBlock    `yaml:"global_rules,omitempty"`
+	Deployment   deploymentBlock    `yaml:"deployment"`
+	Plugins      []pluginSpec       `yaml:"plugins,omitempty"`
+	Routes       []routeBlock       `yaml:"routes,omitempty"`
+	StreamRoutes []streamRouteBlock `yaml:"stream_routes,omitempty"`
+	GlobalRules  []globalRuleBlock  `yaml:"global_rules,omitempty"`
 }
 
 type globalRuleBlock struct {
 	ID      string         `yaml:"id"`
 	Plugins map[string]any `yaml:"plugins,omitempty"`
-}
-
-type luaPluginBlock struct {
-	Name string `yaml:"name"`
-	Code string `yaml:"code"`
 }
 
 type pluginSpec struct {
@@ -101,6 +102,8 @@ type routeBlock struct {
 	Methods         []string       `yaml:"methods,omitempty"`
 	Hosts           []string       `yaml:"hosts,omitempty"`
 	EnableWebsocket bool           `yaml:"enable_websocket,omitempty"`
+	Priority        int            `yaml:"priority,omitempty"`
+	Vars            [][]any        `yaml:"vars,omitempty"`
 	Plugins         map[string]any `yaml:"plugins,omitempty"`
 	Upstream        upstreamBlock  `yaml:"upstream"`
 }
@@ -111,40 +114,9 @@ type upstreamBlock struct {
 	Nodes  map[string]int `yaml:"nodes"`
 }
 
-type namedUpstreamBlock struct {
-	ID     string         `yaml:"id"`
-	Type   string         `yaml:"type"`
-	Scheme string         `yaml:"scheme,omitempty"`
-	Nodes  map[string]int `yaml:"nodes"`
-}
-
 type streamRouteBlock struct {
 	ID         string         `yaml:"id"`
-	ServerAddr string         `yaml:"server_addr,omitempty"`
 	ServerPort int            `yaml:"server_port"`
 	Plugins    map[string]any `yaml:"plugins,omitempty"`
-	UpstreamID string         `yaml:"upstream_id"`
-}
-
-type protoBlock struct {
-	ID      string `yaml:"id"`
-	Desc    string `yaml:"desc,omitempty"`
-	Content string `yaml:"content"`
-}
-
-type deferredAdapter struct {
-	ID          string
-	Protocol    string
-	PublicPath  string
-	ResolverURL string
-	RuntimeURL  string
-	Description string
-}
-
-type resolverBinding struct {
-	ID          string
-	Protocol    string
-	PublicPath  string
-	ResolverURL string
-	RuntimeURL  string
+	Upstream   upstreamBlock  `yaml:"upstream"`
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/babelsuite/babelsuite/internal/envloader"
+	"github.com/babelsuite/babelsuite/internal/runner"
 	"github.com/babelsuite/babelsuite/internal/telemetry"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -75,6 +76,24 @@ func main() {
 			slog.Error("server shutdown", "error", err)
 		}
 	}()
+
+	// gRPC mocks: a suite's gateway forwards every gRPC call of the suite to this
+	// listener, on a port of its own because gRPC is HTTP/2 and the API's server
+	// is not told to speak it without TLS.
+	grpcPort := envOr("BABELSUITE_GRPC_MOCK_PORT", runner.DefaultGRPCMockPort)
+	if os.Getenv("BABELSUITE_ENGINE_GRPC_ADDR") == "" {
+		_ = os.Setenv("BABELSUITE_ENGINE_GRPC_ADDR", "host.docker.internal:"+grpcPort)
+	}
+	if listener, err := net.Listen("tcp", ":"+grpcPort); err != nil {
+		slog.Error("gRPC mocks are unavailable: could not listen", "port", grpcPort, "error", err)
+	} else {
+		go func() {
+			if err := a.ServeGRPCMocks(listener); err != nil {
+				slog.Error("gRPC mock server stopped", "error", err)
+			}
+		}()
+		slog.Info("gRPC mocks listening", "port", grpcPort)
+	}
 
 	if os.Getenv("BABELSUITE_REAP_ON_START") != "false" {
 		go func() {

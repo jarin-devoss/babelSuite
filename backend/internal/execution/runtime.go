@@ -418,7 +418,7 @@ func (s *Service) attachSidecar(executionID string, suite *suites.Definition, pr
 	if !ok || suite == nil || !sidecarNeeded(suite) {
 		return
 	}
-	address, err := attacher.AttachSidecar(context.Background(), suite.ID, profile, executionID, suiteMockHosts(suite))
+	address, err := attacher.AttachSidecar(context.Background(), suite.ID, profile, executionID, append(suiteMockHosts(suite), suiteMockNames(suite)...))
 	if err != nil {
 		s.appendEvent(executionID, ExecutionEvent{
 			ID:        "sidecar-attach",
@@ -498,6 +498,7 @@ func (s *Service) ensureSuiteSidecar(suite *suites.Definition, profile string) e
 
 	suiteConfig := suites.ApisixSuiteConfig(*suite)
 	suiteConfig.CustomPlugins = customPlugins
+	suiteConfig.MockNames = suiteMockNames(suite)
 
 	return runner.EnsureSuiteSidecar(suiteConfig, profile, sidecarImage, configMountPath)
 }
@@ -562,6 +563,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		Status:    "running",
 		Level:     "info",
 	})
+	s.warnAboutMocks(executionID, suite, node)
 
 	if err := s.resetMockState(stepCtx, executionID, suite, node); err != nil {
 		message := fmt.Sprintf("[%s] Mock reset failed: %v", node.Name, err)
@@ -626,6 +628,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		PublishPorts:   pluginHostPortRefs(suite)[node.Name],
 		ServiceHosts:   s.sidecarServiceHosts(executionID, suite, node),
 		MockHosts:      sidecarMockHosts(suite, node),
+		StreamMocks:    streamMocksOf(suite),
 		Hardened:       suiteHardened(suite, node),
 		Node: runner.StepNode{
 			ID:          node.ID,
@@ -707,6 +710,7 @@ func (s *Service) runNode(ctx context.Context, executionID string, suite *suites
 		return err
 	}
 
+	s.publishAsyncMocks(stepCtx, executionID, suite, profile, backend, node)
 	finished := s.markNodeHealthy(executionID, node.ID, buildHealthyMessage(node, suite, profile))
 	s.registerStepArtifacts(executionID, node, "healthy", false, collectedFiles)
 	s.finishStepObservation(stepCtx, stepSpan, stepStartedAt, executionID, suite, profile, node, nil)

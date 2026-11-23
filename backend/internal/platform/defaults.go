@@ -3,6 +3,8 @@ package platform
 import (
 	"strings"
 	"time"
+
+	"github.com/babelsuite/babelsuite/internal/apisix"
 )
 
 const defaultPlatformDescription = "Physical-layer configuration for BabelSuite execution agents, OCI catalog sources, and shared platform credentials."
@@ -109,7 +111,7 @@ func PluginTriggerRoute(name string) string {
 
 func defaultAPISIXSidecar() APISIXSidecarConfig {
 	return APISIXSidecarConfig{
-		Image:           "apache/apisix:latest",
+		Image:           apisix.DefaultSidecarImage,
 		ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml",
 		ListenPort:      9080,
 		AdminPort:       9180,

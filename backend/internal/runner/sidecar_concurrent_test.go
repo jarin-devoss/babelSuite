@@ -81,7 +81,7 @@ func TestARunningSidecarIsRecognisedByItsConfiguration(t *testing.T) {
 	}
 	cli, _ := sharedDockerClient()
 
-	same := sidecarConfigHash(image+" engine="+sidecarEngineAddr(), apisix.RenderStandaloneConfig(config), apisix.LuaPluginFiles())
+	same := sidecarHash(config, image)
 	if url := runningSidecarWithHash(cli, name, same); url == "" || url != SuiteSidecarURL(suiteID, profile) {
 		t.Fatalf("the running sidecar was not recognised by its own configuration: %q", url)
 	}

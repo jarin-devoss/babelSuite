@@ -86,6 +86,9 @@ type StepSpec struct {
 	// network is flat, so two composed suites can each contribute a "db". The
 	// caller resolves that to one publisher per name.
 	NetworkAliases []string
+	// StreamMocks are the suite's TCP and UDP mocks and the ports the gateway
+	// answers them on, for a step to be told where to send its bytes.
+	StreamMocks []StreamMock
 	// GatewayURL is the primary APISIX sidecar address (first mock node).
 	GatewayURL string
 	// GatewayURLs contains one address per mock node in topology order.
@@ -168,4 +171,12 @@ type BackendConfig struct {
 	Label      string
 	Kind       string
 	Permissive bool
+}
+
+// StreamMock is a TCP or UDP mock of a suite.
+type StreamMock struct {
+	Surface   string
+	Operation string
+	Transport string // "tcp" or "udp"
+	Port      int    // the port the gateway answers it on, inside the sidecar
 }

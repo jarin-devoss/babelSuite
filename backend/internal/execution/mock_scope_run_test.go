@@ -57,7 +57,12 @@ func TestOverlappingRunsKeepTheirOwnMockState(t *testing.T) {
 	// answers on a port the sidecar can reach.
 	engine := mocking.NewService(mockSuiteReader{suite: definition})
 	mux := http.NewServeMux()
-	mocking.NewHandler(engine, "").Register(mux)
+	// The sidecar presents the control plane's mock token on every call; without
+	// it the engine refuses them.
+	const mockToken = "scope-test-token"
+	runner.ConfigureSidecarSecrets(mockToken)
+	t.Cleanup(func() { runner.ConfigureSidecarSecrets("") })
+	mocking.NewHandler(engine, mockToken).Register(mux)
 	listener, err := net.Listen("tcp", "0.0.0.0:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)

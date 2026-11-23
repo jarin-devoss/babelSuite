@@ -58,8 +58,14 @@ func TestBuildGatewayConfigPaymentSuiteRESTRoutes(t *testing.T) {
 		"id: payment-suite.get-payment",
 		"uri: /payments",
 		"uri: /payments/*",
-		"/internal/mock-data/payment-suite/payment-gateway/create-payment",
-		"X-Babelsuite-Dispatcher: apisix",
+		// The gateway's plugin answers: it is told which operation it serves and
+		// asks the mock engine for the example, with the engine and token the
+		// sidecar resolves from its environment.
+		"babelsuite-mock:",
+		"operation: create-payment",
+		"surface: payment-gateway",
+		"engine: ${{BABELSUITE_ENGINE_ADDR}}",
+		"token: ${{BABELSUITE_MOCK_TOKEN}}",
 		"hosts:",
 		"payment-suite.mock.internal",
 		"babelsuite-traffic-trigger",
@@ -80,14 +86,21 @@ func TestBuildGatewayConfigReturnsControlPlaneGRPC(t *testing.T) {
 		t.Fatal("expected gateway config for returns-control-plane")
 	}
 
-	if !strings.Contains(yaml, "protos:") {
-		t.Error("expected protos section for gRPC suite")
+	// A gRPC mock is served by the control plane's gRPC front end, which has the
+	// suite's .proto files: the gateway forwards every gRPC call of the suite to
+	// it, and does not transcode.
+	for _, want := range []string{
+		"id: returns-control-plane.grpc",
+		"scheme: grpc",
+		"${{BABELSUITE_ENGINE_GRPC_ADDR}}",
+		"id: returns-control-plane.grpc-web",
+	} {
+		if !strings.Contains(yaml, want) {
+			t.Errorf("expected %q in the gRPC suite's gateway config", want)
+		}
 	}
-	if !strings.Contains(yaml, "grpc-transcode:") {
-		t.Error("expected grpc-transcode plugin for gRPC operation")
-	}
-	if !strings.Contains(yaml, "scheme: grpc") {
-		t.Error("expected grpc upstream scheme")
+	if strings.Contains(yaml, "grpc-transcode") || strings.Contains(yaml, "protos:") {
+		t.Error("the gateway must not carry protos or transcode: the front end owns them")
 	}
 }
 
