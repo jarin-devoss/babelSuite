@@ -50,37 +50,50 @@ and loading a module or plugin that cannot be resolved is an error rather than a
 comment. The workspace loader additionally reads the module path strings to
 populate the suite's contracts/module references.
 
-!!! warning "`env.get()` does not read the profile"
-    The `env` global is an empty, frozen mapping during evaluation, so
-    `env.get("NAME", "fallback")` always returns the fallback — in every
-    profile, with no way to populate it.
+### `env`: the launch profile's environment
 
-    The consequence is about **graph shape**, and it is easy to miss. A loop or
-    conditional over an `env.get()` value is decided once, at author time:
+`env` is the environment of the profile the run was launched with: the profile's
+`env:` section, with the platform's global overrides applied on top. It is
+read-only (assigning to it is an error), so `env.get("NAME", "fallback")` and
+`env["NAME"]` read the profile, and a profile can change **which steps exist**:
 
-    ```python
-    BROWSERS = env.get("BROWSERS", "chromium").split(",")   # always ["chromium"]
+```python
+BROWSERS = env.get("BROWSERS", "chromium").split(",")   # the profile's BROWSERS
 
-    for b in BROWSERS:              # always one iteration
-        test.run(name="checkout-" + b, ...)
+for b in BROWSERS:                  # one step per browser in the profile
+    test.run(name="checkout-" + b, ...)
+```
 
-    if len(BROWSERS) > 1:           # always false
-        log.error("multi-browser run")
-    ```
+A profile with `BROWSERS: chromium,firefox,webkit` builds three checkout steps; a
+profile without it builds one. Values are strings, so a count is
+`int(env.get("COUNT", "1"))`.
 
-    A profile setting `BROWSERS: chromium,firefox,webkit` changes none of that.
-    So a profile can change **what a step does**, never **which steps exist**.
+- **Secrets are not in `env`.** A secret a profile references must not decide the
+  shape of the graph, or turn up in a step's name. Read it in the step, as an
+  environment variable.
+- **The catalog and the graph view** have no launch, so they show what the suite's
+  *default* profile builds. A run shows the graph of the profile it was launched
+  with.
+- **A nested suite does not see its parent's `env`.** It reads the profile its
+  dependency entry names (or its default one), plus the `inputs:` it was given.
 
-    What does read the active profile:
+What else reads the active profile:
 
-    - a step's `env=`, profile `env:` and `services.<step>.env:` — injected into
-      the container, so your script reads them normally
-    - a dependency's `inputs:` — injected into the imported suite's steps
-    - `{{ env.NAME }}` inside a `log.*` message — resolved at runtime
+- a step's `env=`, profile `env:` and `services.<step>.env:` — injected into the
+  container, so your script reads them normally
+- a dependency's `inputs:` — injected into the imported suite's steps
+- `{{ env.NAME }}` inside a `log.*` message — resolved at runtime
 
-    Treat `env.get()` as a named constant with a default. If a profile must
-    drive something, have a step read it as an environment variable at runtime
-    rather than branching on it here.
+### A node's `env`
+
+A node returned by `service.run`, `task.run` and the other calls has a read-only
+`env`: the environment the node was created with. A module's helpers read it to
+learn what the service was started with, instead of guessing a default:
+
+```python
+db = pg(port=5433, database="shop")
+db.env["PGPORT"]        # "5433"
+```
 
 ## Core Families
 
@@ -667,6 +680,22 @@ Current behavior:
    ```
 4. **Exit code** — the shell exits with the script's exit code, which the runner records as the step result.
 
+### `file=` together with `commands=`
+
+A step that sets both ships the file and runs **only its commands**. The file is
+written to the workspace, where the commands find it, and is not run by its own
+interpreter. Use it to give a command a file to work on: a spec the test runner
+is told to run, a config it reads.
+
+```python
+test.run(
+    name     = "checkout",
+    image    = "mcr.microsoft.com/playwright:v1.53.0-noble",
+    file     = "checkout.spec.ts",                      # shipped, not run by node
+    commands = ["npx playwright test checkout.spec.ts"],
+)
+```
+
 ### Interpreter inference for `file=`
 
 The interpreter is inferred from the file extension when `file=` is used:
@@ -805,18 +834,12 @@ Docker applies it as `NanoCPUs`, Kubernetes as `limits.cpu` — see
 ```yaml
 # staging.yaml
 network:
-  mode: execution   # isolated bridge — containers reach each other by node name
+  mode: execution   # the only mode: every run has its own network
 ```
 
-Every container in the execution joins a shared Docker bridge network, and the node's `name` becomes its DNS hostname — a `service.run(name="redis", image="redis:7-alpine")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required.
+Every run has its own Docker bridge network. Every container in it joins, and the node's `name` becomes its DNS hostname — a `service.run(name="redis", image="redis:7-alpine")` is reachable at `redis:6379` from any `task.run` or `test.run` in the same execution. No `suite.star` changes required, and the key can be left out.
 
-!!! warning "`network.mode` is read but not yet acted on"
-    The Docker backend creates and joins the per-execution network
-    unconditionally, because the shipped modules address other steps by name in
-    every profile — `connect()` dials `<db name>:5432` whether or not a profile
-    opted in. `host` and `none` are parsed and stored but change nothing today,
-    so treat the three values as the intended contract rather than working
-    configuration.
+`host` and `none` are refused (the run does not start, and saving the profile fails), because a profile-wide mode cannot work: the shipped modules and the suite's gateway reach other steps by name on that network, so a suite with a service could not run without it.
 
 ```python
 # suite.star — works the same regardless of network mode

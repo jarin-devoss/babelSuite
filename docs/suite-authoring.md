@@ -72,7 +72,6 @@ Compatibility folders still load for older suites:
 - `scenarios/`
 - `fixtures/`
 - `certs/`
-- `policies/`
 
 ## How `suite.star` Is Parsed
 

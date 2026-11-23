@@ -225,10 +225,7 @@ The React app currently exposes:
 
 ### Primary store
 
-The control plane uses MongoDB, configured with `MONGO_URI` and `MONGO_DB`.
-
-A PostgreSQL store exists under `internal/store/postgres`, but the server
-entrypoint reads no driver-selection variable, so it cannot be selected today.
+The control plane uses MongoDB by default (`MONGO_URI`, `MONGO_DB`), or PostgreSQL with `DB_DRIVER=postgres` and `POSTGRES_URL`. Both implement the same `store.Store` and the runtime repositories (agents, assignments, executions, cron jobs), and one contract test in `internal/store/storetest` runs against both. See [Configuration](configuration.md#datastore).
 
 ### Cache layer
 

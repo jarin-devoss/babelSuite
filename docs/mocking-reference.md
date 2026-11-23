@@ -50,8 +50,8 @@ Each operation can carry:
 Per-operation mock metadata supports:
 
 - `adapter`
-- `dispatcher`
-- `dispatcherRules`
+- `dispatcher` (a label echoed in `X-Babelsuite-Dispatcher`; it selects no strategy)
+- `dispatcherRules` (a generated description; it is not read)
 - `delayMillis`
 - `parameterConstraints`
 - `fallback`

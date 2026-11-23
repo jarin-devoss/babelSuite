@@ -51,8 +51,8 @@ The `apisixSidecar` object:
 | `image` | APISIX container image (e.g. `apache/apisix:3.9.0-debian`) |
 | `configMountPath` | Path of the file APISIX reads its routes from — the generated `apisix.yaml` is mounted onto this exact path, so it must be a file (default `/usr/local/apisix/conf/apisix.yaml`) |
 | `listenPort` | Recorded with the sidecar settings; the sidecar listens on 9080 inside its container |
-| `adminPort` | Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it |
-| `capabilities` | Informational: protocols listed on the settings page. The gateway serves what its built-in plugins serve (HTTP family, WebSocket, gRPC, TCP, UDP, and publishing to Kafka, RocketMQ, MQTT and NATS) whatever this says |
+
+The sidecar runs in standalone mode with no Admin API, so there is no admin port to set. A settings file from an earlier version that still has `adminPort` or `capabilities` loads: the keys are ignored and dropped on the next save. The protocols the gateway serves are the ones its built-in plugins serve (HTTP family, WebSocket, gRPC, TCP, UDP, and publishing to Kafka, RocketMQ, MQTT and NATS); see [Mock Traffic](architecture.md#mock-traffic).
 
 Runtime-populated fields (read-only):
 

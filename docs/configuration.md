@@ -60,11 +60,7 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 
 ### SSO / OIDC
 
-!!! warning "Not wired up yet"
-    An OIDC service and its routes exist, but the server builds its auth
-    configuration without an OIDC section, so none of the variables below are
-    read and SSO cannot currently be enabled. They are listed as the intended
-    contract, not as working configuration.
+Single sign-on is on when `OIDC_ENABLED=true`. `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID` and `OIDC_REDIRECT_URL` are then required: the server refuses to start with one missing and names it, rather than starting with a half-configured SSO button. The issuer is discovered when the first user signs in, so an identity provider that is down at startup does not stop the server.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -75,27 +71,25 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 | `OIDC_CLIENT_ID` | *(empty)* | OAuth2 client ID |
 | `OIDC_CLIENT_SECRET` | *(empty)* | OAuth2 client secret |
 | `OIDC_REDIRECT_URL` | *(empty)* | Backend callback URL (e.g. `http://localhost:8090/api/v1/auth/oidc/callback`) |
-| `OIDC_FRONTEND_CALLBACK_URL` | *(empty)* | Frontend callback URL (e.g. `http://localhost:5173/auth/callback`) |
+| `OIDC_FRONTEND_CALLBACK_URL` | `<FRONTEND_URL>/auth/callback` | Frontend callback URL (e.g. `http://localhost:5173/auth/callback`) |
 | `OIDC_SCOPES` | *(empty)* | Comma-separated scopes (e.g. `openid,profile,email,groups`) |
 | `OIDC_PKCE_ENABLED` | `true` | Enable PKCE code challenge flow |
 | `OIDC_EMAIL_CLAIM` | `email` | JWT claim to read the user's email from |
 | `OIDC_NAME_CLAIM` | `name` | JWT claim to read the user's display name from |
 | `OIDC_GROUPS_CLAIM` | `groups` | JWT claim to read the user's group memberships from |
 | `OIDC_ADMIN_GROUPS` | *(empty)* | Comma-separated group names that grant admin privileges |
-| `AUTH_STATE_SECRET` | *(empty)* | Secret for signing the OIDC state cookie — should be a secure random value |
+| `AUTH_STATE_SECRET` | derived from `JWT_SECRET` | Secret for signing the OIDC state cookie. When not set it is derived from `JWT_SECRET`, so it differs for every deployment and is the same after a restart |
 
 ### Datastore
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `DB_DRIVER` | `mongo` | The datastore: `mongo` or `postgres`. Anything else stops the server at startup. `GET /healthz` reports the driver in use as `dbDriver` |
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection string (`DB_DRIVER=mongo`) |
 | `MONGO_DB` | `babelsuite` | MongoDB database name |
+| `POSTGRES_URL` | *(empty)* | PostgreSQL connection string, e.g. `postgres://user:password@host:5432/babelsuite` (`DB_DRIVER=postgres`, required then) |
 
-!!! note "MongoDB is the only datastore the server selects"
-    A PostgreSQL store exists under `internal/store/postgres`, but the server
-    entrypoint reads no driver-selection variable, so there is currently no way
-    to switch to it. `DB_DRIVER`, `POSTGRES_DSN` and `DATABASE_URL` are not
-    read.
+Both datastores hold the same data and are held to the same contract by one test that runs against each (`internal/store/storetest`). With `DB_DRIVER=postgres` the schema is created and migrated when the server starts (a lock keeps several replicas from migrating at once). Data is not moved between datastores: switching starts with an empty one. The Helm chart deploys MongoDB only; to run on PostgreSQL there, point `POSTGRES_URL` at a database you provide.
 
 ### Cache (Redis)
 
@@ -135,13 +129,6 @@ Relative paths are resolved first from the working directory, then from the pare
 | `OTEL_EXPORTER_OTLP_INSECURE` | `false` | Skip TLS verification for the OTLP connection |
 | `OTEL_EXPORTER_OTLP_HEADERS` | *(empty)* | Additional headers for the OTLP exporter (e.g. `authorization=Bearer <token>`) |
 | `OTEL_RESOURCE_ATTRIBUTES` | *(empty)* | Comma-separated `key=value` pairs attached to every span |
-
-### Demo Mode
-
-!!! warning "Not wired up yet"
-    `BABELSUITE_ENABLE_DEMO` is not read by the server. Suites and platform
-    settings always come from the workspace — `configuration.yaml` and
-    `examples/` — regardless of what this is set to.
 
 ---
 
@@ -209,8 +196,6 @@ Each entry in `agents` defines one execution target.
 | `apisixSidecar.image` | APISIX container image used for the mock gateway sidecar |
 | `apisixSidecar.configMountPath` | Path of the **file** APISIX reads its routes from. The suite's generated `apisix.yaml` is bind-mounted onto exactly this path, so it must name a file, not a directory. Default `/usr/local/apisix/conf/apisix.yaml`. |
 | `apisixSidecar.listenPort` | Recorded with the sidecar settings; the sidecar listens on 9080 inside its container |
-| `apisixSidecar.adminPort` | Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it |
-| `apisixSidecar.capabilities` | Informational: what the settings page lists. The gateway serves what its built-in plugins serve whatever this says |
 
 ### Registries
 
@@ -309,8 +294,6 @@ agents:
       image: apache/apisix:3.9.0-debian
       configMountPath: /usr/local/apisix/conf/apisix.yaml
       listenPort: 9080
-      adminPort: 9180
-      capabilities: [rest, grpc, async]
 registries:
   - registryId: local-zot
     name: Local Registry

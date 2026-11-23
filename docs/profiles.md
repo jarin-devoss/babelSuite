@@ -15,7 +15,7 @@ A profile can:
 - set environment variables for the run
 - select module hints and observability settings
 - override individual service env vars — including `devices:` for hardware passthrough, `memory:` for a per-step memory ceiling and `cpu:` for a per-step CPU limit
-- configure the execution network mode (`network.mode`)
+- name the execution network mode (`network.mode`; `execution` is the only one)
 - declare secret-backed env vars with `secretRefs`
 - inherit from another profile via `extendsId`
 - require agents with particular routing tags via `agent.tags`
@@ -89,7 +89,7 @@ The `yaml` payload supports:
 ```yaml
 # Execution-scoped Docker network — all containers reachable by node name
 network:
-  mode: execution   # or: host | none (default: no dedicated network)
+  mode: execution   # the only mode; the key can be left out
 
 secretRefs:
   - key: API_TOKEN
@@ -115,17 +115,9 @@ services:
 
 ### `network.mode`
 
-| Value | Behaviour |
-|-------|-----------|
-| `execution` | One isolated Docker bridge network per execution. Every container joins it and is reachable by its node `name` as hostname — e.g. `redis:6379`, `payment-gateway:8080`. Network is created at execution start and removed when the execution finishes. |
-| `host` | Containers share the host network stack. |
-| `none` or omitted | Docker default bridge — containers are isolated from each other. |
+Every run gets one isolated Docker bridge network, created when the execution starts and removed when it finishes. Every container joins it and is reachable by its node `name` as hostname — e.g. `redis:6379`, `payment-gateway:8080`. `execution` (or leaving the key out) is the only mode.
 
-!!! warning "Read but not yet acted on"
-    The Docker backend creates and joins the per-execution network in every
-    profile, because the shipped modules address other steps by name whether or
-    not a profile opted in — `connect()` dials `<db name>:5432` regardless. The
-    value is parsed and stored, but `host` and `none` change nothing today.
+`host` and `none` are refused: saving a profile with one fails, and a run whose profile has one does not start. A profile-wide mode cannot work, because the shipped modules and the suite's gateway reach other steps by name on that network (`connect()` dials `<db name>:5432`), so a suite with a service could not run without it.
 
 When suites are composed, a service name that more than one of them declares
 gets a single publisher rather than being shared — see

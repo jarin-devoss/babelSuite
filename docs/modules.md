@@ -114,7 +114,7 @@ postgres/
 
 | Symbol | Returns | Description |
 |--------|---------|-------------|
-| `pg(name, image, database, username, password, port, after, env)` | node | Start a Postgres cluster. |
+| `pg(name, image, database, username, password, port, after, env)` | node | Start a Postgres cluster. The helpers (`connect`, `query`, `insert`, …) use the port, database, user and password given here, read from `db.env`; a `POSTGRES_URL` in a step's env still wins. |
 | `connect(db, after)` | node | Probe the cluster with `SELECT 1` until it responds (up to 30 retries). |
 | `query(db, sql, name, after)` | node | Execute a raw SQL statement with `psql`. Fails on error. |
 | `insert(db, table, values, after)` | node | Insert a single row from a dict of column→value pairs. |
@@ -167,7 +167,7 @@ redis/
 
 | Symbol | Returns | Description |
 |--------|---------|-------------|
-| `redis(name, image, port, password, max_memory, max_memory_policy, persistence, databases, after, env)` | node | Start a Redis cache. Set `persistence=True` for AOF + RDB. |
+| `redis(name, image, port, password, max_memory, max_memory_policy, persistence, databases, after, env)` | node | Start a Redis cache. The options are given to `redis-server` as arguments (`--port`, `--requirepass`, `--maxmemory`, `--maxmemory-policy`, `--databases`). Set `persistence=True` for AOF + RDB. The helpers read the port and password from `cache.env`. |
 | `wait_ready(cache, after)` | node | Poll `PING` until the cache responds with `PONG`. |
 | `set_key(cache, key, value, ttl_seconds, after)` | node | `SET key value [EX ttl]`. |
 | `set_keys(cache, mapping, ttl_seconds, after)` | node | Set multiple keys from a dict in one task. |
@@ -191,7 +191,7 @@ seed = set_keys(
     after=[flush],
 )
 
-app = service.run(image="feature-api:latest", env={"REDIS_URL": cache["url"]}, after=[seed])
+app = service.run(image="feature-api:latest", env={"REDIS_URL": "redis://:s3cr3t@cache:6379"}, after=[seed])
 ```
 
 ---
@@ -218,7 +218,7 @@ mongodb/
 
 | Symbol | Returns | Description |
 |--------|---------|-------------|
-| `mongodb(name, image, port, username, password, replica_set, wired_tiger_cache_gb, after, env)` | node | Start a MongoDB cluster. Pass `replica_set` to enable replica set mode. |
+| `mongodb(name, image, port, username, password, replica_set, wired_tiger_cache_gb, after, env)` | node | Start a MongoDB service. `port`, `replica_set` and `wired_tiger_cache_gb` are given to `mongod` as arguments. `username` and `password` go together. With `replica_set`, a `<name>-rs-init` task initiates the set (with credentials, the members authenticate each other with a generated keyfile), and the helpers wait for a primary. The helpers authenticate with the credentials. |
 | `create_collection(cluster, db, collection, after)` | node | Create a collection if it doesn't exist. |
 | `create_index(cluster, db, collection, keys, unique, after)` | node | Create an index. `keys` is a dict of field→direction (e.g. `{"sku": 1}`). |
 | `insert_documents(cluster, db, collection, documents, after)` | node | Insert a list of documents. |
@@ -266,7 +266,7 @@ playwright/
 
 | Symbol | Returns | Description |
 |--------|---------|-------------|
-| `browser_test(spec, base_url, browsers, devices, after, env, collect_traces, collect_video, extra_exports)` | list of nodes | Run a Playwright spec across a browser × device matrix. Returns one node per combination. Supported browsers: `chromium`, `firefox`, `webkit`. Supported devices: `desktop`, `mobile`, `tablet`. |
+| `browser_test(spec, base_url, browsers, devices, after, env, collect_traces, collect_video, extra_exports, image, playwright_version)` | list of nodes | Run a Playwright spec across a browser × device matrix. Returns one node per combination. Supported browsers: `chromium`, `firefox`, `webkit`. Supported devices: `desktop`, `mobile`, `tablet`. The spec is run by `npx playwright test` with the JUnit reporter (the report is exported), with `@playwright/test` installed at the image's version, so the step needs the npm registry once. A spec is a `@playwright/test` spec: it must `import { test } from "@playwright/test"`. |
 | `a11y_audit(url, after, wcag_level, fail_on_critical)` | node | WCAG accessibility audit using axe-core. `wcag_level` can be `A`, `AA`, or `AAA`. Exports JUnit and JSON reports. |
 | `visual_diff(spec, base_url, browsers, threshold, after)` | list of nodes | Screenshot snapshot comparison. Fails if pixel diff exceeds `threshold` (default `0.01` = 1%). Exports snapshots on every run, diffs on failure only. |
 

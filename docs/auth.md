@@ -34,12 +34,7 @@ ADMIN_PASSWORD=changeme
 
 ## OIDC Single Sign-On
 
-!!! warning "Not wired up yet"
-    The OIDC service and its `/api/v1/auth/oidc/*` routes exist, but the server
-    builds its auth configuration without an OIDC section, so none of the
-    variables in this section are read and the provider never reports as
-    enabled. Treat what follows as the intended contract rather than working
-    configuration, and use local authentication until it is connected.
+Set `OIDC_ENABLED=true` and the variables below (all listed in [Configuration](configuration.md#sso-oidc)). `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID` and `OIDC_REDIRECT_URL` are required: with one missing the server does not start, and the error names it. With SSO on, `GET /api/v1/auth/sso/providers` lists the provider and `GET /api/v1/auth/oidc/login` redirects to it with a PKCE challenge.
 
 ### How It Works
 
