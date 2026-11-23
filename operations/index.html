@@ -1973,13 +1973,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">MONGO_URI</span><span class="o">=</span>mongodb://localhost:27017
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nv">MONGO_DB</span><span class="o">=</span>babelsuite
 </span></code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">PostgreSQL is present but not selectable</p>
-<p>A PostgreSQL store and migrator exist under <code>internal/store/postgres</code>, but
-the server entrypoint reads no driver-selection variable, so there is no
-supported way to switch to it today. <code>DB_DRIVER</code>, <code>POSTGRES_DSN</code> and
-<code>DATABASE_URL</code> are not read.</p>
-</div>
+<p>To run on PostgreSQL instead, set <code>DB_DRIVER=postgres</code> and <code>POSTGRES_URL=postgres://user:password@host:5432/babelsuite</code>. The schema is created and migrated at startup, and data is not moved between datastores. The backup commands below are MongoDB's; back up PostgreSQL with <code>pg_dump</code>. See <a href="../configuration/#datastore">Configuration</a>.</p>
 <hr />
 <h2 id="middleware-stack">Middleware Stack<a class="headerlink" href="#middleware-stack" title="Permanent link">&para;</a></h2>
 <p>Every API request passes through the shared middleware stack in this order:</p>

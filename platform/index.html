@@ -1657,16 +1657,9 @@
 <td><code>listenPort</code></td>
 <td>Recorded with the sidecar settings; the sidecar listens on 9080 inside its container</td>
 </tr>
-<tr>
-<td><code>adminPort</code></td>
-<td>Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it</td>
-</tr>
-<tr>
-<td><code>capabilities</code></td>
-<td>Informational: protocols listed on the settings page. The gateway serves what its built-in plugins serve (HTTP family, WebSocket, gRPC, TCP, UDP, and publishing to Kafka, RocketMQ, MQTT and NATS) whatever this says</td>
-</tr>
 </tbody>
 </table>
+<p>The sidecar runs in standalone mode with no Admin API, so there is no admin port to set. A settings file from an earlier version that still has <code>adminPort</code> or <code>capabilities</code> loads: the keys are ignored and dropped on the next save. The protocols the gateway serves are the ones its built-in plugins serve (HTTP family, WebSocket, gRPC, TCP, UDP, and publishing to Kafka, RocketMQ, MQTT and NATS); see <a href="../architecture/#mock-traffic">Mock Traffic</a>.</p>
 <p>Runtime-populated fields (read-only):</p>
 <table>
 <thead>

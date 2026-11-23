@@ -1810,9 +1810,7 @@
 </ul>
 <h2 id="storage-model">Storage Model<a class="headerlink" href="#storage-model" title="Permanent link">&para;</a></h2>
 <h3 id="primary-store">Primary store<a class="headerlink" href="#primary-store" title="Permanent link">&para;</a></h3>
-<p>The control plane uses MongoDB, configured with <code>MONGO_URI</code> and <code>MONGO_DB</code>.</p>
-<p>A PostgreSQL store exists under <code>internal/store/postgres</code>, but the server
-entrypoint reads no driver-selection variable, so it cannot be selected today.</p>
+<p>The control plane uses MongoDB by default (<code>MONGO_URI</code>, <code>MONGO_DB</code>), or PostgreSQL with <code>DB_DRIVER=postgres</code> and <code>POSTGRES_URL</code>. Both implement the same <code>store.Store</code> and the runtime repositories (agents, assignments, executions, cron jobs), and one contract test in <code>internal/store/storetest</code> runs against both. See <a href="../configuration/#datastore">Configuration</a>.</p>
 <h3 id="cache-layer">Cache layer<a class="headerlink" href="#cache-layer" title="Permanent link">&para;</a></h3>
 <p>Redis is optional and accelerates:</p>
 <ul>

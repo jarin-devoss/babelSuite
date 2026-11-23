@@ -1479,8 +1479,8 @@
 <p>Each mock operation can carry:</p>
 <ul>
 <li><strong>adapter</strong> — protocol adapter (<code>rest</code>, <code>grpc</code>, <code>async</code>)</li>
-<li><strong>dispatcher</strong> — dispatch strategy (<code>example</code>, <code>script</code>, <code>sequence</code>, <code>random</code>)</li>
-<li><strong>dispatcherRules</strong> — rules used by the dispatcher</li>
+<li><strong>dispatcher</strong> — a label the response echoes in <code>X-Babelsuite-Dispatcher</code> (<code>apisix</code> unless set). It selects nothing: the answer is chosen by the examples' <code>dispatch:</code> conditions, then the fallback. There are no <code>script</code>, <code>sequence</code> or <code>random</code> strategies; use <code>state</code> for an answer that changes from call to call</li>
+<li><strong>dispatcherRules</strong> — a generated description of how the operation is resolved; it is not read</li>
 <li><strong>delayMillis</strong> — simulated latency</li>
 <li><strong>parameterConstraints</strong> — named constraints for routing by request attributes</li>
 <li><strong>fallback</strong> — what to return when no example matches</li>

@@ -1934,7 +1934,7 @@
 <tr>
 <td><code>pg(name, image, database, username, password, port, after, env)</code></td>
 <td>node</td>
-<td>Start a Postgres cluster.</td>
+<td>Start a Postgres cluster. The helpers (<code>connect</code>, <code>query</code>, <code>insert</code>, …) use the port, database, user and password given here, read from <code>db.env</code>; a <code>POSTGRES_URL</code> in a step's env still wins.</td>
 </tr>
 <tr>
 <td><code>connect(db, after)</code></td>
@@ -2011,7 +2011,7 @@
 <tr>
 <td><code>redis(name, image, port, password, max_memory, max_memory_policy, persistence, databases, after, env)</code></td>
 <td>node</td>
-<td>Start a Redis cache. Set <code>persistence=True</code> for AOF + RDB.</td>
+<td>Start a Redis cache. The options are given to <code>redis-server</code> as arguments (<code>--port</code>, <code>--requirepass</code>, <code>--maxmemory</code>, <code>--maxmemory-policy</code>, <code>--databases</code>). Set <code>persistence=True</code> for AOF + RDB. The helpers read the port and password from <code>cache.env</code>.</td>
 </tr>
 <tr>
 <td><code>wait_ready(cache, after)</code></td>
@@ -2059,7 +2059,7 @@
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">flush</span><span class="p">],</span>
 </span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">)</span>
 </span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="n">app</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;feature-api:latest&quot;</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;REDIS_URL&quot;</span><span class="p">:</span> <span class="n">cache</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">]},</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">seed</span><span class="p">])</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="n">app</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="s2">&quot;feature-api:latest&quot;</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;REDIS_URL&quot;</span><span class="p">:</span> <span class="s2">&quot;redis://:s3cr3t@cache:6379&quot;</span><span class="p">},</span> <span class="n">after</span><span class="o">=</span><span class="p">[</span><span class="n">seed</span><span class="p">])</span>
 </span></code></pre></div>
 <hr />
 <h2 id="mongodb-module">MongoDB Module<a class="headerlink" href="#mongodb-module" title="Permanent link">&para;</a></h2>
@@ -2087,7 +2087,7 @@
 <tr>
 <td><code>mongodb(name, image, port, username, password, replica_set, wired_tiger_cache_gb, after, env)</code></td>
 <td>node</td>
-<td>Start a MongoDB cluster. Pass <code>replica_set</code> to enable replica set mode.</td>
+<td>Start a MongoDB service. <code>port</code>, <code>replica_set</code> and <code>wired_tiger_cache_gb</code> are given to <code>mongod</code> as arguments. <code>username</code> and <code>password</code> go together. With <code>replica_set</code>, a <code>&lt;name&gt;-rs-init</code> task initiates the set (with credentials, the members authenticate each other with a generated keyfile), and the helpers wait for a primary. The helpers authenticate with the credentials.</td>
 </tr>
 <tr>
 <td><code>create_collection(cluster, db, collection, after)</code></td>
@@ -2154,9 +2154,9 @@
 </thead>
 <tbody>
 <tr>
-<td><code>browser_test(spec, base_url, browsers, devices, after, env, collect_traces, collect_video, extra_exports)</code></td>
+<td><code>browser_test(spec, base_url, browsers, devices, after, env, collect_traces, collect_video, extra_exports, image, playwright_version)</code></td>
 <td>list of nodes</td>
-<td>Run a Playwright spec across a browser × device matrix. Returns one node per combination. Supported browsers: <code>chromium</code>, <code>firefox</code>, <code>webkit</code>. Supported devices: <code>desktop</code>, <code>mobile</code>, <code>tablet</code>.</td>
+<td>Run a Playwright spec across a browser × device matrix. Returns one node per combination. Supported browsers: <code>chromium</code>, <code>firefox</code>, <code>webkit</code>. Supported devices: <code>desktop</code>, <code>mobile</code>, <code>tablet</code>. The spec is run by <code>npx playwright test</code> with the JUnit reporter (the report is exported), with <code>@playwright/test</code> installed at the image's version, so the step needs the npm registry once. A spec is a <code>@playwright/test</code> spec: it must <code>import { test } from "@playwright/test"</code>.</td>
 </tr>
 <tr>
 <td><code>a11y_audit(url, after, wcag_level, fail_on_critical)</code></td>

@@ -1543,14 +1543,7 @@
 </table>
 <hr />
 <h2 id="oidc-single-sign-on">OIDC Single Sign-On<a class="headerlink" href="#oidc-single-sign-on" title="Permanent link">&para;</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Not wired up yet</p>
-<p>The OIDC service and its <code>/api/v1/auth/oidc/*</code> routes exist, but the server
-builds its auth configuration without an OIDC section, so none of the
-variables in this section are read and the provider never reports as
-enabled. Treat what follows as the intended contract rather than working
-configuration, and use local authentication until it is connected.</p>
-</div>
+<p>Set <code>OIDC_ENABLED=true</code> and the variables below (all listed in <a href="../configuration/#sso-oidc">Configuration</a>). <code>OIDC_ISSUER_URL</code>, <code>OIDC_CLIENT_ID</code> and <code>OIDC_REDIRECT_URL</code> are required: with one missing the server does not start, and the error names it. With SSO on, <code>GET /api/v1/auth/sso/providers</code> lists the provider and <code>GET /api/v1/auth/oidc/login</code> redirects to it with a PKCE challenge.</p>
 <h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
 <ol>
 <li>User clicks <strong>Sign in with SSO</strong> — the frontend calls <code>GET /api/v1/auth/oidc/login</code>.</li>

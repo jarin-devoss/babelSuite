@@ -725,15 +725,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#demo-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      Demo Mode
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1494,15 +1485,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#demo-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      Demo Mode
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1789,13 +1771,7 @@ Vite proxy and stay same-origin.</p>
 </tbody>
 </table>
 <h3 id="sso-oidc">SSO / OIDC<a class="headerlink" href="#sso-oidc" title="Permanent link">&para;</a></h3>
-<div class="admonition warning">
-<p class="admonition-title">Not wired up yet</p>
-<p>An OIDC service and its routes exist, but the server builds its auth
-configuration without an OIDC section, so none of the variables below are
-read and SSO cannot currently be enabled. They are listed as the intended
-contract, not as working configuration.</p>
-</div>
+<p>Single sign-on is on when <code>OIDC_ENABLED=true</code>. <code>OIDC_ISSUER_URL</code>, <code>OIDC_CLIENT_ID</code> and <code>OIDC_REDIRECT_URL</code> are then required: the server refuses to start with one missing and names it, rather than starting with a half-configured SSO button. The issuer is discovered when the first user signs in, so an identity provider that is down at startup does not stop the server.</p>
 <table>
 <thead>
 <tr>
@@ -1842,7 +1818,7 @@ contract, not as working configuration.</p>
 </tr>
 <tr>
 <td><code>OIDC_FRONTEND_CALLBACK_URL</code></td>
-<td><em>(empty)</em></td>
+<td><code>&lt;FRONTEND_URL&gt;/auth/callback</code></td>
 <td>Frontend callback URL (e.g. <code>http://localhost:5173/auth/callback</code>)</td>
 </tr>
 <tr>
@@ -1877,8 +1853,8 @@ contract, not as working configuration.</p>
 </tr>
 <tr>
 <td><code>AUTH_STATE_SECRET</code></td>
-<td><em>(empty)</em></td>
-<td>Secret for signing the OIDC state cookie — should be a secure random value</td>
+<td>derived from <code>JWT_SECRET</code></td>
+<td>Secret for signing the OIDC state cookie. When not set it is derived from <code>JWT_SECRET</code>, so it differs for every deployment and is the same after a restart</td>
 </tr>
 </tbody>
 </table>
@@ -1893,24 +1869,28 @@ contract, not as working configuration.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>DB_DRIVER</code></td>
+<td><code>mongo</code></td>
+<td>The datastore: <code>mongo</code> or <code>postgres</code>. Anything else stops the server at startup. <code>GET /healthz</code> reports the driver in use as <code>dbDriver</code></td>
+</tr>
+<tr>
 <td><code>MONGO_URI</code></td>
 <td><code>mongodb://localhost:27017</code></td>
-<td>MongoDB connection string</td>
+<td>MongoDB connection string (<code>DB_DRIVER=mongo</code>)</td>
 </tr>
 <tr>
 <td><code>MONGO_DB</code></td>
 <td><code>babelsuite</code></td>
 <td>MongoDB database name</td>
 </tr>
+<tr>
+<td><code>POSTGRES_URL</code></td>
+<td><em>(empty)</em></td>
+<td>PostgreSQL connection string, e.g. <code>postgres://user:password@host:5432/babelsuite</code> (<code>DB_DRIVER=postgres</code>, required then)</td>
+</tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">MongoDB is the only datastore the server selects</p>
-<p>A PostgreSQL store exists under <code>internal/store/postgres</code>, but the server
-entrypoint reads no driver-selection variable, so there is currently no way
-to switch to it. <code>DB_DRIVER</code>, <code>POSTGRES_DSN</code> and <code>DATABASE_URL</code> are not
-read.</p>
-</div>
+<p>Both datastores hold the same data and are held to the same contract by one test that runs against each (<code>internal/store/storetest</code>). With <code>DB_DRIVER=postgres</code> the schema is created and migrated when the server starts (a lock keeps several replicas from migrating at once). Data is not moved between datastores: switching starts with an empty one. The Helm chart deploys MongoDB only; to run on PostgreSQL there, point <code>POSTGRES_URL</code> at a database you provide.</p>
 <h3 id="cache-redis">Cache (Redis)<a class="headerlink" href="#cache-redis" title="Permanent link">&para;</a></h3>
 <p>Redis is optional. When <code>REDIS_ADDR</code> is unset, BabelSuite operates without a cache.</p>
 <table>
@@ -2040,13 +2020,6 @@ read.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="demo-mode">Demo Mode<a class="headerlink" href="#demo-mode" title="Permanent link">&para;</a></h3>
-<div class="admonition warning">
-<p class="admonition-title">Not wired up yet</p>
-<p><code>BABELSUITE_ENABLE_DEMO</code> is not read by the server. Suites and platform
-settings always come from the workspace — <code>configuration.yaml</code> and
-<code>examples/</code> — regardless of what this is set to.</p>
-</div>
 <hr />
 <h2 id="configurationyaml"><code>configuration.yaml</code><a class="headerlink" href="#configurationyaml" title="Permanent link">&para;</a></h2>
 <p>The platform settings file defines the physical execution environment. It is read and written by the control plane at runtime — changes take effect without restarting the server. Edit it directly or use the <strong>Settings</strong> UI at <code>/settings</code>.</p>
@@ -2174,14 +2147,6 @@ settings always come from the workspace — <code>configuration.yaml</code> and
 <tr>
 <td><code>apisixSidecar.listenPort</code></td>
 <td>Recorded with the sidecar settings; the sidecar listens on 9080 inside its container</td>
-</tr>
-<tr>
-<td><code>apisixSidecar.adminPort</code></td>
-<td>Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it</td>
-</tr>
-<tr>
-<td><code>apisixSidecar.capabilities</code></td>
-<td>Informational: what the settings page lists. The gateway serves what its built-in plugins serve whatever this says</td>
 </tr>
 </tbody>
 </table>
@@ -2377,14 +2342,12 @@ settings always come from the workspace — <code>configuration.yaml</code> and
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apache/apisix:3.9.0-debian</span>
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">configMountPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/usr/local/apisix/conf/apisix.yaml</span>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">      </span><span class="nt">listenPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">9080</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">      </span><span class="nt">adminPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">9180</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">      </span><span class="nt">capabilities</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">rest</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">grpc</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">async</span><span class="p p-Indicator">]</span>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="nt">registries</span><span class="p">:</span>
-</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">registryId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local-zot</span>
-</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Local Registry</span>
-</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zot</span>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">    </span><span class="nt">registryUrl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:5000</span>
-</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">    </span><span class="nt">repositoryScope</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;*&#39;</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="nt">registries</span><span class="p">:</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">registryId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local-zot</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Local Registry</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zot</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="nt">registryUrl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:5000</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="nt">repositoryScope</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;*&#39;</span>
 </span></code></pre></div>
 
 

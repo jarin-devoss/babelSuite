@@ -1514,7 +1514,7 @@
 <li>set environment variables for the run</li>
 <li>select module hints and observability settings</li>
 <li>override individual service env vars — including <code>devices:</code> for hardware passthrough, <code>memory:</code> for a per-step memory ceiling and <code>cpu:</code> for a per-step CPU limit</li>
-<li>configure the execution network mode (<code>network.mode</code>)</li>
+<li>name the execution network mode (<code>network.mode</code>; <code>execution</code> is the only one)</li>
 <li>declare secret-backed env vars with <code>secretRefs</code></li>
 <li>inherit from another profile via <code>extendsId</code></li>
 <li>require agents with particular routing tags via <code>agent.tags</code></li>
@@ -1631,7 +1631,7 @@
 <p>The <code>yaml</code> payload supports:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Execution-scoped Docker network — all containers reachable by node name</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">network</span><span class="p">:</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># or: host | none (default: no dedicated network)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">execution</span><span class="w">   </span><span class="c1"># the only mode; the key can be left out</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">secretRefs</span><span class="p">:</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">API_TOKEN</span>
@@ -1655,35 +1655,8 @@
 </span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1.5&quot;</span><span class="w">                 </span><span class="c1"># CPU limit in cores, or &quot;500m&quot;; unset is unlimited</span>
 </span></code></pre></div>
 <h3 id="networkmode"><code>network.mode</code><a class="headerlink" href="#networkmode" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Value</th>
-<th>Behaviour</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>execution</code></td>
-<td>One isolated Docker bridge network per execution. Every container joins it and is reachable by its node <code>name</code> as hostname — e.g. <code>redis:6379</code>, <code>payment-gateway:8080</code>. Network is created at execution start and removed when the execution finishes.</td>
-</tr>
-<tr>
-<td><code>host</code></td>
-<td>Containers share the host network stack.</td>
-</tr>
-<tr>
-<td><code>none</code> or omitted</td>
-<td>Docker default bridge — containers are isolated from each other.</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition warning">
-<p class="admonition-title">Read but not yet acted on</p>
-<p>The Docker backend creates and joins the per-execution network in every
-profile, because the shipped modules address other steps by name whether or
-not a profile opted in — <code>connect()</code> dials <code>&lt;db name&gt;:5432</code> regardless. The
-value is parsed and stored, but <code>host</code> and <code>none</code> change nothing today.</p>
-</div>
+<p>Every run gets one isolated Docker bridge network, created when the execution starts and removed when it finishes. Every container joins it and is reachable by its node <code>name</code> as hostname — e.g. <code>redis:6379</code>, <code>payment-gateway:8080</code>. <code>execution</code> (or leaving the key out) is the only mode.</p>
+<p><code>host</code> and <code>none</code> are refused: saving a profile with one fails, and a run whose profile has one does not start. A profile-wide mode cannot work, because the shipped modules and the suite's gateway reach other steps by name on that network (<code>connect()</code> dials <code>&lt;db name&gt;:5432</code>), so a suite with a service could not run without it.</p>
 <p>When suites are composed, a service name that more than one of them declares
 gets a single publisher rather than being shared — see
 <a href="../runtime-library/#service-names-when-suites-are-composed">Runtime Library</a>.</p>
