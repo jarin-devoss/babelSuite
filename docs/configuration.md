@@ -51,9 +51,11 @@ The backend loads `.env` automatically on startup. Platform settings are read fr
 | `ADMIN_PASSWORD` | *(empty)* | Password for the seeded admin account |
 | `AUTH_PASSWORD_LOGIN_ENABLED` | `true` | Allow sign-in with email and password |
 | `AUTH_SIGNUP_ENABLED` | `true` | Allow new accounts to be created via the sign-up page |
-| `MOCK_SHARED_SECRET` | *(empty)* | Shared secret used to authenticate the mock service |
+| `MOCK_SHARED_SECRET` | *(empty)* | The token a suite's gateway presents to the mock engine, which requires it on every mock call. When empty it is derived from `JWT_SECRET`, so it differs for every deployment and survives a restart. Set it to choose the value, or to keep gateways valid across a `JWT_SECRET` rotation |
 | `AGENT_SHARED_SECRET` | *(empty)* | Shared secret used to authenticate remote agent workers |
 | `BABELSUITE_ENGINE_ADDR` | `host.docker.internal:<PORT>` | Where a suite's gateway reaches this control plane's mock engine from inside its container. Set from `PORT` when not given, so only a control plane behind a different address needs it |
+| `BABELSUITE_GRPC_MOCK_PORT` | `8095` | The port of the gRPC mock front end, which a suite's gateway forwards every gRPC call to. It is a port of its own because gRPC is HTTP/2 and the API's listener does not speak it without TLS |
+| `BABELSUITE_ENGINE_GRPC_ADDR` | `host.docker.internal:<BABELSUITE_GRPC_MOCK_PORT>` | Where a suite's gateway reaches that front end, for a control plane behind a different address |
 | `BABELSUITE_REAP_ON_START` | `true` | On start, remove what runs this host's control plane no longer drives left behind (containers, networks, volumes, workspace directories). `false` turns it off. See [Execution Status And Restarts](execution.md#execution-status-and-restarts) |
 
 ### SSO / OIDC
@@ -207,8 +209,8 @@ Each entry in `agents` defines one execution target.
 | `apisixSidecar.image` | APISIX container image used for the mock gateway sidecar |
 | `apisixSidecar.configMountPath` | Path of the **file** APISIX reads its routes from. The suite's generated `apisix.yaml` is bind-mounted onto exactly this path, so it must name a file, not a directory. Default `/usr/local/apisix/conf/apisix.yaml`. |
 | `apisixSidecar.listenPort` | Recorded with the sidecar settings; the sidecar listens on 9080 inside its container |
-| `apisixSidecar.adminPort` | Port APISIX exposes for configuration updates |
-| `apisixSidecar.capabilities` | Protocols the sidecar handles — e.g. `rest`, `grpc`, `kafka`, `async` |
+| `apisixSidecar.adminPort` | Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it |
+| `apisixSidecar.capabilities` | Informational: what the settings page lists. The gateway serves what its built-in plugins serve whatever this says |
 
 ### Registries
 

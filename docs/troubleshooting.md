@@ -74,6 +74,21 @@ The execution was cancelled (e.g. by a `reap` call or a timeout). Check:
 
 ---
 
+## A Mock Does Not Answer
+
+| Symptom | What it means and what to do |
+|---------|------------------------------|
+| `401` from `/mocks/...` or `/internal/mock-data/...` called directly | The mock endpoints answer only a request that carries the gateway's token, which only a suite's gateway holds. Call the gateway (`BABELSUITE_GATEWAY_URL`, or the mock by its node's name, `http://<mock name>:9080`). |
+| `502` from a mock | The gateway could not reach the control plane's mock engine. Check `BABELSUITE_ENGINE_ADDR` (and `BABELSUITE_ENGINE_GRPC_ADDR` for gRPC) against where the control plane listens; the error body says which address it tried. |
+| `Mock x/y (AMQP) is not served` (a warning when the mock starts) | The gateway serves the HTTP family, WebSocket, gRPC, TCP and UDP, and publishes to Kafka, RocketMQ, MQTT and NATS. AMQP has no client in APISIX, and an async surface that names no broker has nowhere to publish. |
+| `Async mock x/y publishes to ..., which is not a service of this suite` | The broker named by the surface's host (`kafka://broker:9092`) is not a `service.run` node of the suite, so nothing is published. Name the service the same as the host. |
+| `Could not publish async mock ...` | The gateway reached the broker's address but the publish failed; the event carries the broker's answer. Kafka and RocketMQ brokers answer with the address they advertise, which the gateway cannot resolve from outside the run's network — see the limits under [Mock Traffic](architecture.md#mock-traffic). |
+| gRPC `UNIMPLEMENTED` | The method is not a mock of the suite, or it is client-streaming (not mocked). Reflection lists what is served. |
+| gRPC `FAILED_PRECONDITION` | The suite has gRPC mocks whose `.proto` files do not compile, so the called method may be one of them. The message names the file and the compiler's first error. |
+| `Plugin names starting with "babelsuite-" belong to the gateway's own plugins` | The prefix is reserved for the built-in plugins. Choose another name. |
+
+---
+
 ## A Traffic Step Fails
 
 A `traffic.*` step sends real requests from the suite's APISIX sidecar, so a failure names what went wrong. Match the message in the step's log:

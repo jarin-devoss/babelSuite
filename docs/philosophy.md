@@ -31,8 +31,8 @@ The single biggest cost of "test environment as code" tools is the number of ext
 
 BabelSuite avoids this through the APISIX sidecar model:
 
-- **Mocking** is handled by BabelSuite's internal engine, backed by CUE schemas in `api/` and `mock/`. No WireMock, no Prism container required.
-- **Traffic testing** — all `traffic.*` profiles — is executed by a Lua plugin (`babelsuite-traffic-cannon`) running inside the APISIX sidecar that is already provisioned alongside every mock node. No k6, no Locust, no Gatling.
+- **Mocking** is decided by BabelSuite's internal engine, backed by CUE schemas in `api/` and `mock/`, and answered by the APISIX sidecar: a built-in plugin (`babelsuite-mock`) asks the engine which example matches and writes the response itself, so the gateway is the visible responder for REST, SOAP, GraphQL, webhooks, SSE, WebSocket, gRPC, TCP and UDP, and publishes async mocks to your broker. No WireMock, no Prism container required.
+- **Traffic testing** — all `traffic.*` profiles — is executed by a Lua plugin (`babelsuite-traffic-cannon`) running inside the APISIX sidecar that is already provisioned for the suite. No k6, no Locust, no Gatling.
 - **Security scanning** — all `security.*` modes (probe, fuzz, headers, verbs, CORS, auth, GraphQL, flood) — is executed by a second Lua plugin (`babelsuite-attack-scanner`) inside the same APISIX sidecar. No ZAP, no Nuclei.
 
 The sidecar is already there. The checks are Lua running inside OpenResty. The backend starts a run, polls its status, and reads the result back. No extra image pull. No extra container lifecycle.
@@ -46,9 +46,9 @@ APISIX serves as the gateway and execution surface for all built-in runtime chec
 ```
 suite.star topology
       │
-      ├── mock.api ──────► BabelSuite mocking engine  (internal, no container)
-      │        │
-      │        └── APISIX sidecar ──► traffic.* Lua plugin  (no extra container)
+      ├── mock.api ──────► APISIX sidecar ──► babelsuite-mock plugin ──► mocking engine (decides)
+      │                          │
+      │                          ├──► traffic.* Lua plugin  (no extra container)
       │                          └──► security.* Lua plugin (no extra container)
       │
       ├── service.run ───► Docker container  (your service, from image=)
@@ -56,7 +56,7 @@ suite.star topology
       └── test.run ──────► Docker container  (user script — container needed)
 ```
 
-This means a full suite with mocks, load testing, and security probes requires exactly two things beyond the BabelSuite control plane: the application under test and its APISIX sidecar. Everything else is embedded.
+There is one sidecar per suite and profile, shared by every run of that suite; each run's own network is attached to it, so a run's mock state stays its own. A full suite with mocks, load testing, and security probes requires exactly two things beyond the BabelSuite control plane: the application under test and its APISIX sidecar. Everything else is embedded.
 
 ## Suites Are OCI Artifacts
 

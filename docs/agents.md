@@ -119,6 +119,9 @@ When the control plane assigns a step, the `StepRequest` contains everything the
 | Step index and total count | Position in the execution |
 | Node definition | Full step spec — image, command, ports, mounts |
 
+!!! note "Mocks are reached from the control plane's host"
+    A suite's gateway (its APISIX sidecar) runs on the control plane's Docker host and publishes its ports on that host's loopback. A step on a remote agent runs elsewhere and cannot reach `127.0.0.1` on the control plane, so a remote agent's steps do not get a working `BABELSUITE_GATEWAY_URL` for a suite's mocks. Run a suite whose steps call its mocks on the local Docker backend, or call a mock from a step that runs on the control plane's host.
+
 ---
 
 ## Kubernetes Backend

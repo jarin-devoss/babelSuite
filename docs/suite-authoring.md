@@ -112,9 +112,9 @@ load("@babelsuite/postgres", "pg")
 load("@babelsuite/runtime", "service", "mock", "task", "test", "traffic", "security")
 
 db       = service.run(image="postgres:16")
-stripe   = mock.api(after=[db])
+stripe   = mock.api(name="stripe-mock", after=[db])
 migrate  = task.run(file="migrate.py", image="python:3.12", after=[db])
-api      = service.run(image="payments-api:latest", after=[db, stripe, migrate])
+api      = service.run(image="payments-api:latest", env={"STRIPE_BASE_URL": "http://stripe-mock:9080"}, after=[db, stripe, migrate])
 baseline = traffic.baseline(target="http://api:8080", after=[api])
 smoke    = test.run(file="go/smoke_test.go", image="golang:1.24", after=[baseline])
 ```

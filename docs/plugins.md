@@ -6,7 +6,7 @@ title: Plugins
 
 [Back to index](index.md)
 
-Plugins are Lua functions that run inside the APISIX sidecar — no extra container, no image pull. BabelSuite ships two built-in plugins: `babelsuite-traffic-cannon` (all `traffic.*` nodes) and `babelsuite-attack-scanner` (all `security.*` nodes). User plugins follow exactly the same dispatch pattern and run in the same sidecar process — they are just Lua code registered in `configuration.yaml` instead of being bundled with BabelSuite.
+Plugins are Lua functions that run inside the APISIX sidecar — no extra container, no image pull. BabelSuite ships built-in plugins of its own, all named `babelsuite-*`: the mock plugins that answer a suite's mocks, `babelsuite-traffic-cannon` (all `traffic.*` nodes) and `babelsuite-attack-scanner` (all `security.*` nodes); see [The Gateway's Own Plugins](#the-gateways-own-plugins). User plugins follow exactly the same dispatch pattern and run in the same sidecar process — they are just Lua code registered in `configuration.yaml` instead of being bundled with BabelSuite.
 
 ## Plugins vs Modules
 
@@ -112,6 +112,20 @@ damper_watch = monitor(
 ```
 
 Plugin nodes accept `after=`, `on_failure=`, `continue_on_failure=`, `expect_logs=` and `fail_on_logs=` just like any other topology node. The engine applies them; the plugin never sees them. See [step options belong to the engine](#step-options-belong-to-the-engine).
+
+## The Gateway's Own Plugins
+
+The sidecar ships with plugins of its own, all named `babelsuite-*`. They are loaded into every sidecar and are not registered through the API:
+
+| Plugin | What it does |
+|--------|--------------|
+| `babelsuite-mock` | answers a REST, SOAP, GraphQL, webhook or SSE mock: asks the mock engine which example matches and writes the response |
+| `babelsuite-tcp-mock`, `babelsuite-udp-mock` | stream plugins that answer a TCP or UDP mock on a port of its own |
+| `babelsuite-async-mock` | publishes an async mock's message to the suite's Kafka, RocketMQ, MQTT or NATS broker |
+| `babelsuite-traffic-cannon` | generates the load of `traffic.*` steps |
+| `babelsuite-attack-scanner` | runs the checks of `security.*` steps |
+
+The `babelsuite-` prefix is reserved: registering a plugin under it is refused, and a plugin stored under such a name before the rule is left out of the sidecar's configuration so it cannot shadow a built-in. See [Mock Traffic](architecture.md#mock-traffic) for how the mock plugins serve each protocol.
 
 ## What User Plugins Should NOT Duplicate
 
@@ -360,7 +374,7 @@ to block the suite.
 
 | Field | Description |
 |-------|-------------|
-| `name` | Unique identifier — used as the load target in `suite.star` (e.g. `@plugins/spice-sim`) |
+| `name` | Unique identifier — used as the load target in `suite.star` (e.g. `@plugins/spice-sim`). Names starting with `babelsuite-` belong to the gateway and are refused |
 | `trigger` | Read-only. The sidecar route the plugin answers on, derived from `name` as `/_babelsuite/plugins/<name>/start`. A plugin package does not declare it and a value sent to the API is ignored. |
 | `version` | Semantic version string stored as-is — e.g. `1.0.0`. Not auto-bumped by the API. |
 | `kind` | Must be `plugin` |
@@ -486,7 +500,7 @@ The plugin name is taken from the URL — the `name` field in the body is ignore
 
 Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua is bind-mounted and the generated `apisix.yaml` names each plugin, both read at sidecar startup. The sidecar carries a hash of its configuration, plugin files and image as a label; when a run finds the hash changed, it recreates the sidecar, so a changed plugin is picked up without removing anything by hand.
 
-Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component. It is reached over its host-published port, and while a traffic step runs it joins that run's network, so it can dial the suite's services; it leaves with the run's network when the run ends.
+Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component. It is reached over its host-published port (bound to the host's loopback). When a run starts, the sidecar joins that run's network, under the name `babelsuite-gateway` and under the name of each mock node, so the run's steps reach mocks as `http://<mock name>:9080` and the sidecar can dial the run's services; it leaves with the run's network when the run ends.
 
 The sidecar runs in **standalone mode**: `deployment.role: data_plane` with `config_provider: yaml`. No etcd is involved.
 

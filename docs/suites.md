@@ -77,9 +77,9 @@ Bare `service(...)`, `task(...)`, `test(...)`, `traffic(...)`, `security(...)`, 
 load("@babelsuite/runtime", "service", "mock", "task", "test", "traffic", "security")
 
 db          = service.run(image="postgres:16")
-stripe_mock = mock.api(after=[db])
+stripe_mock = mock.api(name="stripe-mock", after=[db])
 migrate     = task.run(file="migrate.py", image="python:3.12", after=[db])
-api         = service.run(image="payments-api:latest", after=[db, stripe_mock, migrate])
+api         = service.run(image="payments-api:latest", env={"STRIPE_BASE_URL": "http://stripe-mock:9080"}, after=[db, stripe_mock, migrate])
 smoke       = test.run(file="go/smoke_test.go", image="golang:1.24", after=[api])
 ```
 
@@ -94,7 +94,7 @@ The public authoring model is intentionally aligned with the suite folder struct
 - `task.run(file="...")` reads from `tasks/`
 - `test.run(file="...")` reads from `tests/`
 - `traffic.*(plan="...")` reads from `traffic/` — only needed when using advanced plan files; omitting `plan=` runs the variant's default shape (see the runtime library) without a file
-- `security.*` nodes derive their target from the APISIX sidecar provisioned alongside every `mock.api` node — no file or folder needed
+- `security.*` nodes derive their target from the suite's APISIX sidecar, the gateway every `mock.api` surface is served through — no file or folder needed
 - `resources/` holds passive assets such as certificates and static datasets
 
 That keeps the suite package unambiguous: authors do not need to guess where a file belongs.
@@ -112,7 +112,7 @@ dependencies:
     version: 1.2.0
     profile: local.yaml
     inputs:
-      STRIPE_BASE_URL: http://stripe-mock:8080
+      STRIPE_BASE_URL: http://stripe-mock:9080
 ```
 
 The resolved artifact lives in `dependencies.lock.yaml`:

@@ -714,6 +714,9 @@ which Node does from 22.6 on. Only an older runtime falls back to
 | `BABELSUITE_WORKSPACE_DIR` | path to the shared execution workspace bind-mounted into the container |
 | `BABELSUITE_GATEWAY_URL` | the APISIX sidecar address this step can reach, when the suite has a mock surface. On Docker it is `http://babelsuite-gateway:9080`: the sidecar joins the run's network under that name and under the suite's mock hosts (`<suite>.mock.internal`) |
 | `BABELSUITE_GATEWAY_URLS` | comma-separated address per mock node, in topology order |
+| `BABELSUITE_GRPC_GATEWAY` | `host:port` for a gRPC client: the same port as the gateway URL, which speaks HTTP/2 next to HTTP/1.1 |
+| `BABELSUITE_TCP_MOCKS` | the suite's TCP mocks as `<surface>/<operation>=<host>:<port>`, comma-separated — every TCP mock has a port of its own |
+| `BABELSUITE_UDP_MOCKS` | the same for the suite's UDP mocks |
 | `BABELSUITE_EXECUTION_ID` | the id of this run. Send it as `X-Babelsuite-Execution` to name the run to a stateful mock when the request does not go through the gateway |
 | `BABELSUITE_ARTIFACTS_DIR` | Kubernetes backend only — path to the artifacts sidecar mount |
 
@@ -725,6 +728,8 @@ every parameter without erasing the profile's.
 `BABELSUITE_GATEWAY_URL` is how a `task.run` or `test.run` reaches a mock
 surface without hardcoding a host and port. It is set only when the suite has
 one, so a step can tell the difference between "no gateway" and "wrong address".
+On Docker a mock is also reachable by the name of its node: a `mock.api(name="stripe-mock")`
+answers at `http://stripe-mock:9080`, unless a service of the suite already has that name.
 
 !!! note "`BABELSUITE_ARTIFACTS_DIR` is Kubernetes-only"
     The Docker backend does not set it. There, `exports=` paths are read
