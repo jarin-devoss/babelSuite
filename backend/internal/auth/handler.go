@@ -794,7 +794,8 @@ func (h *Handler) refreshToken(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	ok := map[string]string{"status": "ok"}
 
-	if !h.config.SMTP.Enabled() {
+	smtp := h.config.SMTPSettings()
+	if !smtp.Enabled() {
 		writeError(w, http.StatusServiceUnavailable, "Password reset via email is not configured for this environment.")
 		return
 	}
@@ -831,7 +832,7 @@ func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	frontendURL := strings.TrimRight(h.config.FrontendURL, "/")
 	resetLink := fmt.Sprintf("%s/reset-password?token=%s", frontendURL, raw)
-	go sendPasswordResetEmail(h.config.SMTP, req.Email, resetLink)
+	go sendPasswordResetEmail(smtp, req.Email, resetLink)
 
 	writeJSON(w, http.StatusOK, ok)
 }

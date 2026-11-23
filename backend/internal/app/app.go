@@ -26,6 +26,7 @@ import (
 	"github.com/babelsuite/babelsuite/internal/runner"
 	"github.com/babelsuite/babelsuite/internal/store"
 	mongostore "github.com/babelsuite/babelsuite/internal/store/mongo"
+	postgresstore "github.com/babelsuite/babelsuite/internal/store/postgres"
 	"github.com/babelsuite/babelsuite/internal/suites"
 	"github.com/babelsuite/babelsuite/internal/telemetry"
 )
@@ -50,7 +51,11 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		return nil, fmt.Errorf("JWTSecret is required")
 	}
 
-	primaryStore, err := newMongoStore(cfg)
+	driver, err := cfg.databaseDriver()
+	if err != nil {
+		return nil, err
+	}
+	primaryStore, err := newPrimaryStore(driver, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("store: %w", err)
 	}
@@ -77,12 +82,25 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 
 	jwtSvc := auth.NewJWT(cfg.JWTSecret)
 
+	// Platform settings are read here too: the SMTP settings that password-reset
+	// mail goes through are edited on the settings page, and read at each request.
+	platformBaseStore := platform.NewFileStore(cfg.PlatformSettingsFile)
+
 	authHandler := auth.NewHandler(cachedStore, jwtSvc, auth.Config{
 		FrontendURL:         cfg.FrontendURL,
 		APIBaseURL:          cfg.APIBaseURL,
 		PasswordAuthEnabled: cfg.PasswordAuthEnabled,
 		SignUpEnabled:       cfg.SignUpEnabled,
-		TrustedProxyCIDRs:   cfg.TrustedProxies,
+		OIDC:                cfg.OIDC,
+		SMTPProvider: func() auth.SMTPConfig {
+			settings, err := platformBaseStore.Load()
+			if err != nil || settings == nil {
+				return auth.SMTPConfig{}
+			}
+			smtp := settings.Notifications.SMTP
+			return auth.SMTPConfig{Host: smtp.Host, Port: smtp.Port, Username: smtp.Username, Password: smtp.Password, From: smtp.From}
+		},
+		TrustedProxyCIDRs: cfg.TrustedProxies,
 	})
 
 	suiteService := suites.NewService()
@@ -96,7 +114,6 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		agentRuntimeStore = agent.NewDBRuntimeStore(repository)
 	}
 
-	platformBaseStore := platform.NewFileStore(cfg.PlatformSettingsFile)
 	if _, err := platformBaseStore.Load(); err != nil {
 		_ = cacheLayer.Close()
 		_ = telemetryPipeline.Shutdown(ctx)
@@ -180,7 +197,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		cronService = cronjobs.NewService(cronStore, smtpFn, executionService)
 	}
 
-	health := buildHealthService("mongo", primaryStore, cacheLayer, telemetryPipeline,
+	health := buildHealthService(driver, primaryStore, cacheLayer, telemetryPipeline,
 		platformBaseStore, profileBaseStore, agentRegistry, executionService)
 
 	mux := http.NewServeMux()
@@ -291,6 +308,14 @@ func (a *App) Close(ctx context.Context) error {
 		combined = errors.Join(combined, a.primaryStore.Close(ctx))
 	}
 	return combined
+}
+
+// newPrimaryStore opens the datastore the driver names.
+func newPrimaryStore(driver string, cfg Config) (store.Store, error) {
+	if driver == DriverPostgres {
+		return postgresstore.New(cfg.PostgresURL)
+	}
+	return newMongoStore(cfg)
 }
 
 func newMongoStore(cfg Config) (store.Store, error) {

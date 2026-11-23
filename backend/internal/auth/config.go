@@ -10,6 +10,11 @@ type Config struct {
 	OIDC                OIDCConfig
 	SMTP                SMTPConfig
 
+	// SMTPProvider, when set, is asked for the SMTP settings at each request, so
+	// a change made on the settings page applies without a restart. It takes
+	// the place of SMTP.
+	SMTPProvider func() SMTPConfig
+
 	// TrustedProxyCIDRs lists CIDR ranges whose X-Forwarded-Proto headers are trusted.
 	TrustedProxyCIDRs []string
 }
@@ -20,6 +25,14 @@ type SMTPConfig struct {
 	Username string
 	Password string
 	From     string
+}
+
+// SMTPSettings is the SMTP configuration in force now.
+func (c Config) SMTPSettings() SMTPConfig {
+	if c.SMTPProvider != nil {
+		return c.SMTPProvider()
+	}
+	return c.SMTP
 }
 
 func (c SMTPConfig) Enabled() bool {

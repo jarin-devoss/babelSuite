@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/babelsuite/babelsuite/internal/app"
+	"github.com/babelsuite/babelsuite/internal/auth"
 )
 
 func newApp(ctx context.Context) (*app.App, error) {
@@ -18,11 +19,18 @@ func newApp(ctx context.Context) (*app.App, error) {
 	frontendURL := envOr("FRONTEND_URL", "http://localhost:5173")
 	apiBaseURL := envOr("PUBLIC_API_URL", envOr("VITE_API_URL", "http://localhost:"+envOr("PORT", "8090")))
 
+	oidc, err := auth.OIDCConfigFromEnv(os.Getenv, jwtSecret, frontendURL)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := app.Config{
 		JWTSecret:     jwtSecret,
 		AdminEmail:    strings.TrimSpace(os.Getenv("ADMIN_EMAIL")),
 		AdminPassword: strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")),
 
+		DBDriver:    os.Getenv("DB_DRIVER"),
+		PostgresURL: strings.TrimSpace(os.Getenv("POSTGRES_URL")),
 		MongoURI: envOr("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:  envOr("MONGO_DB", "babelsuite"),
 
@@ -34,6 +42,7 @@ func newApp(ctx context.Context) (*app.App, error) {
 		APIBaseURL:          apiBaseURL,
 		PasswordAuthEnabled: boolEnv("AUTH_PASSWORD_LOGIN_ENABLED", true),
 		SignUpEnabled:       boolEnv("AUTH_SIGNUP_ENABLED", true),
+		OIDC:                oidc,
 
 		MockSharedSecret:  strings.TrimSpace(os.Getenv("MOCK_SHARED_SECRET")),
 		AgentSharedSecret: strings.TrimSpace(os.Getenv("AGENT_SHARED_SECRET")),

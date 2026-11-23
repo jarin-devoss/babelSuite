@@ -1,6 +1,12 @@
 package app
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/babelsuite/babelsuite/internal/auth"
+)
 
 // SMTPConfig holds optional SMTP settings for cron job email notifications.
 type SMTPConfig struct {
@@ -18,8 +24,11 @@ type Config struct {
 	AdminEmail    string
 	AdminPassword string
 
-	MongoURI string
-	MongoDB  string
+	// DBDriver is the datastore: "mongo" (the default) or "postgres".
+	DBDriver    string
+	PostgresURL string // used by "postgres"
+	MongoURI    string
+	MongoDB     string
 
 	PlatformSettingsFile string
 	ProfilesFile         string
@@ -35,6 +44,9 @@ type Config struct {
 
 	PasswordAuthEnabled bool
 	SignUpEnabled       bool
+
+	// OIDC is single sign-on, read from the OIDC_* variables. The zero value is off.
+	OIDC auth.OIDCConfig
 
 	MockSharedSecret  string
 	AgentSharedSecret string
@@ -100,4 +112,27 @@ func (c CacheTTLConfig) executionRuntimeOr(d time.Duration) time.Duration {
 		return c.ExecutionRuntime
 	}
 	return d
+}
+
+// The datastores the server can run on.
+const (
+	DriverMongo    = "mongo"
+	DriverPostgres = "postgres"
+)
+
+// databaseDriver is the datastore the configuration selects. An unknown driver,
+// or postgres without a connection string, is an error at startup rather than a
+// silent fall back to MongoDB: the operator asked for a particular datastore.
+func (c Config) databaseDriver() (string, error) {
+	driver := strings.ToLower(strings.TrimSpace(c.DBDriver))
+	switch driver {
+	case "", DriverMongo:
+		return DriverMongo, nil
+	case DriverPostgres:
+		if strings.TrimSpace(c.PostgresURL) == "" {
+			return "", fmt.Errorf("DB_DRIVER=postgres needs POSTGRES_URL (for example postgres://user:password@host:5432/babelsuite)")
+		}
+		return DriverPostgres, nil
+	}
+	return "", fmt.Errorf("DB_DRIVER %q is not supported: use %q or %q", c.DBDriver, DriverMongo, DriverPostgres)
 }
