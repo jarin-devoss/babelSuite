@@ -1,21 +1,35 @@
 load("@babelsuite/runtime", "task")
 
+# _psql is the psql command for a database, built from what the service was
+# created with (db.env): its port, user, password and database name, so pg(port=,
+# database=, password=) is honoured by every helper. The values go in libpq's own
+# environment variables, which need no URL encoding. A POSTGRES_URL in the step's
+# env (a suite dependency's input, say) still wins, as the connection string.
+def _psql(db):
+    env = db.env
+    return (
+        "PGHOST=" + utils.quoted(db.name)
+        + " PGPORT=" + utils.quoted(env.get("PGPORT", "5432"))
+        + " PGUSER=" + utils.quoted(env.get("POSTGRES_USER", "postgres"))
+        + " PGPASSWORD=" + utils.quoted(env.get("POSTGRES_PASSWORD", "postgres"))
+        + " PGDATABASE=" + utils.quoted(env.get("POSTGRES_DB", "app"))
+        + ' psql ${POSTGRES_URL:+"$POSTGRES_URL"}'
+    )
+
 def _query(db, name, sql, image = "postgres:16", after = []):
-    url = '"${POSTGRES_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@' + db.name + ':5432/${POSTGRES_DB:-app}}"'
     return task.run(
         name     = name,
         image    = image,
         after    = [db] + after,
-        commands = ["psql " + url + " -v ON_ERROR_STOP=1 -c " + utils.quoted(sql)],
+        commands = [_psql(db) + " -v ON_ERROR_STOP=1 -c " + utils.quoted(sql)],
     )
 
 def connect(db, image = "postgres:16", after = []):
-    url = '"${POSTGRES_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@' + db.name + ':5432/${POSTGRES_DB:-app}}"'
     return task.run(
         name     = db.name + "-connect",
         image    = image,
         after    = [db] + after,
-        commands = ["for i in $(seq 1 30); do psql " + url + " -v ON_ERROR_STOP=1 -c 'select 1;' && exit 0; sleep 2; done; exit 1"],
+        commands = ["for i in $(seq 1 30); do " + _psql(db) + " -v ON_ERROR_STOP=1 -c 'select 1;' && exit 0; sleep 2; done; exit 1"],
     )
 
 def query(db, sql, name = None, image = "postgres:16", after = []):

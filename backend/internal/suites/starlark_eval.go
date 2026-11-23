@@ -3,6 +3,7 @@ package suites
 import (
 	"fmt"
 	"io/fs"
+	"sort"
 	"strings"
 	"sync"
 
@@ -61,10 +62,15 @@ func (n *starlarkNode) Type() string          { return "babelsuite.Node" }
 func (n *starlarkNode) Freeze()               {}
 func (n *starlarkNode) Truth() starlark.Bool  { return starlark.True }
 func (n *starlarkNode) Hash() (uint32, error) { return 0, fmt.Errorf("node is not hashable") }
-func (n *starlarkNode) AttrNames() []string   { return []string{"name"} }
+func (n *starlarkNode) AttrNames() []string   { return []string{"env", "name"} }
 func (n *starlarkNode) Attr(attr string) (starlark.Value, error) {
-	if attr == "name" {
+	switch attr {
+	case "name":
 		return starlark.String(n.name), nil
+	case "env":
+		// What the node was created with, read-only, so a helper reads the port and
+		// credentials a service was given instead of guessing its defaults.
+		return frozenEnvDict(n.env), nil
 	}
 	return nil, nil
 }
@@ -81,7 +87,14 @@ func (r *starlarkRegistry) register(n *starlarkNode) {
 	r.mu.Unlock()
 }
 
-func evalStarlarkTopology(suiteStar string, resolve ModuleResolver) (nodes []rawTopologyNode, retErr error) {
+func evalStarlarkTopology(suiteStar string, resolve ModuleResolver) ([]rawTopologyNode, error) {
+	return evalStarlarkTopologyWithEnv(suiteStar, resolve, nil)
+}
+
+// evalStarlarkTopologyWithEnv evaluates suite.star with env as the `env` global:
+// the environment the run's profile gives, so `env.get("COUNT", "1")` reads the
+// profile instead of always answering its default.
+func evalStarlarkTopologyWithEnv(suiteStar string, resolve ModuleResolver, env map[string]string) (nodes []rawTopologyNode, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			retErr = fmt.Errorf("starlark evaluation panicked: %v", r)
@@ -90,7 +103,7 @@ func evalStarlarkTopology(suiteStar string, resolve ModuleResolver) (nodes []raw
 
 	reg := &starlarkRegistry{}
 
-	predeclared, err := buildRuntimePredeclared(reg)
+	predeclared, err := buildRuntimePredeclared(reg, env)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +129,7 @@ func evalStarlarkTopology(suiteStar string, resolve ModuleResolver) (nodes []raw
 	return buildRawNodes(reg), nil
 }
 
-func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error) {
+func buildRuntimePredeclared(reg *starlarkRegistry, env map[string]string) (starlark.StringDict, error) {
 	runtimeModule, err := buildRuntimeModule(reg)
 	if err != nil {
 		return nil, err
@@ -131,7 +144,7 @@ func buildRuntimePredeclared(reg *starlarkRegistry) (starlark.StringDict, error)
 		"security": runtimeModule["security"],
 		"log":      runtimeModule["log"],
 		"plugin":   runtimeModule["plugin"],
-		"env":      frozenEmptyDict(),
+		"env":      frozenEnvDict(env),
 		"utils":    buildUtilsModule(),
 	}, nil
 }
@@ -1137,8 +1150,20 @@ func starlarkToGo(val starlark.Value) any {
 	}
 }
 
-func frozenEmptyDict() *starlark.Dict {
-	d := starlark.NewDict(0)
+// frozenEnvDict is the `env` global: read-only, so a suite cannot reach
+// around the profile by assigning to it. It holds only what the profile's env:
+// section and the platform's overrides give; secrets are never in it, because
+// they must not shape a topology or end up in node names.
+func frozenEnvDict(env map[string]string) *starlark.Dict {
+	d := starlark.NewDict(len(env))
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		_ = d.SetKey(starlark.String(key), starlark.String(env[key]))
+	}
 	d.Freeze()
 	return d
 }

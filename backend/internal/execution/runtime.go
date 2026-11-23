@@ -276,7 +276,16 @@ func (s *Service) CreateExecution(ctx context.Context, request CreateRequest) (*
 func (s *Service) bootExecution(executionID string, suite *suites.Definition, profile string, selectedBackend backendBinding) {
 	defer func() { <-s.concurrencySem }()
 
-	resolved, err := suites.ResolveRuntimeWithModules(*suite, s.suiteSource.List(), s.pluginAwareModuleResolver())
+	// The profile comes first: its env: is what suite.star's env.get() reads, so
+	// the topology cannot be resolved before it.
+	runtimeOverlay, err := s.resolveExecutionRuntimeOverlay(context.Background(), suite.ID, profile)
+	if err != nil {
+		s.noteRejectedLaunch(context.Background(), suite.ID, "profile_runtime_error")
+		s.failBootedExecution(executionID, err)
+		return
+	}
+
+	resolved, err := suites.ResolveRuntimeWithEnv(*suite, s.suiteSource.List(), s.pluginAwareModuleResolver(), runtimeOverlay.Env)
 	if err != nil {
 		slog.Error("suite topology resolution failed", "suiteID", suite.ID, "error", err)
 		s.noteRejectedLaunch(context.Background(), suite.ID, "invalid_topology")
@@ -286,13 +295,6 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	suite.Topology = resolved.Nodes
 	suite.ResolvedDependencies = resolved.Dependencies
 	suite.TopologyError = ""
-
-	runtimeOverlay, err := s.resolveExecutionRuntimeOverlay(context.Background(), suite.ID, profile)
-	if err != nil {
-		s.noteRejectedLaunch(context.Background(), suite.ID, "profile_runtime_error")
-		s.failBootedExecution(executionID, err)
-		return
-	}
 
 	s.mu.Lock()
 	state := s.executions[executionID]

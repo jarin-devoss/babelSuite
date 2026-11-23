@@ -1,12 +1,34 @@
 load("@babelsuite/runtime", "task")
 
+# _connection is the mongosh command line for a cluster, built from what the
+# service was created with (cluster.env): its port and, when it has them, its
+# credentials, so mongodb(port=, username=, password=) is honoured by every
+# helper. The credentials go in flags, which need no URL encoding. A MONGO_URI in
+# the step's env (a suite dependency's input, say) still wins, as the address.
+def _connection(cluster, db):
+    env = cluster.env
+    uri = '"${MONGO_URI:-mongodb://' + cluster.name + ":" + env.get("MONGO_PORT", "27017") + '}/' + db + '"'
+    cmd = "mongosh " + uri
+    if env.get("MONGO_INITDB_ROOT_USERNAME"):
+        cmd += (
+            " --username " + utils.quoted(env["MONGO_INITDB_ROOT_USERNAME"])
+            + " --password " + utils.quoted(env.get("MONGO_INITDB_ROOT_PASSWORD", ""))
+            + " --authenticationDatabase admin"
+        )
+    return cmd
+
+# _until_primary waits for a writable primary, which a replica set takes a moment
+# to elect after its members start. A standalone server is one at once.
+def _until_primary(connection):
+    return "for i in $(seq 1 60); do " + connection + " --quiet --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)' >/dev/null 2>&1 && break; sleep 1; done"
+
 def _mongosh(cluster, name, db, js, image = "mongo:7.0", after = []):
-    uri = '"${MONGO_URI:-mongodb://' + cluster.name + ':27017}"'
+    connection = _connection(cluster, db)
     return task.run(
         name     = name,
         image    = image,
         after    = [cluster] + after,
-        commands = ["mongosh " + uri + "/" + db + ' --eval \'' + js.replace("'", "'\\''") + "'"],
+        commands = [_until_primary(connection), connection + " --eval '" + js.replace("'", "'\\''") + "'"],
     )
 
 def create_collection(cluster, db, collection, validator = None, image = "mongo:7.0", after = []):
@@ -71,10 +93,10 @@ def drop_collection(cluster, db, collection, image = "mongo:7.0", after = []):
     )
 
 def run_script(cluster, db, script_path, image = "mongo:7.0", after = []):
-    uri = '"${MONGO_URI:-mongodb://' + cluster.name + ':27017}"'
+    connection = _connection(cluster, db)
     return task.run(
         name     = cluster.name + "-script-" + utils.sanitize(db) + "-" + utils.sanitize(script_path),
         image    = image,
         after    = [cluster] + after,
-        commands = ["mongosh " + uri + "/" + db + " " + script_path],
+        commands = [_until_primary(connection), connection + " " + script_path],
     )

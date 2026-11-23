@@ -20,10 +20,8 @@ rest_stub = service.run(
 )
 
 lag_check = assert_consumer_healthy(
-    broker=broker,
     rest_proxy=rest_stub,
     group="order-workers",
-    topic="orders",
     max_lag=500,
     after=[worker, rest_stub],
 )

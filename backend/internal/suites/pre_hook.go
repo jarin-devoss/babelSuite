@@ -17,13 +17,13 @@ const preHookNamespace = "pre-hook"
 // resolvePreHookNodes evaluates the suite's pre-hook.star, if it has one, and
 // returns its steps namespaced under preHookNamespace. Returns nil when the
 // suite ships no pre-hook.
-func resolvePreHookNodes(suite Definition, resolve ModuleResolver) ([]TopologyNode, error) {
+func resolvePreHookNodes(suite Definition, resolve ModuleResolver, env map[string]string) ([]TopologyNode, error) {
 	source, ok := explicitSuiteSourceContent(suite.SourceFiles, PreHookFile)
 	if !ok || strings.TrimSpace(source) == "" {
 		return nil, nil
 	}
 
-	rawNodes, err := parseRawTopology(source, resolve)
+	rawNodes, err := parseRawTopologyWithEnv(source, resolve, env)
 	if err != nil {
 		return nil, fmt.Errorf("invalid pre-hook: %w", err)
 	}
