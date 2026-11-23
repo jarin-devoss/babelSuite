@@ -1710,6 +1710,10 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Mocks are reached from the control plane's host</p>
+<p>A suite's gateway (its APISIX sidecar) runs on the control plane's Docker host and publishes its ports on that host's loopback. A step on a remote agent runs elsewhere and cannot reach <code>127.0.0.1</code> on the control plane, so a remote agent's steps do not get a working <code>BABELSUITE_GATEWAY_URL</code> for a suite's mocks. Run a suite whose steps call its mocks on the local Docker backend, or call a mock from a step that runs on the control plane's host.</p>
+</div>
 <hr />
 <h2 id="kubernetes-backend">Kubernetes Backend<a class="headerlink" href="#kubernetes-backend" title="Permanent link">&para;</a></h2>
 <p>When <code>type: kubernetes</code> is set in platform settings, the control plane runs each step that has an image as a pod in <code>targetNamespace</code>. Everything else runs exactly as it does on the Docker backend: <code>log.*</code> steps are their message, <code>plugin</code>, <code>security.*</code> and <code>traffic.*</code> steps are executed by the control plane against the suite's APISIX sidecar, and <code>mock.api</code> is answered by that sidecar. The exception is a <code>traffic.*</code> step whose <code>target=</code> is a service of the suite: the sidecar cannot reach a pod, so that step is refused. Point it at the suite's mock host or a fully-qualified host instead.</p>

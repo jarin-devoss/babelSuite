@@ -1397,8 +1397,8 @@
 <p>The single biggest cost of "test environment as code" tools is the number of extra processes they require. A k6 container for load testing. A ZAP container for security scanning. A WireMock container for mocking. Each one is a new thing to pull, configure, resource-limit, and clean up.</p>
 <p>BabelSuite avoids this through the APISIX sidecar model:</p>
 <ul>
-<li><strong>Mocking</strong> is handled by BabelSuite's internal engine, backed by CUE schemas in <code>api/</code> and <code>mock/</code>. No WireMock, no Prism container required.</li>
-<li><strong>Traffic testing</strong> — all <code>traffic.*</code> profiles — is executed by a Lua plugin (<code>babelsuite-traffic-cannon</code>) running inside the APISIX sidecar that is already provisioned alongside every mock node. No k6, no Locust, no Gatling.</li>
+<li><strong>Mocking</strong> is decided by BabelSuite's internal engine, backed by CUE schemas in <code>api/</code> and <code>mock/</code>, and answered by the APISIX sidecar: a built-in plugin (<code>babelsuite-mock</code>) asks the engine which example matches and writes the response itself, so the gateway is the visible responder for REST, SOAP, GraphQL, webhooks, SSE, WebSocket, gRPC, TCP and UDP, and publishes async mocks to your broker. No WireMock, no Prism container required.</li>
+<li><strong>Traffic testing</strong> — all <code>traffic.*</code> profiles — is executed by a Lua plugin (<code>babelsuite-traffic-cannon</code>) running inside the APISIX sidecar that is already provisioned for the suite. No k6, no Locust, no Gatling.</li>
 <li><strong>Security scanning</strong> — all <code>security.*</code> modes (probe, fuzz, headers, verbs, CORS, auth, GraphQL, flood) — is executed by a second Lua plugin (<code>babelsuite-attack-scanner</code>) inside the same APISIX sidecar. No ZAP, no Nuclei.</li>
 </ul>
 <p>The sidecar is already there. The checks are Lua running inside OpenResty. The backend starts a run, polls its status, and reads the result back. No extra image pull. No extra container lifecycle.</p>
@@ -1407,16 +1407,16 @@
 <p>APISIX serves as the gateway and execution surface for all built-in runtime checks:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>suite.star topology
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>      │
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>      ├── mock.api ──────► BabelSuite mocking engine  (internal, no container)
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>      │        │
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>      │        └── APISIX sidecar ──► traffic.* Lua plugin  (no extra container)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>      ├── mock.api ──────► APISIX sidecar ──► babelsuite-mock plugin ──► mocking engine (decides)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>      │                          │
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>      │                          ├──► traffic.* Lua plugin  (no extra container)
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>      │                          └──► security.* Lua plugin (no extra container)
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>      │
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>      ├── service.run ───► Docker container  (your service, from image=)
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>      ├── task.run ──────► Docker container  (user script — container needed)
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>      └── test.run ──────► Docker container  (user script — container needed)
 </span></code></pre></div>
-<p>This means a full suite with mocks, load testing, and security probes requires exactly two things beyond the BabelSuite control plane: the application under test and its APISIX sidecar. Everything else is embedded.</p>
+<p>There is one sidecar per suite and profile, shared by every run of that suite; each run's own network is attached to it, so a run's mock state stays its own. A full suite with mocks, load testing, and security probes requires exactly two things beyond the BabelSuite control plane: the application under test and its APISIX sidecar. Everything else is embedded.</p>
 <h2 id="suites-are-oci-artifacts">Suites Are OCI Artifacts<a class="headerlink" href="#suites-are-oci-artifacts" title="Permanent link">&para;</a></h2>
 <p>A suite is not a git branch or a folder convention. It is an OCI artifact published to a registry. Any team can pull it with <code>babelctl run</code>, run it against their own backend, and get identical results — on a laptop, in CI, or on Kubernetes. There are no environment-specific scripts, no hardcoded endpoints, no secrets in the file.</p>
 <p>Profiles carry the environment-specific overrides (endpoints, credentials, feature flags) separately from the suite topology. The suite stays portable. The profile stays local.</p>

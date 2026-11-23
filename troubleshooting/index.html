@@ -1270,6 +1270,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-mock-does-not-answer" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Mock Does Not Answer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Traffic Step Fails
@@ -1490,6 +1499,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-mock-does-not-answer" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Mock Does Not Answer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-traffic-step-fails" class="md-nav__link">
     <span class="md-ellipsis">
       A Traffic Step Fails
@@ -1690,6 +1708,50 @@
 <li>Whether a suite-level timeout (<code>timeout:</code> field) is set too aggressively.</li>
 <li>Whether the step has a dependency that failed, causing the execution engine to cancel downstream steps.</li>
 </ol>
+<hr />
+<h2 id="a-mock-does-not-answer">A Mock Does Not Answer<a class="headerlink" href="#a-mock-does-not-answer" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>What it means and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>401</code> from <code>/mocks/...</code> or <code>/internal/mock-data/...</code> called directly</td>
+<td>The mock endpoints answer only a request that carries the gateway's token, which only a suite's gateway holds. Call the gateway (<code>BABELSUITE_GATEWAY_URL</code>, or the mock by its node's name, <code>http://&lt;mock name&gt;:9080</code>).</td>
+</tr>
+<tr>
+<td><code>502</code> from a mock</td>
+<td>The gateway could not reach the control plane's mock engine. Check <code>BABELSUITE_ENGINE_ADDR</code> (and <code>BABELSUITE_ENGINE_GRPC_ADDR</code> for gRPC) against where the control plane listens; the error body says which address it tried.</td>
+</tr>
+<tr>
+<td><code>Mock x/y (AMQP) is not served</code> (a warning when the mock starts)</td>
+<td>The gateway serves the HTTP family, WebSocket, gRPC, TCP and UDP, and publishes to Kafka, RocketMQ, MQTT and NATS. AMQP has no client in APISIX, and an async surface that names no broker has nowhere to publish.</td>
+</tr>
+<tr>
+<td><code>Async mock x/y publishes to ..., which is not a service of this suite</code></td>
+<td>The broker named by the surface's host (<code>kafka://broker:9092</code>) is not a <code>service.run</code> node of the suite, so nothing is published. Name the service the same as the host.</td>
+</tr>
+<tr>
+<td><code>Could not publish async mock ...</code></td>
+<td>The gateway reached the broker's address but the publish failed; the event carries the broker's answer. Kafka and RocketMQ brokers answer with the address they advertise, which the gateway cannot resolve from outside the run's network — see the limits under <a href="../architecture/#mock-traffic">Mock Traffic</a>.</td>
+</tr>
+<tr>
+<td>gRPC <code>UNIMPLEMENTED</code></td>
+<td>The method is not a mock of the suite, or it is client-streaming (not mocked). Reflection lists what is served.</td>
+</tr>
+<tr>
+<td>gRPC <code>FAILED_PRECONDITION</code></td>
+<td>The suite has gRPC mocks whose <code>.proto</code> files do not compile, so the called method may be one of them. The message names the file and the compiler's first error.</td>
+</tr>
+<tr>
+<td><code>Plugin names starting with "babelsuite-" belong to the gateway's own plugins</code></td>
+<td>The prefix is reserved for the built-in plugins. Choose another name.</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="a-traffic-step-fails">A Traffic Step Fails<a class="headerlink" href="#a-traffic-step-fails" title="Permanent link">&para;</a></h2>
 <p>A <code>traffic.*</code> step sends real requests from the suite's APISIX sidecar, so a failure names what went wrong. Match the message in the step's log:</p>

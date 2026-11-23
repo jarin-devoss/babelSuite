@@ -1759,7 +1759,7 @@ Vite proxy and stay same-origin.</p>
 <tr>
 <td><code>MOCK_SHARED_SECRET</code></td>
 <td><em>(empty)</em></td>
-<td>Shared secret used to authenticate the mock service</td>
+<td>The token a suite's gateway presents to the mock engine, which requires it on every mock call. When empty it is derived from <code>JWT_SECRET</code>, so it differs for every deployment and survives a restart. Set it to choose the value, or to keep gateways valid across a <code>JWT_SECRET</code> rotation</td>
 </tr>
 <tr>
 <td><code>AGENT_SHARED_SECRET</code></td>
@@ -1770,6 +1770,16 @@ Vite proxy and stay same-origin.</p>
 <td><code>BABELSUITE_ENGINE_ADDR</code></td>
 <td><code>host.docker.internal:&lt;PORT&gt;</code></td>
 <td>Where a suite's gateway reaches this control plane's mock engine from inside its container. Set from <code>PORT</code> when not given, so only a control plane behind a different address needs it</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_GRPC_MOCK_PORT</code></td>
+<td><code>8095</code></td>
+<td>The port of the gRPC mock front end, which a suite's gateway forwards every gRPC call to. It is a port of its own because gRPC is HTTP/2 and the API's listener does not speak it without TLS</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_ENGINE_GRPC_ADDR</code></td>
+<td><code>host.docker.internal:&lt;BABELSUITE_GRPC_MOCK_PORT&gt;</code></td>
+<td>Where a suite's gateway reaches that front end, for a control plane behind a different address</td>
 </tr>
 <tr>
 <td><code>BABELSUITE_REAP_ON_START</code></td>
@@ -2167,11 +2177,11 @@ settings always come from the workspace — <code>configuration.yaml</code> and
 </tr>
 <tr>
 <td><code>apisixSidecar.adminPort</code></td>
-<td>Port APISIX exposes for configuration updates</td>
+<td>Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it</td>
 </tr>
 <tr>
 <td><code>apisixSidecar.capabilities</code></td>
-<td>Protocols the sidecar handles — e.g. <code>rest</code>, <code>grpc</code>, <code>kafka</code>, <code>async</code></td>
+<td>Informational: what the settings page lists. The gateway serves what its built-in plugins serve whatever this says</td>
 </tr>
 </tbody>
 </table>

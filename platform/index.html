@@ -1659,11 +1659,11 @@
 </tr>
 <tr>
 <td><code>adminPort</code></td>
-<td>Port APISIX exposes for runtime configuration</td>
+<td>Recorded with the sidecar settings and informational only: the sidecar runs in standalone mode with no Admin API, so nothing listens on it</td>
 </tr>
 <tr>
 <td><code>capabilities</code></td>
-<td>Protocols this sidecar handles — e.g. <code>rest</code>, <code>grpc</code>, <code>kafka</code>, <code>async</code>, <code>websocket</code></td>
+<td>Informational: protocols listed on the settings page. The gateway serves what its built-in plugins serve (HTTP family, WebSocket, gRPC, TCP, UDP, and publishing to Kafka, RocketMQ, MQTT and NATS) whatever this says</td>
 </tr>
 </tbody>
 </table>

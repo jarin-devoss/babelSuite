@@ -1458,11 +1458,15 @@
 </tr>
 <tr>
 <td><code>POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}</code></td>
-<td>gRPC mock handler</td>
+<td>gRPC mock handler (the HTTP form; gRPC clients are served by the gRPC front end)</td>
 </tr>
 <tr>
 <td><code>POST /mocks/async/{suiteId}/{surfaceId}/{operationId}</code></td>
-<td>Async mock handler</td>
+<td>Async mock handler, which the TCP and UDP plugins and the publisher call</td>
+</tr>
+<tr>
+<td><code>GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}</code></td>
+<td>WebSocket mock handler</td>
 </tr>
 <tr>
 <td><code>/internal/mock-data/</code></td>
@@ -1470,6 +1474,7 @@
 </tr>
 </tbody>
 </table>
+<p>These are the gateway's back end, not an address for a test to call: every one answers <code>401</code> unless the request carries the gateway's token. Call the suite's gateway (<code>BABELSUITE_GATEWAY_URL</code>, or a mock by its node's name); see <a href="../architecture/#mock-traffic">Mock Traffic</a> for how each protocol is served.</p>
 <h2 id="operation-metadata">Operation Metadata<a class="headerlink" href="#operation-metadata" title="Permanent link">&para;</a></h2>
 <p>Each mock operation can carry:</p>
 <ul>

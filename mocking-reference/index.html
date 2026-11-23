@@ -1660,7 +1660,9 @@
 <li><code>GET /mocks/rest/...</code></li>
 <li><code>POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}</code></li>
 <li><code>POST /mocks/async/{suiteId}/{surfaceId}/{operationId}</code></li>
+<li><code>GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}</code></li>
 </ul>
+<p>All of them require the gateway's token (<code>401</code> otherwise), and are meant to be called by a suite's gateway rather than directly. gRPC clients are served by the control plane's gRPC front end, which the gateway forwards to.</p>
 <p>There is also an internal resolver path rooted under:</p>
 <ul>
 <li><code>/internal/mock-data/</code></li>

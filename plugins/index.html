@@ -884,6 +884,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-gateways-own-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Gateway's Own Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-user-plugins-should-not-duplicate" class="md-nav__link">
     <span class="md-ellipsis">
       What User Plugins Should NOT Duplicate
@@ -1629,6 +1638,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-gateways-own-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Gateway's Own Plugins
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-user-plugins-should-not-duplicate" class="md-nav__link">
     <span class="md-ellipsis">
       What User Plugins Should NOT Duplicate
@@ -1951,7 +1969,7 @@
 
 <h1 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h1>
 <p><a href="../">Back to index</a></p>
-<p>Plugins are Lua functions that run inside the APISIX sidecar — no extra container, no image pull. BabelSuite ships two built-in plugins: <code>babelsuite-traffic-cannon</code> (all <code>traffic.*</code> nodes) and <code>babelsuite-attack-scanner</code> (all <code>security.*</code> nodes). User plugins follow exactly the same dispatch pattern and run in the same sidecar process — they are just Lua code registered in <code>configuration.yaml</code> instead of being bundled with BabelSuite.</p>
+<p>Plugins are Lua functions that run inside the APISIX sidecar — no extra container, no image pull. BabelSuite ships built-in plugins of its own, all named <code>babelsuite-*</code>: the mock plugins that answer a suite's mocks, <code>babelsuite-traffic-cannon</code> (all <code>traffic.*</code> nodes) and <code>babelsuite-attack-scanner</code> (all <code>security.*</code> nodes); see <a href="#the-gateways-own-plugins">The Gateway's Own Plugins</a>. User plugins follow exactly the same dispatch pattern and run in the same sidecar process — they are just Lua code registered in <code>configuration.yaml</code> instead of being bundled with BabelSuite.</p>
 <h2 id="plugins-vs-modules">Plugins vs Modules<a class="headerlink" href="#plugins-vs-modules" title="Permanent link">&para;</a></h2>
 <p>There are actually <strong>three kinds of topology nodes</strong> in BabelSuite, not two:</p>
 <table>
@@ -2080,6 +2098,39 @@ than silently reaching something real.</p>
 </span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>Plugin nodes accept <code>after=</code>, <code>on_failure=</code>, <code>continue_on_failure=</code>, <code>expect_logs=</code> and <code>fail_on_logs=</code> just like any other topology node. The engine applies them; the plugin never sees them. See <a href="#step-options-belong-to-the-engine">step options belong to the engine</a>.</p>
+<h2 id="the-gateways-own-plugins">The Gateway's Own Plugins<a class="headerlink" href="#the-gateways-own-plugins" title="Permanent link">&para;</a></h2>
+<p>The sidecar ships with plugins of its own, all named <code>babelsuite-*</code>. They are loaded into every sidecar and are not registered through the API:</p>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>babelsuite-mock</code></td>
+<td>answers a REST, SOAP, GraphQL, webhook or SSE mock: asks the mock engine which example matches and writes the response</td>
+</tr>
+<tr>
+<td><code>babelsuite-tcp-mock</code>, <code>babelsuite-udp-mock</code></td>
+<td>stream plugins that answer a TCP or UDP mock on a port of its own</td>
+</tr>
+<tr>
+<td><code>babelsuite-async-mock</code></td>
+<td>publishes an async mock's message to the suite's Kafka, RocketMQ, MQTT or NATS broker</td>
+</tr>
+<tr>
+<td><code>babelsuite-traffic-cannon</code></td>
+<td>generates the load of <code>traffic.*</code> steps</td>
+</tr>
+<tr>
+<td><code>babelsuite-attack-scanner</code></td>
+<td>runs the checks of <code>security.*</code> steps</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>babelsuite-</code> prefix is reserved: registering a plugin under it is refused, and a plugin stored under such a name before the rule is left out of the sidecar's configuration so it cannot shadow a built-in. See <a href="../architecture/#mock-traffic">Mock Traffic</a> for how the mock plugins serve each protocol.</p>
 <h2 id="what-user-plugins-should-not-duplicate">What User Plugins Should NOT Duplicate<a class="headerlink" href="#what-user-plugins-should-not-duplicate" title="Permanent link">&para;</a></h2>
 <p>Before writing a user plugin, check whether the built-in plugins already cover it:</p>
 <table>
@@ -2527,7 +2578,7 @@ to block the suite.</p>
 <tbody>
 <tr>
 <td><code>name</code></td>
-<td>Unique identifier — used as the load target in <code>suite.star</code> (e.g. <code>@plugins/spice-sim</code>)</td>
+<td>Unique identifier — used as the load target in <code>suite.star</code> (e.g. <code>@plugins/spice-sim</code>). Names starting with <code>babelsuite-</code> belong to the gateway and are refused</td>
 </tr>
 <tr>
 <td><code>trigger</code></td>
@@ -2719,7 +2770,7 @@ to block the suite.</p>
 <p>The plugin name is taken from the URL — the <code>name</code> field in the body is ignored.</p>
 <h2 id="apisix-sidecar-lifecycle">APISIX Sidecar Lifecycle<a class="headerlink" href="#apisix-sidecar-lifecycle" title="Permanent link">&para;</a></h2>
 <p>Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts on the first execution of that pair and remains up across all subsequent executions. Plugin Lua is bind-mounted and the generated <code>apisix.yaml</code> names each plugin, both read at sidecar startup. The sidecar carries a hash of its configuration, plugin files and image as a label; when a run finds the hash changed, it recreates the sidecar, so a changed plugin is picked up without removing anything by hand.</p>
-<p>Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component. It is reached over its host-published port, and while a traffic step runs it joins that run's network, so it can dial the suite's services; it leaves with the run's network when the run ends.</p>
+<p>Because one sidecar serves every execution of that pair, including concurrent ones, it is not a per-execution component. It is reached over its host-published port (bound to the host's loopback). When a run starts, the sidecar joins that run's network, under the name <code>babelsuite-gateway</code> and under the name of each mock node, so the run's steps reach mocks as <code>http://&lt;mock name&gt;:9080</code> and the sidecar can dial the run's services; it leaves with the run's network when the run ends.</p>
 <p>The sidecar runs in <strong>standalone mode</strong>: <code>deployment.role: data_plane</code> with <code>config_provider: yaml</code>. No etcd is involved.</p>
 <h2 id="using-plugins-inside-modules">Using Plugins Inside Modules<a class="headerlink" href="#using-plugins-inside-modules" title="Permanent link">&para;</a></h2>
 <p>Modules can load and re-export plugins just like they load <code>@babelsuite/runtime</code>. The <code>@plugins/&lt;name&gt;</code> path is resolved through the same mechanism inside module <code>.star</code> files, so a module can bundle both infrastructure setup <strong>and</strong> plugin-backed verification helpers in one package.</p>

@@ -3084,6 +3084,18 @@ in one without <code>bash</code>.</p>
 <td>comma-separated address per mock node, in topology order</td>
 </tr>
 <tr>
+<td><code>BABELSUITE_GRPC_GATEWAY</code></td>
+<td><code>host:port</code> for a gRPC client: the same port as the gateway URL, which speaks HTTP/2 next to HTTP/1.1</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_TCP_MOCKS</code></td>
+<td>the suite's TCP mocks as <code>&lt;surface&gt;/&lt;operation&gt;=&lt;host&gt;:&lt;port&gt;</code>, comma-separated — every TCP mock has a port of its own</td>
+</tr>
+<tr>
+<td><code>BABELSUITE_UDP_MOCKS</code></td>
+<td>the same for the suite's UDP mocks</td>
+</tr>
+<tr>
 <td><code>BABELSUITE_EXECUTION_ID</code></td>
 <td>the id of this run. Send it as <code>X-Babelsuite-Execution</code> to name the run to a stateful mock when the request does not go through the gateway</td>
 </tr>
@@ -3099,7 +3111,9 @@ not override a value the profile sets, so a <code>plugin.star</code> wrapper can
 every parameter without erasing the profile's.</p>
 <p><code>BABELSUITE_GATEWAY_URL</code> is how a <code>task.run</code> or <code>test.run</code> reaches a mock
 surface without hardcoding a host and port. It is set only when the suite has
-one, so a step can tell the difference between "no gateway" and "wrong address".</p>
+one, so a step can tell the difference between "no gateway" and "wrong address".
+On Docker a mock is also reachable by the name of its node: a <code>mock.api(name="stripe-mock")</code>
+answers at <code>http://stripe-mock:9080</code>, unless a service of the suite already has that name.</p>
 <div class="admonition note">
 <p class="admonition-title"><code>BABELSUITE_ARTIFACTS_DIR</code> is Kubernetes-only</p>
 <p>The Docker backend does not set it. There, <code>exports=</code> paths are read

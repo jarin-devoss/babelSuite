@@ -1756,7 +1756,9 @@ registration. Suites using those must come from a registry instead.</p>
 <li><code>/mocks/rest/</code></li>
 <li><code>POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}</code></li>
 <li><code>POST /mocks/async/{suiteId}/{surfaceId}/{operationId}</code></li>
+<li><code>GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}</code></li>
 </ul>
+<p>These are the suite gateway's back end. They are not session-authenticated: each requires the gateway's token (see <code>MOCK_SHARED_SECRET</code>) and answers <code>401</code> without it. A test reaches a mock through the gateway.</p>
 <h2 id="authentication-requirement">Authentication Requirement<a class="headerlink" href="#authentication-requirement" title="Permanent link">&para;</a></h2>
 <p>Most application routes are protected. Streaming routes allow session lookup from the query token so the browser can connect to SSE endpoints.</p>
 

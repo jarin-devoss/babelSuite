@@ -671,6 +671,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mock-traffic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mock Traffic
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#main-backend-domains" class="md-nav__link">
     <span class="md-ellipsis">
       Main Backend Domains
@@ -1431,6 +1440,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mock-traffic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mock Traffic
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#main-backend-domains" class="md-nav__link">
     <span class="md-ellipsis">
       Main Backend Domains
@@ -1647,6 +1665,66 @@
         Agent-&gt;&gt;ControlPlane: POST /agent-control/jobs/:id/state
     end
     Agent-&gt;&gt;ControlPlane: POST /agent-control/jobs/:id/complete</code></pre>
+<h2 id="mock-traffic">Mock Traffic<a class="headerlink" href="#mock-traffic" title="Permanent link">&para;</a></h2>
+<p>A suite's mocks are answered by its APISIX sidecar, the <em>gateway</em>. The control plane's mock engine decides what the answer is; the gateway is the visible responder. There is one gateway per suite and profile, shared by every run of the suite, and each run's own network is attached to it.</p>
+<pre class="mermaid"><code>flowchart LR
+    Step["step container"] --&gt;|"http://stripe-mock:9080&lt;br/&gt;http://babelsuite-gateway:9080"| GW["APISIX gateway"]
+    GW --&gt;|"babelsuite-mock plugin&lt;br/&gt;(REST, SOAP, GraphQL, webhook, SSE)"| Engine["mock engine&lt;br/&gt;(resolver)"]
+    GW --&gt;|"gRPC / gRPC-Web"| GRPC["control plane&lt;br/&gt;gRPC front end"]
+    GW --&gt;|"WebSocket upgrade"| WS["engine WebSocket endpoint"]
+    GW --&gt;|"stream plugins&lt;br/&gt;(TCP :9100+, UDP :9200+)"| Engine
+    Engine -.-&gt;|"async mock message"| Pub["gateway publisher"]
+    Pub --&gt;|"publish"| Broker["the suite's broker&lt;br/&gt;(Kafka, RocketMQ, MQTT, NATS)"]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Served by</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>REST, SOAP, GraphQL, webhook, SSE</td>
+<td><code>babelsuite-mock</code> plugin in the gateway</td>
+<td>the plugin asks the engine which example matches and writes the response itself, so every other plugin of the route still applies</td>
+</tr>
+<tr>
+<td>gRPC, gRPC-Web</td>
+<td>the control plane's gRPC front end, behind the gateway</td>
+<td>a gRPC success ends in an HTTP/2 trailer, which no Lua in APISIX can write. The gateway checks the call and forwards it; gRPC errors the gateway itself raises are real trailers-only gRPC errors. The suite's <code>.proto</code> files are compiled at run time and the front end offers reflection. Unary and server-streaming methods are mocked; a client-streaming method answers <code>UNIMPLEMENTED</code></td>
+</tr>
+<tr>
+<td>WebSocket</td>
+<td>the engine's WebSocket endpoint, proxied by the gateway</td>
+<td>an upgrade cannot be accepted by Lua. On connect the matched example is sent (a JSON array is one frame per element); each client message is put to the engine like a request body</td>
+</tr>
+<tr>
+<td>TCP, UDP</td>
+<td>stream plugins in the gateway</td>
+<td>a raw transport carries nothing that says which operation it is for, so every operation has a port of its own (TCP from 9100, UDP from 9200). A step is told them in <code>BABELSUITE_TCP_MOCKS</code> / <code>BABELSUITE_UDP_MOCKS</code></td>
+</tr>
+<tr>
+<td>Kafka, RocketMQ, MQTT, NATS</td>
+<td>the gateway as a <em>publisher</em></td>
+<td>a broker is not a server a client connects to: the example message is published to the broker the surface names (<code>kafka://broker:9092</code>, topic = the operation's name) once that service is up. See the limits below</td>
+</tr>
+<tr>
+<td>AMQP, an async surface that names no broker</td>
+<td>not served</td>
+<td>APISIX has no AMQP client; a surface with no broker has nowhere to publish. The run says so as a warning when the mock starts</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reaching a mock.</strong> A step on the run's network reaches the gateway as <code>babelsuite-gateway</code>, and every mock node by its own name (<code>http://stripe-mock:9080</code>). A surface's declared host (<code>&lt;suite&gt;.mock.internal</code>, <code>api.example.test</code>) answers on the gateway too.</p>
+<p><strong>The token.</strong> The engine answers a mock call only when it carries the gateway's token, so a mock cannot be driven by calling the control plane's <code>/mocks</code> endpoints directly: those answer <code>401</code>. The token is <code>MOCK_SHARED_SECRET</code> when set, otherwise it is derived from the signing secret, so it differs for every deployment and survives a restart. The sidecar gets it in its environment; nothing is written into its configuration file.</p>
+<p><strong>Run scope.</strong> A stateful mock keeps one state per run. The gateway tells the engine which run a request came from by the address it arrived on, so two runs of one suite never see each other's state.</p>
+<p><strong>Limits of async publishing.</strong></p>
+<ul>
+<li>The gateway publishes by the broker container's address on the run's network. A Kafka or RocketMQ broker answers a client with the address it <em>advertises</em> (for the Kafka module, <code>&lt;name&gt;:9092</code>), which the gateway cannot resolve, so publishing to those two can fail where the advertised name is not an address. MQTT and NATS carry no such redirect.</li>
+<li>The broker must be a service of the suite (<code>service.run</code>); a mock that names another host is reported and not published.</li>
+<li>The message is published once, when the broker service becomes healthy.</li>
+</ul>
 <h2 id="main-backend-domains">Main Backend Domains<a class="headerlink" href="#main-backend-domains" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
