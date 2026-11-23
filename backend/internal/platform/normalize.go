@@ -80,8 +80,8 @@ func validate(settings *PlatformSettings) error {
 		if strings.TrimSpace(agent.APISIXSidecar.ConfigMountPath) == "" {
 			return errors.New("Each execution agent needs an APISIX config mount path.")
 		}
-		if agent.APISIXSidecar.ListenPort <= 0 || agent.APISIXSidecar.AdminPort <= 0 {
-			return errors.New("Each execution agent needs positive APISIX listen and admin ports.")
+		if agent.APISIXSidecar.ListenPort <= 0 {
+			return errors.New("Each execution agent needs a positive APISIX listen port.")
 		}
 	}
 	if enabledAgents == 0 {
@@ -142,7 +142,6 @@ func normalizeAPISIXSidecar(sidecar *APISIXSidecarConfig) {
 
 	sidecar.Image = strings.TrimSpace(sidecar.Image)
 	sidecar.ConfigMountPath = strings.TrimSpace(sidecar.ConfigMountPath)
-	sidecar.Capabilities = compact(sidecar.Capabilities)
 
 	if sidecar.Image == "" {
 		sidecar.Image = defaults.Image
@@ -152,11 +151,5 @@ func normalizeAPISIXSidecar(sidecar *APISIXSidecarConfig) {
 	}
 	if sidecar.ListenPort == 0 {
 		sidecar.ListenPort = defaults.ListenPort
-	}
-	if sidecar.AdminPort == 0 {
-		sidecar.AdminPort = defaults.AdminPort
-	}
-	if len(sidecar.Capabilities) == 0 {
-		sidecar.Capabilities = append([]string{}, defaults.Capabilities...)
 	}
 }

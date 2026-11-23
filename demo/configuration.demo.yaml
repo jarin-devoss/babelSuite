@@ -31,8 +31,6 @@ agents:
       # exact path.
       configMountPath: /usr/local/apisix/conf/apisix.yaml
       listenPort: 9080
-      adminPort: 9180
-      capabilities: [rest, grpc, async]
 
 # The catalog scans this for suite and module packages. demo/bootstrap.py
 # pushes examples/oci-suites and examples/oci-modules here.

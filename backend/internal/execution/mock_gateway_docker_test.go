@@ -135,7 +135,6 @@ func TestTheSidecarServesEveryProtocolThroughRealAPISIX(t *testing.T) {
 					Image:           "apache/apisix:3.9.0-debian",
 					ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml",
 					ListenPort:      9080,
-					AdminPort:       9180,
 				},
 			}},
 		}})
@@ -390,7 +389,7 @@ func TestTheSidecarPublishesAnAsyncMockToANATSAndAnMQTTBroker(t *testing.T) {
 		stubPlatformSource{settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{{
 				AgentID: "local-docker", Name: "Local Docker", Type: "local", Enabled: true, Default: true,
-				APISIXSidecar: platform.APISIXSidecarConfig{Image: "apache/apisix:3.9.0-debian", ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml", ListenPort: 9080, AdminPort: 9180},
+				APISIXSidecar: platform.APISIXSidecarConfig{Image: "apache/apisix:3.9.0-debian", ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml", ListenPort: 9080},
 			}},
 		}})
 	service.ConfigureMockResetter(engine)
@@ -494,7 +493,7 @@ func TestARunPublishesItsAsyncMockToTheBrokerItStarted(t *testing.T) {
 		stubPlatformSource{settings: &platform.PlatformSettings{
 			Agents: []platform.ExecutionAgent{{
 				AgentID: "local-docker", Name: "Local Docker", Type: "local", Enabled: true, Default: true,
-				APISIXSidecar: platform.APISIXSidecarConfig{Image: "apache/apisix:3.9.0-debian", ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml", ListenPort: 9080, AdminPort: 9180},
+				APISIXSidecar: platform.APISIXSidecarConfig{Image: "apache/apisix:3.9.0-debian", ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml", ListenPort: 9080},
 			}},
 		}})
 	service.ConfigureMockResetter(engine)

@@ -441,3 +441,20 @@ func configureExecutionExamplesRoot(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".."))
 	t.Setenv(examplefs.RootEnvVar, filepath.Join(repoRoot, "examples"))
 }
+
+// A profile-wide network.mode of host or none cannot work: the shipped modules
+// and the suite's gateway address steps by name on the run's own network. It is
+// refused rather than accepted and ignored.
+func TestProfileNetworkModeOtherThanExecutionIsRefused(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"host", "none", "bridge"} {
+		if _, err := parseManagedProfileYAML("network:\n  mode: " + mode + "\n"); err == nil || !strings.Contains(err.Error(), "network.mode") {
+			t.Errorf("network.mode %q: err = %v, want a refusal naming network.mode", mode, err)
+		}
+	}
+	for _, source := range []string{"network:\n  mode: execution\n", "env:\n  A: b\n", ""} {
+		if _, err := parseManagedProfileYAML(source); err != nil {
+			t.Errorf("%q: %v", source, err)
+		}
+	}
+}

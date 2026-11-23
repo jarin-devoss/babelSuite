@@ -277,7 +277,6 @@ export default function Agents() {
                 const backend = backendById.get(agent.agentId)
                 const displayStatus = reportedStatus(agent, runtime, backend)
                 const heartbeatAt = runtime?.lastHeartbeatAt ?? agent.lastHeartbeatAt
-                const sidecarProtocols = agent.apisixSidecar?.capabilities ?? []
                 return (
               <div className='bs-table-row'>
                 <div className='bs-table-cell bs-table-cell--shrink'>
@@ -307,9 +306,7 @@ export default function Agents() {
                 <div className='bs-table-cell'>
                   {runtime && runtime.capabilities.length > 0
                     ? runtime.capabilities.map((capability) => <span key={capability} className='bs-tag'>{capability}</span>)
-                    : sidecarProtocols.length > 0
-                      ? <span className='bs-table-cell__muted' title={sidecarProtocols.join(', ')}>{sidecarProtocols.length} sidecar protocols</span>
-                      : <span className='bs-table-cell__muted'>—</span>}
+                    : <span className='bs-table-cell__muted'>—</span>}
                 </div>
                 <div className='bs-table-cell'>
                   {agent.routingTags.length > 0
@@ -516,30 +513,12 @@ export default function Agents() {
                 <label>Config Mount Path</label>
                 <input value={panelAgent.apisixSidecar.configMountPath} onChange={(e) => updatePanelSidecar('configMountPath', e.target.value)} />
               </div>
-              <div className='bs-form-row bs-form-row--two'>
-                <div>
-                  <label>Listen Port</label>
-                  <input
-                    type='number'
-                    value={panelAgent.apisixSidecar.listenPort}
-                    onChange={(e) => updatePanelSidecar('listenPort', parseNumberInput(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label>Admin Port</label>
-                  <input
-                    type='number'
-                    value={panelAgent.apisixSidecar.adminPort}
-                    onChange={(e) => updatePanelSidecar('adminPort', parseNumberInput(e.target.value))}
-                  />
-                </div>
-              </div>
               <div className='bs-form-row'>
-                <label>Capabilities <span className='bs-label-note'>(comma-separated)</span></label>
+                <label>Listen Port</label>
                 <input
-                  value={panelAgent.apisixSidecar.capabilities.join(', ')}
-                  onChange={(e) => updatePanelSidecar('capabilities', splitList(e.target.value))}
-                  placeholder='rest, graphql, grpc, soap, kafka'
+                  type='number'
+                  value={panelAgent.apisixSidecar.listenPort}
+                  onChange={(e) => updatePanelSidecar('listenPort', parseNumberInput(e.target.value))}
                 />
               </div>
             </div>
@@ -638,7 +617,5 @@ function defaultAPISIXSidecar(): APISIXSidecarConfig {
     image: 'apache/apisix:3.9.0-debian',
     configMountPath: '/usr/local/apisix/conf/apisix.yaml',
     listenPort: 9080,
-    adminPort: 9180,
-    capabilities: ['rest', 'graphql', 'grpc', 'soap', 'kafka'],
   }
 }

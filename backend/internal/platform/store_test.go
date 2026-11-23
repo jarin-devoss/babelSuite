@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -22,12 +23,6 @@ func TestDefaultSettingsIncludeAPISIXSidecarOnAgents(t *testing.T) {
 		}
 		if sidecar.ListenPort != 9080 {
 			t.Fatalf("expected %s to use listen port 9080, got %d", agent.AgentID, sidecar.ListenPort)
-		}
-		if sidecar.AdminPort != 9180 {
-			t.Fatalf("expected %s to use admin port 9180, got %d", agent.AgentID, sidecar.AdminPort)
-		}
-		if len(sidecar.Capabilities) == 0 {
-			t.Fatalf("expected %s to advertise APISIX capabilities", agent.AgentID)
 		}
 	}
 }
@@ -60,11 +55,44 @@ func TestNormalizeBackfillsAPISIXSidecarDefaults(t *testing.T) {
 	if sidecar.ConfigMountPath == "" {
 		t.Fatal("expected normalize to backfill APISIX config path")
 	}
-	if sidecar.ListenPort == 0 || sidecar.AdminPort == 0 {
-		t.Fatalf("expected normalize to backfill APISIX ports, got listen=%d admin=%d", sidecar.ListenPort, sidecar.AdminPort)
+	if sidecar.ListenPort == 0 {
+		t.Fatalf("expected normalize to backfill the APISIX listen port, got %d", sidecar.ListenPort)
 	}
-	if len(sidecar.Capabilities) == 0 {
-		t.Fatal("expected normalize to backfill APISIX capabilities")
+}
+
+// Settings files written before adminPort and capabilities were removed still
+// load: the keys name nothing the sidecar has, so they are ignored and dropped on
+// the next save.
+func TestSettingsWithTheRemovedSidecarKeysStillLoad(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "platform.yaml")
+	source := `agents:
+  - agentId: local-docker
+    name: Local Docker
+    type: local
+    enabled: true
+    default: true
+    apisixSidecar:
+      image: apache/apisix:3.9.0-debian
+      configMountPath: /usr/local/apisix/conf/apisix.yaml
+      listenPort: 9080
+      adminPort: 9180
+      capabilities: [rest, grpc]
+registries:
+  - registryId: zot
+    name: Zot
+    provider: zot
+    registryUrl: localhost:5000
+    allowLocalNetwork: true
+`
+	if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := NewFileStore(path).Load()
+	if err != nil {
+		t.Fatalf("settings with the removed keys must load: %v", err)
+	}
+	if len(settings.Agents) == 0 || settings.Agents[0].APISIXSidecar.ListenPort != 9080 {
+		t.Fatalf("the sidecar settings were not read: %+v", settings.Agents)
 	}
 }
 

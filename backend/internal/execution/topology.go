@@ -384,7 +384,7 @@ func buildHealthyMessage(node topologyNode, suite *suites.Definition, profile st
 	case suites.NodeKindTraffic:
 		return fmt.Sprintf("[%s] Traffic phase finished; the figures are in the lines above.", node.Name)
 	case suites.NodeKindTest:
-		return fmt.Sprintf("[%s] Test phase passed. Contract assertions and payload policies remained green.", node.Name)
+		return fmt.Sprintf("[%s] Test phase passed.", node.Name)
 	case suites.NodeKindLog:
 		msg := strings.TrimSpace(node.Message)
 		if msg == "" {

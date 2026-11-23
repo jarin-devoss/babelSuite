@@ -178,3 +178,11 @@ func configureProfilesExamplesRoot(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".."))
 	t.Setenv(examplefs.RootEnvVar, filepath.Join(repoRoot, "examples"))
 }
+
+func TestValidateNetworkMode(t *testing.T) {
+	for mode, ok := range map[string]bool{"": true, "execution": true, "Execution": true, "host": false, "none": false} {
+		if err := ValidateNetworkMode(mode); (err == nil) != ok {
+			t.Errorf("ValidateNetworkMode(%q) = %v, want ok=%v", mode, err, ok)
+		}
+	}
+}

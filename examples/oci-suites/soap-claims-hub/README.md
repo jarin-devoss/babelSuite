@@ -29,7 +29,6 @@ claims_mock
 | `tasks/` | `seed_reference_data.sh` — claim code tables and partner fixture bootstrap |
 | `tests/` | `claims_smoke.py` — submit and lookup SOAP exchange validation, including fault paths |
 | `fixtures/` | Seeded partner claims and policy data |
-| `policies/` | SOAP fault envelope validation and schema compliance rules |
 
 ## Running
 

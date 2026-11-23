@@ -32,7 +32,6 @@ db                         cache
 | `tasks/` | `seed_templates.sql` (notification templates) and `migrate.sh` (schema migrations) |
 | `tests/` | `notify_smoke.py` — send, delivery confirmation, and bounce handling tests |
 | `fixtures/` | Pre-built notification payloads and recipient lists |
-| `policies/` | Delivery SLA thresholds and schema validation rules |
 
 ## Running
 

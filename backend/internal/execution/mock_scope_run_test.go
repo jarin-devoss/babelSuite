@@ -84,7 +84,6 @@ func TestOverlappingRunsKeepTheirOwnMockState(t *testing.T) {
 					Image:           "apache/apisix:3.9.0-debian",
 					ConfigMountPath: "/usr/local/apisix/conf/apisix.yaml",
 					ListenPort:      9080,
-					AdminPort:       9180,
 				},
 			}},
 		}})
