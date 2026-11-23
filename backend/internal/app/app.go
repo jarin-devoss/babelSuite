@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -19,8 +20,10 @@ import (
 	"github.com/babelsuite/babelsuite/internal/execution"
 	"github.com/babelsuite/babelsuite/internal/httpserver"
 	"github.com/babelsuite/babelsuite/internal/mocking"
+	"github.com/babelsuite/babelsuite/internal/mocking/grpcmock"
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/profiles"
+	"github.com/babelsuite/babelsuite/internal/runner"
 	"github.com/babelsuite/babelsuite/internal/store"
 	mongostore "github.com/babelsuite/babelsuite/internal/store/mongo"
 	"github.com/babelsuite/babelsuite/internal/suites"
@@ -36,6 +39,7 @@ type App struct {
 	primaryStore       store.Store
 	executionService   *execution.Service
 	environmentService *environments.Service
+	grpcMocks          *grpcmock.Server
 	cronService        *cronjobs.Service
 	stopBackground     context.CancelFunc
 }
@@ -113,6 +117,11 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	catalogBacked := newCatalogSuiteReader(catalogReader, platformStore, suiteService)
 
 	mockingService := mocking.NewService(catalogBacked)
+	// The secret a suite's gateway presents to the mock engine. The runner puts
+	// it into the sidecar's environment; the handler requires it on every call.
+	mockToken := mocking.GatewayToken(cfg.MockSharedSecret, cfg.JWTSecret)
+	runner.ConfigureSidecarSecrets(mockToken)
+	grpcMocks := grpcmock.New(catalogBacked, mockingService, mockToken)
 
 	profileBaseStore := profiles.NewFileStore(cfg.ProfilesFile)
 	var profileStore profiles.Store = profileBaseStore
@@ -182,7 +191,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	agent.RegisterGateway(mux, agentRegistry, assignmentCoordinator, cfg.AgentSharedSecret)
 	profiles.NewHandler(profileService, jwtSvc).Register(mux)
 	suites.NewHandler(newCatalogSuiteHandler(catalogBacked, suiteService), jwtSvc).Register(mux)
-	mocking.NewHandler(mockingService, cfg.MockSharedSecret).Register(mux)
+	mocking.NewHandler(mockingService, mockToken).Register(mux)
 	execution.NewHandler(executionService, engineStore, jwtSvc).Register(mux)
 	platform.NewHandler(platformStore, jwtSvc).Register(mux)
 	environments.NewHandler(environmentService, jwtSvc).Register(mux)
@@ -214,6 +223,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		primaryStore:       primaryStore,
 		executionService:   executionService,
 		environmentService: environmentService,
+		grpcMocks:          grpcMocks,
 		cronService:        cronService,
 		stopBackground:     stopBackground,
 	}, nil
@@ -243,6 +253,12 @@ func (a *App) ReapLeftovers(ctx context.Context) {
 	}
 }
 
+// ServeGRPCMocks serves the suites' gRPC mocks on the listener until Close. A
+// suite's gateway forwards every gRPC call of the suite here.
+func (a *App) ServeGRPCMocks(listener net.Listener) error {
+	return a.grpcMocks.Serve(listener)
+}
+
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.handler.ServeHTTP(w, r)
 }
@@ -255,6 +271,9 @@ func (a *App) Close(ctx context.Context) error {
 	var combined error
 	if a.cronService != nil {
 		a.cronService.Stop()
+	}
+	if a.grpcMocks != nil {
+		a.grpcMocks.Stop()
 	}
 	if a.environmentService != nil {
 		a.environmentService.Close()

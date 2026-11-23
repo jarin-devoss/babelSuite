@@ -1,6 +1,7 @@
 package mocking
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -15,23 +16,35 @@ type Handler struct {
 	secret  string
 }
 
-func NewHandler(service *Service, secret string) *Handler {
-	return &Handler{service: service, secret: strings.TrimSpace(secret)}
+// NewHandler serves the mock engine's endpoints. token is the secret every call
+// must present (see GatewayToken): the endpoints are called by a suite's
+// gateway, never directly, and with no token configured they refuse every call
+// instead of being open.
+func NewHandler(service *Service, token string) *Handler {
+	return &Handler{service: service, secret: strings.TrimSpace(token)}
 }
 
 func (h *Handler) mockAuthMiddleware() httpserver.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if h.secret != "" {
-				bearer := strings.TrimPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ")
-				if strings.TrimSpace(bearer) != h.secret {
-					httpserver.WriteError(w, http.StatusUnauthorized, "Mock access requires a valid secret.")
-					return
-				}
+			if !TokenMatches(h.secret, r.Header.Get("Authorization")) {
+				httpserver.WriteError(w, http.StatusUnauthorized, "Mock endpoints are called through the suite's gateway; this request did not carry its token.")
+				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// TokenMatches reports whether an Authorization header carries the token, in
+// constant time. An empty token matches nothing.
+func TokenMatches(token, authorization string) bool {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return false
+	}
+	presented := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(authorization), "Bearer "))
+	return subtle.ConstantTimeCompare([]byte(presented), []byte(token)) == 1
 }
 
 func (h *Handler) Register(mux *http.ServeMux) {
@@ -40,6 +53,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	httpserver.HandleFunc(mux, "/mocks/rest/", h.invokeREST, auth)
 	httpserver.HandleFunc(mux, "POST /mocks/grpc/{suiteId}/{surfaceId}/{operationId}", h.invokeGRPC, auth)
 	httpserver.HandleFunc(mux, "POST /mocks/async/{suiteId}/{surfaceId}/{operationId}", h.invokeAsync, auth)
+	httpserver.HandleFunc(mux, "GET /mocks/ws/{suiteId}/{surfaceId}/{operationId}", h.serveWebSocket, auth)
 }
 
 func (h *Handler) resolveOperation(w http.ResponseWriter, r *http.Request) {
@@ -158,6 +172,7 @@ func writeResolverEnvelope(w http.ResponseWriter, result *Result) {
 		"resolverUrl":    result.ResolverURL,
 		"runtimeUrl":     result.RuntimeURL,
 		"matchedExample": result.MatchedExample,
+		"stateScope":     result.StateScope,
 	}
 	_ = json.NewEncoder(w).Encode(envelope)
 }

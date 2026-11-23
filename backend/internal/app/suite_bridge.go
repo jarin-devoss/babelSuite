@@ -553,9 +553,9 @@ func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceC
 				name = "/" + op.id
 			}
 
-			contractPath, contractContent := "", ""
+			contractPath := ""
 			if op.adapter == "grpc" {
-				contractPath, contractContent = protoForOperation(op.id, protoFiles)
+				contractPath, _ = protoForOperation(op.id, protoFiles)
 			}
 
 			apiOps = append(apiOps, apisix.OperationConfig{
@@ -564,11 +564,8 @@ func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceC
 				Name:            name,
 				Summary:         summary,
 				ContractPath:    contractPath,
-				ContractContent: contractContent,
 				MockMetadata: apisix.OperationMetadataConfig{
-					Adapter:     op.adapter,
-					ResolverURL: op.resolverURL,
-					RuntimeURL:  op.runtimeURL,
+					Adapter: op.adapter,
 				},
 			})
 		}

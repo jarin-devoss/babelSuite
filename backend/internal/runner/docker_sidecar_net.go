@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/network"
 
-	"github.com/babelsuite/babelsuite/internal/apisix"
 )
 
 // sidecarConfigHashLabel carries a digest of everything the sidecar was started
@@ -23,7 +22,7 @@ const sidecarConfigHashLabel = "babelsuite.config-hash"
 // config.yaml, its routes and each Lua plugin. A running sidecar reads all of
 // them only at startup, so without this a fix to any of them would never reach
 // a sidecar that is already up.
-func sidecarConfigHash(image, apisixYAML string, luaFiles map[string]string) string {
+func sidecarConfigHash(image, configYAML, apisixYAML string, luaFiles map[string]string) string {
 	h := sha256.New()
 	write := func(label, content string) {
 		fmt.Fprintf(h, "%s\x00%d\x00%s\x00", label, len(content), content)
@@ -33,7 +32,7 @@ func sidecarConfigHash(image, apisixYAML string, luaFiles map[string]string) str
 	// an older build took whatever port Docker picked, which moves when a run
 	// network takes the gateway, so it is recreated once.
 	write("ports", "fixed")
-	write("config.yaml", apisix.SidecarConfigYAML)
+	write("config.yaml", configYAML)
 	write("apisix.yaml", apisixYAML)
 
 	names := make([]string, 0, len(luaFiles))

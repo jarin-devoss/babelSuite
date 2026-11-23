@@ -86,3 +86,39 @@ func suiteHardened(suite *suites.Definition, node topologyNode) bool {
 	}
 	return false
 }
+
+// suiteMockNames lists the names of the suite's mock nodes, which the gateway
+// answers to on the run's network: a service reaches a mock as
+// http://stripe-mock:9080. A name that a service of the suite already answers to
+// is left out, because the service owns it.
+func suiteMockNames(suite *suites.Definition) []string {
+	if suite == nil {
+		return nil
+	}
+	services := map[string]struct{}{}
+	for _, node := range suite.Topology {
+		if addressableKind(node.Kind) {
+			services[strings.ToLower(networkAlias(node.Name))] = struct{}{}
+		}
+	}
+	seen := map[string]struct{}{}
+	var names []string
+	for _, node := range suite.Topology {
+		if node.Kind != suites.NodeKindMock {
+			continue
+		}
+		name := strings.ToLower(networkAlias(node.Name))
+		if name == "" {
+			continue
+		}
+		if _, taken := services[name]; taken {
+			continue
+		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	return names
+}

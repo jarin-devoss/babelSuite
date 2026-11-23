@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"github.com/babelsuite/babelsuite/internal/apisix"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,7 +18,7 @@ func TestWriteSidecarConfigIsWritableByTheContainerUser(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := writeSidecarConfig(path); err != nil {
+	if err := writeSidecarConfig(path, apisix.SidecarConfig(apisix.SuiteConfig{ID: "t"})); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 

@@ -219,7 +219,13 @@ func (k *Kubernetes) buildPod(podName string, step StepSpec, img string, withArt
 	// The sidecar address, as the Docker backend exports it — but rewritten
 	// for a pod, to which the host-published 127.0.0.1 port means itself.
 	if gateway := strings.TrimSpace(step.GatewayURL); gateway != "" {
-		env = append(env, corev1.EnvVar{Name: "BABELSUITE_GATEWAY_URL", Value: k8sReachableURL(gateway)})
+		reachable := k8sReachableURL(gateway)
+		env = append(env, corev1.EnvVar{Name: "BABELSUITE_GATEWAY_URL", Value: reachable})
+		env = append(env, corev1.EnvVar{Name: "BABELSUITE_GRPC_GATEWAY", Value: gatewayHostPort(reachable)})
+		for _, entry := range streamMockEnv(step, reachable, false) {
+			name, value, _ := strings.Cut(entry, "=")
+			env = append(env, corev1.EnvVar{Name: name, Value: value})
+		}
 	}
 	if len(step.GatewayURLs) > 0 {
 		urls := make([]string, len(step.GatewayURLs))
@@ -242,7 +248,7 @@ func (k *Kubernetes) buildPod(podName string, step StepSpec, img string, withArt
 		Image: img,
 		Env:   env,
 		// Left unset, Kubernetes treats an untagged or :latest image —
-		// ollama/ollama, apache/apisix:latest — as Always, and every pod goes
+		// ollama/ollama, redis:latest — as Always, and every pod goes
 		// back to the registry before it can start.
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Resources: corev1.ResourceRequirements{

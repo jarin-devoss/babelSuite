@@ -23,6 +23,8 @@ func LuaPluginFiles(userPlugins ...CustomPluginConfig) map[string]string {
 	plugins := map[string]string{
 		TrafficCannonPluginName + ".lua": TrafficCannonLua,
 		AttackScannerPluginName + ".lua": AttackScannerLua,
+		MockPluginName + ".lua":          mockLua,
+		AsyncMockPluginName + ".lua":     asyncMockLua,
 	}
 	for _, p := range userPlugins {
 		if strings.TrimSpace(p.Lua) != "" {
@@ -43,6 +45,16 @@ func WriteLuaPluginFiles(destDir string, userPlugins ...CustomPluginConfig) erro
 		p := filepath.Join(destDir, name)
 		if err := os.WriteFile(p, []byte(code), 0644); err != nil {
 			return fmt.Errorf("write lua plugin %s: %w", name, err)
+		}
+	}
+	// The stream plugins live in a directory of their own, mounted separately.
+	streamDir := filepath.Join(destDir, StreamPluginDir)
+	if err := os.MkdirAll(streamDir, 0755); err != nil {
+		return fmt.Errorf("create the stream plugin dir: %w", err)
+	}
+	for name, code := range StreamLuaPluginFiles() {
+		if err := os.WriteFile(filepath.Join(streamDir, name), []byte(code), 0644); err != nil {
+			return fmt.Errorf("write stream lua plugin %s: %w", name, err)
 		}
 	}
 	return nil

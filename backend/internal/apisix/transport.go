@@ -6,14 +6,19 @@ import (
 )
 
 func transportKind(surface SurfaceConfig, operation OperationConfig) string {
-	protocol := normalizeTransport(strings.TrimSpace(surface.Protocol))
+	// A surface that declares no protocol says nothing, so its operations' own
+	// adapters decide; normalizeTransport would read the blank as REST.
+	protocol := ""
+	if declared := strings.TrimSpace(surface.Protocol); declared != "" {
+		protocol = normalizeTransport(declared)
+	}
 	switch protocol {
 	case "async":
 		if scheme := asyncTransportScheme(surface, operation); scheme != "" {
 			return scheme
 		}
 		return "async"
-	case "rest", "soap", "graphql", "websocket", "sse", "grpc", "kafka", "mqtt", "amqp", "nats", "tcp", "udp", "webhook":
+	case "rest", "soap", "graphql", "websocket", "sse", "grpc", "kafka", "rocketmq", "mqtt", "amqp", "nats", "tcp", "udp", "webhook":
 		return protocol
 	}
 
@@ -31,7 +36,7 @@ func transportKind(surface SurfaceConfig, operation OperationConfig) string {
 	}
 
 	switch normalizeTransport(hostScheme(surface.MockHost, operation.MockURL)) {
-	case "kafka", "mqtt", "amqp", "nats", "grpc", "tcp", "udp":
+	case "kafka", "rocketmq", "mqtt", "amqp", "nats", "grpc", "tcp", "udp":
 		return normalizeTransport(hostScheme(surface.MockHost, operation.MockURL))
 	case "websocket":
 		return "websocket"
@@ -69,7 +74,7 @@ func normalizeTransport(value string) string {
 
 func asyncTransportScheme(surface SurfaceConfig, operation OperationConfig) string {
 	switch scheme := normalizeTransport(hostScheme(surface.MockHost, operation.MockURL)); scheme {
-	case "kafka", "mqtt", "amqp", "nats", "tcp", "udp":
+	case "kafka", "rocketmq", "mqtt", "amqp", "nats", "tcp", "udp":
 		return scheme
 	default:
 		return ""
@@ -78,7 +83,7 @@ func asyncTransportScheme(surface SurfaceConfig, operation OperationConfig) stri
 
 func isHTTPCompatibleTransport(transport string) bool {
 	switch transport {
-	case "rest", "soap", "graphql", "websocket", "sse", "webhook":
+	case "rest", "soap", "graphql", "sse", "webhook":
 		return true
 	default:
 		return false
@@ -101,6 +106,8 @@ func transportDisplayName(transport string) string {
 		return "gRPC"
 	case "kafka":
 		return "Kafka"
+	case "rocketmq":
+		return "RocketMQ"
 	case "mqtt":
 		return "MQTT"
 	case "amqp":

@@ -12,6 +12,16 @@ import (
 // container; mock surfaces are routed there by Host header.
 const sidecarListenAddress = "127.0.0.1:9080"
 
+// gatewayHostPort is the host:port of a gateway URL, which is the address a gRPC
+// client dials: it has no scheme.
+func gatewayHostPort(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" {
+		return strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(raw), "http://"), "https://")
+	}
+	return parsed.Host
+}
+
 // hostAliasFromContainer reaches the machine running the control plane from
 // inside the sidecar's container.
 const hostAliasFromContainer = "host.docker.internal"

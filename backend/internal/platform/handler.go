@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/babelsuite/babelsuite/internal/apisix"
 	"github.com/babelsuite/babelsuite/internal/auth"
 	"github.com/babelsuite/babelsuite/internal/httpserver"
 	"github.com/babelsuite/babelsuite/internal/pluginschema"
@@ -125,6 +126,10 @@ func (h *Handler) createPlugin(w http.ResponseWriter, r *http.Request) {
 	}
 	if !pluginNameRe.MatchString(plugin.Name) {
 		httpserver.WriteError(w, http.StatusBadRequest, "Plugin name must start with a letter or digit and contain only letters, digits, hyphens, and underscores.")
+		return
+	}
+	if apisix.IsReservedPluginName(plugin.Name) {
+		httpserver.WriteError(w, http.StatusBadRequest, "Plugin names starting with \""+apisix.ReservedPluginPrefix+"\" belong to the gateway's own plugins; choose another name.")
 		return
 	}
 	// Derived from the name, so a plugin package never states it and the two
