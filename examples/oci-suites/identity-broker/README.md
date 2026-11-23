@@ -32,7 +32,6 @@ broker_db
 | `tasks/` | `seed_realms.ts` — realm definitions and certificate bootstrap |
 | `tests/` | `login_smoke.py` — successful login flows and expired-session validation |
 | `fixtures/` | Realm definitions, claim payloads, and test user accounts |
-| `policies/` | Cookie scope and token issuance validation rules |
 
 ## Running
 

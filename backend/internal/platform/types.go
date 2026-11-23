@@ -81,11 +81,9 @@ type ExecutionAgent struct {
 }
 
 type APISIXSidecarConfig struct {
-	Image           string   `json:"image" yaml:"image"`
-	ConfigMountPath string   `json:"configMountPath" yaml:"configMountPath"`
-	ListenPort      int      `json:"listenPort" yaml:"listenPort"`
-	AdminPort       int      `json:"adminPort" yaml:"adminPort"`
-	Capabilities    []string `json:"capabilities" yaml:"capabilities"`
+	Image           string `json:"image" yaml:"image"`
+	ConfigMountPath string `json:"configMountPath" yaml:"configMountPath"`
+	ListenPort      int    `json:"listenPort" yaml:"listenPort"`
 }
 
 type OCIRegistry struct {

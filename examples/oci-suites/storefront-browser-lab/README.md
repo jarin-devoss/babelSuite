@@ -32,7 +32,6 @@ broker
 | `tasks/` | `seed_topics.sh` — Kafka topic bootstrap and browser fixture warm-up |
 | `tests/` | `playwright_checkout.spec.ts` — checkout success and cart abandonment journeys |
 | `fixtures/` | Seeded products, campaigns, and browser-side user sessions |
-| `policies/` | Event schema and checkout latency validation rules |
 
 ## Running
 

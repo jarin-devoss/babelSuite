@@ -32,7 +32,6 @@ returns_db                    broker
 | `tasks/` | `seed_topics.sh` (Kafka) and `seed_routes.ts` (refund routing tables) |
 | `tests/` | `returns_smoke.py` — submit, review, and refund approval flows |
 | `fixtures/` | Seeded return cases and customer profiles |
-| `policies/` | Refund-limit thresholds and event-schema validation rules |
 
 ## Running
 

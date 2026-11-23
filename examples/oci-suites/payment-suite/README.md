@@ -36,7 +36,6 @@ kafka            │
 | `tests/` | `checkout_smoke.py` — payment flow smoke tests |
 | `traffic/` | `checkout_baseline.star` — baseline load plan targeting the payment gateway |
 | `fixtures/` | Seed data: payment methods, merchants, and test card numbers |
-| `policies/` | Latency thresholds and fraud-score validation rules |
 
 ## Running
 

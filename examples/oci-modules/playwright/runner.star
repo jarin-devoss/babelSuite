@@ -1,5 +1,5 @@
 load("@babelsuite/runtime", "test")
-load("_shared.star", "SUPPORTED_BROWSERS", "DEVICE_PRESETS", "default_exports")
+load("_shared.star", "SUPPORTED_BROWSERS", "DEVICE_PRESETS", "PLAYWRIGHT_IMAGE", "PLAYWRIGHT_VERSION", "default_exports", "playwright_commands")
 
 def browser_test(
         spec,
@@ -11,7 +11,8 @@ def browser_test(
         collect_traces = True,
         collect_video = False,
         extra_exports = [],
-        image = "mcr.microsoft.com/playwright:v1.53.0-noble"):
+        image = PLAYWRIGHT_IMAGE,
+        playwright_version = PLAYWRIGHT_VERSION):
     nodes = []
 
     for browser in browsers:
@@ -42,12 +43,13 @@ def browser_test(
                 exports.append({"path": "videos/" + test_name, "name": test_name + "-video", "on": "failure"})
 
             node = test.run(
-                name    = test_name,
-                file    = spec,
-                image   = image,
-                after   = after,
-                env     = utils.merge(base_env, env),
-                exports = exports,
+                name     = test_name,
+                file     = spec,
+                image    = image,
+                after    = after,
+                env      = utils.merge(base_env, env),
+                commands = playwright_commands(spec, browser, "reports/" + test_name + "-junit.xml", version = playwright_version),
+                exports  = exports,
             )
             nodes.append(node)
 
@@ -58,7 +60,8 @@ def a11y_audit(
         after = [],
         wcag_level = "AA",
         fail_on_critical = True,
-        image = "mcr.microsoft.com/playwright:v1.53.0-noble"):
+        image = PLAYWRIGHT_IMAGE,
+        playwright_version = PLAYWRIGHT_VERSION):
     audit_name = "a11y-audit-" + utils.sanitize(url)
     fail_logs  = ["AXE_CRITICAL"] if fail_on_critical else []
 
@@ -68,6 +71,7 @@ def a11y_audit(
         image        = image,
         after        = after,
         env          = {"TARGET_URL": url, "WCAG_LEVEL": wcag_level},
+        commands     = playwright_commands("a11y_audit.spec.ts", "chromium", "reports/" + audit_name + ".xml", version = playwright_version),
         fail_on_logs = fail_logs,
         exports = [
             {"path": "reports/" + audit_name + ".xml",  "name": audit_name,          "on": "always", "format": "junit"},
@@ -81,7 +85,8 @@ def visual_diff(
         browsers = ["chromium"],
         threshold = 0.01,
         after = [],
-        image = "mcr.microsoft.com/playwright:v1.53.0-noble"):
+        image = PLAYWRIGHT_IMAGE,
+        playwright_version = PLAYWRIGHT_VERSION):
     nodes = []
     for browser in browsers:
         if browser not in SUPPORTED_BROWSERS:
@@ -92,6 +97,7 @@ def visual_diff(
             file         = spec,
             image        = image,
             after        = after,
+            commands     = playwright_commands(spec, browser, "reports/" + diff_name + ".xml", version = playwright_version),
             env          = {
                 "BROWSER":         browser,
                 "BASE_URL":        base_url,

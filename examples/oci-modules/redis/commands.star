@@ -1,10 +1,22 @@
 load("@babelsuite/runtime", "task")
 
+# _redis_cli is the redis-cli command for a cache, built from what the service
+# was created with (cache.env): its port and password, so redis(port=, password=)
+# is honoured by every helper. REDIS_HOST and REDIS_PORT in the step's env still
+# override the address. The password goes in REDISCLI_AUTH, which redis-cli reads
+# without the warning that -a prints.
+def _redis_cli(cache):
+    env = cache.env
+    auth = ""
+    if env.get("REDIS_PASSWORD"):
+        auth = "REDISCLI_AUTH=" + utils.quoted(env["REDIS_PASSWORD"]) + " "
+    return (
+        auth + 'redis-cli -h "${REDIS_HOST:-' + cache.name + '}"'
+        + ' -p "${REDIS_PORT:-' + env.get("REDIS_PORT", "6379") + '}"'
+    )
+
 def _cli(cache, name, cmd, image = "redis:7.2-alpine", after = []):
-    host = '"${REDIS_HOST:-' + cache.name + '}"'
-    port = '"${REDIS_PORT:-6379}"'
-    auth = '${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"}'
-    prefix = "redis-cli -h " + host + " -p " + port + " " + auth
+    prefix = _redis_cli(cache)
     return task.run(
         name     = name,
         image    = image,
@@ -13,10 +25,7 @@ def _cli(cache, name, cmd, image = "redis:7.2-alpine", after = []):
     )
 
 def wait_ready(cache, image = "redis:7.2-alpine", after = []):
-    host = '"${REDIS_HOST:-' + cache.name + '}"'
-    port = '"${REDIS_PORT:-6379}"'
-    auth = '${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"}'
-    probe = "redis-cli -h " + host + " -p " + port + " " + auth + " PING"
+    probe = _redis_cli(cache) + " PING"
     return task.run(
         name     = cache.name + "-wait-ready",
         image    = image,
@@ -42,7 +51,7 @@ def set_keys(cache, mapping, ttl_seconds = None, image = "redis:7.2-alpine", aft
         image    = image,
         after    = [cache] + after,
         commands = [" && ".join([
-            "redis-cli -h \"${REDIS_HOST:-" + cache.name + "}\" -p \"${REDIS_PORT:-6379}\" ${REDIS_PASSWORD:+-a \"$REDIS_PASSWORD\"} " + p
+            _redis_cli(cache) + " " + p
             for p in parts
         ])],
     )

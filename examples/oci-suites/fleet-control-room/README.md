@@ -32,7 +32,6 @@ redis_cache
 | `tasks/` | `seed_routes.sh` — Redis route seeding and topology bootstrap |
 | `tests/` | `fleet_smoke.py` — control room smoke tests and degraded GPS scenarios |
 | `fixtures/` | Vehicle manifests and pre-recorded GPS frame sequences |
-| `policies/` | Route SLA thresholds and forbidden-zone violation rules |
 
 ## Running
 

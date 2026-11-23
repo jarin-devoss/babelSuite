@@ -247,7 +247,11 @@ func buildStepScript(step StepSpec) string {
 	sb.WriteString("set -e\n")
 	sb.WriteString("cd " + containerWorkspaceMount + "\n")
 
-	if step.Node.FileContent != "" {
+	// A step with both file= and commands= ships the file for its commands to
+	// use (a spec the test runner is told to run, a config it reads) and runs
+	// only the commands: the file is already in the workspace, and running it as
+	// well would run it twice, under an interpreter its commands did not choose.
+	if step.Node.FileContent != "" && len(step.Node.Commands) == 0 {
 		ext := strings.ToLower(filepath.Ext(step.Node.File))
 		// .sh runs under sh, not bash. A step picks its image for the tool it
 		// needs — curlimages/curl, redis, node-alpine — and most of those are

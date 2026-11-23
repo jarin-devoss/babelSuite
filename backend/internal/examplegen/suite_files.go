@@ -124,8 +124,6 @@ func generatedSourceContent(suite suites.Definition, path string) string {
 		return renderFixtureSource(suite, path)
 	case strings.HasPrefix(path, "fixtures/"):
 		return renderFixtureSource(suite, path)
-	case strings.HasPrefix(path, "policies/"):
-		return renderPolicySource(suite, path)
 	default:
 		return fmt.Sprintf("# %s\n# Source preview is not available for %s yet.\n", suite.Title, path)
 	}

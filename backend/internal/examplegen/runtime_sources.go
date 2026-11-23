@@ -169,20 +169,6 @@ func renderFixtureSource(suite suites.Definition, path string) string {
 	}
 }
 
-func renderPolicySource(suite suites.Definition, path string) string {
-	policyName := sanitizeIdentifier(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))
-	return strings.Join([]string{
-		fmt.Sprintf("package babelsuite.%s", strings.ToLower(policyName)),
-		"",
-		`default allow := false`,
-		"",
-		"allow if {",
-		fmt.Sprintf("  input.suite == %q", suite.ID),
-		"  count(input.modules) >= 1",
-		"}",
-	}, "\n") + "\n"
-}
-
 func defaultFixturePayload(suite suites.Definition, base string) any {
 	switch {
 	case strings.Contains(base, "products"):

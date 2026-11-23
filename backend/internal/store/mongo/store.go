@@ -53,21 +53,25 @@ func New(uri, dbName string) (*Store, error) {
 		cronJobs:         db.Collection("cron_jobs"),
 	}
 
-	unique := options.Index().SetUnique(true)
-	_, _ = st.users.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "email", Value: 1}}, Options: unique})
-	_, _ = st.users.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "username", Value: 1}}, Options: unique})
-	_, _ = st.users.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "user_id", Value: 1}}, Options: unique})
-	_, _ = st.workspaces.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "slug", Value: 1}}, Options: unique})
-	_, _ = st.workspaces.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "workspace_id", Value: 1}}, Options: unique})
+	// One options value per index: the driver names an index on the options it is
+	// given, so a shared one made every index after the first take the first's name
+	// (email_1) and fail with a name conflict, which was ignored. That left every
+	// unique index but the first of each collection missing.
+	unique := func() *options.IndexOptionsBuilder { return options.Index().SetUnique(true) }
+	_, _ = st.users.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "email", Value: 1}}, Options: unique()})
+	_, _ = st.users.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "username", Value: 1}}, Options: unique()})
+	_, _ = st.users.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "user_id", Value: 1}}, Options: unique()})
+	_, _ = st.workspaces.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "slug", Value: 1}}, Options: unique()})
+	_, _ = st.workspaces.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "workspace_id", Value: 1}}, Options: unique()})
 	_, _ = st.favoritePackages.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "package_id", Value: 1}},
-		Options: unique,
+		Options: unique(),
 	})
-	_, _ = st.runtimeDocuments.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "key", Value: 1}}, Options: unique})
-	_, _ = st.executions.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "execution_id", Value: 1}}, Options: unique})
+	_, _ = st.runtimeDocuments.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "key", Value: 1}}, Options: unique()})
+	_, _ = st.executions.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "execution_id", Value: 1}}, Options: unique()})
 	_, _ = st.executions.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "started_at", Value: -1}}})
 	_, _ = st.executionLogs.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "execution_id", Value: 1}}})
-	_, _ = st.cronJobs.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "id", Value: 1}}, Options: unique})
+	_, _ = st.cronJobs.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "id", Value: 1}}, Options: unique()})
 
 	return st, nil
 }

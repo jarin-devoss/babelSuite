@@ -336,8 +336,6 @@ func folderRole(name string) string {
 		return "Data"
 	case "certs":
 		return "Assets"
-	case "policies":
-		return "Policy"
 	default:
 		return humanizeIdentifier(name)
 	}
@@ -369,8 +367,6 @@ func folderDescription(name string) string {
 		return "Static seed data and sample payloads."
 	case "certs":
 		return "Static certificates and supporting trust material."
-	case "policies":
-		return "Policy rules and invariants enforced by the suite."
 	default:
 		return humanizeIdentifier(name) + " files."
 	}

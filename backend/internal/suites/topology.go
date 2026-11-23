@@ -132,13 +132,23 @@ func ResolveRuntime(suite Definition, catalog []Definition) (resolvedTopology, e
 // ModuleResolver so the execution path can pull @babelsuite/* module files from
 // the catalog instead of falling back to the embedded stdlib.
 func ResolveRuntimeWithModules(suite Definition, catalog []Definition, resolve ModuleResolver) (resolvedTopology, error) {
+	return ResolveRuntimeWithEnv(suite, catalog, resolve, nil)
+}
+
+// ResolveRuntimeWithEnv resolves the suite's topology with env as the `env`
+// global of its suite.star: the environment of the profile the run was launched
+// with. A nested suite does not see it: a dependency is a black box with
+// declared inputs, so it reads its own declared profile's env instead.
+func ResolveRuntimeWithEnv(suite Definition, catalog []Definition, resolve ModuleResolver, env map[string]string) (resolvedTopology, error) {
 	r := newTopologyResolver(catalog)
 	r.moduleResolver = resolve
-	return r.resolveSuite(suite, nil)
+	return r.resolveSuite(suite, nil, env)
 }
 
 func ResolveDefinitionTopology(suite Definition, catalog []Definition) Definition {
-	resolved, err := ResolveRuntime(suite, catalog)
+	// The catalog and the graph have no launch, so they show what a launch with
+	// the suite's default profile builds.
+	resolved, err := ResolveRuntimeWithEnv(suite, catalog, nil, defaultProfileEnv(suite))
 	if err != nil {
 		suite.Topology = nil
 		suite.ResolvedDependencies = nil
@@ -168,9 +178,10 @@ func newTopologyResolver(catalog []Definition) *topologyResolver {
 	}
 }
 
-func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resolvedTopology, error) {
+func (r *topologyResolver) resolveSuite(suite Definition, stack []string, env map[string]string) (resolvedTopology, error) {
 	id := strings.TrimSpace(suite.ID)
-	if cached, ok := r.cached[id]; ok {
+	cacheKey := id + "\x00" + envKey(env)
+	if cached, ok := r.cached[cacheKey]; ok {
 		return cloneResolvedTopology(cached), nil
 	}
 	if err := ValidateDefinition(suite); err != nil {
@@ -181,7 +192,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 		return resolvedTopology{}, fmt.Errorf("invalid suite topology: nested suite cycle detected: %s", strings.Join(path, " -> "))
 	}
 
-	rawNodes, err := parseRawTopology(suite.SuiteStar, r.moduleResolver)
+	rawNodes, err := parseRawTopologyWithEnv(suite.SuiteStar, r.moduleResolver, env)
 	if err != nil {
 		return resolvedTopology{}, err
 	}
@@ -213,7 +224,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 			return resolvedTopology{}, err
 		}
 
-		child, err := r.resolveSuite(childSuite, nextStack)
+		child, err := r.resolveSuite(childSuite, nextStack, dependencyEnv(childSuite, dependency))
 		if err != nil {
 			return resolvedTopology{}, err
 		}
@@ -246,7 +257,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 		final = append(final, node)
 	}
 
-	preHook, err := resolvePreHookNodes(suite, r.moduleResolver)
+	preHook, err := resolvePreHookNodes(suite, r.moduleResolver, env)
 	if err != nil {
 		return resolvedTopology{}, err
 	}
@@ -270,7 +281,7 @@ func (r *topologyResolver) resolveSuite(suite Definition, stack []string) (resol
 		Nodes:        resolved,
 		Dependencies: cloneResolvedDependencies(dependencies),
 	}
-	r.cached[id] = cloneResolvedTopology(result)
+	r.cached[cacheKey] = cloneResolvedTopology(result)
 	return cloneResolvedTopology(result), nil
 }
 
@@ -446,7 +457,11 @@ func parseDependencyManifest(sourceFiles []SourceFile) (map[string]dependencyEnt
 }
 
 func parseRawTopology(suiteStar string, resolve ModuleResolver) ([]rawTopologyNode, error) {
-	return evalStarlarkTopology(suiteStar, resolve)
+	return evalStarlarkTopologyWithEnv(suiteStar, resolve, nil)
+}
+
+func parseRawTopologyWithEnv(suiteStar string, resolve ModuleResolver, env map[string]string) ([]rawTopologyNode, error) {
+	return evalStarlarkTopologyWithEnv(suiteStar, resolve, env)
 }
 
 func parseTopologyAssignment(line string) (string, string, bool) {
@@ -1323,4 +1338,52 @@ func containsString(items []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// envKey identifies an env so one suite imported under two profiles is resolved
+// once for each.
+func envKey(env map[string]string) string {
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, key := range keys {
+		b.WriteString(key + "=" + env[key] + "\x00")
+	}
+	return b.String()
+}
+
+// defaultProfileEnv is the env: of the suite's default profile, which is what a
+// launch without a choice runs.
+func defaultProfileEnv(suite Definition) map[string]string {
+	name := ""
+	for _, profile := range suite.Profiles {
+		if profile.Default {
+			name = profile.FileName
+			break
+		}
+	}
+	if name == "" && len(suite.Profiles) > 0 {
+		name = suite.Profiles[0].FileName
+	}
+	runtime, err := parseDependencyProfileRuntime(suite.SourceFiles, name)
+	if err != nil {
+		return nil
+	}
+	return runtime.Env
+}
+
+// dependencyEnv is the env a nested suite's suite.star sees: its declared
+// profile's, or its default one.
+func dependencyEnv(child Definition, dependency ResolvedDependency) map[string]string {
+	if strings.TrimSpace(dependency.Profile) == "" {
+		return defaultProfileEnv(child)
+	}
+	runtime, err := parseDependencyProfileRuntime(child.SourceFiles, dependency.Profile)
+	if err != nil {
+		return nil
+	}
+	return runtime.Env
 }

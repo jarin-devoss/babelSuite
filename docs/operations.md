@@ -104,11 +104,7 @@ MONGO_URI=mongodb://localhost:27017
 MONGO_DB=babelsuite
 ```
 
-!!! note "PostgreSQL is present but not selectable"
-    A PostgreSQL store and migrator exist under `internal/store/postgres`, but
-    the server entrypoint reads no driver-selection variable, so there is no
-    supported way to switch to it today. `DB_DRIVER`, `POSTGRES_DSN` and
-    `DATABASE_URL` are not read.
+To run on PostgreSQL instead, set `DB_DRIVER=postgres` and `POSTGRES_URL=postgres://user:password@host:5432/babelsuite`. The schema is created and migrated at startup, and data is not moved between datastores. The backup commands below are MongoDB's; back up PostgreSQL with `pg_dump`. See [Configuration](configuration.md#datastore).
 
 ---
 

@@ -46,9 +46,16 @@ func validateRecord(record Record, current []Record, currentID string) error {
 		return errors.New("Profile YAML is required.")
 	}
 
-	var parsed any
+	var parsed map[string]any
 	if err := yaml.Unmarshal([]byte(record.YAML), &parsed); err != nil {
 		return fmt.Errorf("Invalid YAML: %v", err)
+	}
+	if block, ok := parsed["network"].(map[string]any); ok {
+		if mode, ok := block["mode"].(string); ok {
+			if err := ValidateNetworkMode(mode); err != nil {
+				return err
+			}
+		}
 	}
 
 	for _, existing := range current {
@@ -71,4 +78,17 @@ func validateRecord(record Record, current []Record, currentID string) error {
 	}
 
 	return nil
+}
+
+// ValidateNetworkMode accepts the one network mode a run has: its own network,
+// which every step joins and reaches the others on by name. The shipped modules
+// and the suite's gateway address steps that way, so a profile-wide "host" or
+// "none" would leave a suite with a service unable to run; refusing them says so
+// instead of accepting a value that changes nothing.
+func ValidateNetworkMode(mode string) error {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "execution":
+		return nil
+	}
+	return fmt.Errorf("network.mode %q is not supported: every run gets its own network, which its steps reach each other on by name; remove the key or use \"execution\"", strings.TrimSpace(mode))
 }

@@ -17,7 +17,6 @@ import (
 
 	"github.com/babelsuite/babelsuite/internal/platform"
 	"github.com/babelsuite/babelsuite/internal/profiles"
-	"github.com/babelsuite/babelsuite/internal/runner"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -43,10 +42,9 @@ type serviceSpec struct {
 }
 
 type profileRuntimeDocument struct {
-	Env         map[string]string
-	Services    map[string]serviceSpec
-	NetworkMode string
-	SecretRefs  []profiles.SecretReference
+	Env        map[string]string
+	Services   map[string]serviceSpec
+	SecretRefs []profiles.SecretReference
 	// AgentTags are the routing tags a backend must carry to run this
 	// profile — agent.tags in the profile YAML.
 	AgentTags []string
@@ -64,9 +62,8 @@ func (s *Service) resolveExecutionRuntimeOverlay(ctx context.Context, suiteID, p
 	}
 
 	overlay := executionRuntimeOverlay{
-		Env:         mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
-		Services:    cloneServiceMap(profileRuntime.Services),
-		NetworkMode: profileRuntime.NetworkMode,
+		Env:      mergeRuntimeMaps(profileRuntime.Env, platformGlobalOverrideEnv(settings)),
+		Services: cloneServiceMap(profileRuntime.Services),
 	}
 
 	if len(profileRuntime.SecretRefs) > 0 {
@@ -107,16 +104,6 @@ func (s *Service) resolveNodeRuntimeEnv(executionID string, node topologyNode) m
 		serviceEnv,
 		item.runtime.SecretEnv,
 	)
-}
-
-func (s *Service) resolveExecutionNetworkName(executionID string) string {
-	s.mu.Lock()
-	item := s.executions[executionID]
-	s.mu.Unlock()
-	if item == nil || item.runtime.NetworkMode != "execution" {
-		return ""
-	}
-	return runner.ExecutionNetworkName(executionID)
 }
 
 func (s *Service) resolveNodeDevices(executionID string, node topologyNode) []string {
@@ -218,9 +205,6 @@ func (s *Service) resolveManagedProfileRuntime(suiteID, profile string) (profile
 		runtime.Env = mergeRuntimeMaps(runtime.Env, parsed.Env)
 		runtime.Services = mergeServiceSpecs(runtime.Services, parsed.Services)
 		runtime.SecretRefs = mergeSecretRefs(runtime.SecretRefs, parsed.SecretRefs, current.SecretRefs)
-		if parsed.NetworkMode != "" {
-			runtime.NetworkMode = parsed.NetworkMode
-		}
 		// A child profile that names agent tags replaces its parent's: the
 		// tags say where the run must go, and a union could ask for a
 		// backend the child meant to move away from.
@@ -261,7 +245,9 @@ func parseManagedProfileYAML(source string) (profileRuntimeDocument, error) {
 
 	if netBlock, ok := document["network"].(map[string]any); ok {
 		if mode, ok := netBlock["mode"].(string); ok {
-			runtime.NetworkMode = strings.TrimSpace(strings.ToLower(mode))
+			if err := profiles.ValidateNetworkMode(mode); err != nil {
+				return profileRuntimeDocument{}, err
+			}
 		}
 	}
 

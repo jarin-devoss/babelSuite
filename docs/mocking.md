@@ -33,8 +33,8 @@ These are the gateway's back end, not an address for a test to call: every one a
 Each mock operation can carry:
 
 - **adapter** — protocol adapter (`rest`, `grpc`, `async`)
-- **dispatcher** — dispatch strategy (`example`, `script`, `sequence`, `random`)
-- **dispatcherRules** — rules used by the dispatcher
+- **dispatcher** — a label the response echoes in `X-Babelsuite-Dispatcher` (`apisix` unless set). It selects nothing: the answer is chosen by the examples' `dispatch:` conditions, then the fallback. There are no `script`, `sequence` or `random` strategies; use `state` for an answer that changes from call to call
+- **dispatcherRules** — a generated description of how the operation is resolved; it is not read
 - **delayMillis** — simulated latency
 - **parameterConstraints** — named constraints for routing by request attributes
 - **fallback** — what to return when no example matches

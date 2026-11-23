@@ -8,8 +8,6 @@ export interface APISIXSidecarConfig {
   image: string
   configMountPath: string
   listenPort: number
-  adminPort: number
-  capabilities: string[]
 }
 
 export interface ExecutionAgent {
