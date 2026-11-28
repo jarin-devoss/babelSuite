@@ -1,0 +1,108 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "db",
+      "name": "db",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "postgres:16",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "PGPORT": "5432",
+        "POSTGRES_DB": "app",
+        "POSTGRES_PASSWORD": "postgres",
+        "POSTGRES_USER": "postgres"
+      }
+    },
+    {
+      "id": "migrate",
+      "name": "migrate",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "python:3.12",
+      "file": "migrate.py",
+      "dependsOn": [
+        "db"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "stripe_mock",
+      "name": "stripe_mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "db"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "api",
+      "name": "api",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "payments-api:latest",
+      "dependsOn": [
+        "db",
+        "migrate",
+        "stripe_mock"
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "smoke-us",
+      "name": "smoke-us",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12",
+      "file": "smoke.py",
+      "dependsOn": [
+        "api"
+      ],
+      "level": 3,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "REGION": "us"
+      }
+    },
+    {
+      "id": "smoke-eu",
+      "name": "smoke-eu",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12",
+      "file": "smoke.py",
+      "dependsOn": [
+        "api"
+      ],
+      "level": 3,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "REGION": "eu"
+      }
+    },
+    {
+      "id": "smoke-ap",
+      "name": "smoke-ap",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12",
+      "file": "smoke.py",
+      "dependsOn": [
+        "api"
+      ],
+      "level": 3,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "REGION": "ap"
+      }
+    }
+  ],
+  "Dependencies": null
+}

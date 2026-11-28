@@ -1,0 +1,47 @@
+{
+  "Error": "",
+  "Spec": {
+    "variant": "traffic.baseline",
+    "target": "http://target",
+    "users": [
+      {
+        "id": "probe",
+        "name": "create-return",
+        "weight": 1,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "create-return",
+            "weight": 1,
+            "request": {
+              "method": "POST",
+              "path": "/returns",
+              "name": "create-return",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"amountCents\":4200,\"orderId\":\"ord_1001\",\"returnReason\":\"damaged\"}"
+            }
+          }
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "duration": 10000000000,
+        "users": 4,
+        "spawnRate": 4
+      }
+    ],
+    "thresholds": [
+      {
+        "metric": "http.error_rate",
+        "op": "\u003c=",
+        "value": 0.01
+      }
+    ]
+  }
+}

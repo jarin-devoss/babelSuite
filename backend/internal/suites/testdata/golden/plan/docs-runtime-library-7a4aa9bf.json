@@ -1,0 +1,54 @@
+{
+  "Error": "",
+  "Spec": {
+    "variant": "traffic.baseline",
+    "target": "http://target",
+    "users": [
+      {
+        "name": "probe/health",
+        "weight": 1,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "/health",
+            "weight": 1,
+            "request": {
+              "method": "GET",
+              "path": "/health",
+              "name": "/health"
+            }
+          }
+        ]
+      },
+      {
+        "name": "probe/status",
+        "weight": 1,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "/status",
+            "weight": 1,
+            "request": {
+              "method": "GET",
+              "path": "/status",
+              "name": "/status"
+            }
+          }
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "duration": 10000000000,
+        "users": 4,
+        "spawnRate": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "kafka",
+      "name": "kafka",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "apache/kafka:3.9.0",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "KAFKA_ADVERTISED_LISTENERS": "PLAINTEXT://kafka:9092",
+        "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "true",
+        "KAFKA_CONTROLLER_LISTENER_NAMES": "CONTROLLER",
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@kafka:9093",
+        "KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS": "0",
+        "KAFKA_INTER_BROKER_LISTENER_NAME": "PLAINTEXT",
+        "KAFKA_LISTENERS": "PLAINTEXT://:9092,CONTROLLER://:9093",
+        "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT",
+        "KAFKA_LOG_DIRS": "/tmp/kraft-combined-logs",
+        "KAFKA_NODE_ID": "1",
+        "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
+        "KAFKA_PROCESS_ROLES": "broker,controller",
+        "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": "1",
+        "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1"
+      }
+    },
+    {
+      "id": "rest-proxy",
+      "name": "rest-proxy",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "confluentinc/cp-kafka-rest:7.7.1",
+      "dependsOn": [
+        "kafka"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "KAFKA_REST_BOOTSTRAP_SERVERS": "kafka:9092",
+        "KAFKA_REST_LISTENERS": "http://0.0.0.0:8082"
+      }
+    },
+    {
+      "id": "orders-consumer-lag-check",
+      "name": "orders-consumer-lag-check",
+      "kind": "plugin",
+      "variant": "consumer-lag",
+      "plugin": {
+        "name": "consumer-lag",
+        "op": "check_lag",
+        "config": {
+          "group": "orders-consumer",
+          "kafka_rest_url": "http://rest-proxy:8082",
+          "max_lag": 500,
+          "severity": "critical"
+        }
+      },
+      "dependsOn": [
+        "rest-proxy"
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}

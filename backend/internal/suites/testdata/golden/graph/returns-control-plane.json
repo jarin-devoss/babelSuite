@@ -1,0 +1,277 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "partner-api",
+      "name": "partner-api",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-worker",
+      "name": "refund-worker",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "refund_worker.py",
+      "dependsOn": [
+        "partner-api"
+      ],
+      "level": 1,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "GATEWAY_URL": "http://babelsuite-gateway:9080",
+        "PARTNER_URL": "http://partner-api:9080",
+        "PORT": "8080"
+      }
+    },
+    {
+      "id": "refund-worker-ready",
+      "name": "refund-worker-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://refund-worker:8080/health')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 1; done; echo 'refund-worker never answered /health'; exit 1"
+      ],
+      "dependsOn": [
+        "refund-worker"
+      ],
+      "level": 2,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "ready",
+      "name": "ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "{{ suite }} on {{ profile }} — {{ healthy }}/{{ total }} nodes healthy",
+      "dependsOn": [
+        "refund-worker-ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "returns-stress",
+      "name": "returns-stress",
+      "kind": "traffic",
+      "variant": "traffic.stress",
+      "traffic": {
+        "variant": "traffic.stress",
+        "planPath": "traffic/returns.star",
+        "target": "http://refund-worker:8080",
+        "requestsPerSecond": 100,
+        "users": [
+          {
+            "id": "probe",
+            "name": "create-return",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "create-return",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/returns",
+                  "name": "create-return",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"amountCents\":4200,\"orderId\":\"ord_1001\",\"returnReason\":\"damaged\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "ready"
+      ],
+      "level": 4,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "returns-spike",
+      "name": "returns-spike",
+      "kind": "traffic",
+      "variant": "traffic.spike",
+      "traffic": {
+        "variant": "traffic.spike",
+        "planPath": "traffic/returns.star",
+        "target": "http://refund-worker:8080",
+        "requestsPerSecond": 80,
+        "users": [
+          {
+            "id": "probe",
+            "name": "create-return",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "create-return",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/returns",
+                  "name": "create-return",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"amountCents\":4200,\"orderId\":\"ord_1001\",\"returnReason\":\"damaged\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "returns-stress"
+      ],
+      "level": 5,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "returns-smoke",
+      "name": "returns-smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "returns_smoke.py",
+      "dependsOn": [
+        "returns-spike"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/returns-smoke.xml",
+          "name": "returns-smoke",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-smoke",
+      "name": "refund-smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "refund_smoke.py",
+      "dependsOn": [
+        "returns-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/junit.xml",
+          "name": "refund-tests",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 7,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "rollback-returns",
+      "name": "rollback-returns",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "echo 'a refund test failed: returns made by this run are test data and are discarded with the run'"
+      ],
+      "dependsOn": [
+        "refund-smoke"
+      ],
+      "onFailure": [
+        "refund-smoke"
+      ],
+      "level": 8,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "done",
+      "name": "done",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "returns suite complete — {{ healthy }}/{{ total }} healthy",
+      "dependsOn": [
+        "refund-smoke",
+        "rollback-returns"
+      ],
+      "level": 9,
+      "sourceSuiteId": "returns-control-plane",
+      "sourceSuiteTitle": "# Returns Control Plane",
+      "sourceRepository": "workspace/returns-control-plane",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

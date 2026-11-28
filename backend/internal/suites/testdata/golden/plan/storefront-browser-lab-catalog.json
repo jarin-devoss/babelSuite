@@ -1,0 +1,70 @@
+{
+  "Error": "",
+  "Spec": {
+    "variant": "traffic.baseline",
+    "target": "http://target",
+    "users": [
+      {
+        "id": "browse",
+        "name": "browse",
+        "weight": 3,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "list-products",
+            "weight": 1,
+            "request": {
+              "method": "GET",
+              "path": "/api/products",
+              "name": "list-products",
+              "headers": {
+                "Accept": "application/json"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "buy",
+        "name": "buy",
+        "weight": 1,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "order",
+            "weight": 1,
+            "request": {
+              "method": "POST",
+              "path": "/api/orders",
+              "name": "order",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"email\":\"shopper@demo.test\",\"quantity\":1,\"sku\":\"sku_1001\"}"
+            }
+          }
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "duration": 20000000000,
+        "users": 4,
+        "spawnRate": 4
+      }
+    ],
+    "thresholds": [
+      {
+        "metric": "http.error_rate",
+        "op": "\u003c=",
+        "value": 0.01
+      }
+    ]
+  }
+}

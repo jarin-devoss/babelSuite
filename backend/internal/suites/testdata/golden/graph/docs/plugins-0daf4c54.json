@@ -1,0 +1,114 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "spice-service",
+      "name": "spice-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "verilog-service",
+      "name": "verilog-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "control-service",
+      "name": "control-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "rc-filter-step-response",
+      "name": "rc-filter-step-response",
+      "kind": "plugin",
+      "variant": "spice-sim",
+      "plugin": {
+        "name": "spice-sim",
+        "op": "transient",
+        "config": {
+          "end_time_ms": 10,
+          "max_rise_ms": 3,
+          "max_voltage": 5.5,
+          "min_voltage": null,
+          "netlist": "RC Filter\n...",
+          "probe_node": "2",
+          "severity": "critical",
+          "sim_url": "",
+          "step_time_ms": 0.1,
+          "timeout_ms": null
+        }
+      },
+      "dependsOn": [
+        "spice-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "4bit-counter-correctness",
+      "name": "4bit-counter-correctness",
+      "kind": "plugin",
+      "variant": "verilog-sim",
+      "plugin": {
+        "name": "verilog-sim",
+        "op": "simulate",
+        "config": {
+          "assert_no_x": true,
+          "max_errors": 0,
+          "severity": "critical",
+          "sim_url": "",
+          "testbench": "...",
+          "timeout_ns": 200,
+          "top_module": "tb_counter",
+          "verilog": "..."
+        }
+      },
+      "dependsOn": [
+        "verilog-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "mass-spring-damper-response",
+      "name": "mass-spring-damper-response",
+      "kind": "plugin",
+      "variant": "control-sim",
+      "plugin": {
+        "name": "control-sim",
+        "op": "monitor",
+        "config": {
+          "denominator": [
+            1,
+            2,
+            1
+          ],
+          "max_overshoot_pct": null,
+          "max_settling_time": null,
+          "numerator": [
+            1
+          ],
+          "sim_url": "",
+          "time_end": 10
+        }
+      },
+      "dependsOn": [
+        "control-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}

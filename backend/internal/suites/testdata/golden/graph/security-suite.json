@@ -1,0 +1,309 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "api",
+      "name": "api",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "api.py",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "api-ready",
+      "name": "api-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "until python -c \"import urllib.request; urllib.request.urlopen('http://api:8000/api')\"; do sleep 1; done"
+      ],
+      "dependsOn": [
+        "api"
+      ],
+      "level": 1,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "node_2",
+      "name": "node_2",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "api is up — starting passive surface checks",
+      "dependsOn": [
+        "api-ready"
+      ],
+      "level": 2,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "probe",
+      "name": "probe",
+      "kind": "security",
+      "variant": "security.probe",
+      "security": {
+        "variant": "security.probe",
+        "target": "http://api:8000"
+      },
+      "dependsOn": [
+        "api-ready"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/probe.json",
+          "on": "always"
+        }
+      ],
+      "level": 2,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "headers",
+      "name": "headers",
+      "kind": "security",
+      "variant": "security.headers",
+      "security": {
+        "variant": "security.headers",
+        "target": "http://api:8000"
+      },
+      "dependsOn": [
+        "api-ready"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/headers.json",
+          "on": "always"
+        }
+      ],
+      "level": 2,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "verbs",
+      "name": "verbs",
+      "kind": "security",
+      "variant": "security.verbs",
+      "security": {
+        "variant": "security.verbs",
+        "target": "http://api:8000"
+      },
+      "dependsOn": [
+        "api-ready"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/verbs.json",
+          "on": "always"
+        }
+      ],
+      "level": 2,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "graphql",
+      "name": "graphql",
+      "kind": "security",
+      "variant": "security.graphql",
+      "security": {
+        "variant": "security.graphql",
+        "target": "http://api:8000"
+      },
+      "dependsOn": [
+        "api-ready"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/graphql.json",
+          "on": "always"
+        }
+      ],
+      "level": 2,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "cors",
+      "name": "cors",
+      "kind": "security",
+      "variant": "security.cors",
+      "security": {
+        "variant": "security.cors",
+        "target": "http://api:8000"
+      },
+      "dependsOn": [
+        "api-ready"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/cors.json",
+          "on": "always"
+        }
+      ],
+      "level": 2,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "passive_done",
+      "name": "passive_done",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "passive checks complete (probe, headers, verbs, graphql, cors) — starting active injection",
+      "dependsOn": [
+        "probe",
+        "headers",
+        "verbs",
+        "graphql",
+        "cors"
+      ],
+      "level": 3,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fuzz",
+      "name": "fuzz",
+      "kind": "security",
+      "variant": "security.fuzz",
+      "security": {
+        "variant": "security.fuzz",
+        "target": "http://api:8000",
+        "technique": "sqli"
+      },
+      "dependsOn": [
+        "passive_done"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/fuzz.json",
+          "on": "always"
+        }
+      ],
+      "level": 4,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "auth-check",
+      "name": "auth-check",
+      "kind": "security",
+      "variant": "security.auth",
+      "security": {
+        "variant": "security.auth",
+        "target": "http://api:8000"
+      },
+      "dependsOn": [
+        "passive_done"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/auth.json",
+          "on": "always"
+        }
+      ],
+      "level": 4,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "flood",
+      "name": "flood",
+      "kind": "security",
+      "variant": "security.flood",
+      "security": {
+        "variant": "security.flood",
+        "target": "http://api:8000",
+        "floodPath": "/api/v1/resource",
+        "floodRate": 50,
+        "floodDuration": 5,
+        "floodThrottle": true
+      },
+      "dependsOn": [
+        "passive_done"
+      ],
+      "artifactExports": [
+        {
+          "path": "/findings/flood.json",
+          "on": "always"
+        }
+      ],
+      "level": 4,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "node_12",
+      "name": "node_12",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "all 8 security modes complete — aggregating findings",
+      "dependsOn": [
+        "fuzz",
+        "auth-check",
+        "flood"
+      ],
+      "level": 5,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "verify-findings",
+      "name": "verify-findings",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "python:3.12-slim",
+      "file": "verify_findings.py",
+      "dependsOn": [
+        "fuzz",
+        "auth-check",
+        "flood",
+        "headers",
+        "verbs",
+        "graphql",
+        "cors",
+        "probe"
+      ],
+      "level": 5,
+      "sourceSuiteId": "security-suite",
+      "sourceSuiteTitle": "# Security Suite",
+      "sourceRepository": "localhost:5000/security/security-suite",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

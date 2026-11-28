@@ -90,7 +90,7 @@ func loadWorkspaceSuite(root, suiteID string) (Definition, bool) {
 		ForkCommand: workspaceForkCommand(repository),
 		SuiteStar:   string(suiteStarBytes),
 		Profiles:    profiles,
-		Folders:     loadWorkspaceFolders(base),
+		Folders:     FoldersFromFiles(readWorkspaceFiles(base, allFolders(base)...)),
 		SeedSources: rootSources,
 		Contracts:   extractLoadContracts(string(suiteStarBytes)),
 		APISurfaces: loadWorkspaceAPISurfaces(base),
@@ -117,58 +117,32 @@ func loadWorkspaceMetadata(base string) workspaceMetadataDocument {
 }
 
 func loadWorkspaceProfiles(base string) ([]ProfileOption, string, []string) {
-	dir := filepath.Join(base, "profiles")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, "", nil
-	}
+	files := readWorkspaceFiles(base, "profiles")
+	profiles := ProfilesFromFiles(files)
 
-	profiles := make([]ProfileOption, 0, len(entries))
+	// What only a directory suite declares: the repository and the modules its
+	// profiles name.
+	paths := make([]string, 0, len(files))
+	for path := range files {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
 	moduleSet := map[string]struct{}{}
 	repository := ""
-	for _, entry := range entries {
-		if entry.IsDir() || !isYAMLFile(entry.Name()) {
-			continue
-		}
-
-		path := filepath.Join(dir, entry.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-
+	for _, path := range paths {
 		var profile workspaceProfileDocument
-		if err := yaml.Unmarshal(data, &profile); err != nil {
+		if err := yaml.Unmarshal([]byte(files[path]), &profile); err != nil {
 			continue
 		}
-
-		fileName := firstWorkspaceNonEmpty(strings.TrimSpace(profile.Runtime.ProfileFile), entry.Name())
-		profiles = append(profiles, ProfileOption{
-			FileName:    fileName,
-			Label:       firstWorkspaceNonEmpty(strings.TrimSpace(profile.Name), workspaceLabelFromFileName(fileName)),
-			Description: strings.TrimSpace(profile.Description),
-			Default:     profile.Default,
-		})
-
 		if repository == "" {
 			repository = strings.TrimSpace(profile.Runtime.Repository)
 		}
 		for _, module := range profile.Modules {
-			trimmed := strings.TrimSpace(module)
-			if trimmed == "" {
-				continue
+			if trimmed := strings.TrimSpace(module); trimmed != "" {
+				moduleSet[trimmed] = struct{}{}
 			}
-			moduleSet[trimmed] = struct{}{}
 		}
 	}
-
-	sort.Slice(profiles, func(i, j int) bool {
-		if profiles[i].Default != profiles[j].Default {
-			return profiles[i].Default
-		}
-		return profiles[i].FileName < profiles[j].FileName
-	})
-
 	modules := make([]string, 0, len(moduleSet))
 	for module := range moduleSet {
 		modules = append(modules, module)
@@ -205,45 +179,19 @@ func loadWorkspaceReadme(base, suiteID string) (string, string) {
 	return title, description
 }
 
-func loadWorkspaceFolders(base string) []FolderEntry {
+// allFolders names the folders of a suite directory.
+func allFolders(base string) []string {
 	entries, err := os.ReadDir(base)
 	if err != nil {
 		return nil
 	}
-
-	folders := make([]FolderEntry, 0, len(entries))
+	var names []string
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		if entry.IsDir() {
+			names = append(names, entry.Name())
 		}
-
-		files := make([]string, 0)
-		folderRoot := filepath.Join(base, entry.Name())
-		_ = filepath.WalkDir(folderRoot, func(path string, d os.DirEntry, walkErr error) error {
-			if walkErr != nil || d.IsDir() {
-				return nil //nolint:nilerr // returning nil in WalkDir callback skips the entry and continues walking
-			}
-			relative, err := filepath.Rel(folderRoot, path)
-			if err != nil {
-				return nil //nolint:nilerr // skip unresolvable paths and continue walking
-			}
-			files = append(files, filepath.ToSlash(relative))
-			return nil
-		})
-		sort.Strings(files)
-
-		folders = append(folders, FolderEntry{
-			Name:        entry.Name(),
-			Role:        folderRole(entry.Name()),
-			Description: folderDescription(entry.Name()),
-			Files:       files,
-		})
 	}
-
-	sort.Slice(folders, func(i, j int) bool {
-		return folders[i].Name < folders[j].Name
-	})
-	return folders
+	return names
 }
 
 func loadWorkspaceRootSourceFiles(base string) []SourceFile {
@@ -277,37 +225,6 @@ func loadWorkspaceRootSourceFiles(base string) []SourceFile {
 		return files[i].Path < files[j].Path
 	})
 	return files
-}
-
-func loadWorkspaceContracts(suiteStar string) []string {
-	lines := strings.Split(suiteStar, "\n")
-	contracts := make([]string, 0)
-	seen := map[string]struct{}{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "load(") {
-			continue
-		}
-		start := strings.Index(line, "\"")
-		if start == -1 {
-			continue
-		}
-		rest := line[start+1:]
-		end := strings.Index(rest, "\"")
-		if end == -1 {
-			continue
-		}
-		module := strings.TrimSpace(rest[:end])
-		if module == "" {
-			continue
-		}
-		if _, ok := seen[module]; ok {
-			continue
-		}
-		seen[module] = struct{}{}
-		contracts = append(contracts, module)
-	}
-	return contracts
 }
 
 func folderRole(name string) string {
@@ -438,147 +355,33 @@ func mergeWorkspaceTags(tags []string) []string {
 }
 
 func loadWorkspaceAPISurfaces(base string) []APISurface {
-	type rawOp struct {
-		surfaceID string
-		op        APIOperation
-	}
-
-	var ops []rawOp
-	_ = filepath.WalkDir(filepath.Join(base, "mock"), func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".metadata.yaml") {
-			return nil
-		}
-		data, _ := os.ReadFile(path)
-		var doc struct {
-			Metadata struct {
-				OperationID    string `yaml:"operationId"`
-				SourceArtifact string `yaml:"sourceArtifact"`
-			} `yaml:"metadata"`
-			Spec struct {
-				Adapter              string                `yaml:"adapter"`
-				DelayMillis          int                   `yaml:"delayMillis"`
-				ResolverURL          string                `yaml:"resolverUrl"`
-				RuntimeURL           string                `yaml:"runtimeUrl"`
-				ParameterConstraints []ParameterConstraint `yaml:"parameterConstraints"`
-				Fallback             *MockFallback         `yaml:"fallback"`
-				State                *MockState            `yaml:"state"`
-			} `yaml:"spec"`
-		}
-		_ = yaml.Unmarshal(data, &doc)
-		opID := strings.TrimSpace(doc.Metadata.OperationID)
-		resolverURL := strings.TrimSpace(doc.Spec.ResolverURL)
-		if opID == "" || resolverURL == "" {
-			return nil
-		}
-		parts := strings.Split(strings.Trim(resolverURL, "/"), "/")
-		if len(parts) < 5 {
-			return nil
-		}
-		rel, _ := filepath.Rel(base, path)
-		ops = append(ops, rawOp{
-			surfaceID: parts[3],
-			op: APIOperation{
-				ID:       opID,
-				MockPath: filepath.ToSlash(strings.TrimSpace(doc.Metadata.SourceArtifact)),
-				MockMetadata: MockOperationMetadata{
-					Adapter:              strings.ToLower(strings.TrimSpace(doc.Spec.Adapter)),
-					DelayMillis:          doc.Spec.DelayMillis,
-					ResolverURL:          resolverURL,
-					RuntimeURL:           strings.TrimSpace(doc.Spec.RuntimeURL),
-					ParameterConstraints: doc.Spec.ParameterConstraints,
-					Fallback:             doc.Spec.Fallback,
-					State:                doc.Spec.State,
-					MetadataPath:         filepath.ToSlash(rel),
-				},
-			},
-		})
-		return nil
-	})
-
-	if len(ops) == 0 {
-		return nil
-	}
-
-	// Read OpenAPI specs to get HTTP method and path template for each operationId.
-	type opDetail struct{ method, path string }
-	apiMap := make(map[string]opDetail)
-	_ = filepath.WalkDir(filepath.Join(base, "api"), func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if ext != ".yaml" && ext != ".yml" {
-			return nil
-		}
-		data, _ := os.ReadFile(path)
-		var spec struct {
-			Paths map[string]map[string]struct {
-				OperationID string `yaml:"operationId"`
-				Summary     string `yaml:"summary"`
-			} `yaml:"paths"`
-		}
-		_ = yaml.Unmarshal(data, &spec)
-		for apiPath, methods := range spec.Paths {
-			for httpMethod, op := range methods {
-				key := workspaceNormKey(op.OperationID)
-				if key == "" {
-					continue
-				}
-				apiMap[key] = opDetail{method: strings.ToUpper(httpMethod), path: apiPath}
-			}
-		}
-		return nil
-	})
-
-	// Apply method + path from OpenAPI, fallback to deriving from runtimeUrl.
-	for i := range ops {
-		detail := apiMap[workspaceNormKey(ops[i].op.ID)]
-		if detail.method != "" {
-			ops[i].op.Method = detail.method
-			ops[i].op.Name = detail.path
-		} else {
-			// Derive path from runtimeUrl suffix (after surfaceID segment).
-			ru := strings.TrimSpace(ops[i].op.MockMetadata.RuntimeURL)
-			if idx := strings.Index(ru, "?"); idx >= 0 {
-				ru = ru[:idx]
-			}
-			parts := strings.SplitN(ru, "/", 6)
-			if len(parts) >= 6 {
-				ops[i].op.Name = "/" + parts[5]
-			}
-			// Default to POST for REST when method unknown.
-			if strings.EqualFold(ops[i].op.MockMetadata.Adapter, "rest") {
-				ops[i].op.Method = "POST"
-			}
-		}
-	}
-
-	type surfaceGroup struct{ ops []APIOperation }
-	groups := make(map[string]*surfaceGroup)
-	var order []string
-	for _, o := range ops {
-		if _, ok := groups[o.surfaceID]; !ok {
-			groups[o.surfaceID] = &surfaceGroup{}
-			order = append(order, o.surfaceID)
-		}
-		groups[o.surfaceID].ops = append(groups[o.surfaceID].ops, o.op)
-	}
-
-	result := make([]APISurface, 0, len(order))
-	for _, sid := range order {
-		result = append(result, APISurface{ID: sid, Operations: groups[sid].ops})
-	}
-	return result
+	return SurfacesFromFiles(readWorkspaceFiles(base, "mock", "api"))
 }
 
-func workspaceNormKey(id string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(id)), "-", ""), "_", "")
+// readWorkspaceFiles reads the files under the named folders of a suite
+// directory into the map the package-file parsers take (path relative to the
+// suite, with forward slashes).
+func readWorkspaceFiles(base string, folders ...string) map[string]string {
+	files := map[string]string{}
+	for _, folder := range folders {
+		root := filepath.Join(base, folder)
+		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil //nolint:nilerr // a folder that cannot be read has no files
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil //nolint:nilerr // skip a file that cannot be read
+			}
+			rel, relErr := filepath.Rel(base, path)
+			if relErr != nil {
+				return nil //nolint:nilerr // skip a path that cannot be made relative
+			}
+			files[filepath.ToSlash(rel)] = string(data)
+			return nil
+		})
+	}
+	return files
 }
 
 // NewWorkspaceService loads suites from the local examples directory.

@@ -1,0 +1,65 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "db",
+      "name": "db",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "postgres:16",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "PGPORT": "5432",
+        "POSTGRES_DB": "app",
+        "POSTGRES_PASSWORD": "postgres",
+        "POSTGRES_USER": "postgres"
+      }
+    },
+    {
+      "id": "db-connect",
+      "name": "db-connect",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "postgres:16",
+      "commands": [
+        "for i in $(seq 1 30); do PGHOST='db' PGPORT='5432' PGUSER='postgres' PGPASSWORD='postgres' PGDATABASE='app' psql ${POSTGRES_URL:+\"$POSTGRES_URL\"} -v ON_ERROR_STOP=1 -c 'select 1;' \u0026\u0026 exit 0; sleep 2; done; exit 1"
+      ],
+      "dependsOn": [
+        "db"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "db-insert-merchants",
+      "name": "db-insert-merchants",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "postgres:16",
+      "commands": [
+        "PGHOST='db' PGPORT='5432' PGUSER='postgres' PGPASSWORD='postgres' PGDATABASE='app' psql ${POSTGRES_URL:+\"$POSTGRES_URL\"} -v ON_ERROR_STOP=1 -c 'insert into merchants (id, name) values ('\"'\"'m1'\"'\"', '\"'\"'Acme'\"'\"');'"
+      ],
+      "dependsOn": [
+        "db",
+        "db-connect"
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "app",
+      "name": "app",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "merchant-api:latest",
+      "dependsOn": [
+        "db-insert-merchants"
+      ],
+      "level": 3,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}

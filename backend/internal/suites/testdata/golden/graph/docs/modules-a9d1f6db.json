@@ -1,0 +1,85 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "cache",
+      "name": "cache",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "redis:7.2-alpine",
+      "commands": [
+        "exec redis-server '--port' '6379' '--databases' '16' '--maxmemory' '512mb' '--maxmemory-policy' 'allkeys-lru' '--requirepass' 's3cr3t' '--save' '\"\"' '--appendonly' 'no'"
+      ],
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "REDIS_PASSWORD": "s3cr3t",
+        "REDIS_PORT": "6379"
+      }
+    },
+    {
+      "id": "cache-wait-ready",
+      "name": "cache-wait-ready",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "redis:7.2-alpine",
+      "commands": [
+        "until REDISCLI_AUTH='s3cr3t' redis-cli -h \"${REDIS_HOST:-cache}\" -p \"${REDIS_PORT:-6379}\" PING | grep -q PONG; do sleep 1; done"
+      ],
+      "dependsOn": [
+        "cache"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "cache-flushdb-0",
+      "name": "cache-flushdb-0",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "redis:7.2-alpine",
+      "commands": [
+        "REDISCLI_AUTH='s3cr3t' redis-cli -h \"${REDIS_HOST:-cache}\" -p \"${REDIS_PORT:-6379}\" -n 0 FLUSHDB"
+      ],
+      "dependsOn": [
+        "cache",
+        "cache-wait-ready"
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "cache-set-keys",
+      "name": "cache-set-keys",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "redis:7.2-alpine",
+      "commands": [
+        "REDISCLI_AUTH='s3cr3t' redis-cli -h \"${REDIS_HOST:-cache}\" -p \"${REDIS_PORT:-6379}\" SET 'checkout_v2' 'true' \u0026\u0026 REDISCLI_AUTH='s3cr3t' redis-cli -h \"${REDIS_HOST:-cache}\" -p \"${REDIS_PORT:-6379}\" SET 'promo_engine' 'true'"
+      ],
+      "dependsOn": [
+        "cache",
+        "cache-flushdb-0"
+      ],
+      "level": 3,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "app",
+      "name": "app",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "feature-api:latest",
+      "dependsOn": [
+        "cache-set-keys"
+      ],
+      "level": 4,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "REDIS_URL": "redis://:s3cr3t@cache:6379"
+      }
+    }
+  ],
+  "Dependencies": null
+}

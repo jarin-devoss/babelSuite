@@ -1,0 +1,5 @@
+{
+  "Error": "invalid suite topology: dependency ref \"localhost:5000/security/identity-broker\" could not be resolved",
+  "Topology": null,
+  "Dependencies": null
+}

@@ -1,0 +1,368 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "pre-hook/legacy-ledger-db",
+      "name": "pre-hook/legacy-ledger-db",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "mysql:8",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "MYSQL_DATABASE": "ledger",
+        "MYSQL_PASSWORD": "babelsuite",
+        "MYSQL_ROOT_PASSWORD": "babelsuite",
+        "MYSQL_USER": "ledger"
+      }
+    },
+    {
+      "id": "pre-hook/settlement-api",
+      "name": "pre-hook/settlement-api",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "busybox:1.37",
+      "commands": [
+        "mkdir -p /www",
+        "echo '{\"status\":\"ok\",\"window\":\"open\"}' \u003e /www/health",
+        "httpd -f -p 8080 -h /www"
+      ],
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pre-hook/legacy-ledger-alive",
+      "name": "pre-hook/legacy-ledger-alive",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "mysql:8",
+      "commands": [
+        "attempt=0",
+        "until mysqladmin ping --host=legacy-ledger-db --user=root --silent 2\u003e/dev/null; do   attempt=$((attempt+1));   if [ \"$attempt\" -ge 40 ]; then echo 'legacy ledger never accepted connections' \u003e\u00262; exit 1; fi;   echo \"waiting for legacy ledger (attempt $attempt)\";   sleep 2; done",
+        "echo 'legacy ledger is accepting connections'",
+        "mysql --host=legacy-ledger-db --user=root --database=ledger --execute='SELECT 1' \u003e/dev/null",
+        "echo 'legacy ledger schema is queryable'"
+      ],
+      "dependsOn": [
+        "pre-hook/legacy-ledger-db"
+      ],
+      "level": 1,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "MYSQL_PWD": "babelsuite"
+      }
+    },
+    {
+      "id": "pre-hook/settlement-api-alive",
+      "name": "pre-hook/settlement-api-alive",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "busybox:1.37",
+      "commands": [
+        "attempt=0",
+        "until wget -q -O- http://settlement-api:8080/health 2\u003e/dev/null | grep -q '\"status\":\"ok\"'; do   attempt=$((attempt+1));   if [ \"$attempt\" -ge 30 ]; then echo 'settlement API never reported healthy' \u003e\u00262; exit 1; fi;   echo \"waiting for settlement API (attempt $attempt)\";   sleep 1; done",
+        "echo 'settlement API is alive and its window is open'"
+      ],
+      "dependsOn": [
+        "pre-hook/settlement-api"
+      ],
+      "level": 1,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pre-hook/environment_ready",
+      "name": "pre-hook/environment_ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "payments environment ready — legacy ledger and settlement API are both live",
+      "dependsOn": [
+        "pre-hook/legacy-ledger-alive",
+        "pre-hook/settlement-api-alive"
+      ],
+      "level": 2,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "stripe-mock",
+      "name": "stripe-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "pre-hook/environment_ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "payment-api",
+      "name": "payment-api",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "payment_api.py",
+      "dependsOn": [
+        "stripe-mock"
+      ],
+      "level": 4,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "PORT": "8080",
+        "STRIPE_URL": "http://stripe-mock:9080"
+      }
+    },
+    {
+      "id": "payment-api-ready",
+      "name": "payment-api-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://payment-api:8080/health')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 1; done; echo 'payment-api never answered /health'; exit 1"
+      ],
+      "dependsOn": [
+        "payment-api"
+      ],
+      "level": 5,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "infra_ready",
+      "name": "infra_ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "payment-api is answering; stripe-mock is its processor",
+      "dependsOn": [
+        "payment-api-ready"
+      ],
+      "level": 6,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "checkout-baseline",
+      "name": "checkout-baseline",
+      "kind": "traffic",
+      "variant": "traffic.baseline",
+      "traffic": {
+        "variant": "traffic.baseline",
+        "planPath": "traffic/checkout.star",
+        "target": "http://payment-api:8080",
+        "requestsPerSecond": 50,
+        "users": [
+          {
+            "id": "probe",
+            "name": "authorize-payment",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "authorize-payment",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/payments",
+                  "name": "authorize-payment",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"amount\":1299,\"cardToken\":\"tok_visa\",\"currency\":\"USD\",\"merchantId\":\"m-117\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "infra_ready"
+      ],
+      "level": 7,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "checkout-smoke",
+      "name": "checkout-smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "checkout_smoke.py",
+      "dependsOn": [
+        "checkout-baseline"
+      ],
+      "resetMocks": [
+        "stripe-mock"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "Traceback"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/junit.xml",
+          "name": "checkout-tests",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 8,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-regression",
+      "name": "refund-regression",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "refund_regression.py",
+      "dependsOn": [
+        "checkout-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/refund-regression.xml",
+          "name": "refund-regression",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 9,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "reconcile-usd",
+      "name": "reconcile-usd",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "reconcile_smoke.py",
+      "dependsOn": [
+        "refund-regression"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/reconcile-usd.xml",
+          "name": "reconcile-usd",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "TARGET_CURRENCY": "usd"
+      }
+    },
+    {
+      "id": "reconcile-eur",
+      "name": "reconcile-eur",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "reconcile_smoke.py",
+      "dependsOn": [
+        "refund-regression"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/reconcile-eur.xml",
+          "name": "reconcile-eur",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "TARGET_CURRENCY": "eur"
+      }
+    },
+    {
+      "id": "reconcile-gbp",
+      "name": "reconcile-gbp",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "reconcile_smoke.py",
+      "dependsOn": [
+        "refund-regression"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/reconcile-gbp.xml",
+          "name": "reconcile-gbp",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "payment-suite",
+      "sourceSuiteTitle": "# Payment Suite",
+      "sourceRepository": "workspace/payment-suite",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "TARGET_CURRENCY": "gbp"
+      }
+    }
+  ],
+  "Dependencies": []
+}

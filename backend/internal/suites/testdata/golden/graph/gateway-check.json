@@ -1,0 +1,34 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "echo-mock",
+      "name": "echo-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "gateway-check",
+      "sourceSuiteTitle": "# Gateway Check",
+      "sourceRepository": "workspace/gateway-check",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "gateway-reachable",
+      "name": "gateway-reachable",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "curlimages/curl:8.7.1",
+      "file": "reach.sh",
+      "dependsOn": [
+        "echo-mock"
+      ],
+      "level": 1,
+      "sourceSuiteId": "gateway-check",
+      "sourceSuiteTitle": "# Gateway Check",
+      "sourceRepository": "workspace/gateway-check",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

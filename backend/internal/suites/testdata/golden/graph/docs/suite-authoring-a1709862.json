@@ -1,0 +1,19 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "environment-ready",
+      "name": "environment-ready",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "busybox",
+      "commands": [
+        "test -w /tmp || (echo 'workspace is not writable' \u0026\u0026 exit 1)"
+      ],
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}
