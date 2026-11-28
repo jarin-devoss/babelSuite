@@ -288,6 +288,22 @@ func suiteHasTransport(suite SuiteConfig, match func(string) bool) bool {
 // to publish.
 func UnservedSurfaces(suite SuiteConfig) []UnservedSurface {
 	var out []UnservedSurface
+	for _, imported := range suite.Imported {
+		for _, surface := range imported.APISurfaces {
+			for _, operation := range surface.Operations {
+				transport := transportKind(surface, operation)
+				if isHTTPCompatibleTransport(transport) || transport == "websocket" {
+					continue
+				}
+				out = append(out, UnservedSurface{
+					Surface:   imported.ID + "/" + surface.ID,
+					Operation: operation.ID,
+					Transport: transportDisplayName(transport),
+					Reason:    "the imported suite " + imported.ID + " is served for its HTTP-family and WebSocket mocks only; " + transportDisplayName(transport) + " mocks are served for the suite being run",
+				})
+			}
+		}
+	}
 	for _, surface := range suite.APISurfaces {
 		for _, operation := range surface.Operations {
 			transport := transportKind(surface, operation)

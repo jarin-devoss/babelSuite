@@ -459,3 +459,89 @@ func TestASurfaceWithoutAProtocolIsServedByItsOperationsAdapter(t *testing.T) {
 		t.Fatalf("UnservedSurfaces = %+v, want the async operation that names no broker", unserved)
 	}
 }
+
+// A suite this one imports has its HTTP mocks served by the same gateway, on its
+// own host, so a step of the suite being run reaches them. Its mock names answer
+// on its routes only, and a surface with no host of its own is host-scoped: it
+// cannot take over the root suite's path-only routes.
+func TestAnImportedSuitesMocksAreServedOnHostsOfTheirOwn(t *testing.T) {
+	t.Parallel()
+	root := SuiteConfig{
+		ID:        "parent",
+		MockNames: []string{"parent-api"},
+		APISurfaces: []SurfaceConfig{{ID: "api", Protocol: "rest", MockHost: "http://parent.mock.internal",
+			Operations: []OperationConfig{{ID: "ping", Method: "GET", Name: "/ping"}}}},
+		Imported: []SuiteConfig{{
+			ID:        "child",
+			MockNames: []string{"child-api"},
+			APISurfaces: []SurfaceConfig{
+				{ID: "api", Protocol: "rest", Operations: []OperationConfig{{ID: "ping", Method: "GET", Name: "/ping"}}},
+				{ID: "grpc", Protocol: "grpc", Operations: []OperationConfig{{ID: "hello"}}},
+			},
+		}},
+	}
+	body := RenderStandaloneConfig(root)
+	for _, want := range []string{
+		"id: parent.ping", "id: child.ping",
+		"child.mock.internal", // the conventional host of a surface with no host of its own
+		"child-api",           // the imported suite's mock node, by name
+		"suite: child",        // its routes resolve against that suite
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %q:\n%s", want, body)
+		}
+	}
+	// The parent's mock name must not route to the child's mock, nor the reverse.
+	routeOf := func(id string) string {
+		start := strings.Index(body, "- id: "+id)
+		rest := body[start+1:]
+		if end := strings.Index(rest, "- id: "); end >= 0 {
+			rest = rest[:end]
+		}
+		return rest
+	}
+	if strings.Contains(routeOf("parent.ping"), "child-api") || strings.Contains(routeOf("child.ping"), "parent-api") {
+		t.Fatalf("a suite's mock name was added to the other suite's route:\n%s", body)
+	}
+
+	unserved := UnservedSurfaces(root)
+	if len(unserved) != 1 || !strings.Contains(unserved[0].Surface, "child/grpc") {
+		t.Fatalf("UnservedSurfaces = %+v, want the imported suite's gRPC mock", unserved)
+	}
+}
+
+// The plugins an imported suite's mocks need are loaded even when the suite being
+// run has no mock of its own: a route naming a plugin the sidecar did not load
+// falls through to its unroutable upstream and answers 502.
+func TestThePluginCatalogCoversTheImportedSuitesMocks(t *testing.T) {
+	t.Parallel()
+	body := RenderStandaloneConfig(SuiteConfig{ID: "parent", Imported: []SuiteConfig{{
+		ID: "child", APISurfaces: []SurfaceConfig{{ID: "api", Protocol: "rest", Operations: []OperationConfig{{ID: "ping", Method: "GET", Name: "/ping"}}}},
+	}}})
+	plugins := body[:strings.Index(body, "routes:")]
+	if !strings.Contains(plugins, "name: "+MockPluginName) {
+		t.Fatalf("%s is not in the plugin list:\n%s", MockPluginName, plugins)
+	}
+}
+
+// Three simulators serve the same path (/simulate), each on a host of its own that
+// is also the name of its mock node. A node name must reach its own surface: it
+// must not be added to the other surfaces, or the first one registered would
+// answer for all three.
+func TestAMockNodeNamedLikeASurfaceHostReachesOnlyThatSurface(t *testing.T) {
+	t.Parallel()
+	suite := SuiteConfig{
+		ID:        "lab",
+		MockNames: []string{"spice-service", "verilog-service"},
+		APISurfaces: []SurfaceConfig{
+			{ID: "spice", Protocol: "rest", MockHost: "https://spice-service", Operations: []OperationConfig{{ID: "spice-simulate", Method: "POST", Name: "/simulate"}}},
+			{ID: "verilog", Protocol: "rest", MockHost: "https://verilog-service", Operations: []OperationConfig{{ID: "verilog-simulate", Method: "POST", Name: "/simulate"}}},
+		},
+	}
+	if got := routeHosts(suite, suite.APISurfaces[0]); len(got) != 1 || got[0] != "spice-service" {
+		t.Fatalf("the SPICE surface's hosts = %v, want only spice-service", got)
+	}
+	if got := routeHosts(suite, suite.APISurfaces[1]); len(got) != 1 || got[0] != "verilog-service" {
+		t.Fatalf("the Verilog surface's hosts = %v, want only verilog-service", got)
+	}
+}

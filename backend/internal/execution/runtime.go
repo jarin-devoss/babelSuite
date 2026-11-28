@@ -294,6 +294,7 @@ func (s *Service) bootExecution(executionID string, suite *suites.Definition, pr
 	}
 	suite.Topology = resolved.Nodes
 	suite.ResolvedDependencies = resolved.Dependencies
+	suite.ImportedSuites = resolved.Imports
 	suite.TopologyError = ""
 
 	s.mu.Lock()
@@ -447,6 +448,11 @@ func (s *Service) registerMockRun(executionID string, suite *suites.Definition) 
 	s.mu.Unlock()
 	if resetter != nil && suite != nil {
 		resetter.RegisterExecution(executionID, suite.ID)
+		// A request for a suite this one imports belongs to the run too: its mock
+		// keeps this run's state apart from every other run's.
+		for _, imported := range suite.ImportedSuites {
+			resetter.RegisterExecution(executionID, imported.ID)
+		}
 	}
 }
 
@@ -500,7 +506,11 @@ func (s *Service) ensureSuiteSidecar(suite *suites.Definition, profile string) e
 
 	suiteConfig := suites.ApisixSuiteConfig(*suite)
 	suiteConfig.CustomPlugins = customPlugins
-	suiteConfig.MockNames = suiteMockNames(suite)
+	// Each suite's mock nodes answer to their own names on that suite's routes.
+	suiteConfig.MockNames = suiteMockNamesOf(suite, suite.ID, false)
+	for index := range suiteConfig.Imported {
+		suiteConfig.Imported[index].MockNames = suiteMockNamesOf(suite, suiteConfig.Imported[index].ID, false)
+	}
 
 	return runner.EnsureSuiteSidecar(suiteConfig, profile, sidecarImage, configMountPath)
 }

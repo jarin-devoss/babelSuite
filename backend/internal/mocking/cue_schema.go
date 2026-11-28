@@ -214,12 +214,22 @@ func parseSchemaFieldValue(value cue.Value, headersRequired bool) (any, error) {
 			return map[string]any{"type": "array"}, nil //nolint:nilerr // CUE list error falls back to untyped array schema
 		}
 		schema := map[string]any{"type": "array"}
-		if list.Next() {
+		// items is the first item's schema, which validates any item of the list.
+		// elements keeps every item, in order, so a list written out in an example
+		// renders as written rather than as one item.
+		var elements []any
+		for list.Next() {
 			itemSchema, err := parseSchemaFieldValue(list.Value(), false)
 			if err != nil {
 				return nil, err
 			}
-			schema["items"] = itemSchema
+			if elements == nil {
+				schema["items"] = itemSchema
+			}
+			elements = append(elements, itemSchema)
+		}
+		if len(elements) > 1 {
+			schema["x-babel-elements"] = elements
 		}
 		return schema, nil
 	case kind&cue.StringKind != 0:

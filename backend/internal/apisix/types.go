@@ -30,6 +30,17 @@ type SuiteConfig struct {
 	// reaches a mock by that name (http://stripe-mock:9080), so a route with a
 	// host of its own also answers to them.
 	MockNames []string
+	// Imported are the suites this one imports (suite.run), at every depth. Their
+	// HTTP-family and WebSocket mocks are served by the same gateway, on hosts of
+	// their own; gRPC, TCP, UDP and async mocks are served for the suite being run
+	// only (see UnservedSurfaces).
+	Imported []SuiteConfig
+
+	// hostScoped is set on an imported suite's config while its routes are built:
+	// a surface that names no host of its own is then routed on the suite's
+	// conventional mock host, not on any host, so it cannot take over the root
+	// suite's path-only routes.
+	hostScoped bool
 	// Harden opts the rendered gateway into platform-provided defenses
 	// (baseline security response headers, a rate-limited synthetic probe
 	// target) on top of the suite's real backend. It must stay opt-in: a

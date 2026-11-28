@@ -3,6 +3,7 @@ package mocking
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/babelsuite/babelsuite/internal/suites"
@@ -126,5 +127,32 @@ func TestScopeKind(t *testing.T) {
 	t.Parallel()
 	if scopeKind(executionScope("r")) != ScopeExecution || scopeKind(suiteScope("s")) != ScopeSuite {
 		t.Fatal("scopeKind does not tell a run's state from a suite's")
+	}
+}
+
+// A run belongs to the suite it runs and to every suite it imports: a request for
+// an imported suite's mock, arriving on the run's network, reads and writes that
+// run's state, not the suite-wide state every run of that suite shares.
+func TestARunOwnsTheStateOfTheSuitesItImports(t *testing.T) {
+	t.Parallel()
+	service := &Service{
+		runs:    make(map[string]map[string]struct{}),
+		ingress: make(map[string]string),
+		state:   make(map[string]map[string]map[string]string),
+	}
+	service.RegisterExecution("run-1", "parent")
+	service.RegisterExecution("run-1", "child")
+	service.RegisterIngress("run-1", "172.20.0.5")
+
+	request := httptest.NewRequest("GET", "/x", nil)
+	request.Header.Set(HeaderIngress, "172.20.0.5")
+	if got := service.scopeFor("child", request); got != executionScope("run-1") {
+		t.Fatalf("the imported suite's scope = %q, want the run's", got)
+	}
+	if got := service.scopeFor("parent", request); got != executionScope("run-1") {
+		t.Fatalf("the parent's scope = %q, want the run's", got)
+	}
+	if got := service.scopeFor("stranger", request); got != suiteScope("stranger") {
+		t.Fatalf("a suite the run does not own = %q, want the suite-wide state", got)
 	}
 }

@@ -76,3 +76,21 @@ func TestCreatePluginRefusesTheGatewaysOwnNames(t *testing.T) {
 		}
 	}
 }
+
+// Syncing a registry makes what reads packages from the registries look again,
+// so a suite pushed after the server started is found without a restart.
+func TestSyncingARegistryReReadsThePackages(t *testing.T) {
+	t.Parallel()
+	handler := NewHandler(&fakeStore{}, nil)
+	called := 0
+	handler.OnRegistrySync(func() { called++ })
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/platform-settings/registries/zot/sync", nil)
+	request.SetPathValue("registryId", "zot")
+	recorder := httptest.NewRecorder()
+	handler.syncRegistry(recorder, request)
+
+	if recorder.Code != http.StatusOK || called != 1 {
+		t.Fatalf("status %d, hook called %d times; want 200 and once", recorder.Code, called)
+	}
+}

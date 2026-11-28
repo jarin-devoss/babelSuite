@@ -47,11 +47,26 @@ func httpMethod(operation OperationConfig) string {
 // path alone, so it answers on any host and needs no list.
 func routeHosts(suite SuiteConfig, surface SurfaceConfig) []string {
 	host := strings.TrimSpace(hostOnly(surface.MockHost))
+	if host == "" && suite.hostScoped {
+		host = ConventionalMockHost(suite.ID)
+	}
 	if host == "" {
 		return nil
 	}
 	hosts := []string{host}
 	seen := map[string]struct{}{strings.ToLower(host): {}}
+	// A node name that is another surface's own host belongs to that surface: when
+	// several surfaces serve the same path (every simulator has /simulate), the
+	// node called spice-service must reach the SPICE surface, not whichever of
+	// the three was registered first.
+	for _, other := range suite.APISurfaces {
+		if other.ID == surface.ID {
+			continue
+		}
+		if otherHost := strings.ToLower(strings.TrimSpace(hostOnly(other.MockHost))); otherHost != "" {
+			seen[otherHost] = struct{}{}
+		}
+	}
 	for _, name := range suite.MockNames {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if name == "" {
@@ -131,4 +146,10 @@ func SidecarConfig(suite SuiteConfig) string {
 	out.WriteString("    custom_lua_shared_dict:\n")
 	out.WriteString("      " + TrafficSharedDictName + ": 50m\n")
 	return out.String()
+}
+
+// ConventionalMockHost is the host a suite's mock answers on when its surface
+// names none: <suite>.mock.internal.
+func ConventionalMockHost(suiteID string) string {
+	return strings.ToLower(strings.TrimSpace(suiteID)) + ".mock.internal"
 }

@@ -18,7 +18,13 @@ var pluginNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 type Handler struct {
 	store Store
 	jwt   *auth.JWTService
+	// onRegistrySync runs after a registry is synced, so what reads packages from
+	// the registries (the suite catalog) sees what was pushed since it last looked.
+	onRegistrySync func()
 }
+
+// OnRegistrySync sets what runs after a registry is synced.
+func (h *Handler) OnRegistrySync(fn func()) { h.onRegistrySync = fn }
 
 func NewHandler(store Store, jwt *auth.JWTService) *Handler {
 	return &Handler{store: store, jwt: jwt}
@@ -95,6 +101,9 @@ func (h *Handler) syncRegistry(w http.ResponseWriter, r *http.Request) {
 			httpserver.WriteError(w, http.StatusInternalServerError, "Could not sync registry.")
 		}
 		return
+	}
+	if h.onRegistrySync != nil {
+		h.onRegistrySync()
 	}
 
 	httpserver.WriteJSON(w, http.StatusOK, redactSettings(settings))

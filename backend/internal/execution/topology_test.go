@@ -8,7 +8,7 @@ import (
 func TestParseSuiteTopologySupportsUnifiedRuntimeEntrypoints(t *testing.T) {
 	suiteStar := `load("@babelsuite/runtime", "service", "task", "test")
 
-cache = service.run(image="redis:alpine", ports={"6379": 6379})
+cache = service.run(image="redis:alpine")
 seed = task.run(image="bash:5.2", file="seed.sh", after=[cache])
 worker = service.run(image="ghcr.io/acme/worker:latest", env={"REDIS_ADDR": "cache:6379"}, after=[cache, seed])
 shared = service.run(image="alpine:3.19", name_or_id="otel-collector", after=[worker])
@@ -210,7 +210,7 @@ func TestParseSuiteTopologySupportsMockAndServiceModuleEntrypoints(t *testing.T)
 	suiteStar := `load("@babelsuite/runtime", "service", "mock", "test")
 
 payments_api = service.run(image="alpine:3.19", name="payments-api")
-orders = mock.api(name="orders-mock", source="mock/orders", after=[payments_api])
+orders = mock.api(name="orders-mock", after=[payments_api])
 catalog = service.run(name="catalog-compat", image="stoplight/prism:5", after=[orders])
 legacy = service.run(name="legacy-compat", image="node:22-alpine", after=[catalog])
 smoke = test.run(name="smoke", file="http/smoke.hurl", image="curlimages/curl:8.7.1", after=[legacy])`

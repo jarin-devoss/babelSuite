@@ -28,9 +28,9 @@ type Service struct {
 	// state is every stateful mock's values, by scope (one run, or a whole suite
 	// when a request cannot be tied to a run), then by the mock's state key.
 	state map[string]map[string]map[string]string
-	// runs maps a registered run to its suite, and ingress maps the gateway's
+	// runs maps a registered run to the suites it belongs to (the suite it runs and the ones it imports), and ingress maps the gateway's
 	// address on that run's network back to the run.
-	runs    map[string]string
+	runs    map[string]map[string]struct{}
 	ingress map[string]string
 }
 
