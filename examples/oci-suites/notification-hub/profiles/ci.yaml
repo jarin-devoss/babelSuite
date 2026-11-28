@@ -4,6 +4,5 @@ default: false
 
 env:
   LOG_LEVEL: warn
-  EMAIL_PROVIDER: mock
-  RATE_LIMIT_RPS: "500"
+  RATE_LIMIT_RPS: "20"
 
