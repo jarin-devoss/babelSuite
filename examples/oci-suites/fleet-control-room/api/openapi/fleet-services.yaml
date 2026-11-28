@@ -1,0 +1,27 @@
+openapi: 3.1.0
+info:
+  title: Fleet Services
+  version: v1.8.0
+  description: >-
+    What the dispatcher calls over HTTP: the telemetry service that takes vehicle
+    frames and the geo-fence service that says which zones may be entered. A mock
+    answers for each (telemetry-mock, geo-fence-mock).
+servers:
+  - url: https://fleet-control-room.mock.internal
+paths:
+  /telemetry/events:
+    post:
+      operationId: ingest_telemetry
+      summary: Take one vehicle telemetry frame.
+      responses:
+        "202":
+          description: The frame was queued.
+        "422":
+          description: The frame was refused.
+  /zones/check:
+    post:
+      operationId: check_zone
+      summary: Say whether a vehicle may be routed into a zone.
+      responses:
+        "200":
+          description: allowed is true or false, with a reason when false.

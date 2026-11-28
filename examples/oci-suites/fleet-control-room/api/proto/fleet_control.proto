@@ -2,12 +2,19 @@ syntax = "proto3";
 
 package fleet_control_room.v1;
 
-service fleet_controlService {
+// RoutePlanner turns a route request into an assignment for one vehicle.
+service RoutePlanner {
   rpc AssignRoute (AssignRouteRequest) returns (AssignRouteResponse);
 }
 
-message PingRequest {}
+message AssignRouteRequest {
+  string routeId = 1;
+  string vehicleId = 2;
+  string zone = 3;
+}
 
-message PingResponse {
+message AssignRouteResponse {
   string status = 1;
+  string assignmentId = 2;
+  string plannerRevision = 3;
 }

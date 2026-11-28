@@ -1,0 +1,26 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/telemetry/ingest.metadata.yaml
+    operationId: ingest-telemetry
+    sourceArtifact: mock/telemetry/ingest.cue
+    suite: fleet-control-room
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "202"
+        mediatype: application/json
+        body: |-
+            {
+              "accepted": true,
+              "framesQueued": 1
+            }
+        headers: []
+    parameterConstraints: []
+    resolverUrl: /internal/mock-data/fleet-control-room/fleet-services/ingest-telemetry
+    runtimeUrl: /mocks/rest/fleet-control-room/fleet-services/telemetry/events
+    state: null

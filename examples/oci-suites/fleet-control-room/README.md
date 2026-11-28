@@ -1,53 +1,48 @@
 # Fleet Control Room
 
-End-to-end vehicle orchestration environment with Redis, gRPC contracts, and a telemetry mock for simulating route spikes and GPS fault injection.
+A route dispatcher. For each assignment it asks a geo-fence service whether the zone may be entered, then asks a route planner (a gRPC mock the gateway serves from `api/proto/fleet_control.proto`) for an assignment, and keeps what came of it. Vehicle telemetry goes to a telemetry mock.
 
-## Overview
-
-This suite models a fleet management control plane: a Redis cache backs a dispatcher API, a planner service computes routes, and a control room aggregates both. A telemetry mock feeds simulated GPS frames and spike scenarios throughout the run, and smoke tests validate the control room's response to degraded conditions.
-
-Use it as a reference for systems that combine a shared cache layer, multi-tier service dependencies, and mock-driven fault injection.
-
-## Execution Order
+## Execution order
 
 ```
-redis_cache
-├── telemetry_mock
-└── seed_routes ──┐
-                  dispatcher_api
-                  ├── planner
-                  └── control_room
-                           │
-                       fleet_smoke  ← tests against control_room + telemetry_mock
+telemetry-mock ── geo-fence-mock ── dispatcher ── dispatcher-ready ── fleet_ready
+                                                                      └── fleet-ramp ── fleet-steady ── fleet-spike ── fleet-drain
+                                                                             └── fleet-smoke
+                                                                                  ├── acceptance-<region>
+                                                                                  ├── geo-fence-audit
+                                                                                  └── route-degradation
 ```
+
+## What breaks it
+
+A vehicle is never routed into a zone the geo-fence service says is restricted, and the planner is not asked: the `if not allowed:` line in `assign()` (`tasks/dispatcher.py`). Make it `if False:` and `geo-fence-audit`, which asks for a route through the airport apron, fails.
+
+## Profiles
+
+| Profile | What it does |
+|---|---|
+| `local.yaml` | One region (`eu-west`), a gentle spike. |
+| `staging.yaml` | All three regions, a bigger spike. |
+| `perf.yaml` | All three regions, the heaviest spike. |
 
 ## Structure
 
 | Path | Description |
 |---|---|
-| `suite.star` | Declarative topology — cache, mock, seeder, dispatcher, planner, control room, and tests |
-| `profiles/` | Driver-specific runtime settings for `local`, `perf`, and `staging` |
-| `api/` | gRPC protobuf definitions and REST gateway overlays for the dispatcher and control room |
-| `mock/` | Telemetry playback feeds and GPS fault injection scenarios |
-| `tasks/` | `seed_routes.sh` — Redis route seeding and topology bootstrap |
-| `tests/` | `fleet_smoke.py` — control room smoke tests and degraded GPS scenarios |
-| `fixtures/` | Vehicle manifests and pre-recorded GPS frame sequences |
+| `suite.star` | The topology. |
+| `tasks/dispatcher.py` | The dispatcher. |
+| `api/openapi/fleet-services.yaml` | The telemetry and geo-fence contract. |
+| `api/proto/fleet_control.proto` | The route planner. |
+| `mock/` | `telemetry/`, `geofence/`, `planner/`: each answers by the request and has a fallback. |
+| `tests/` | Smoke, per-region acceptance, geo-fence audit, degradation. |
+| `traffic/dispatch.star` | The load plan. |
 
 ## Running
 
 ```bash
-# Run locally with in-memory telemetry mock and dev Redis
-babelctl run localhost:5000/babelsuite/fleet-control-room:latest --profile local
-
-# Run under performance conditions with production-scale fixture sets
-babelctl run localhost:5000/babelsuite/fleet-control-room:latest --profile perf
+python scripts/push-to-zot.py --suite fleet-control-room --sync http://localhost:8090
 ```
 
-## Key Concepts Demonstrated
+Then launch it from the UI, or `POST /api/v1/executions` with `{"suiteId": "fleet-control-room", "profile": "local.yaml"}`.
 
-- **Three-tier service chain** — `dispatcher_api` → `planner` → `control_room` shows how BabelSuite sequences a deep dependency graph without manual ordering
-- **Mock-driven fault injection** — the telemetry mock replays GPS anomaly feeds on a schedule, enabling deterministic fault scenarios without modifying application code
-- **Cache as a shared dependency** — Redis is declared once and referenced by both the dispatcher and the seeder, with BabelSuite ensuring it is healthy before either starts
-- **gRPC contract coverage** — protobuf definitions in `api/` are used by both the mock layer and the smoke tests for schema-consistent request/response validation
-- **Load test targets the suite's mock** — the traffic phases send real requests to the suite's mock host until a real service is added
-- **Reports fail until the tests write them** — `fleet_smoke` fails with `report … was not produced` until `fleet_smoke.py` writes a real JUnit report
+Run this suite on its own: it calls a gRPC mock, which an importing suite's gateway does not serve.

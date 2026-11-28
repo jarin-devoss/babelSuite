@@ -1,0 +1,25 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/geofence/check-zone.metadata.yaml
+    operationId: check-zone
+    sourceArtifact: mock/geofence/check-zone.cue
+    suite: fleet-control-room
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "200"
+        mediatype: application/json
+        body: |-
+            {
+              "allowed": true
+            }
+        headers: []
+    parameterConstraints: []
+    resolverUrl: /internal/mock-data/fleet-control-room/fleet-services/check-zone
+    runtimeUrl: /mocks/rest/fleet-control-room/fleet-services/zones/check
+    state: null

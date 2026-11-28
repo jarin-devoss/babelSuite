@@ -1,5 +1,5 @@
 name: Staging
-description: Realistic routing backends with execution network.
+description: All three regions, a bigger spike.
 default: false
 
 network:
@@ -7,7 +7,4 @@ network:
 
 env:
   LOG_LEVEL: info
-  ENABLE_TELEMETRY: "true"
-  ENABLE_GEO_FENCE: "true"
   SPIKE_MULTIPLIER: "3"
-
