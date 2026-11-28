@@ -1,5 +1,5 @@
 name: Local Debug
-description: Relaxed SOAP timeouts, verbose envelope logging, legacy adapter enabled.
+description: Verbose logs, all four claim types, archived legacy envelopes replayed.
 default: true
 
 network:
@@ -9,12 +9,3 @@ env:
   LOG_LEVEL: debug
   CLAIM_TYPES: medical,dental,vision,pharmacy
   LEGACY_MODE: "true"
-
-services:
-  soap-adapter:
-    env:
-      ENVELOPE_LOGGING: verbose
-      TIMEOUT_MS: "5000"
-  claims-api:
-    env:
-      VALIDATION_LEVEL: relaxed

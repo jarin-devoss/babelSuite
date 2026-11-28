@@ -1,5 +1,5 @@
 name: Canary Partner
-description: New SOAP 1.2 path, strict validation, no legacy adapter.
+description: Canary: no legacy envelope replay.
 default: false
 
 network:
@@ -9,10 +9,3 @@ env:
   LOG_LEVEL: info
   CLAIM_TYPES: medical,dental,vision,pharmacy
   LEGACY_MODE: "false"
-
-services:
-  claims-api:
-    env:
-      VALIDATION_LEVEL: strict
-      REVIEW_ESCALATION: enabled
-      SOAP_VERSION: "1.2"

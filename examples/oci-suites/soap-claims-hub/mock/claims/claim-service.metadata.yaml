@@ -35,7 +35,7 @@ spec:
           source: header
           required: true
           forward: false
-          pattern: ^urn:(SubmitClaim|GetClaimStatus)$
+          pattern: ^urn:[A-Za-z]+$
         - name: x-suite-profile
           source: header
           required: false
