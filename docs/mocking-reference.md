@@ -157,6 +157,18 @@ During suite hydration:
 
 CUE exchange files support three annotations that make response bodies dynamic at serve time. Instead of returning the same hardcoded ID or timestamp on every request, the mock engine generates a fresh value each time.
 
+A list in an example's body is returned as written, every item in order, so an
+example can answer with three products or eight samples:
+
+```cue
+body: {
+    times:    [0.0, 0.0005, 0.001, 0.0022]
+    products: [{sku: "sku_1001"}, {sku: "sku_2024"}]
+}
+```
+
+An annotation inside a list item applies to that item.
+
 ---
 
 ### `@gen` — generate a value

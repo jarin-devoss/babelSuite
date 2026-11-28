@@ -32,11 +32,16 @@ The control plane exposes both short and namespaced paths for each probe.
 | `database` | Yes | Primary datastore connectivity |
 | `platform` | Yes | Platform settings file readable |
 | `profiles` | Yes | Profile store accessible |
+| `catalog` | Yes | The suite catalog has been read from the registries once since start. A run launched before then waits for it (up to two minutes) instead of resolving against an empty catalog |
 | `agents` | No | At least one registered agent (when agent backends are configured) |
 | `cache` | No | Redis connectivity |
 | `telemetry` | No | OTLP exporter reachable |
 
 These are the names `/readyz/{subsystem}` accepts.
+
+A registry sync (`POST /api/v1/platform-settings/registries/{registryId}/sync`)
+re-reads the catalog without making it unready: the old catalog answers until the
+new one is complete, then the two are swapped.
 
 ---
 

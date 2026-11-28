@@ -28,7 +28,7 @@ Agent starts → registers with control plane → sends heartbeats → polls for
 4. **Execute** — the agent runs the step and streams log lines and state transitions back continuously.
 5. **Complete** — the agent calls `POST /api/v1/agent-control/jobs/:id/complete` with the final result.
 
-If an agent stops sending heartbeats, the control plane marks it offline. In-progress steps from a disconnected agent are left in their last-known state.
+If an agent stops sending heartbeats, the control plane marks it offline. What happens to the steps it was running is decided by their lease, described under [How Steps Are Scheduled](#how-steps-are-scheduled): a step whose agent goes silent for a whole lease fails, naming the agent.
 
 ---
 

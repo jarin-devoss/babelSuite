@@ -156,7 +156,7 @@ as "no findings".
 
 #### APISIX sidecar lifecycle
 
-Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua code is embedded into the sidecar's `apisix.yaml` at startup — the sidecar is recreated automatically when its configuration or plugin code changes.
+Each unique (suite, profile) pair gets one long-lived APISIX sidecar container. The sidecar starts the first time the pair is executed and remains up across all subsequent executions of the same combination. Plugin Lua is written to a file and bind-mounted into the sidecar's plugin directory, and the generated `apisix.yaml` names each plugin — the sidecar is recreated automatically when its configuration, plugin code or image changes.
 
 The sidecar runs in standalone mode: `deployment.role: data_plane` with `config_provider: yaml`. No etcd is involved.
 

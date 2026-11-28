@@ -108,12 +108,26 @@ table-driven and use `t.Parallel()`. Some highlights rather than a full list:
 | `internal/execution` | Profile runtime overlays, per-step memory parsing, contested service names across composed suites, dependency package file resolution |
 | `internal/httpserver` | CSRF middleware — cookie issuance, token validation, Bearer exemption |
 | `internal/platform` | Plugin registration, and that a plugin's sidecar route is derived from its name |
-| `internal/suites` | Starlark evaluation, topology resolution, nested suite expansion |
+| `internal/suites` | Package loading, golden files of the resolved step graph and the traffic plans (`UPDATE_GOLDEN=1` rewrites them), the layering test, the static checks on the examples |
+| `internal/suites/eval`, `plan`, `topology` | Starlark evaluation of `suite.star` and of traffic plans, topology resolution and nested suite expansion |
 
 Note that `internal/execution` tests drive real Docker containers, so they are
 slower than the rest and need a working daemon.
 
 When adding a new package, follow the same pattern: table-driven cases in `*_test.go`, fakes inline in the test file, no network or database access.
+
+Two kinds of file are written by a test rather than by hand:
+
+- `backend/internal/suites/testdata/golden/`: the resolved step graph of every
+  example and docs block, and the traffic plan of every plan file. A change in
+  one is a change in what a suite builds. Rewrite them with
+  `UPDATE_GOLDEN=1 go test ./internal/suites/ -run Golden` only when that change
+  is intended, and review the diff.
+- The keyword table in [Runtime Library](runtime-library.md#keywords-each-call-accepts),
+  between its `generated:step-keywords` markers. It is written from the
+  declarations the evaluator checks calls against. After adding or removing a
+  keyword, rewrite it with
+  `UPDATE_DOCS=1 go test ./internal/suites/ -run KeywordTable`.
 
 ## End-to-end tests
 
@@ -138,6 +152,40 @@ registry is refused outside CI. The control plane
 the tests start listens on port 8090, which the APISIX sidecar needs to reach
 mocks, so stop any other one first. See [`frontend/e2e/README.md`](https://github.com/jarin-devoss/babelSuite/blob/main/frontend/e2e/README.md)
 for the layout, the rules the tests follow, and the known bugs they pin.
+
+## Sweeping the examples
+
+`scripts/sweep-examples.py` runs every example suite against a running backend
+and checks how each one ends. Run it by hand before merging a change to the
+runtime or to an example; nothing runs it on a schedule.
+
+It needs Docker, the local registry and the backend (see
+[Useful Backend Commands](#useful-backend-commands)), and the admin account:
+
+```bash
+ADMIN_EMAIL=... ADMIN_PASSWORD=... python scripts/sweep-examples.py
+python scripts/sweep-examples.py --suite payment-suite --suite electronics-lab
+python scripts/sweep-examples.py --break
+```
+
+Each suite is pushed first, so the run is of what is in your working tree, and
+each run's execution id is printed beside its result. The sweep then asserts:
+
+- every example ends **Healthy** under `local.yaml`, except the two profiles
+  that exist to fail: `electronics-lab` under `broken.yaml` and
+  `kafka-consumer-health` under `lagging.yaml` must end **Failed**;
+- no step of a Healthy run was skipped, except the ones that run only on a
+  failure (`on_failure=`);
+- with `--break`, patching the one line each flagship service names as its rule
+  (the `# the rule` comment in `tasks/`) makes its suite end Failed. A suite that
+  stays green with its service broken tests nothing. The file is restored and
+  pushed again afterwards, even when the run fails.
+
+The suites that run a real model (`ai-skill-eval-live`, `llm-judge-live`) pull
+several gigabytes and are left out unless you pass `--live`.
+
+Do not launch other runs while it sweeps: runs of one suite and profile share
+that suite's gateway sidecar.
 
 ## Useful Backend Commands
 

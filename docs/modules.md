@@ -74,6 +74,22 @@ kafka/
 | `set_group_offset(broker, group, topic, offset, partition, after)` | node | Reset a consumer group's offset on a specific partition. |
 | `disconnect(broker, after)` | node | Gracefully stop the broker. |
 
+`kafka()` starts one broker in KRaft mode, its own controller. With a single
+broker, Kafka's internal topics cannot keep their default three replicas, and
+without them no consumer group can commit an offset, so `kafka()` sets:
+
+| Setting | Value |
+|---------|-------|
+| `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR` | `1` |
+| `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR` | `1` |
+| `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR` | `1` |
+| `KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS` | `0` |
+
+Anything passed in `env=` replaces the module's value for that key. The image
+defaults to `apache/kafka:3.9.0`; `image=` on `kafka()` and on each admin helper
+pins another.
+
+
 ### Example
 
 ```python
@@ -240,7 +256,7 @@ seed = insert_documents(
     after=[idx],
 )
 
-app = service.run(image="catalog-api:latest", env={"MONGO_URI": db["uri"]}, after=[seed])
+app = service.run(image="catalog-api:latest", env={"MONGO_URI": "mongodb://root:secret@mongo:27017"}, after=[seed])
 ```
 
 ---
@@ -303,7 +319,7 @@ a11y_audit(
 Every OCI module package carries a `module.yaml` file that the catalog uses for discovery and display:
 
 ```yaml
-kind: Module
+kind: OCIExampleModule
 metadata:
   id: stdlib-kafka
   title: "@babelsuite/kafka"
@@ -313,11 +329,11 @@ metadata:
 spec:
   repository: localhost:5000/babelsuite/kafka
   entrypoint: module.star
-  pullCommand: "babelctl module pull @babelsuite/kafka"
-  forkCommand: "babelctl module fork @babelsuite/kafka"
+  pullCommand: load("@babelsuite/kafka", ...)
+  forkCommand: babelctl fork localhost:5000/babelsuite/kafka:1.2.3 ./stdlib-kafka
 ```
 
-The catalog reads these fields to populate the module browser in the UI — title, version, pull command, and description are all surfaced there.
+The catalog reads these fields to populate the module browser in the UI — title, version, description and the commands are all surfaced there. A module is *loaded* by a suite, not run, so `pullCommand` is the `load(...)` line a suite writes; `forkCommand` copies the module's files to a local folder.
 
 ---
 
@@ -338,7 +354,7 @@ create_topic = _create
 **`module.yaml`** — OCI metadata the catalog reads:
 
 ```yaml
-kind: Module
+kind: OCIExampleModule
 metadata:
   id: my-module
   title: "@myorg/my-module"

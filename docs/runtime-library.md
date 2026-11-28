@@ -322,6 +322,27 @@ Current behavior:
 - a run that sent no requests fails; it never passes on zero data
 - the native runner now reports richer latency and throughput summaries, including `min`, `avg`, `max`, `p50`, `p90`, `p95`, `p99`, per-stage summaries, compact throughput timelines, and latency histograms
 
+A plan file is a Starlark program, run by the same interpreter as `suite.star`, so a loop, a variable, a function and `env.get()` (the launch profile's environment) work in it:
+
+```python
+load("@babelsuite/runtime", "traffic")
+
+users = []
+for path in ["/health", env.get("PROBE_PATH", "/status")]:
+    users.append(traffic.user(
+        name = "probe" + path,
+        wait = traffic.constant(0.1),
+        tasks = [traffic.task(request = traffic.get(path))],
+    ))
+
+traffic.plan(
+    users = users,
+    shape = traffic.stages([traffic.stage(duration = "10s", users = 4, spawn_rate = 4)]),
+)
+```
+
+Each builder accepts a fixed set of keywords, and any other is an error that lists the accepted ones (the same rule as for steps). `traffic.plan` is called once. A plan can load only `@babelsuite/runtime`, and booleans are `True` and `False`.
+
 Native threshold metrics currently supported:
 
 - `http.error_rate`
@@ -557,6 +578,26 @@ The parser extracts these topology fields from recognized statements:
 | `continue_on_failure=true` | mark the node failed but let normal downstream nodes continue |
 
 The variable name is the default node ID. Use `name=` or `id=` only when you need an explicit override.
+
+### Keywords each call accepts
+
+A call accepts a fixed set of keywords, and any other is an error that lists these. The table is written from the declarations the evaluator checks calls against, and a test fails when it is out of date.
+
+<!-- generated:step-keywords -->
+
+| Call | Keywords it accepts |
+|------|---------------------|
+| `log.debug`, `log.error`, `log.info`, `log.warn` | `after`, `continue_on_failure`, `message`, `name`, `on_failure` |
+| `mock.api` | `after`, `continue_on_failure`, `harden`, `message`, `name`, `on_failure` |
+| `security.auth`, `security.cors`, `security.graphql`, `security.headers`, `security.probe`, `security.verbs` | `after`, `continue_on_failure`, `env`, `expect_exit`, `expect_logs`, `exports`, `fail_on`, `fail_on_logs`, `message`, `name`, `on_failure`, `target` |
+| `security.flood` | `after`, `continue_on_failure`, `duration`, `env`, `expect_exit`, `expect_logs`, `expect_throttle`, `exports`, `fail_on`, `fail_on_logs`, `message`, `name`, `on_failure`, `path`, `rate`, `target` |
+| `security.fuzz` | `after`, `continue_on_failure`, `env`, `expect_exit`, `expect_logs`, `exports`, `fail_on`, `fail_on_logs`, `message`, `name`, `on_failure`, `target`, `technique` |
+| `service.run` | `after`, `commands`, `continue_on_failure`, `env`, `expect_exit`, `expect_logs`, `exports`, `fail_on_logs`, `file`, `image`, `message`, `name`, `on_failure` |
+| `suite.run` | `after`, `continue_on_failure`, `message`, `name`, `on_failure`, `ref` |
+| `task.run`, `test.run` | `after`, `commands`, `continue_on_failure`, `env`, `expect_exit`, `expect_logs`, `exports`, `fail_on_logs`, `file`, `image`, `message`, `name`, `on_failure`, `reset_mocks` |
+| `traffic.baseline`, `traffic.constant_pacing`, `traffic.constant_throughput`, `traffic.open_model`, `traffic.scalability`, `traffic.smoke`, `traffic.soak`, `traffic.spike`, `traffic.staged`, `traffic.step`, `traffic.stress`, `traffic.wave` | `after`, `arrival_rate`, `continue_on_failure`, `env`, `expect_exit`, `expect_logs`, `exports`, `fail_on_logs`, `message`, `min_users`, `name`, `on_failure`, `plan`, `rps`, `target`, `target_rps` |
+
+<!-- /generated:step-keywords -->
 
 ## Artifact Exports
 
@@ -877,19 +918,18 @@ than silently reading another suite's database.
 
 ## Authoring Rules
 
-- one node assignment per logical statement
-- the left-hand assignment becomes the default node ID
-- use `after=[db, api]` to declare ordering; omitting it means the node has no dependencies
-- use `on_failure=[primary]` for rollback or contingency branches
-- quoted `after=["db"]` still parses, but identifier references are the preferred style
-- `task.run(file="...")` resolves from `tasks/`; `task.run(commands=[...])` is the inline alternative — both require `image=`
-- `test.run(file="...")` resolves from `tests/`; `test.run(commands=[...])` is the inline alternative — both require `image=`
-- `service.run(image="...")` starts a detached container — `image=` is required; `commands=` is accepted here too
-- `traffic.*(plan="...")` resolves from `traffic/` — only applies when `plan=` is specified
-- `ref=` is required for `suite.run`; the parser errors if it is missing
-- duplicate `after` entries are deduplicated automatically
-- dependency targets that do not exist in the graph produce a resolver error
-- cycles are rejected
+`suite.star` is a Starlark program, so a node is a value and ordering is made of values:
+
+- **Ids:** a node's id is its `name=` when it has one, otherwise the variable it is assigned to; a node that is neither named nor assigned gets `node_<n>`. The name is also the hostname other steps reach a service by.
+- **Ordering:** `after=[db, api]` takes node values, in a list. A string (`after=["db"]`) is an error. Omitting `after=` means the node has no dependencies. Duplicates are removed.
+- **Failure branches:** `on_failure=[primary]` names the nodes whose failure runs the node.
+- **Files:** `task.run(file="...")` resolves from `tasks/` and `test.run(file="...")` from `tests/`. `commands=[...]` is the inline alternative, and both need `image=`. A step with both `file=` and `commands=` ships the file and runs only the commands.
+- **Services:** `service.run(image="...")` starts a detached container. `image=` is required, and `commands=` is accepted.
+- **Traffic:** `traffic.*(plan="...")` resolves from `traffic/`, and only when `plan=` is given.
+- **Suites:** `ref=` is required for `suite.run`.
+- **Arguments:** a keyword the call does not read is an error that lists the ones it does, so a misspelled option (`continue_on_failur=True`) or one that does nothing (`mock.api(definition=...)`) fails at evaluation instead of being dropped.
+- **Profile:** `env` is the launch profile's environment and is read-only; a node's `.env` is what it was created with.
+- **Graph checks:** a dependency on a node that does not exist is a resolver error, and cycles are rejected.
 
 ## Example Modules vs Runtime
 

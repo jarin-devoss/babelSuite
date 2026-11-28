@@ -26,7 +26,7 @@ The frontend lives in `frontend/` and runs as a separate Vite dev server on port
 - **Docker** — local container execution and environment inventory
 - **Redis** *(optional)* — cache layer and faster runtime coordination
 
-The checked-in `.env` defaults to MongoDB + Redis.
+The checked-in `.env` defaults to MongoDB + Redis. To run on PostgreSQL instead, set `DB_DRIVER=postgres` and `POSTGRES_URL=postgres://user:password@host:5432/babelsuite`; the schema is created at startup. See [Configuration](configuration.md#datastore).
 
 !!! tip "Shortcut"
     [`demo/`](demo.md) brings the datastore, cache and registry up in one

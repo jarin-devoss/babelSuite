@@ -67,10 +67,11 @@ curl -s http://localhost:8090/readyz | jq .
 
 ## Step Fails Immediately With `context canceled`
 
-The execution was cancelled (e.g. by a `reap` call or a timeout). Check:
+The execution was cancelled. A run is cancelled by a user (Cancel in the UI or `babelctl`), by a fatal failure elsewhere in the run (the steps that are still running are stopped), or by the server shutting down, which ends the run as `Interrupted`. Check:
 
-1. Whether a suite-level timeout (`timeout:` field) is set too aggressively.
-2. Whether the step has a dependency that failed, causing the execution engine to cancel downstream steps.
+1. Whether another step of the run failed first: the first failure is the cause, and the cancelled steps only say they were stopped.
+2. Whether the control plane restarted while the run was going (the run's events say so).
+3. Whether a `traffic.*` or `security.*` step ran past the time its plan allows: those steps are stopped when their plan ends.
 
 ---
 
@@ -118,7 +119,10 @@ A `security.*` step scans a target from the suite's APISIX sidecar and fails wit
 | `N of M checks could not be determined: ...` | Some requests got no answer, so those checks neither passed nor failed. Check the target stayed up during the scan. |
 | `needs target=: the suite has no mock surface to scan by default` | The suite has no `mock.api` and the step names no target. Add `target="http://<service>:<port>"`. |
 | `targets host "x", which is not a service in this suite` | The target is a bare name no node provides. Use the name of a `service.run` node, a mock host, or a fully-qualified host. |
-| `unknown argument "x"; allowed: ...` | The mode does not take that key (for example `technique=` on `security.headers`). |
+| `unknown argument "x"; allowed: ...` | The call does not take that key (for example `technique=` on `security.headers`, or a misspelled keyword on `traffic.plan`). |
+| `traffic plan "x" must declare traffic.plan(...)` | The plan file never calls `traffic.plan`, or a condition kept it from running. |
+| `traffic.stage: duration given more than once` | The duration was passed by position and by name. Pass it once. |
+| `a traffic plan can load only @babelsuite/runtime` | A plan file loads another file. Put what it needs in the plan, or in the suite's `env`. |
 | `scanning the suite's own mock` (a warning) | The step has no `target=`, so it measures the gateway and the mock, not a service of yours. Add `target=` to scan the service. |
 | `The report was not written to the execution workspace` (a warning) | A later task will not find the exported report. The log says whether the backend does not give the control plane write access to the workspace or the path was rejected. |
 

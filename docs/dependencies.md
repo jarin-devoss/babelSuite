@@ -91,6 +91,19 @@ Imported nodes become namespaced:
 
 That namespacing prevents collisions with parent-suite step names.
 
+## Mocks of an Imported Suite
+
+The run has one gateway, and it serves the mocks of every suite in the run. An
+imported suite's HTTP and SOAP mocks answer on the host they declare (or
+`<suite>.mock.internal` when they declare none) and on the name of each mock node
+(`mock.api(name="stripe-mock")` answers at `http://stripe-mock:9080`), so a step of
+the importing suite, or of another imported suite, reaches them as it would in the
+imported suite's own run. A mock node's name reaches only that suite's mocks.
+
+An imported suite's **gRPC** mocks are not served: the gateway forwards gRPC calls
+to the front end of the suite being run. A suite that calls a gRPC mock is run on
+its own, and the runtime lists the surfaces it does not serve when a run starts.
+
 ## Contested Service Names
 
 Namespacing applies to node **ids**. A network hostname has no namespace, so two

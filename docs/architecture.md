@@ -195,7 +195,12 @@ flowchart LR
 | `internal/auth` | Local auth, session handling, OIDC login, JWT issuance |
 | `internal/platform` | Agents, registries, secrets, platform settings |
 | `internal/catalog` | Registry discovery and catalog package views |
-| `internal/suites` | Suite loading, topology resolution, nested suite expansion |
+| `internal/suites` | Suite loading and the registry, and the data types of a suite, re-exported from `suites/model` |
+| `internal/suites/model` | The data types of a suite, with their cloning and validation. Imports nothing of the repository |
+| `internal/suites/starkit` | The Starlark glue the evaluators share: interpreter options, builtin namespaces, the read-only `env` |
+| `internal/suites/eval` | Evaluates `suite.star`: the declaration of every step kind and the keywords it accepts |
+| `internal/suites/plan` | Evaluates traffic plan files, and the limits and default shapes of a load run |
+| `internal/suites/topology` | Orders the steps, expands imported suites and resolves `dependencies.yaml` |
 | `internal/profiles` | Suite profile CRUD and validation |
 | `internal/execution` | Launch, orchestration, runtime state, SSE streams |
 | `internal/agent` | Worker registry, coordinator, worker control APIs |
