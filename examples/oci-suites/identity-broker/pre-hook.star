@@ -45,7 +45,7 @@ session_store_alive = task.run(
 # ── 3. the upstream IdP the broker federates to ─────────────────────────────
 upstream_idp = service.run(
     name  = "upstream-idp",
-    image = "busybox",
+    image = "busybox:1.37",
     commands = [
         "mkdir -p /www/.well-known",
         "echo '{\"issuer\":\"http://upstream-idp:9000\",\"jwks_uri\":\"http://upstream-idp:9000/jwks\"}' > /www/.well-known/openid-configuration",
@@ -56,7 +56,7 @@ upstream_idp = service.run(
 
 upstream_idp_alive = task.run(
     name  = "upstream-idp-alive",
-    image = "busybox",
+    image = "busybox:1.37",
     commands = [
         "attempt=0",
         "until wget -q -O- http://upstream-idp:9000/.well-known/openid-configuration 2>/dev/null | grep -q 'issuer'; do " +

@@ -11,4 +11,3 @@ secretRefs:
   - key: JWT_SIGNING_KEY
     provider: Vault
     ref: kv/identity-broker/canary-jwt-key
-

@@ -1,105 +1,92 @@
-load("@babelsuite/runtime", "mock", "task", "test", "traffic", "log")
-load("@babelsuite/postgres", "pg", "connect")
+load("@babelsuite/runtime", "mock", "service", "test", "traffic", "log")
 
 # ── environment knobs ────────────────────────────────────────────────────────
-PROVIDERS         = env.get("AUTH_PROVIDERS", "oidc,saml,ldap").split(",")
-REALM_COUNT       = int(env.get("REALM_COUNT", "3"))
-ENABLE_MFA        = env.get("ENABLE_MFA", "true") == "true"
+PROVIDERS   = env.get("AUTH_PROVIDERS", "oidc,saml,ldap").split(",")
+REALM_COUNT = int(env.get("REALM_COUNT", "3"))
+ENABLE_MFA  = env.get("ENABLE_MFA", "true") == "true"
 
-PROVIDER_IMAGES = {
-    "oidc": "python:3.12",
-    "saml": "python:3.12",
-    "ldap": "python:3.12",
-}
+PYTHON = "python:3.12-alpine"
 
-PROVIDER_MOCK_FILES = {
-    "oidc": "mock/oidc",
-    "saml": "mock/saml",
-    "ldap": "mock/ldap",
-}
+# ── provider mocks: the identity providers the broker federates to ──────────
+# One mock per provider, each answering to its own name (http://oidc-mock:9080).
+provider_mocks = []
+for provider in PROVIDERS:
+    provider_mocks.append(mock.api(name=provider + "-mock"))
 
-# ── infrastructure ───────────────────────────────────────────────────────────
-db   = pg()
-conn = connect(db)
-
-# ── seed realms ──────────────────────────────────────────────────────────────
-realms = []
-for i in range(REALM_COUNT):
-    realm_id = "realm-" + str(i)
-    tier = "enterprise" if i == 0 else "standard"
-    realms.append({"id": realm_id, "name": "Realm " + str(i), "tier": tier})
-
-seed_realms = task.run(
-    name  = "seed-realms",
-    image = "postgres:16",
-    file  = "tasks/seed_realms.sh",
-    env   = {"REALM_COUNT": str(REALM_COUNT)},
-    after = [conn],
+# ── the service under test ──────────────────────────────────────────────────
+# tasks/broker_api.py signs a user in through the provider's mock, keeps the
+# session in the session store and the upstream IdP the pre-hook starts, and
+# answers who a session belongs to. It needs both of them: its /health is 200
+# only when they answer.
+broker_api = service.run(
+    name  = "broker-api",
+    image = PYTHON,
+    file  = "broker_api.py",
+    env   = {
+        "PORT":        "8080",
+        "PROVIDERS":   ",".join(PROVIDERS),
+        "REALM_COUNT": str(REALM_COUNT),
+        "ENABLE_MFA":  "true" if ENABLE_MFA else "false",
+    },
+    after = provider_mocks,
 )
 
-# ── provider mocks (only the ones listed in PROVIDERS) ───────────────────────
-provider_mocks = {}
-for provider in PROVIDERS:
-    if provider not in PROVIDER_MOCK_FILES:
-        continue
-    provider_mock = mock.api(
-        name=provider + "-mock",
-        definition=PROVIDER_MOCK_FILES[provider],
-        after=[conn],
-    )
-    provider_mocks[provider] = provider_mock
+broker_ready = test.run(
+    name     = "broker-api-ready",
+    image    = PYTHON,
+    after    = [broker_api],
+    commands = ["for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://broker-api:8080/health')\" 2>/dev/null && exit 0; sleep 1; done; echo 'broker-api never answered /health'; exit 1"],
+)
 
-# ── optional MFA mock ────────────────────────────────────────────────────────
-if ENABLE_MFA:
-    webauthn_stub = mock.api(name="webauthn-stub", after=[conn])
-    mfa_deps      = [webauthn_stub]
-else:
-    mfa_deps = []
+providers_ready = log.info("broker-api is answering; " + str(len(PROVIDERS)) + " provider mocks up", after=[broker_ready])
 
-providers_ready = log.info("provider mocks up — seeded " + str(REALM_COUNT) + " realms", after=list(provider_mocks.values()) + [seed_realms])
+# ── login traffic: real logins through the broker ───────────────────────────
+login_load = traffic.baseline(
+    name   = "login-baseline",
+    target = "http://broker-api:8080",
+    plan   = "login.star",
+    after  = [providers_ready],
+)
 
-# ── login traffic ────────────────────────────────────────────────────────────
-traffic_nodes = [traffic.baseline(
-    name="login-baseline",
-    target="https://identity-broker.mock.internal",
-    plan="login.star",
-    after=[providers_ready] + mfa_deps,
-)]
-
-# ── smoke tests — one per provider ───────────────────────────────────────────
+# ── smoke tests — one per provider ──────────────────────────────────────────
 smoke_nodes = []
 for provider in PROVIDERS:
-    if provider not in provider_mocks:
-        continue
-    smoke = test.run(
-        name="login-smoke-" + provider,
-        file="login_smoke.py",
-        image=PROVIDER_IMAGES.get(provider, "python:3.12"),
-        after=traffic_nodes,
-        env={"AUTH_PROVIDER": provider},
-        exports=[
-            {"path": "reports/" + provider + "-junit.xml", "name": "login-smoke-" + provider, "on": "always", "format": "junit"},
-        ],
-    )
-    smoke_nodes.append(smoke)
+    smoke_nodes.append(test.run(
+        name    = "login-smoke-" + provider,
+        file    = "login_smoke.py",
+        image   = PYTHON,
+        after   = [login_load],
+        env     = {"AUTH_PROVIDER": provider},
+        exports = [{"path": "reports/" + provider + "-junit.xml", "name": "login-smoke-" + provider, "on": "always", "format": "junit"}],
+    ))
 
-# ── MFA smoke (only when MFA is enabled) ─────────────────────────────────────
+expired = test.run(
+    name    = "expired-session",
+    file    = "expired_session.py",
+    image   = PYTHON,
+    after   = smoke_nodes,
+    exports = [{"path": "reports/expired-session.xml", "name": "expired-session", "on": "always", "format": "junit"}],
+)
+
+# ── MFA (only when it is on) ────────────────────────────────────────────────
+mfa_after = [expired]
 if ENABLE_MFA:
-    test.run(
-        name="mfa-smoke",
-        file="mfa_smoke.py",
-        image="python:3.12",
-        after=smoke_nodes,
-        fail_on_logs=["MFA_BYPASS_ATTEMPTED", "TOKEN_REPLAY_DETECTED"],
-        exports=[{"path": "reports/mfa-junit.xml", "name": "mfa-smoke", "on": "always", "format": "junit"}],
-    )
+    mfa_after = [test.run(
+        name         = "mfa-smoke",
+        file         = "mfa_smoke.py",
+        image        = PYTHON,
+        after        = [expired],
+        fail_on_logs = ["MFA_BYPASS_ATTEMPTED", "TOKEN_REPLAY_DETECTED"],
+        exports      = [{"path": "reports/mfa-junit.xml", "name": "mfa-smoke", "on": "always", "format": "junit"}],
+    )]
 
-# ── realm isolation test — one per realm ─────────────────────────────────────
+# ── realm isolation — one per realm ─────────────────────────────────────────
 for i in range(REALM_COUNT):
     test.run(
-        name="realm-isolation-" + str(i),
-        file="realm_isolation.py",
-        image="python:3.12",
-        after=smoke_nodes,
-        env={"REALM_ID": "realm-" + str(i)},
+        name    = "realm-isolation-" + str(i),
+        file    = "realm_isolation.py",
+        image   = PYTHON,
+        after   = mfa_after,
+        env     = {"REALM_ID": "realm-" + str(i), "REALM_COUNT": str(REALM_COUNT)},
+        exports = [{"path": "reports/realm-" + str(i) + "-isolation.xml", "name": "realm-isolation-" + str(i), "on": "always", "format": "junit"}],
     )
