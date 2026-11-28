@@ -1,5 +1,5 @@
 name: Local Debug
-description: Single browser, verbose traces, demo-seeded catalog.
+description: One browser, verbose logs.
 default: true
 
 network:
@@ -8,8 +8,3 @@ network:
 env:
   LOG_LEVEL: debug
   BROWSERS: chromium
-
-services:
-  catalog-mock:
-    env:
-      RESPONSE_DELAY_MS: "100"

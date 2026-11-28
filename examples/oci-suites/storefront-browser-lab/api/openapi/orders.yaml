@@ -2,20 +2,23 @@ openapi: 3.1.0
 info:
   title: Storefront Browser Lab
   version: v1.3.0
+  description: The catalog the storefront calls; a mock (catalog-api) answers for it.
 servers:
   - url: https://storefront-browser-lab.mock.internal
 paths:
   /catalog/products:
     get:
       operationId: list_products
-      summary: Return the product grid shown to the storefront browser before checkout begins.
+      summary: The products the storefront shows.
       responses:
         "200":
-          description: Successful mock response
+          description: The product grid.
   /orders:
     post:
       operationId: create_order
-      summary: Submit a checkout order and emit a Kafka event consumed by the browser verification lane.
+      summary: Take an order, or refuse it when the item is sold out.
       responses:
-        "200":
-          description: Successful mock response
+        "201":
+          description: The order was accepted.
+        "409":
+          description: The item is out of stock.

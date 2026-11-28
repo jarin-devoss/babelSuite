@@ -12,42 +12,26 @@ spec:
         mode: static
         examplename: ""
         proxyurl: ""
-        status: "422"
+        status: "201"
         mediatype: application/json
         body: |-
             {
-              "code": "UNKNOWN_ORDER_SCENARIO",
-              "message": "No order mock matched the incoming scenario."
+              "status": "accepted",
+              "orderId": "ord_7001"
             }
         headers: []
-    parameterConstraints:
-        - name: scenario
-          source: query
-          required: true
-          forward: false
-          pattern: ^(happy-path|out-of-stock)$
-        - name: content-type
-          source: header
-          required: true
-          forward: false
-          pattern: (?i)^application/json
-        - name: x-browser-suite
-          source: header
-          required: false
-          forward: true
-          pattern: ""
+    parameterConstraints: []
     resolverUrl: /internal/mock-data/storefront-browser-lab/storefront-api/create-order
-    runtimeUrl: /mocks/rest/storefront-browser-lab/storefront-api/orders?scenario=happy-path
+    runtimeUrl: /mocks/rest/storefront-browser-lab/storefront-api/orders
     state:
         lookupkeytemplate: checkout-attempt:{{ request.body.email }}
         mutationkeytemplate: checkout-attempt:{{ request.body.email }}
         defaults:
             count: "0"
         transitions:
-            - onexample: happy-path
+            - onexample: standard-order
               mutationkeytemplate: ""
               set:
-                lastOrderId: '{{ response.body.orderId }}'
                 lastStatus: accepted
               delete: []
               increment:
@@ -56,7 +40,6 @@ spec:
               mutationkeytemplate: ""
               set:
                 lastStatus: rejected
-                reason: inventory
               delete: []
               increment:
                 count: 1

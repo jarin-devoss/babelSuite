@@ -1,4 +1,0 @@
-dependencies:
-  payment-suite:
-    ref: localhost:5000/core-platform/payment-suite
-    profile: local.yaml

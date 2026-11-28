@@ -10,4 +10,4 @@ spec:
     - v1.3.0
     - v1.2.5
     - latest
-  description: Browser-first commerce environment with Kafka event streams, mocked catalog and order APIs, and Playwright end-to-end checkout journeys.
+  description: "A small web shop checked in real browsers: the shopper adds an item, checks out, and is told when it is sold out. The catalog is a mock."
