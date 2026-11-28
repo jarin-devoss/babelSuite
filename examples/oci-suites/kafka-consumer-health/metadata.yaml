@@ -9,4 +9,4 @@ spec:
   tags:
     - v1.0.0
     - latest
-  description: Demonstrates a module (kafka-checks) that internally loads the consumer-lag plugin to verify consumer group lag. This is a live example of module-to-plugin composition — the suite author never calls plugin.run() directly.
+  description: "A real Kafka broker, a producer and a consumer group, with the lag read through a REST proxy by the kafka-checks module (which loads the consumer-lag plugin). The lagging profile leaves a lag the check must catch."

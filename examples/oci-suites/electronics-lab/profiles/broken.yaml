@@ -1,0 +1,5 @@
+name: Broken Designs
+description: Sends a slow filter, a counter that never resets and a ringing plant. The run must end Failed.
+
+env:
+  DESIGN: bad
