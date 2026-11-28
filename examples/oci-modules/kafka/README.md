@@ -25,13 +25,28 @@ This module wraps Kafka cluster lifecycle and admin operations into importable S
 | `set_group_offset` | Resets a consumer group offset to a specific position |
 | `disconnect` | Gracefully shuts down the cluster connection |
 
+`kafka()` starts one broker in KRaft mode, its own controller. With a single
+broker, Kafka's internal topics cannot keep their default three replicas, and
+without them no consumer group can commit an offset, so `kafka()` sets:
+
+| Setting | Value |
+|---|---|
+| `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR` | `1` |
+| `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR` | `1` |
+| `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR` | `1` |
+| `KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS` | `0` |
+
+Anything passed in `env=` replaces the module's value for that key. The image
+defaults to `apache/kafka:3.9.0`; `image=` on `kafka()` and on each admin helper
+pins another.
+
 ## Usage
 
 ```python
-load("localhost:5000/babelsuite/kafka:1.2.3", "kafka", "create_topic")
+load("@babelsuite/kafka", "kafka", "create_topic")
 
 broker = kafka()
-orders_topic = create_topic("orders", partitions=3, after=[broker])
+orders_topic = create_topic(broker, "orders", partitions=3, after=[broker])
 ```
 
 See `module.star` for the full implementation and `usage.star` for a complete consumer example.

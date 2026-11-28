@@ -26,7 +26,7 @@ seeded = log.info("seed data applied", after=[read])
 
 api = service.run(
     name  = "payments-api",
-    image = "ghcr.io/acme/payments-api:latest",
+    image = "ghcr.io/acme/payments-api:1.0.0",
     after = [seeded],
 )
 

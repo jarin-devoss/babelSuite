@@ -11,5 +11,5 @@ spec:
     - 1.0.0
     - latest
   description: Kafka consumer health checks that internally compose the consumer-lag plugin. Demonstrates module-to-plugin composition.
-  pullCommand: babelctl run localhost:5000/babelsuite/kafka-checks:1.0.0
+  pullCommand: load("@babelsuite/kafka-checks", ...)
   forkCommand: babelctl fork localhost:5000/babelsuite/kafka-checks:1.0.0 ./stdlib-kafka-checks
