@@ -5,7 +5,7 @@ probe = traffic.user(
     tasks=[
         traffic.task(
             name="create-return",
-            request=traffic.post("/returns?scenario=approved", name="create-return", json={"amountCents": 4200, "orderId": "ord_1001", "returnReason": "damaged"}),
+            request=traffic.post("/returns", name="create-return", json={"amountCents": 4200, "orderId": "ord_1001", "returnReason": "damaged"}),
         ),
     ],
 )
