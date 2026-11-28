@@ -123,8 +123,8 @@ func (s *healthService) readinessSubsystem(w http.ResponseWriter, r *http.Reques
 
 func (s *healthService) run(ctx context.Context) (readinessReport, int) {
 	report := readinessReport{
-		Status:    probeReady,
-		CheckedAt: time.Now().UTC(),
+		Status:     probeReady,
+		CheckedAt:  time.Now().UTC(),
 		Components: make([]subsystemStatus, 0, len(s.order)),
 	}
 
@@ -190,6 +190,7 @@ func buildHealthService(
 	profileBaseStore *profiles.FileStore,
 	agentRegistry *agent.Registry,
 	executionService *execution.Service,
+	suiteCatalog interface{ Ready() bool },
 ) *healthService {
 	return newHealthService(dbDriver, []subsystemProbe{
 		{Name: "database", Required: true, Check: pingProbe(primaryStore)},
@@ -202,6 +203,7 @@ func buildHealthService(
 			_, err := profileBaseStore.Load()
 			return err
 		}, "profiles loaded")},
+		{Name: "catalog", Required: true, Check: catalogProbe(suiteCatalog)},
 		{Name: "telemetry", Required: false, Check: func(context.Context) (probeCheck, error) {
 			if telemetryPipeline == nil || !telemetryPipeline.Enabled() {
 				return probeCheck{Status: probeDisabled, Detail: "collector not configured"}, nil
@@ -248,5 +250,15 @@ func loadProbe(load func() error, detail string) func(context.Context) (probeChe
 			return probeCheck{}, err
 		}
 		return probeCheck{Status: probeReady, Detail: detail}, nil
+	}
+}
+
+// catalogProbe is ready once the suite catalog has been read from the registries.
+func catalogProbe(suiteCatalog interface{ Ready() bool }) func(context.Context) (probeCheck, error) {
+	return func(context.Context) (probeCheck, error) {
+		if suiteCatalog == nil || suiteCatalog.Ready() {
+			return probeCheck{Status: probeReady, Detail: "suites read from the registries"}, nil
+		}
+		return probeCheck{Status: probeNotReady, Detail: "the first read of the registries has not finished"}, nil
 	}
 }

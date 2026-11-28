@@ -1,5 +1,5 @@
 name: Local Debug
-description: Verbose logs, permissive fraud, execution network.
+description: Verbose logs and the default refund limit (10000 cents).
 default: true
 
 network:
@@ -7,6 +7,3 @@ network:
 
 env:
   LOG_LEVEL: debug
-  REFUND_MODES: instant,delayed,manual
-  ENABLE_FRAUD_SCREENING: "true"
-

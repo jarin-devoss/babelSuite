@@ -15,7 +15,7 @@ func newTestService(suite suites.Definition) *Service {
 	return &Service{
 		suites:     staticSuiteReader{suite: suite},
 		state:   make(map[string]map[string]map[string]string),
-		runs:    make(map[string]string),
+		runs:    make(map[string]map[string]struct{}),
 		ingress: make(map[string]string),
 	}
 }

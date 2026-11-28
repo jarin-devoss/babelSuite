@@ -284,6 +284,13 @@ func renderSchemaValue(schema any, contextMap map[string]any) any {
 		}
 		return result
 	case "array":
+		if elements, ok := node["x-babel-elements"].([]any); ok && len(elements) > 0 {
+			rendered := make([]any, 0, len(elements))
+			for _, element := range elements {
+				rendered = append(rendered, renderSchemaValue(element, contextMap))
+			}
+			return rendered
+		}
 		if items, exists := node["items"]; exists {
 			return []any{renderSchemaValue(items, contextMap)}
 		}

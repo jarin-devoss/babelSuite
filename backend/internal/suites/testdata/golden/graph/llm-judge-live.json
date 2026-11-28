@@ -1,0 +1,122 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "ollama",
+      "name": "ollama",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "ollama/ollama:0.5.7",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "llm-judge-live",
+      "sourceSuiteTitle": "Llm Judge Live",
+      "sourceRepository": "workspace/llm-judge-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pull-model",
+      "name": "pull-model",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "ollama/ollama:0.5.7",
+      "commands": [
+        "for i in $(seq 1 30); do ollama pull qwen2.5:1.5b-instruct-q4_K_M \u0026\u0026 exit 0; sleep 2; done; exit 1"
+      ],
+      "dependsOn": [
+        "ollama"
+      ],
+      "level": 1,
+      "sourceSuiteId": "llm-judge-live",
+      "sourceSuiteTitle": "Llm Judge Live",
+      "sourceRepository": "workspace/llm-judge-live",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "OLLAMA_HOST": "http://ollama:11434"
+      }
+    },
+    {
+      "id": "ready",
+      "name": "ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "real model resident on {{ profile }} — grading with it next",
+      "dependsOn": [
+        "pull-model"
+      ],
+      "level": 2,
+      "sourceSuiteId": "llm-judge-live",
+      "sourceSuiteTitle": "Llm Judge Live",
+      "sourceRepository": "workspace/llm-judge-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "judge-monitor",
+      "name": "judge-monitor",
+      "kind": "plugin",
+      "variant": "llm-judge",
+      "plugin": {
+        "name": "llm-judge",
+        "op": "monitor",
+        "config": {
+          "api_key": "",
+          "criteria": [
+            "states a refund window in days",
+            "provides a way to contact support",
+            "avoids giving legal advice"
+          ],
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "output": "Refunds are accepted within 30 days of delivery. Reach us at support@example.com if anything looks wrong. You are legally entitled to compensation for the delay, and we recommend you file a claim against the carrier.",
+          "structured": true,
+          "target": "",
+          "threshold": 0.9,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "llm-judge-live",
+      "sourceSuiteTitle": "Llm Judge Live",
+      "sourceRepository": "workspace/llm-judge-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "judge-gate",
+      "name": "judge-gate",
+      "kind": "plugin",
+      "variant": "llm-judge",
+      "plugin": {
+        "name": "llm-judge",
+        "op": "judge",
+        "config": {
+          "api_key": "",
+          "criteria": [
+            "states a refund window in days",
+            "provides a way to contact support",
+            "avoids giving legal advice"
+          ],
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "output": "Refunds are accepted within 30 days of delivery. Reach us at support@example.com if anything looks wrong. You are legally entitled to compensation for the delay, and we recommend you file a claim against the carrier.",
+          "severity": "critical",
+          "structured": true,
+          "target": "",
+          "threshold": 0.6,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "judge-monitor"
+      ],
+      "level": 4,
+      "sourceSuiteId": "llm-judge-live",
+      "sourceSuiteTitle": "Llm Judge Live",
+      "sourceRepository": "workspace/llm-judge-live",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

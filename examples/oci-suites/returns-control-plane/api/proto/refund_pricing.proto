@@ -2,12 +2,19 @@ syntax = "proto3";
 
 package returns_control_plane.v1;
 
-service refund_pricingService {
+// RefundPricing quotes what a return is worth and whether it needs a person.
+service RefundPricing {
   rpc QuoteRefund (QuoteRefundRequest) returns (QuoteRefundResponse);
 }
 
-message PingRequest {}
+message QuoteRefundRequest {
+  int32 amountCents = 1;
+  string currency = 2;
+  string returnReason = 3;
+}
 
-message PingResponse {
-  string status = 1;
+message QuoteRefundResponse {
+  string decision = 1;
+  string quoteId = 2;
+  int32 refundCents = 3;
 }

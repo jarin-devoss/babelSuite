@@ -125,7 +125,7 @@ The live execution page subscribes to both streams so the UI updates without pol
 
 The **Graph** button draws the same dependency graph the engine executes. Clicking a node filters the logs to that step; `Ctrl`/`⌘` + scroll zooms, and dragging or the arrow keys pan a graph wider than the screen.
 
-![The topology graph of composite-readiness, around seventy nodes across four imported suites](images/topology-graph-composite.png)
+![The topology graph of a suite that imports others, each imported suite's nodes under its own name](images/topology-graph-composite.png)
 
 ## Execution Overview
 

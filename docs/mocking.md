@@ -28,6 +28,23 @@ For each incoming mock request, the service locates:
 
 These are the gateway's back end, not an address for a test to call: every one answers `401` unless the request carries the gateway's token. Call the suite's gateway (`BABELSUITE_GATEWAY_URL`, or a mock by its node's name); see [Mock Traffic](architecture.md#mock-traffic) for how each protocol is served.
 
+## Reaching A Mock By Name
+
+A step reaches a mock by the name of its node: `mock.api(name="stripe-mock")`
+answers at `http://stripe-mock:9080`. The gateway answers to the host each
+surface declares (the `servers` URL of its contract) and to the name of every
+mock node of the suite, so any of those names reaches the suite's mocks.
+
+When several surfaces serve the same path, the name decides. A mock node named
+like one surface's own host reaches only that surface. In `electronics-lab` the
+SPICE, Verilog and control simulators all serve `POST /simulate`; their nodes are
+called `spice-service`, `verilog-service` and `control-service`, the hosts their
+contracts declare, so each name reaches its own simulator and not whichever was
+registered first.
+
+A suite imported with `suite.run` has its mocks on the same gateway, on their
+own hosts; see [Dependencies](dependencies.md#mocks-of-an-imported-suite).
+
 ## Operation Metadata
 
 Each mock operation can carry:

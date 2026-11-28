@@ -42,10 +42,10 @@ func TestOverlappingRunsKeepTheirOwnMockState(t *testing.T) {
 	definition := *base
 	definition.SuiteStar = strings.Join([]string{
 		`load("@babelsuite/runtime", "mock", "test")`,
-		`m = mock.api(name="storefront-api")`,
+		`m = mock.api(name="catalog-api")`,
 		`reset = test.run(name="reset", image="busybox", commands=["echo reset"], reset_mocks=[m], after=[m])`,
 		`worker = test.run(name="worker", image="busybox", after=[reset], commands=[`,
-		`  "post() { wget -q -S -O - --header 'Content-Type: application/json' --header 'x-browser-suite: playwright' --post-data '{\"email\":\"shopper@demo.test\",\"quantity\":1,\"sku\":\"sku_1001\"}' 'http://storefront-browser-lab.mock.internal:9080/orders?scenario=happy-path' 2>&1; }",`,
+		`  "post() { wget -q -S -O - --header 'Content-Type: application/json' --post-data '{\"email\":\"shopper@demo.test\",\"quantity\":1,\"sku\":\"sku_1001\"}' 'http://storefront-browser-lab.mock.internal:9080/orders' 2>&1; }",`,
 		`  "echo \"VERIFY $BABELSUITE_EXECUTION_ID first=$(post)\"",`,
 		`  "sleep 8",`,
 		`  "echo \"VERIFY $BABELSUITE_EXECUTION_ID second=$(post)\"",`,

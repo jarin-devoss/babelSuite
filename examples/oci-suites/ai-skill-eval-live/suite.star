@@ -24,7 +24,7 @@ TIMEOUT_MS = 120000
 
 ollama = service.run(
     name  = "ollama",
-    image = "ollama/ollama",
+    image = "ollama/ollama:0.5.7",
 )
 
 # The service answers as soon as it binds but has no weights yet; this gates
@@ -32,7 +32,7 @@ ollama = service.run(
 # reuses the ollama image.
 pull_model = task.run(
     name     = "pull-model",
-    image    = "ollama/ollama",
+    image    = "ollama/ollama:0.5.7",
     env      = {"OLLAMA_HOST": OLLAMA},
     commands = [
         "for i in $(seq 1 30); do ollama pull " + MODEL + " && exit 0; sleep 2; done; exit 1",

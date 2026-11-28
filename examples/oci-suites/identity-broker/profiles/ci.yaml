@@ -11,4 +11,3 @@ secretRefs:
   - key: JWT_SIGNING_KEY
     provider: Local Secret
     ref: secrets://ci/jwt-signing-key
-

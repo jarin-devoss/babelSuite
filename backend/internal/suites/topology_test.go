@@ -1,8 +1,6 @@
 package suites
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -415,17 +413,6 @@ locks:
 	}
 }
 
-
-func mustWriteFile(t *testing.T, path string, content string) {
-	t.Helper()
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", path, err)
-	}
-	if err := os.WriteFile(path, []byte(content+"\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
 
 func TestResolveTopologyParsesLogNodes(t *testing.T) {
 	t.Parallel()

@@ -1,0 +1,589 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "agent-model",
+      "name": "agent-model",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "routing",
+      "name": "routing",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "trigger",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [],
+            [],
+            [],
+            []
+          ],
+          "case_criteria": [
+            [],
+            [],
+            [],
+            []
+          ],
+          "case_expects": [
+            "issue_refund",
+            "issue_refund",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, I want my money back.",
+            "Refund order 1001 please, the box was crushed.",
+            "The mug in order 1001 is broken. Refund it.",
+            "Where is my parcel for order 1001 right now?"
+          ],
+          "case_sequences": [
+            [],
+            [],
+            [],
+            []
+          ],
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "severity": "critical",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 0.75,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "agent-model"
+      ],
+      "level": 1,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "small-talk",
+      "name": "small-talk",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "monitor",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            []
+          ],
+          "case_expects": [
+            null
+          ],
+          "case_prompts": [
+            "Thanks, that's all for today!"
+          ],
+          "case_sequences": [
+            []
+          ],
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "agent-model"
+      ],
+      "level": 1,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-plan",
+      "name": "refund-plan",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "sequence",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [],
+            []
+          ],
+          "case_criteria": [
+            [],
+            []
+          ],
+          "case_expects": [
+            null,
+            null
+          ],
+          "case_prompts": [
+            "What's in order 1001?",
+            "Check order 1001 and refund it if it was damaged."
+          ],
+          "case_sequences": [
+            [
+              "lookup_order"
+            ],
+            [
+              "lookup_order",
+              "issue_refund"
+            ]
+          ],
+          "model": "planner-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "sequence_match": "exact",
+          "severity": "critical",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 0.5,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "agent-model"
+      ],
+      "level": 1,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-arguments",
+      "name": "refund-arguments",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "arguments",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [
+              [
+                "order_id",
+                1001
+              ],
+              [
+                "reason",
+                "damaged"
+              ]
+            ],
+            [
+              [
+                "order_id",
+                1001
+              ],
+              [
+                "reason",
+                "not_delivered"
+              ]
+            ]
+          ],
+          "case_criteria": [
+            [],
+            []
+          ],
+          "case_expects": [
+            "issue_refund",
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, refund it.",
+            "Order 1001 never showed up, refund it."
+          ],
+          "case_sequences": [
+            [],
+            []
+          ],
+          "check_schema": true,
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "severity": "critical",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 0.5,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 2,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-stability",
+      "name": "refund-stability",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "consistency",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            []
+          ],
+          "case_expects": [
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, I want my money back."
+          ],
+          "case_sequences": [
+            []
+          ],
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "samples": 3,
+          "severity": "critical",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "temperature": 0.8,
+          "threshold": 1,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 2,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-latency",
+      "name": "refund-latency",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "latency",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            []
+          ],
+          "case_expects": [
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, refund it."
+          ],
+          "case_sequences": [
+            []
+          ],
+          "max_latency_ms": 2000,
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "severity": "critical",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 2,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-answers",
+      "name": "refund-answers",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "outcome",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [],
+            []
+          ],
+          "case_criteria": [
+            [
+              "says when the refund arrives",
+              "names the order"
+            ],
+            [
+              "says when the refund arrives",
+              "does not offer a discount code"
+            ]
+          ],
+          "case_expects": [
+            "issue_refund",
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed. When do I get my money?",
+            "Refund order 1001 and give me something for the trouble."
+          ],
+          "case_sequences": [
+            [],
+            []
+          ],
+          "judge_api_key": "",
+          "judge_model": "judge-mock",
+          "judge_url": "",
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "severity": "critical",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "structured": true,
+          "system": "",
+          "threshold": 0.5,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "refund-arguments"
+      ],
+      "level": 3,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-uplift",
+      "name": "refund-uplift",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "uplift",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            [
+              "says when the refund arrives",
+              "names the order"
+            ]
+          ],
+          "case_expects": [
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed. When do I get my money?"
+          ],
+          "case_sequences": [
+            []
+          ],
+          "judge_api_key": "",
+          "judge_model": "judge-mock",
+          "judge_url": "",
+          "min_gain": 1,
+          "model": "router-mock",
+          "model_url": "http://agent-model:9080/v1/chat/completions",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund. Confirm the order id back to the customer and say when the money arrives: refunds reach the original payment method within 5 business days. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "structured": true,
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "refund-answers"
+      ],
+      "level": 4,
+      "sourceSuiteId": "ai-skill-eval",
+      "sourceSuiteTitle": "Ai Skill Eval",
+      "sourceRepository": "workspace/ai-skill-eval",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

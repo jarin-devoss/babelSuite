@@ -1,50 +1,46 @@
 # SOAP Claims Hub
 
-Legacy claims sandbox with a schema-driven SOAP mock, XML envelope rendering, and APISIX-fronted dispatch into the BabelSuite mock engine.
+A REST bridge over a legacy SOAP claims system. Clients speak JSON; the bridge builds a SOAP 1.1 or 1.2 envelope, calls the claims system (one mock per claim type, chosen by `SOAPAction`) and turns the answer back into JSON.
 
-## Overview
-
-This suite demonstrates how BabelSuite handles legacy protocol integration. A single SOAP mock provides the intake surface; reference data is seeded before a claims bridge service starts; and smoke tests validate the full SOAP request-response cycle including fault envelopes.
-
-Use it as a reference when you need to test a service that consumes or produces SOAP/XML, or when you are migrating a legacy SOAP endpoint to REST and need both surfaces running in parallel.
-
-## Execution Order
+## Execution order
 
 ```
-claims_mock
-└── seed_reference_data ──┐
-                          claims_bridge
-                               │
-                          claims_smoke
+<claim-type>-claims-mock (one per type) ── claims-bridge ── claims-bridge-ready ── mocks_ready
+                                                             ├── claims-baseline-soap-1_1, claims-baseline-soap-1_2
+                                                             └── claims-smoke-<claim type>
+                                                                  ├── fault-injection-<scenario>
+                                                                  ├── legacy-compat-check
+                                                                  └── adapter-contract
 ```
+
+## What breaks it
+
+A SOAP Fault from the claims system is never reported as a success: the `if "Fault" in parsed:` line in `from_soap()` (`tasks/claims_bridge.py`). Make it `if False:` and `fault-injection-missing_header`, `legacy-compat-check` and `adapter-contract`, which send an action the claims system does not serve, fail.
+
+A policy number must carry its claim type's code (`MED-1024` for a medical claim): `validate()` checks it before an envelope is built, and `claims-smoke-*` submits a dental policy as a medical claim.
+
+## Profiles
+
+| Profile | What it does |
+|---|---|
+| `local.yaml` | Four claim types, SOAP 1.1 and 1.2, legacy envelopes replayed. |
+| `canary.yaml` | Canary settings. |
 
 ## Structure
 
 | Path | Description |
 |---|---|
-| `suite.star` | Declarative topology — SOAP mock, seeder, bridge service, and tests |
-| `profiles/` | SOAP endpoint runtime settings and partner header defaults by environment |
-| `api/` | WSDL contract published to claim submitters |
-| `mock/` | Schema-driven SOAP mock definitions that render XML envelopes at runtime |
-| `tasks/` | `seed_reference_data.sh` — claim code tables and partner fixture bootstrap |
-| `tests/` | `claims_smoke.py` — submit and lookup SOAP exchange validation, including fault paths |
-| `fixtures/` | Seeded partner claims and policy data |
+| `suite.star` | The topology. |
+| `tasks/claims_bridge.py` | The bridge. |
+| `api/wsdl/claims.wsdl` | The claims system's operations. |
+| `mock/claims/` | The SOAP mock: answers by `SOAPAction`, and a Fault for any other. |
+| `tests/` | Smoke, fault, legacy and contract tests. |
+| `traffic/` | One plan per SOAP version. |
 
 ## Running
 
 ```bash
-# Run locally with the SOAP mock and dev partner config
-babelctl run localhost:5000/babelsuite/soap-claims-hub:latest --profile local
-
-# Run with staging partner headers and production WSDL endpoint
-babelctl run localhost:5000/babelsuite/soap-claims-hub:latest --profile staging
+python scripts/push-to-zot.py --suite soap-claims-hub --sync http://localhost:8090
 ```
 
-## Key Concepts Demonstrated
-
-- **Mock-first topology** — `claims_mock` is the root node; everything else depends on it, reflecting how the SOAP surface is the system's primary intake point
-- **Schema-driven XML rendering** — mock definitions describe the SOAP envelope structure; BabelSuite renders the XML at request time rather than storing static response files
-- **Fault path coverage** — smoke tests explicitly exercise fault envelope responses (malformed requests, unknown claim codes) alongside happy-path flows
-- **Minimal topology** — four steps total make this the simplest suite in the collection, useful for understanding BabelSuite fundamentals before exploring more complex examples
-- **Load test targets the suite's mock** — the baseline sends real requests to the suite's mock host until a real service is added
-- **Reports fail until the tests write them** — `claims-smoke-*` fail with `report … was not produced` until `claims_smoke.py` writes a real JUnit report
+Then launch it from the UI, or `POST /api/v1/executions` with `{"suiteId": "soap-claims-hub", "profile": "local.yaml"}`.

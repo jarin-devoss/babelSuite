@@ -2,10 +2,11 @@ package suites
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
+
+	"go.starlark.net/syntax"
 )
 
 type Service struct {
@@ -201,13 +202,23 @@ func isValidSuiteID(id string) bool {
 	return true
 }
 
-var loadStmtRe = regexp.MustCompile(`(?m)^\s*load\s*\(\s*"([^"]+)"`)
-
+// extractLoadContracts lists the modules a suite.star loads, in order, each once.
+// It reads them from the syntax tree the interpreter itself parses, so a load() in
+// a comment or a string is not one, and a file that does not parse names none (the
+// evaluator reports the error).
 func extractLoadContracts(suiteStar string) []string {
+	file, err := starlarkFileOptions.Parse("suite.star", suiteStar, 0)
+	if err != nil {
+		return []string{}
+	}
 	seen := map[string]struct{}{}
 	result := []string{}
-	for _, m := range loadStmtRe.FindAllStringSubmatch(suiteStar, -1) {
-		module := strings.TrimSpace(m[1])
+	for _, stmt := range file.Stmts {
+		load, ok := stmt.(*syntax.LoadStmt)
+		if !ok {
+			continue
+		}
+		module := strings.TrimSpace(load.ModuleName())
 		if module == "" {
 			continue
 		}

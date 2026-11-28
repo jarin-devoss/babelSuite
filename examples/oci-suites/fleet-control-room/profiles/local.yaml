@@ -1,5 +1,5 @@
 name: Local Debug
-description: Single region, verbose telemetry, browser-forwarded ports.
+description: One region and a gentle spike.
 default: true
 
 network:
@@ -8,7 +8,4 @@ network:
 env:
   LOG_LEVEL: debug
   REGIONS: eu-west
-  ENABLE_TELEMETRY: "true"
-  ENABLE_GEO_FENCE: "true"
   SPIKE_MULTIPLIER: "2"
-

@@ -1,0 +1,8 @@
+name: Local
+description: 200 orders produced, all 200 consumed. The lag is 0 and the run is Healthy.
+default: true
+
+env:
+  MESSAGES: "200"
+  CONSUME: "200"
+  MAX_LAG: "10"

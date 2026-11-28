@@ -1,0 +1,70 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "db",
+      "name": "db",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "postgres:16",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "stripe-mock",
+      "name": "stripe-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "db"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "migrate",
+      "name": "migrate",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "python:3.12",
+      "file": "migrate.py",
+      "dependsOn": [
+        "db"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "api",
+      "name": "api",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "payments-api:latest",
+      "dependsOn": [
+        "db",
+        "stripe-mock",
+        "migrate"
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "STRIPE_BASE_URL": "http://stripe-mock:9080"
+      }
+    },
+    {
+      "id": "smoke",
+      "name": "smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "golang:1.24",
+      "file": "go/smoke_test.go",
+      "dependsOn": [
+        "api"
+      ],
+      "level": 3,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}

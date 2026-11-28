@@ -114,10 +114,9 @@ func TestListProductsEnforcesConstraints(t *testing.T) {
 func TestGRPCAdapterUsesBodyDispatch(t *testing.T) {
 	service := NewService(suites.NewWorkspaceService())
 
-	req := httptest.NewRequest("POST", "/mocks/grpc/fleet-control-room/dispatcher-api/assign-route", strings.NewReader(`{"vehicleId":"vh-11","routeId":"route-778"}`))
-	req.Header.Set("X-Profile", "perf.yaml")
+	req := httptest.NewRequest("POST", "/mocks/grpc/fleet-control-room/route-planner/assign-route", strings.NewReader(`{"vehicleId":"vh-11","routeId":"route-778"}`))
 
-	result, err := service.InvokeAdapter(context.Background(), "fleet-control-room", "dispatcher-api", "assign-route", "grpc", req)
+	result, err := service.InvokeAdapter(context.Background(), "fleet-control-room", "route-planner", "assign-route", "grpc", req)
 	if err != nil {
 		t.Fatalf("InvokeAdapter: %v", err)
 	}
@@ -127,8 +126,15 @@ func TestGRPCAdapterUsesBodyDispatch(t *testing.T) {
 	if !strings.Contains(string(result.Body), `"assignmentId": "asg-778"`) {
 		t.Fatalf("expected grpc mock body, got %s", string(result.Body))
 	}
-	if got := result.Headers.Get("x-profile"); got != "perf.yaml" {
-		t.Fatalf("expected recopied x-profile header, got %q", got)
+
+	// A vehicle the planner has no plan for falls through to the fallback.
+	other := httptest.NewRequest("POST", "/mocks/grpc/fleet-control-room/route-planner/assign-route", strings.NewReader(`{"vehicleId":"vh-unknown","routeId":"route-1"}`))
+	fallback, err := service.InvokeAdapter(context.Background(), "fleet-control-room", "route-planner", "assign-route", "grpc", other)
+	if err != nil {
+		t.Fatalf("InvokeAdapter fallback: %v", err)
+	}
+	if strings.Contains(string(fallback.Body), "asg-778") {
+		t.Fatalf("a vehicle with no plan got the plan for vh-11: %s", string(fallback.Body))
 	}
 }
 
@@ -532,6 +538,10 @@ func TestSchemaDocumentValidatesRequestBody(t *testing.T) {
 	}
 }
 
+// replaceSuiteSourceFile sets a source file of the suite. The async refund-events
+// surface is not part of the returns example any more (nothing in the suite runs
+// a broker for it), so a test that needs it gets it added here: the file and the
+// operation that reads it.
 func replaceSuiteSourceFile(t *testing.T, suite *suites.Definition, path, content string) {
 	t.Helper()
 
@@ -543,5 +553,22 @@ func replaceSuiteSourceFile(t *testing.T, suite *suites.Definition, path, conten
 		return
 	}
 
-	t.Fatalf("suite source file %s not found", path)
+	if path != "mock/events/refund-authorized.cue" {
+		t.Fatalf("suite source file %s not found", path)
+	}
+	suite.SourceFiles = append(suite.SourceFiles, suites.SourceFile{Path: path, Content: content})
+	suite.APISurfaces = append(suite.APISurfaces, suites.APISurface{
+		ID:       "refund-events",
+		Protocol: "async",
+		Operations: []suites.APIOperation{{
+			ID:       "publish-refund-authorized",
+			MockPath: path,
+			MockMetadata: suites.MockOperationMetadata{
+				Adapter:     "async",
+				ResolverURL: "/internal/mock-data/returns-control-plane/refund-events/publish-refund-authorized",
+				RuntimeURL:  "/mocks/async/returns-control-plane/refund-events/publish-refund-authorized",
+				Fallback:    &suites.MockFallback{Mode: "example", ExampleName: "authorized-event"},
+			},
+		}},
+	})
 }

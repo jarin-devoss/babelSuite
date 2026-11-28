@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -61,15 +60,71 @@ func newCatalogSuiteReader(cat catalog.Reader, settings suiteSettingsReader, wor
 	return r
 }
 
+// Refresh re-reads every suite and module from the registries. A package pushed
+// after the server started is then found without a restart: the registry sync
+// endpoint calls it. The new catalog is built beside the old one and swapped in
+// whole, so a run that starts meanwhile resolves against a complete catalog (the
+// old one until the swap), never a half-filled one, and a suite that was removed
+// or rewritten does not linger.
+func (r *catalogSuiteReader) Refresh() {
+	r.swapCache(r.loadCatalog())
+	r.moduleMu.Lock()
+	r.moduleCache = make(map[string]map[string]string)
+	r.moduleByName = make(map[string]map[string]string)
+	r.moduleMu.Unlock()
+}
+
+// Ready reports whether the catalog has been read from the registries once.
+func (r *catalogSuiteReader) Ready() bool {
+	select {
+	case <-r.ready:
+		return true
+	default:
+		return false
+	}
+}
+
+// waitReady blocks a read until the first catalog load has finished, for at most
+// as long as that load may take, so a run launched just after start does not
+// resolve its imports against an empty catalog.
+func (r *catalogSuiteReader) waitReady() {
+	select {
+	case <-r.ready:
+	case <-time.After(catalogWarmTimeout):
+	}
+}
+
+const catalogWarmTimeout = 2 * time.Minute
+
 func (r *catalogSuiteReader) warmCache() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	r.swapCache(r.loadCatalog())
+}
+
+func (r *catalogSuiteReader) swapCache(next map[string]*suites.Definition) {
+	if next == nil {
+		// The registry could not be listed: keep what is known rather than
+		// replacing it with nothing.
+		return
+	}
+	r.mu.Lock()
+	r.cache = next
+	r.mu.Unlock()
+}
+
+// loadCatalog reads every suite package from the registries and resolves each
+// one's topology against the rest. It returns nil when the registries cannot be
+// listed.
+func (r *catalogSuiteReader) loadCatalog() map[string]*suites.Definition {
+	ctx, cancel := context.WithTimeout(context.Background(), catalogWarmTimeout)
 	defer cancel()
 
 	packages, err := r.catalog.ListPackages(ctx)
 	if err != nil {
-		return
+		return nil
 	}
 
+	next := make(map[string]*suites.Definition)
+	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, pkg := range packages {
 		if pkg.Kind != "suite" {
@@ -82,20 +137,22 @@ func (r *catalogSuiteReader) warmCache() {
 			if def == nil {
 				return
 			}
-			r.mu.Lock()
-			r.cache[p.ID] = def
-			r.mu.Unlock()
+			mu.Lock()
+			next[p.ID] = def
+			mu.Unlock()
 		}(pkg)
 	}
 	wg.Wait()
 
-	cat := r.cachedCatalog()
-	r.mu.Lock()
-	for id, def := range r.cache {
-		resolved := suites.ResolveDefinitionTopology(*def, cat)
-		r.cache[id] = &resolved
+	catalogList := make([]suites.Definition, 0, len(next))
+	for _, def := range next {
+		catalogList = append(catalogList, *def)
 	}
-	r.mu.Unlock()
+	for id, def := range next {
+		resolved := suites.ResolveDefinitionTopology(*def, catalogList)
+		next[id] = &resolved
+	}
+	return next
 }
 
 func (r *catalogSuiteReader) buildDefinition(ctx context.Context, pkg catalog.Package) *suites.Definition {
@@ -122,13 +179,13 @@ func (r *catalogSuiteReader) buildDefinition(ctx context.Context, pkg catalog.Pa
 
 	applyOCIMetadata(&def, files)
 	def.SuiteStar = files["suite.star"]
-	def.Profiles = parseProfilesFromFiles(files)
-	def.Folders = buildFoldersFromFiles(files)
-	def.SourceFiles = buildSourceFilesFromMap(files)
+	def.Profiles = suites.ProfilesFromFiles(files)
+	def.Folders = suites.FoldersFromFiles(files)
+	def.SourceFiles = suites.SourceFilesFromMap(files)
 
 	// Parse mock surfaces: full suites.APISurface (with MockPath + MockMetadata) for
 	// the mock engine, and apisix.SurfaceConfig for the gateway YAML generator.
-	def.APISurfaces = parseOCISurfaces(files)
+	def.APISurfaces = suites.SurfacesFromFiles(files)
 	surfaces := parseAPISurfaces(pkg.ID, files)
 
 	plugins := r.loadCustomPlugins()
@@ -190,183 +247,6 @@ func (r *catalogSuiteReader) cachedCatalog() []suites.Definition {
 }
 
 // ── APISIX gateway config generation ─────────────────────────────────────────
-
-// parseOCISurfaces builds fully-populated suites.APISurface objects from the OCI
-// file map. It reads mock/*.metadata.yaml for MockPath, MockMetadata (adapter,
-// fallback, constraints, delay) and api/*.yaml for method/path/summary/host.
-// This mirrors loadWorkspaceAPISurfaces in suites/workspace.go but reads from the
-// in-memory files map instead of the filesystem.
-func parseOCISurfaces(files map[string]string) []suites.APISurface {
-	type rawOp struct {
-		surfaceID string
-		op        suites.APIOperation
-	}
-
-	// Step 1 — parse mock/*.metadata.yaml for full operation metadata.
-	var ops []rawOp
-	for path, content := range files {
-		if !strings.HasPrefix(path, "mock/") || !strings.HasSuffix(path, ".metadata.yaml") {
-			continue
-		}
-		var doc struct {
-			Metadata struct {
-				OperationID    string `yaml:"operationId"`
-				SourceArtifact string `yaml:"sourceArtifact"`
-			} `yaml:"metadata"`
-			Spec struct {
-				Adapter              string                       `yaml:"adapter"`
-				DelayMillis          int                          `yaml:"delayMillis"`
-				ResolverURL          string                       `yaml:"resolverUrl"`
-				RuntimeURL           string                       `yaml:"runtimeUrl"`
-				ParameterConstraints []suites.ParameterConstraint `yaml:"parameterConstraints"`
-				Fallback             *suites.MockFallback         `yaml:"fallback"`
-				State                *suites.MockState            `yaml:"state"`
-			} `yaml:"spec"`
-		}
-		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-			continue
-		}
-		opID := strings.TrimSpace(doc.Metadata.OperationID)
-		resolverURL := strings.TrimSpace(doc.Spec.ResolverURL)
-		if opID == "" || resolverURL == "" {
-			continue
-		}
-		parts := strings.Split(strings.Trim(resolverURL, "/"), "/")
-		if len(parts) < 5 {
-			continue
-		}
-		ops = append(ops, rawOp{
-			surfaceID: parts[3],
-			op: suites.APIOperation{
-				ID:       opID,
-				MockPath: strings.TrimSpace(doc.Metadata.SourceArtifact),
-				MockMetadata: suites.MockOperationMetadata{
-					Adapter:              strings.ToLower(strings.TrimSpace(doc.Spec.Adapter)),
-					DelayMillis:          doc.Spec.DelayMillis,
-					ResolverURL:          resolverURL,
-					RuntimeURL:           strings.TrimSpace(doc.Spec.RuntimeURL),
-					ParameterConstraints: doc.Spec.ParameterConstraints,
-					Fallback:             doc.Spec.Fallback,
-					State:                doc.Spec.State,
-					MetadataPath:         path,
-				},
-			},
-		})
-	}
-	if len(ops) == 0 {
-		return nil
-	}
-
-	// Step 2 — parse api/*.yaml OpenAPI specs: operationId → {method, path, summary, host}.
-	type opDetail struct {
-		method  string
-		path    string
-		summary string
-		host    string
-	}
-	apiMap := make(map[string]opDetail)
-	globalHost := ""
-	for filePath, content := range files {
-		if !strings.HasPrefix(filePath, "api/") {
-			continue
-		}
-		low := strings.ToLower(filePath)
-		if !strings.HasSuffix(low, ".yaml") && !strings.HasSuffix(low, ".yml") {
-			continue
-		}
-		var doc struct {
-			Servers []struct {
-				URL string `yaml:"url"`
-			} `yaml:"servers"`
-			Paths map[string]map[string]struct {
-				OperationID string `yaml:"operationId"`
-				Summary     string `yaml:"summary"`
-			} `yaml:"paths"`
-		}
-		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-			continue
-		}
-		host := ""
-		if len(doc.Servers) > 0 {
-			host = strings.TrimSpace(doc.Servers[0].URL)
-			if globalHost == "" {
-				globalHost = host
-			}
-		}
-		for apiPath, methods := range doc.Paths {
-			for httpMethod, op := range methods {
-				key := normalizeOpKey(op.OperationID)
-				if key == "" {
-					continue
-				}
-				apiMap[key] = opDetail{
-					method:  strings.ToUpper(httpMethod),
-					path:    apiPath,
-					summary: strings.TrimSpace(op.Summary),
-					host:    host,
-				}
-			}
-		}
-	}
-
-	// Step 3 — apply method/path/summary from OpenAPI; fall back to runtimeUrl derivation.
-	for i := range ops {
-		detail := apiMap[normalizeOpKey(ops[i].op.ID)]
-		if detail.method != "" {
-			ops[i].op.Method = detail.method
-			ops[i].op.Name = detail.path
-			ops[i].op.Summary = detail.summary
-		} else {
-			ru := ops[i].op.MockMetadata.RuntimeURL
-			if idx := strings.Index(ru, "?"); idx >= 0 {
-				ru = ru[:idx]
-			}
-			parts := strings.SplitN(ru, "/", 6)
-			if len(parts) >= 6 {
-				ops[i].op.Name = "/" + parts[5]
-			}
-			ops[i].op.Method = "POST"
-		}
-	}
-
-	// Step 4 — group by surfaceID preserving first-seen order.
-	type surfaceGroup struct {
-		ops  []suites.APIOperation
-		host string
-	}
-	groupMap := make(map[string]*surfaceGroup)
-	var order []string
-	for _, raw := range ops {
-		if _, ok := groupMap[raw.surfaceID]; !ok {
-			groupMap[raw.surfaceID] = &surfaceGroup{}
-			order = append(order, raw.surfaceID)
-		}
-		grp := groupMap[raw.surfaceID]
-		grp.ops = append(grp.ops, raw.op)
-		if grp.host == "" {
-			if d := apiMap[normalizeOpKey(raw.op.ID)]; d.host != "" {
-				grp.host = d.host
-			}
-		}
-	}
-
-	// Step 5 — build surfaces.
-	result := make([]suites.APISurface, 0, len(order))
-	for _, surfaceID := range order {
-		grp := groupMap[surfaceID]
-		host := grp.host
-		if host == "" {
-			host = globalHost
-		}
-		result = append(result, suites.APISurface{
-			ID:         surfaceID,
-			Protocol:   "REST",
-			MockHost:   host,
-			Operations: grp.ops,
-		})
-	}
-	return result
-}
 
 func buildGatewayConfig(suiteID string, files map[string]string, plugins []apisix.CustomPluginConfig) string {
 	return apisix.RenderStandaloneConfig(apisix.SuiteConfig{
@@ -483,7 +363,7 @@ func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceC
 		}
 		for apiPath, methods := range doc.Paths {
 			for httpMethod, op := range methods {
-				key := normalizeOpKey(op.OperationID)
+				key := suites.NormalizeOpKey(op.OperationID)
 				if key == "" {
 					continue
 				}
@@ -538,7 +418,7 @@ func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceC
 
 		var apiOps []apisix.OperationConfig
 		for _, op := range grp.ops {
-			detail := apiMap[normalizeOpKey(op.id)]
+			detail := apiMap[suites.NormalizeOpKey(op.id)]
 			if mockHost == "" && detail.host != "" {
 				mockHost = detail.host
 			}
@@ -581,15 +461,6 @@ func parseAPISurfaces(suiteID string, files map[string]string) []apisix.SurfaceC
 		})
 	}
 	return result
-}
-
-// normalizeOpKey strips dashes, underscores, and lowercases so "create_payment"
-// and "create-payment" match the same OpenAPI operationId.
-func normalizeOpKey(id string) string {
-	id = strings.ToLower(strings.TrimSpace(id))
-	id = strings.ReplaceAll(id, "-", "")
-	id = strings.ReplaceAll(id, "_", "")
-	return id
 }
 
 func gatewayProtocol(adapter string, hasWSDL bool) string {
@@ -645,6 +516,7 @@ func toPascalCase(s string) string {
 }
 
 func (r *catalogSuiteReader) List() []suites.Definition {
+	r.waitReady()
 	r.mu.RLock()
 	result := make([]suites.Definition, 0, len(r.cache))
 	for _, def := range r.cache {
@@ -668,6 +540,7 @@ func (r *catalogSuiteReader) List() []suites.Definition {
 }
 
 func (r *catalogSuiteReader) Get(id string) (*suites.Definition, error) {
+	r.waitReady()
 	id = strings.TrimSpace(id)
 
 	r.mu.RLock()
@@ -943,109 +816,5 @@ func applyAuth(req *http.Request, reg *platform.OCIRegistry) {
 	if user != "" && secret != "" && !strings.Contains(secret, "://") {
 		req.SetBasicAuth(user, secret)
 	}
-}
-
-func buildSourceFilesFromMap(files map[string]string) []suites.SourceFile {
-	skip := map[string]bool{"metadata.yaml": true}
-	result := make([]suites.SourceFile, 0, len(files))
-	for path, content := range files {
-		if skip[path] {
-			continue
-		}
-		result = append(result, suites.SourceFile{
-			Path:     path,
-			Language: suites.DetectSourceLanguage(path),
-			Content:  content,
-		})
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Path < result[j].Path })
-	return result
-}
-
-func buildFoldersFromFiles(files map[string]string) []suites.FolderEntry {
-	grouped := make(map[string][]string)
-	for path := range files {
-		if path == "babelsuite-api.json" {
-			continue
-		}
-		slash := strings.Index(path, "/")
-		if slash < 0 {
-			continue
-		}
-		dir := path[:slash]
-		rel := path[slash+1:]
-		if dir == "" || rel == "" {
-			continue
-		}
-		grouped[dir] = append(grouped[dir], rel)
-	}
-
-	folders := make([]suites.FolderEntry, 0, len(grouped))
-	for dir, fileList := range grouped {
-		sort.Strings(fileList)
-		folders = append(folders, suites.FolderEntry{Name: dir, Files: fileList})
-	}
-	sort.Slice(folders, func(i, j int) bool { return folders[i].Name < folders[j].Name })
-	return folders
-}
-
-func parseProfilesFromFiles(files map[string]string) []suites.ProfileOption {
-	type profileDoc struct {
-		Name        string `yaml:"name"`
-		Description string `yaml:"description"`
-		Default     bool   `yaml:"default"`
-		Runtime     struct {
-			ProfileFile string `yaml:"profileFile"`
-		} `yaml:"runtime"`
-	}
-
-	profiles := make([]suites.ProfileOption, 0)
-	for path, content := range files {
-		if !strings.HasPrefix(path, "profiles/") {
-			continue
-		}
-		if !strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml") {
-			continue
-		}
-		fileName := path[len("profiles/"):]
-
-		var doc profileDoc
-		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-			continue
-		}
-
-		label := strings.TrimSpace(doc.Name)
-		if label == "" {
-			label = humanizeFileName(strings.TrimSuffix(strings.TrimSuffix(fileName, ".yaml"), ".yml"))
-		}
-		profileFile := strings.TrimSpace(doc.Runtime.ProfileFile)
-		if profileFile == "" {
-			profileFile = fileName
-		}
-		profiles = append(profiles, suites.ProfileOption{
-			FileName:    profileFile,
-			Label:       label,
-			Description: strings.TrimSpace(doc.Description),
-			Default:     doc.Default,
-		})
-	}
-
-	for i, p := range profiles {
-		if p.Default && i != 0 {
-			profiles[0], profiles[i] = profiles[i], profiles[0]
-			break
-		}
-	}
-	return profiles
-}
-
-func humanizeFileName(name string) string {
-	parts := strings.FieldsFunc(name, func(r rune) bool { return r == '-' || r == '_' })
-	for i, p := range parts {
-		if len(p) > 0 {
-			parts[i] = strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
-		}
-	}
-	return strings.Join(parts, " ")
 }
 

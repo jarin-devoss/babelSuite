@@ -12,5 +12,5 @@ spec:
     - 1.2.2
     - latest
   description: Pure Starlark Kafka module built on top of BabelSuite's built-in runtime service and task primitives.
-  pullCommand: babelctl run localhost:5000/babelsuite/kafka:1.2.3
+  pullCommand: load("@babelsuite/kafka", ...)
   forkCommand: babelctl fork localhost:5000/babelsuite/kafka:1.2.3 ./stdlib-kafka

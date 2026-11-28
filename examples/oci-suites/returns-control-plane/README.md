@@ -1,52 +1,47 @@
 # Returns Control Plane
 
-Reverse-logistics suite demonstrating BabelSuite's richer mock runtime: split metadata, response templating, state machines, fallback modes, and multi-protocol mock surfaces.
+A refund service that takes a return, asks a pricing service for a quote over gRPC, registers the return with a partner, and holds back any refund above a limit for manual review. The pricing service is a gRPC mock the gateway serves from `api/proto/refund_pricing.proto`; the partner is a REST mock.
 
-## Overview
-
-This suite models a returns and refund system backed by a relational database and a message broker. Three separate mocks (refunds, pricing, events) exercise different facets of BabelSuite's mock engine. Kafka topic seeding and route bootstrapping run in parallel before the returns API starts, and a background refund worker processes events throughout the test run.
-
-Use it as a reference when your system under test depends on multiple distinct downstream APIs with stateful behavior, or when you need to validate event-schema contracts alongside HTTP responses.
-
-## Execution Order
+## Execution order
 
 ```
-returns_db                    broker
-├── refunds_mock              └── events_mock
-├── pricing_mock              └── seed_topics ──┐
-└── seed_routes ──────────────────────────────┐  │
-                              returns_api      │  │
-                                   └── refund_worker
-                                              │
-                                       returns_smoke
+partner-api (mock) ── refund-worker ── refund-worker-ready ── ready
+                                                              └── returns-stress ── returns-spike
+                                                                     └── returns-smoke ── refund-smoke ── rollback-returns (on failure)
 ```
+
+## What breaks it
+
+A refund above `REFUND_LIMIT_CENTS` is never issued without manual review, whatever the pricing service says: `decide()` in `tasks/refund_worker.py`. Make the `if amount > LIMIT:` line `if False:` and `returns-smoke`, which asks for a refund above the limit on a reason the pricing mock calls `instant`, fails.
+
+If the pricing service gives no quote, no return is created (502); the same test covers it.
+
+## Profiles
+
+| Profile | What it does |
+|---|---|
+| `local.yaml` | The default limit of 10000 cents. |
+| `canary.yaml` | Canary settings. |
+| `peak.yaml` | Peak-season settings. |
 
 ## Structure
 
 | Path | Description |
 |---|---|
-| `suite.star` | Declarative topology — database, broker, three mocks, two seeders, API, worker, and tests |
-| `profiles/` | Launch profiles for `local`, `canary`, and peak-season refund traffic |
-| `api/` | OpenAPI and protobuf contracts for the returns API and refund pricing service |
-| `mock/` | Mock payloads, dispatch metadata, state machines, and fallback definitions |
-| `tasks/` | `seed_topics.sh` (Kafka) and `seed_routes.ts` (refund routing tables) |
-| `tests/` | `returns_smoke.py` — submit, review, and refund approval flows |
-| `fixtures/` | Seeded return cases and customer profiles |
+| `suite.star` | The topology. |
+| `tasks/refund_worker.py` | The refund service; its gRPC-Web client is written by hand. |
+| `api/proto/refund_pricing.proto` | The pricing contract the gateway serves. |
+| `mock/pricing/` | The pricing mock, dispatched by the return reason. |
+| `mock/returns/` | The partner's REST mocks. |
+| `tests/` | `returns_smoke.py`, `refund_smoke.py`. |
+| `traffic/returns.star` | The load plan. |
 
 ## Running
 
 ```bash
-# Run locally with in-process mocks and a local broker
-babelctl run localhost:5000/babelsuite/returns-control-plane:latest --profile local
-
-# Run under canary traffic conditions
-babelctl run localhost:5000/babelsuite/returns-control-plane:latest --profile canary
+python scripts/push-to-zot.py --suite returns-control-plane --sync http://localhost:8090
 ```
 
-## Key Concepts Demonstrated
+Then launch it from the UI, or `POST /api/v1/executions` with `{"suiteId": "returns-control-plane", "profile": "local.yaml"}`.
 
-- **Multiple concurrent mocks** — `refunds_mock`, `pricing_mock`, and `events_mock` each model a different downstream surface with independent state machines
-- **Parallel seeding** — `seed_topics` and `seed_routes` run concurrently across broker and database, reducing startup time
-- **Worker alongside tests** — `refund_worker` remains running during the smoke test, processing events produced by the API under test
-- **Fallback modes** — mock definitions include fallback responses for unmatched requests, preventing test failures from incomplete fixture coverage
-- **Load test targets the suite's mock** — the traffic steps send real requests to the suite's mock host until a real service is added
+A suite that calls a gRPC mock is run on its own: an importing suite's gateway does not serve an imported suite's gRPC mocks.

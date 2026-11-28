@@ -1,45 +1,41 @@
 # Composite Readiness
 
-Minimal workspace suite that imports another suite as a pinned OCI dependency, then runs a single Go smoke test to confirm end-to-end readiness.
+Imports three suites and asks each imported service whether it is ready. A thin layer over environments other suites own: it adds no service or mock of its own.
 
-## Overview
-
-This suite demonstrates BabelSuite's nested composition model. Rather than re-declaring a full topology, it references an existing published suite (`payments-module`) and adds one final verification step on top. The dependency lock file ensures reproducible runs — the imported suite is always resolved to the same artifact digest.
-
-Use it as a reference for workspace suites that assemble multiple independently-versioned suite packages, or as a template for a readiness gate that sits on top of an existing environment.
-
-## Execution Order
+## Execution order
 
 ```
-payments  ← imported suite (resolved from dependencies.lock.yaml)
-    │
-readiness_smoke  ← Go test verifying end-to-end health
+payment-suite ─┐
+identity-broker ├── readiness-smoke-<suite> (one per suite) ── composite-health-summary ── done
+soap-claims-hub ┘
 ```
+
+## What breaks it
+
+Each `readiness-smoke-*` step asks its imported service for `/health` and expects `{"status": "ok"}`. A suite that does not become ready within `READINESS_TIMEOUT_SECONDS` fails the run, and so does one that answers anything else.
+
+A name in `SUITES_TO_CHECK` that this suite does not import stops it at evaluation, with a message that lists the ones it does.
+
+## Profiles
+
+| Profile | What it does |
+|---|---|
+| `local.yaml` | The three suites, 120 seconds each. |
 
 ## Structure
 
 | Path | Description |
 |---|---|
-| `suite.star` | Two-step topology: import `payments-module`, then run the smoke test |
-| `dependencies.yaml` | Alias-to-reference manifest declaring imported suites with version and profile |
-| `dependencies.lock.yaml` | Exact artifact digest pins for all imported suites — committed for reproducibility |
-| `profiles/` | Profile overrides for the composite suite (passed down to imported suites at launch time) |
-| `tests/go/` | `readiness_smoke_test.go` — Go integration test asserting end-to-end health of the composed environment |
+| `suite.star` | The imports and the checks. |
+| `dependencies.yaml` | Where the imported suites come from. |
+| `tests/` | `readiness_smoke.py`, `composite_summary.py`. |
 
 ## Running
 
 ```bash
-# Run with resolved dependencies from the lock file
-babelctl run localhost:5000/babelsuite/composite-readiness:latest --profile local
-
-# Update the lock file after changing dependencies.yaml
-babelctl lock localhost:5000/babelsuite/composite-readiness:latest
+python scripts/push-to-zot.py --suite composite-readiness --sync http://localhost:8090
 ```
 
-## Key Concepts Demonstrated
+Then launch it from the UI, or `POST /api/v1/executions` with `{"suiteId": "composite-readiness", "profile": "local.yaml"}`.
 
-- **Suite composition** — `suite.run(ref="payments-module")` pulls and starts a fully self-contained suite as a single dependency node
-- **Dependency locking** — `dependencies.lock.yaml` pins the imported suite to an exact OCI digest, making runs reproducible across environments
-- **Thin workspace layer** — the workspace suite adds no new services or mocks; it only orchestrates and validates, keeping environment ownership with the imported suite
-- **Profile propagation** — profiles declared in the workspace suite are passed to imported suites at launch time, allowing environment-specific config to flow across composition boundaries
-- **Reports fail until the composed tests write them** — the composed `identity-broker` and `payment-suite` smoke steps fail with `report … was not produced` until they write real JUnit reports
+Only suites whose mocks are HTTP can be imported: the gateway serves an imported suite's HTTP and SOAP mocks, not its gRPC ones.

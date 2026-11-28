@@ -1,0 +1,26 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/planner/assign-route.metadata.yaml
+    operationId: assign-route
+    sourceArtifact: mock/planner/assign-route.cue
+    suite: fleet-control-room
+spec:
+    adapter: grpc
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "5"
+        mediatype: application/json
+        body: |-
+            {
+              "code": "NO_PLAN",
+              "message": "The route planner has no plan for this vehicle."
+            }
+        headers: []
+    parameterConstraints: []
+    resolverUrl: /internal/mock-data/fleet-control-room/route-planner/assign-route
+    runtimeUrl: /mocks/grpc/fleet-control-room/route-planner/assign-route
+    state: null

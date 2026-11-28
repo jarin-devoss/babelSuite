@@ -1,0 +1,75 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "kafka",
+      "name": "kafka",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "apache/kafka:3.9.0",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "KAFKA_ADVERTISED_LISTENERS": "PLAINTEXT://kafka:9092",
+        "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "true",
+        "KAFKA_CONTROLLER_LISTENER_NAMES": "CONTROLLER",
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@kafka:9093",
+        "KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS": "0",
+        "KAFKA_INTER_BROKER_LISTENER_NAME": "PLAINTEXT",
+        "KAFKA_LISTENERS": "PLAINTEXT://:9092,CONTROLLER://:9093",
+        "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT",
+        "KAFKA_LOG_DIRS": "/tmp/kraft-combined-logs",
+        "KAFKA_NODE_ID": "1",
+        "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
+        "KAFKA_PROCESS_ROLES": "broker,controller",
+        "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": "1",
+        "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1"
+      }
+    },
+    {
+      "id": "kafka-create-orders",
+      "name": "kafka-create-orders",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "apache/kafka:3.9.0",
+      "commands": [
+        "for i in $(seq 1 30); do /opt/kafka/bin/kafka-topics.sh --bootstrap-server \"${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}\" --list \u003e/dev/null 2\u003e\u00261 \u0026\u0026 break; sleep 2; done \u0026\u0026 /opt/kafka/bin/kafka-topics.sh --bootstrap-server \"${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}\" --create --if-not-exists --topic 'orders' --partitions 3 --replication-factor 1"
+      ],
+      "dependsOn": [
+        "kafka"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "kafka-create-payments",
+      "name": "kafka-create-payments",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "apache/kafka:3.9.0",
+      "commands": [
+        "for i in $(seq 1 30); do /opt/kafka/bin/kafka-topics.sh --bootstrap-server \"${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}\" --list \u003e/dev/null 2\u003e\u00261 \u0026\u0026 break; sleep 2; done \u0026\u0026 /opt/kafka/bin/kafka-topics.sh --bootstrap-server \"${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}\" --create --if-not-exists --topic 'payments' --partitions 1 --replication-factor 1"
+      ],
+      "dependsOn": [
+        "kafka"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "worker",
+      "name": "worker",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "orders-worker:latest",
+      "dependsOn": [
+        "kafka-create-orders",
+        "kafka-create-payments"
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}

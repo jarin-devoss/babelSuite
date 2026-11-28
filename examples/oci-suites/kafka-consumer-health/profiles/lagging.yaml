@@ -1,0 +1,7 @@
+name: Lagging Consumer
+description: 1000 orders produced but the consumer stops after 10. The lag is 990, above the limit of 500, and the run must end Failed.
+
+env:
+  MESSAGES: "1000"
+  CONSUME: "10"
+  MAX_LAG: "500"

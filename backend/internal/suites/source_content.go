@@ -57,19 +57,6 @@ func buildSourceFiles(suite Definition, loader sourceFileLoader) []SourceFile {
 	return files
 }
 
-func explicitSuiteSourceContent(files []SourceFile, path string) (string, bool) {
-	for _, file := range files {
-		if strings.TrimSpace(file.Path) == strings.TrimSpace(path) {
-			return file.Content, true
-		}
-	}
-	return "", false
-}
-
-func normalizeSourcePath(folderName, file string) string {
-	return strings.Trim(strings.TrimSpace(folderName)+"/"+strings.Trim(strings.TrimSpace(file), "/"), "/")
-}
-
 func GeneratedSourceContent(suite Definition, path string) (string, bool) {
 	normalized := strings.Trim(strings.TrimSpace(path), "/")
 	if normalized != "gateway/apisix.yaml" || len(suite.APISurfaces) == 0 {
@@ -126,10 +113,21 @@ func ApisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 	output := apisix.SuiteConfig{
 		ID:          suite.ID,
-		APISurfaces: make([]apisix.SurfaceConfig, 0, len(suite.APISurfaces)),
+		APISurfaces: apisixSurfaces(suite.APISurfaces),
 		Harden:      suiteRequestsHardening(suite),
 	}
-	for _, surface := range suite.APISurfaces {
+	for _, imported := range suite.ImportedSuites {
+		output.Imported = append(output.Imported, apisix.SuiteConfig{
+			ID:          imported.ID,
+			APISurfaces: apisixSurfaces(imported.APISurfaces),
+		})
+	}
+	return output
+}
+
+func apisixSurfaces(surfaces []APISurface) []apisix.SurfaceConfig {
+	out := make([]apisix.SurfaceConfig, 0, len(surfaces))
+	for _, surface := range surfaces {
 		convertedSurface := apisix.SurfaceConfig{
 			ID:         surface.ID,
 			Protocol:   surface.Protocol,
@@ -138,20 +136,20 @@ func apisixSuiteConfig(suite Definition) apisix.SuiteConfig {
 		}
 		for _, operation := range surface.Operations {
 			convertedSurface.Operations = append(convertedSurface.Operations, apisix.OperationConfig{
-				ID:              operation.ID,
-				Method:          operation.Method,
-				Name:            operation.Name,
-				Summary:         operation.Summary,
-				ContractPath:    operation.ContractPath,
-				MockURL:         operation.MockURL,
+				ID:           operation.ID,
+				Method:       operation.Method,
+				Name:         operation.Name,
+				Summary:      operation.Summary,
+				ContractPath: operation.ContractPath,
+				MockURL:      operation.MockURL,
 				MockMetadata: apisix.OperationMetadataConfig{
 					Adapter: operation.MockMetadata.Adapter,
 				},
 			})
 		}
-		output.APISurfaces = append(output.APISurfaces, convertedSurface)
+		out = append(out, convertedSurface)
 	}
-	return output
+	return out
 }
 
 // suiteRequestsHardening reports whether any mock node in the suite's
@@ -166,21 +164,4 @@ func suiteRequestsHardening(suite Definition) bool {
 		}
 	}
 	return false
-}
-
-func contractSourceContent(suite Definition, contractPath string) string {
-	path := strings.TrimSpace(contractFilePath(contractPath))
-	if path == "" || !strings.EqualFold(filepath.Ext(path), ".proto") {
-		return ""
-	}
-
-	if content, ok := explicitSuiteSourceContent(suite.SeedSources, path); ok {
-		return content
-	}
-	return ""
-}
-
-func contractFilePath(contractPath string) string {
-	base, _, _ := strings.Cut(strings.TrimSpace(contractPath), "#")
-	return strings.Trim(base, "/")
 }

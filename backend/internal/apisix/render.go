@@ -68,6 +68,23 @@ func buildRoutes(suite SuiteConfig) []routeBlock {
 			}
 		}
 	}
+	// A suite this one imports has its HTTP-family and WebSocket mocks served by
+	// the same gateway, each on hosts of its own, so a step of the suite being run
+	// reaches them by host or by the node's name.
+	for _, imported := range suite.Imported {
+		scoped := imported
+		scoped.hostScoped = true
+		for _, surface := range scoped.APISurfaces {
+			for _, operation := range surface.Operations {
+				switch transport := transportKind(surface, operation); {
+				case isHTTPCompatibleTransport(transport):
+					routes = append(routes, httpCompatibleRoute(scoped, surface, operation, transport))
+				case transport == "websocket":
+					routes = append(routes, websocketRoute(scoped, surface, operation))
+				}
+			}
+		}
+	}
 	if ServesGRPC(suite) {
 		routes = append(routes, grpcGatewayRoute(suite), grpcWebRoute(suite))
 	}
@@ -130,6 +147,22 @@ func buildPluginCatalog(suite SuiteConfig) []pluginSpec {
 				seen[UDPMockPluginName] = pluginSpec{Name: UDPMockPluginName, Stream: true}
 			case IsAsyncBroker(transport):
 				seen[AsyncMockPluginName] = pluginSpec{Name: AsyncMockPluginName}
+			}
+		}
+	}
+
+	// An imported suite's HTTP-family and WebSocket mocks are served too, so the
+	// plugins they need are loaded even when the suite being run has no such mock.
+	for _, imported := range suite.Imported {
+		for _, surface := range imported.APISurfaces {
+			for _, operation := range surface.Operations {
+				transport := transportKind(surface, operation)
+				switch {
+				case isHTTPCompatibleTransport(transport):
+					seen[MockPluginName] = pluginSpec{Name: MockPluginName}
+				case transport == "websocket":
+					seen["proxy-rewrite"] = pluginSpec{Name: "proxy-rewrite"}
+				}
 			}
 		}
 	}

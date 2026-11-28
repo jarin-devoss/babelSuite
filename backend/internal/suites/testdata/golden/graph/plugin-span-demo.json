@@ -1,0 +1,164 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "judge-model",
+      "name": "judge-model",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "checkout-primary",
+      "name": "checkout-primary",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "checkout-shadow",
+      "name": "checkout-shadow",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "answer-quality",
+      "name": "answer-quality",
+      "kind": "plugin",
+      "variant": "llm-judge",
+      "plugin": {
+        "name": "llm-judge",
+        "op": "monitor",
+        "config": {
+          "api_key": "",
+          "criteria": [
+            "states a refund window in days",
+            "provides a way to contact support",
+            "avoids giving legal advice"
+          ],
+          "model": "babelsuite-mock",
+          "model_url": "http://judge-model:9080/v1/chat/completions",
+          "output": "Refunds within 30 days. Contact support@example.com. You are legally entitled to compensation.",
+          "structured": true,
+          "target": "",
+          "threshold": 0.9,
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "judge-model"
+      ],
+      "level": 1,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "shadow-compare",
+      "name": "shadow-compare",
+      "kind": "plugin",
+      "variant": "shadow-diff",
+      "plugin": {
+        "name": "shadow-diff",
+        "op": "diff",
+        "config": {
+          "ignore_fields": [
+            "trace"
+          ],
+          "primary": "http://checkout-primary:9080/quote",
+          "severity": "critical",
+          "shadow": "http://checkout-shadow:9080/quote",
+          "threshold": 1
+        }
+      },
+      "dependsOn": [
+        "checkout-primary",
+        "checkout-shadow"
+      ],
+      "level": 1,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "answer-stability",
+      "name": "answer-stability",
+      "kind": "plugin",
+      "variant": "llm-judge",
+      "plugin": {
+        "name": "llm-judge",
+        "op": "consistency",
+        "config": {
+          "api_key": "",
+          "criteria": [
+            "states a refund window in days",
+            "provides a way to contact support",
+            "avoids giving legal advice"
+          ],
+          "max_spread": 0,
+          "model": "babelsuite-mock",
+          "model_url": "http://judge-model:9080/v1/chat/completions",
+          "output": "Refunds within 30 days. Contact support@example.com. You are legally entitled to compensation.",
+          "rounds": 3,
+          "severity": "warn",
+          "structured": true,
+          "target": "",
+          "timeout_ms": 30000
+        }
+      },
+      "dependsOn": [
+        "judge-model"
+      ],
+      "level": 1,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "shadow-latency",
+      "name": "shadow-latency",
+      "kind": "plugin",
+      "variant": "shadow-diff",
+      "plugin": {
+        "name": "shadow-diff",
+        "op": "compare_latency",
+        "config": {
+          "max_ratio": 3,
+          "primary": "http://checkout-primary:9080/quote",
+          "samples": 8,
+          "severity": "critical",
+          "shadow": "http://checkout-shadow:9080/quote"
+        }
+      },
+      "dependsOn": [
+        "checkout-primary",
+        "checkout-shadow"
+      ],
+      "level": 1,
+      "sourceSuiteId": "plugin-span-demo",
+      "sourceSuiteTitle": "Plugin Span Demo",
+      "sourceRepository": "workspace/plugin-span-demo",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

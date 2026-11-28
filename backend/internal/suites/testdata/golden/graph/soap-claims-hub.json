@@ -1,0 +1,529 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "medical-claims-mock",
+      "name": "medical-claims-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "dental-claims-mock",
+      "name": "dental-claims-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "vision-claims-mock",
+      "name": "vision-claims-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pharmacy-claims-mock",
+      "name": "pharmacy-claims-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "claims-bridge",
+      "name": "claims-bridge",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "claims_bridge.py",
+      "dependsOn": [
+        "medical-claims-mock",
+        "dental-claims-mock",
+        "vision-claims-mock",
+        "pharmacy-claims-mock"
+      ],
+      "level": 1,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "CLAIM_TYPES": "medical,dental,vision,pharmacy",
+        "PORT": "8080",
+        "SOAP_VERSIONS": "1.1,1.2",
+        "VALIDATION_LEVEL": "strict"
+      }
+    },
+    {
+      "id": "claims-bridge-ready",
+      "name": "claims-bridge-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://claims-bridge:8080/health')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 1; done; echo 'claims-bridge never answered /health'; exit 1"
+      ],
+      "dependsOn": [
+        "claims-bridge"
+      ],
+      "level": 2,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "mocks_ready",
+      "name": "mocks_ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "4 SOAP mocks up; claims-bridge is answering for SOAP 1.1, 1.2",
+      "dependsOn": [
+        "claims-bridge-ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "claims-baseline-soap-1_1",
+      "name": "claims-baseline-soap-1_1",
+      "kind": "traffic",
+      "variant": "traffic.baseline",
+      "traffic": {
+        "variant": "traffic.baseline",
+        "planPath": "traffic/claims-1_1.star",
+        "target": "http://claims-bridge:8080",
+        "users": [
+          {
+            "id": "probe",
+            "name": "submit-claim",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "submit-claim",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/claims",
+                  "name": "submit-claim",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "X-Soap-Version": "1.1"
+                  },
+                  "body": "{\"amount\":4200,\"claimType\":\"medical\",\"lossType\":\"water\",\"policyNumber\":\"MED-1024\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "mocks_ready"
+      ],
+      "level": 4,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "claims-baseline-soap-1_2",
+      "name": "claims-baseline-soap-1_2",
+      "kind": "traffic",
+      "variant": "traffic.baseline",
+      "traffic": {
+        "variant": "traffic.baseline",
+        "planPath": "traffic/claims-1_2.star",
+        "target": "http://claims-bridge:8080",
+        "users": [
+          {
+            "id": "probe",
+            "name": "submit-claim",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "submit-claim",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/claims",
+                  "name": "submit-claim",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "X-Soap-Version": "1.2"
+                  },
+                  "body": "{\"amount\":4200,\"claimType\":\"medical\",\"lossType\":\"water\",\"policyNumber\":\"MED-1024\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "mocks_ready"
+      ],
+      "level": 4,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "claims-smoke-medical",
+      "name": "claims-smoke-medical",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "claims_smoke.py",
+      "dependsOn": [
+        "claims-baseline-soap-1_1",
+        "claims-baseline-soap-1_2"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "INVALID_CLAIM_CODE",
+          "MISSING_REQUIRED_FIELD",
+          "Traceback"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/medical-junit.xml",
+          "name": "claims-smoke-medical",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 5,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "CLAIM_CODE": "MED",
+        "CLAIM_TYPE": "medical"
+      }
+    },
+    {
+      "id": "claims-smoke-dental",
+      "name": "claims-smoke-dental",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "claims_smoke.py",
+      "dependsOn": [
+        "claims-baseline-soap-1_1",
+        "claims-baseline-soap-1_2"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "INVALID_CLAIM_CODE",
+          "MISSING_REQUIRED_FIELD",
+          "Traceback"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/dental-junit.xml",
+          "name": "claims-smoke-dental",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 5,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "CLAIM_CODE": "DEN",
+        "CLAIM_TYPE": "dental"
+      }
+    },
+    {
+      "id": "claims-smoke-vision",
+      "name": "claims-smoke-vision",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "claims_smoke.py",
+      "dependsOn": [
+        "claims-baseline-soap-1_1",
+        "claims-baseline-soap-1_2"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "INVALID_CLAIM_CODE",
+          "MISSING_REQUIRED_FIELD",
+          "Traceback"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/vision-junit.xml",
+          "name": "claims-smoke-vision",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 5,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "CLAIM_CODE": "VIS",
+        "CLAIM_TYPE": "vision"
+      }
+    },
+    {
+      "id": "claims-smoke-pharmacy",
+      "name": "claims-smoke-pharmacy",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "claims_smoke.py",
+      "dependsOn": [
+        "claims-baseline-soap-1_1",
+        "claims-baseline-soap-1_2"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "INVALID_CLAIM_CODE",
+          "MISSING_REQUIRED_FIELD",
+          "Traceback"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/pharmacy-junit.xml",
+          "name": "claims-smoke-pharmacy",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 5,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "CLAIM_CODE": "PHM",
+        "CLAIM_TYPE": "pharmacy"
+      }
+    },
+    {
+      "id": "fault-injection-invalid_schema",
+      "name": "fault-injection-invalid_schema",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "fault_injection.py",
+      "dependsOn": [
+        "claims-smoke-medical",
+        "claims-smoke-dental",
+        "claims-smoke-vision",
+        "claims-smoke-pharmacy"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/fault-invalid_schema.xml",
+          "name": "fault-invalid_schema",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "FAULT_SCENARIO": "invalid_schema",
+        "SOAP_VERSIONS": "1.1,1.2"
+      }
+    },
+    {
+      "id": "fault-injection-missing_header",
+      "name": "fault-injection-missing_header",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "fault_injection.py",
+      "dependsOn": [
+        "claims-smoke-medical",
+        "claims-smoke-dental",
+        "claims-smoke-vision",
+        "claims-smoke-pharmacy"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/fault-missing_header.xml",
+          "name": "fault-missing_header",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "FAULT_SCENARIO": "missing_header",
+        "SOAP_VERSIONS": "1.1,1.2"
+      }
+    },
+    {
+      "id": "fault-injection-unsupported_version",
+      "name": "fault-injection-unsupported_version",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "fault_injection.py",
+      "dependsOn": [
+        "claims-smoke-medical",
+        "claims-smoke-dental",
+        "claims-smoke-vision",
+        "claims-smoke-pharmacy"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/fault-unsupported_version.xml",
+          "name": "fault-unsupported_version",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "FAULT_SCENARIO": "unsupported_version",
+        "SOAP_VERSIONS": "1.1,1.2"
+      }
+    },
+    {
+      "id": "legacy-compat-check",
+      "name": "legacy-compat-check",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "legacy_compat.py",
+      "dependsOn": [
+        "claims-smoke-medical",
+        "claims-smoke-dental",
+        "claims-smoke-vision",
+        "claims-smoke-pharmacy"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "LEGACY_PARSE_ERROR",
+          "ENVELOPE_REJECTED"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/legacy-compat.xml",
+          "name": "legacy-compat",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "adapter-contract",
+      "name": "adapter-contract",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "adapter_contract.py",
+      "dependsOn": [
+        "claims-smoke-medical",
+        "claims-smoke-dental",
+        "claims-smoke-vision",
+        "claims-smoke-pharmacy"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/adapter-contract.xml",
+          "name": "adapter-contract",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "soap-claims-hub",
+      "sourceSuiteTitle": "# SOAP Claims Hub",
+      "sourceRepository": "workspace/soap-claims-hub",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

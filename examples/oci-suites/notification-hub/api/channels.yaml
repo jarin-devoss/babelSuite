@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Channel Providers
+  version: 1.0.0
+  description: >-
+    The providers notify-api sends through, one per channel. A mock answers for
+    each: it accepts a message, and refuses the one to fail@example.test.
+servers:
+  - url: https://notification-hub.mock.internal
+paths:
+  /email/send:
+    post:
+      operationId: send_email
+      summary: Deliver one email message.
+      responses:
+        "200":
+          description: The provider accepted the message.
+        "503":
+          description: The provider could not take the message.
+  /sms/send:
+    post:
+      operationId: send_sms
+      summary: Deliver one sms message.
+      responses:
+        "200":
+          description: The provider accepted the message.
+        "503":
+          description: The provider could not take the message.
+  /push/send:
+    post:
+      operationId: send_push
+      summary: Deliver one push message.
+      responses:
+        "200":
+          description: The provider accepted the message.
+        "503":
+          description: The provider could not take the message.
+  /webhook/send:
+    post:
+      operationId: send_webhook
+      summary: Deliver one webhook message.
+      responses:
+        "200":
+          description: The provider accepted the message.
+        "503":
+          description: The provider could not take the message.

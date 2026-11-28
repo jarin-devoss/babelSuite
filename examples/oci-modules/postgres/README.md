@@ -30,11 +30,11 @@ This module wraps Postgres cluster lifecycle and SQL operations into importable 
 ## Usage
 
 ```python
-load("localhost:5000/babelsuite/postgres:1.4.0", "pg", "connect", "insert")
+load("@babelsuite/postgres", "pg", "connect", "insert")
 
 db = pg()
 conn = connect(db)
-insert(conn, table="users", values={"email": "test@example.com"})
+insert(db, table="users", values={"email": "test@example.com"}, after=[conn])
 ```
 
 See `module.star` for the full implementation and `usage.star` for a complete query example.

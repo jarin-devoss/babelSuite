@@ -1,0 +1,42 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "spice-service",
+      "name": "spice-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "rc-filter",
+      "name": "rc-filter",
+      "kind": "plugin",
+      "variant": "spice-sim",
+      "plugin": {
+        "name": "spice-sim",
+        "op": "transient",
+        "config": {
+          "end_time_ms": 10,
+          "max_rise_ms": 3,
+          "max_voltage": null,
+          "min_voltage": null,
+          "netlist": "...",
+          "probe_node": "2",
+          "severity": "critical",
+          "sim_url": "",
+          "step_time_ms": 0.1,
+          "timeout_ms": null
+        }
+      },
+      "dependsOn": [
+        "spice-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc"
+    }
+  ],
+  "Dependencies": null
+}

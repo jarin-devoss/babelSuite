@@ -13,7 +13,7 @@ func newFallbackService() *Service {
 	return &Service{
 		suites:     staticSuiteReader{suite: suites.Definition{ID: "s"}},
 		state:   make(map[string]map[string]map[string]string),
-		runs:    make(map[string]string),
+		runs:    make(map[string]map[string]struct{}),
 		ingress: make(map[string]string),
 	}
 }

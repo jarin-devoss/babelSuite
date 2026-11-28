@@ -50,25 +50,32 @@ func suiteMockHosts(suite *suites.Definition) []string {
 	}
 	seen := make(map[string]struct{}, len(suite.APISurfaces))
 	var hosts []string
-	for _, surface := range suite.APISurfaces {
-		host := ""
-		if parsed, err := url.Parse(strings.TrimSpace(surface.MockHost)); err == nil {
-			host = strings.ToLower(parsed.Hostname())
-		}
-		if host == "" {
-			// A surface with no declared host (a SOAP contract, say) is routed
-			// by path alone, so it answers on any host. The suite's conventional
-			// mock host stands for it.
-			if strings.TrimSpace(suite.ID) == "" {
+	add := func(suiteID string, surfaces []suites.APISurface) {
+		for _, surface := range surfaces {
+			host := ""
+			if parsed, err := url.Parse(strings.TrimSpace(surface.MockHost)); err == nil {
+				host = strings.ToLower(parsed.Hostname())
+			}
+			if host == "" {
+				// A surface with no declared host (a SOAP contract, say) is routed
+				// by path alone, so it answers on any host. The suite's conventional
+				// mock host stands for it.
+				if strings.TrimSpace(suiteID) == "" {
+					continue
+				}
+				host = strings.ToLower(strings.TrimSpace(suiteID)) + ".mock.internal"
+			}
+			if _, dup := seen[host]; dup {
 				continue
 			}
-			host = strings.ToLower(strings.TrimSpace(suite.ID)) + ".mock.internal"
+			seen[host] = struct{}{}
+			hosts = append(hosts, host)
 		}
-		if _, dup := seen[host]; dup {
-			continue
-		}
-		seen[host] = struct{}{}
-		hosts = append(hosts, host)
+	}
+	add(suite.ID, suite.APISurfaces)
+	// The gateway also serves the suites this one imports.
+	for _, imported := range suite.ImportedSuites {
+		add(imported.ID, imported.APISurfaces)
 	}
 	return hosts
 }
@@ -92,6 +99,14 @@ func suiteHardened(suite *suites.Definition, node topologyNode) bool {
 // http://stripe-mock:9080. A name that a service of the suite already answers to
 // is left out, because the service owns it.
 func suiteMockNames(suite *suites.Definition) []string {
+	return suiteMockNamesOf(suite, "", true)
+}
+
+// suiteMockNamesOf lists the names of the mock nodes that belong to one suite:
+// the one being run (sourceSuiteID == suite.ID or empty) or an imported one. all
+// lists every mock node of the topology, for the names the gateway joins the
+// run's network under.
+func suiteMockNamesOf(suite *suites.Definition, sourceSuiteID string, all bool) []string {
 	if suite == nil {
 		return nil
 	}
@@ -106,6 +121,15 @@ func suiteMockNames(suite *suites.Definition) []string {
 	for _, node := range suite.Topology {
 		if node.Kind != suites.NodeKindMock {
 			continue
+		}
+		if !all {
+			owner := strings.TrimSpace(node.SourceSuiteID)
+			if owner == "" {
+				owner = suite.ID
+			}
+			if owner != sourceSuiteID {
+				continue
+			}
 		}
 		name := strings.ToLower(networkAlias(node.Name))
 		if name == "" {

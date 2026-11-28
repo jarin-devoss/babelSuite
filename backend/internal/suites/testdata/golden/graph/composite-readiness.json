@@ -1,0 +1,5 @@
+{
+  "Error": "invalid suite topology: dependency ref \"localhost:5000/core-platform/payment-suite\" could not be resolved",
+  "Topology": null,
+  "Dependencies": null
+}

@@ -1,0 +1,167 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "broker",
+      "name": "broker",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "apache/kafka:3.9.0",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "KAFKA_ADVERTISED_LISTENERS": "PLAINTEXT://broker:9092",
+        "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "true",
+        "KAFKA_CONTROLLER_LISTENER_NAMES": "CONTROLLER",
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@broker:9093",
+        "KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS": "0",
+        "KAFKA_INTER_BROKER_LISTENER_NAME": "PLAINTEXT",
+        "KAFKA_LISTENERS": "PLAINTEXT://:9092,CONTROLLER://:9093",
+        "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT",
+        "KAFKA_LOG_DIRS": "/tmp/kraft-combined-logs",
+        "KAFKA_NODE_ID": "1",
+        "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
+        "KAFKA_PROCESS_ROLES": "broker,controller",
+        "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": "1",
+        "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1"
+      }
+    },
+    {
+      "id": "broker-create-orders",
+      "name": "broker-create-orders",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "apache/kafka:3.9.0",
+      "commands": [
+        "for i in $(seq 1 30); do /opt/kafka/bin/kafka-topics.sh --bootstrap-server \"${KAFKA_BOOTSTRAP_SERVERS:-broker:9092}\" --list \u003e/dev/null 2\u003e\u00261 \u0026\u0026 break; sleep 2; done \u0026\u0026 /opt/kafka/bin/kafka-topics.sh --bootstrap-server \"${KAFKA_BOOTSTRAP_SERVERS:-broker:9092}\" --create --if-not-exists --topic 'orders' --partitions 1 --replication-factor 1"
+      ],
+      "dependsOn": [
+        "broker"
+      ],
+      "level": 1,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "rest-proxy",
+      "name": "rest-proxy",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "confluentinc/cp-kafka-rest:7.7.1",
+      "dependsOn": [
+        "broker"
+      ],
+      "level": 1,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "KAFKA_REST_BOOTSTRAP_SERVERS": "PLAINTEXT://broker:9092",
+        "KAFKA_REST_HOST_NAME": "rest-proxy",
+        "KAFKA_REST_LISTENERS": "http://0.0.0.0:8082"
+      }
+    },
+    {
+      "id": "rest-proxy-ready",
+      "name": "rest-proxy-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 90); do python -c \"import urllib.request; urllib.request.urlopen('http://rest-proxy:8082/v3/clusters')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 2; done; echo 'rest-proxy never listed a cluster'; exit 1"
+      ],
+      "dependsOn": [
+        "rest-proxy"
+      ],
+      "level": 2,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "order-producer",
+      "name": "order-producer",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "apache/kafka:3.9.0",
+      "commands": [
+        "seq 1 200 | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server broker:9092 --topic orders"
+      ],
+      "dependsOn": [
+        "broker-create-orders"
+      ],
+      "level": 2,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "order-worker",
+      "name": "order-worker",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "apache/kafka:3.9.0",
+      "commands": [
+        "/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server broker:9092 --topic orders --group order-workers --from-beginning --max-messages 200 --timeout-ms 60000 \u003e /dev/null"
+      ],
+      "dependsOn": [
+        "order-producer"
+      ],
+      "level": 3,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "order-workers-lag-check",
+      "name": "order-workers-lag-check",
+      "kind": "plugin",
+      "variant": "consumer-lag",
+      "plugin": {
+        "name": "consumer-lag",
+        "op": "check_lag",
+        "config": {
+          "group": "order-workers",
+          "kafka_rest_url": "http://rest-proxy:8082",
+          "max_lag": 10,
+          "severity": "critical"
+        }
+      },
+      "dependsOn": [
+        "order-worker",
+        "rest-proxy-ready"
+      ],
+      "level": 4,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "done",
+      "name": "done",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "order-workers lag is within 10",
+      "dependsOn": [
+        "order-workers-lag-check"
+      ],
+      "level": 5,
+      "sourceSuiteId": "kafka-consumer-health",
+      "sourceSuiteTitle": "# Kafka Consumer Health",
+      "sourceRepository": "workspace/kafka-consumer-health",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

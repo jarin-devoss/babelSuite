@@ -11,5 +11,5 @@ spec:
     - 1.0.0
     - latest
   description: Pure Starlark MongoDB module — cluster lifecycle, collection and index management, document seeding, and script execution built on BabelSuite's runtime primitives.
-  pullCommand: babelctl run localhost:5000/babelsuite/mongodb:1.0.0
+  pullCommand: load("@babelsuite/mongodb", ...)
   forkCommand: babelctl fork localhost:5000/babelsuite/mongodb:1.0.0 ./stdlib-mongodb

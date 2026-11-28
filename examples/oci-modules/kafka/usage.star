@@ -12,7 +12,7 @@ replay = set_group_offset(broker, group="fraud-worker", topic="payments.events",
 
 consumer = service.run(
     name  = "payments-consumer",
-    image = "ghcr.io/acme/payments-consumer:latest",
+    image = "ghcr.io/acme/payments-consumer:1.0.0",
     env   = {"KAFKA_BOOTSTRAP_SERVERS": broker.name + ":9092"},
     after = [replay],
 )

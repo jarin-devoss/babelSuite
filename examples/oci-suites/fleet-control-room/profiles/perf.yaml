@@ -1,24 +1,10 @@
 name: Performance
-description: Synthetic bursts for planner saturation tests.
+description: All three regions and the heaviest spike, for planner saturation.
 default: false
-# Only an agent tagged gpu-enabled may run this profile: a step below asks
-# for a GPU, and a backend without one would fail it or silently skip it.
-agent:
-  tags: [gpu-enabled]
+
 network:
   mode: execution
-services:
-  seed_routes:
-    devices: ["gpu"]
-runtime:
-  suite: fleet-control-room
-  repository: localhost:5000/platform/fleet-control-room
-  profileFile: perf.yaml
-modules:
-    - redis
-    - grpc
-    - prometheus
-observability:
-  logs: structured
-  traces: enabled
-  metrics: enabled
+
+env:
+  REGIONS: eu-west,us-east,ap-south
+  SPIKE_MULTIPLIER: "8"

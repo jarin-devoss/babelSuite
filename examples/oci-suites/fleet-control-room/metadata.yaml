@@ -10,4 +10,4 @@ spec:
     - v1.8.0
     - v1.7.5
     - latest
-  description: End-to-end vehicle orchestration environment with Redis, gRPC contracts, and a telemetry mock for simulating route spikes and GPS fault injection.
+  description: A route dispatcher that checks a geo-fence service and asks a gRPC route planner, tested across regions with a telemetry mock and four traffic phases.

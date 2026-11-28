@@ -1,132 +1,86 @@
 // Storefront API smoke.
 //
-// Self-contained on purpose: the runner executes a .ts step with `npx ts-node`,
-// so anything imported here would have to be fetched at run time as well. The
-// assertions below use only the standard library, which keeps the step's single
-// network dependency the ts-node fetch itself.
+// Runs with the image's own Node (types are stripped, nothing is installed), so it
+// uses only global fetch. The storefront answers from the catalog mock: these
+// checks fail if the storefront stops asking the catalog, or confirms an order the
+// catalog refused.
 //
-// The step fails on UNCAUGHT_EXCEPTION or CHECKOUT_TIMEOUT, so those markers
-// are printed only when the condition is genuinely hit.
+// The step fails on ORDER_CONFIRMED_FOR_SOLD_OUT, which is printed only when that
+// is what happened.
 
 import * as fs from "fs";
 import * as path from "path";
 
-interface Check {
-  name: string;
-  ok: boolean;
-  detail: string;
+const base = process.env.STOREFRONT_URL ?? "http://storefront:8080";
+const results: { name: string; error: string }[] = [];
+
+async function call(method: string, route: string, body?: unknown): Promise<{ status: number; json: any }> {
+  const reply = await fetch(base + route, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: reply.status, json: await reply.json().catch(() => ({})) };
 }
 
-const results: Check[] = [];
-
-function check(name: string, fn: () => string): void {
+async function check(name: string, fn: () => Promise<void>): Promise<void> {
+  let error = "";
   try {
-    const detail = fn();
-    results.push({ name, ok: true, detail });
-    console.log(`api-smoke: ${name} ok — ${detail}`);
+    await fn();
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    results.push({ name, ok: false, detail: message });
-    console.log(`api-smoke: ${name} FAILED — ${message}`);
+    error = err instanceof Error ? err.message : String(err);
   }
+  results.push({ name, error });
+  console.log(`${error === "" ? "ok  " : "FAIL"} ${name}${error === "" ? "" : " - " + error}`);
 }
 
-const catalogBase = process.env.CATALOG_URL ?? "http://catalog-api:9080";
-const storefrontBase = process.env.STOREFRONT_URL ?? "http://storefront:8080";
+function expect(condition: boolean, message: string): void {
+  if (!condition) throw new Error(message);
+}
 
-check("catalog-base-configured", () => {
-  if (!catalogBase.startsWith("http")) {
-    throw new Error(`catalog base is not a URL: ${catalogBase}`);
-  }
-  return catalogBase;
+await check("the product grid is the catalog's", async () => {
+  const { status, json } = await call("GET", "/api/products");
+  expect(status === 200, `GET /api/products gave ${status}`);
+  const keyboard = json.products.find((p: any) => p.sku === "sku_1001");
+  expect(keyboard !== undefined && keyboard.name === "Starter Keyboard" && keyboard.price === 4900, `the catalog's keyboard is missing: ${JSON.stringify(json)}`);
 });
 
-check("storefront-base-configured", () => {
-  if (!storefrontBase.startsWith("http")) {
-    throw new Error(`storefront base is not a URL: ${storefrontBase}`);
-  }
-  return storefrontBase;
+await check("an order for an item in stock is confirmed", async () => {
+  const { status, json } = await call("POST", "/api/orders", { email: "shopper@demo.test", sku: "sku_1001", quantity: 1 });
+  expect(status === 201 && json.orderId === "ord_7001", `an order gave ${status} ${JSON.stringify(json)}`);
 });
 
-check("cart-total-arithmetic", () => {
-  const lines = [
-    { sku: "SKU-1", qty: 2, unit: 1250 },
-    { sku: "SKU-2", qty: 1, unit: 499 },
-  ];
-  const total = lines.reduce((sum, l) => sum + l.qty * l.unit, 0);
-  if (total !== 2999) {
-    throw new Error(`expected 2999 minor units, got ${total}`);
-  }
-  return `${lines.length} lines total ${total}`;
+await check("an order the catalog refuses is not confirmed", async () => {
+  const { status, json } = await call("POST", "/api/orders", { email: "shopper@demo.test", sku: "sku_4040", quantity: 1 });
+  if (status === 201) console.log("ORDER_CONFIRMED_FOR_SOLD_OUT sku_4040");
+  expect(status === 409 && json.error === "Out of stock", `the sold-out item gave ${status} ${JSON.stringify(json)}`);
 });
 
-check("currency-minor-units", () => {
-  const formatted = (2999 / 100).toFixed(2);
-  if (formatted !== "29.99") {
-    throw new Error(`expected 29.99, got ${formatted}`);
+await check("an invalid order is refused", async () => {
+  for (const bad of [{}, { email: "shopper@demo.test", sku: "sku_1001", quantity: 0 }, { email: "nobody", sku: "sku_1001", quantity: 1 }]) {
+    const { status } = await call("POST", "/api/orders", bad);
+    expect(status === 400, `${JSON.stringify(bad)} gave ${status}, want 400`);
   }
-  return formatted;
 });
 
-const failures = results.filter((r) => !r.ok);
-
-// Reports the step declares as exports. A missing file is skipped rather than
-// failing the step, but writing them is the point of declaring them.
-const reportsDir = path.join(process.cwd(), "reports");
-fs.mkdirSync(reportsDir, { recursive: true });
-
-const xmlCases = results
-  .map((r) =>
-    r.ok
-      ? `<testcase classname="api-smoke" name="${r.name}" time="0.01"/>`
-      : `<testcase classname="api-smoke" name="${r.name}" time="0.01">` +
-        `<failure message="${r.detail.replace(/"/g, "&quot;")}"/></testcase>`,
-  )
-  .join("");
-
+const failed = results.filter((r) => r.error !== "");
+const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+fs.mkdirSync("reports", { recursive: true });
 fs.writeFileSync(
-  path.join(reportsDir, "api.xml"),
-  `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<testsuite name="api-smoke" tests="${results.length}" failures="${failures.length}" errors="0" skipped="0">` +
-    xmlCases +
+  path.join("reports", "api.xml"),
+  `<?xml version="1.0" encoding="UTF-8"?><testsuite name="api-smoke" tests="${results.length}" failures="${failed.length}" errors="0" skipped="0">` +
+    results.map((r) => (r.error === "" ? `<testcase classname="api-smoke" name="${escapeXml(r.name)}"/>` : `<testcase classname="api-smoke" name="${escapeXml(r.name)}"><failure message="${escapeXml(r.error)}"/></testcase>`)).join("") +
     `</testsuite>`,
-  "utf-8",
 );
-
 fs.writeFileSync(
-  path.join(reportsDir, "ctrf.json"),
-  JSON.stringify(
-    {
-      results: {
-        tool: { name: "storefront-api-smoke" },
-        summary: {
-          tests: results.length,
-          passed: results.length - failures.length,
-          failed: failures.length,
-          pending: 0,
-          skipped: 0,
-          other: 0,
-          start: 0,
-          stop: 0,
-        },
-        tests: results.map((r) => ({
-          name: r.name,
-          status: r.ok ? "passed" : "failed",
-          duration: 10,
-          message: r.detail,
-        })),
-      },
+  path.join("reports", "ctrf.json"),
+  JSON.stringify({
+    results: {
+      tool: { name: "storefront-api-smoke" },
+      summary: { tests: results.length, passed: results.length - failed.length, failed: failed.length, pending: 0, skipped: 0, other: 0, start: 0, stop: 0 },
+      tests: results.map((r) => ({ name: r.name, status: r.error === "" ? "passed" : "failed", duration: 10, message: r.error })),
     },
-    null,
-    2,
-  ),
-  "utf-8",
+  }),
 );
-
-console.log(
-  `api-smoke: ${results.length - failures.length}/${results.length} checks passed`,
-);
-
-if (failures.length > 0) {
-  process.exit(1);
-}
+console.log(`api-smoke: ${results.length - failed.length}/${results.length} checks passed`);
+process.exit(failed.length > 0 ? 1 : 0);

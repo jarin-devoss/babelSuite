@@ -103,8 +103,15 @@ func main() {
 		}()
 	}
 
+	// Bind first and say "listening" only once the address is ours: logging before
+	// the bind announced a server that a taken port then killed.
+	httpListener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		slog.Error("could not listen", "addr", addr, "error", err)
+		os.Exit(1)
+	}
 	slog.Info("babelsuite server listening", "addr", addr)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := server.Serve(httpListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "error", err)
 		os.Exit(1)
 	}

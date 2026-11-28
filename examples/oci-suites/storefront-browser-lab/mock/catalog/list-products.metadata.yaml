@@ -19,9 +19,7 @@ spec:
               "products": [],
               "campaign": "default"
             }
-        headers:
-            - name: x-mock-fallback
-              value: catalog-empty
+        headers: []
     parameterConstraints:
         - name: scenario
           source: query

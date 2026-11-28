@@ -1,0 +1,47 @@
+{
+  "Error": "",
+  "Spec": {
+    "variant": "traffic.baseline",
+    "target": "http://target",
+    "users": [
+      {
+        "id": "probe",
+        "name": "authorize-payment",
+        "weight": 1,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "authorize-payment",
+            "weight": 1,
+            "request": {
+              "method": "POST",
+              "path": "/payments",
+              "name": "authorize-payment",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"amount\":1299,\"cardToken\":\"tok_visa\",\"currency\":\"USD\",\"merchantId\":\"m-117\"}"
+            }
+          }
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "duration": 10000000000,
+        "users": 4,
+        "spawnRate": 4
+      }
+    ],
+    "thresholds": [
+      {
+        "metric": "http.error_rate",
+        "op": "\u003c=",
+        "value": 0.01
+      }
+    ]
+  }
+}

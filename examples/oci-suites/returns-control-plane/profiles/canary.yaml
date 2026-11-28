@@ -1,5 +1,5 @@
 name: Canary Routing
-description: Canary refund rules with manual-review escalation and delayed callbacks.
+description: Canary rules: refunds above 7500 cents are held for review.
 default: false
 
 network:
@@ -7,6 +7,4 @@ network:
 
 env:
   LOG_LEVEL: info
-  REFUND_MODES: instant,delayed,manual
-  ENABLE_FRAUD_SCREENING: "false"
-
+  REFUND_LIMIT_CENTS: "7500"

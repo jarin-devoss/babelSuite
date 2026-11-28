@@ -1,0 +1,242 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "storefront-ui",
+      "name": "storefront-ui",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "storefront-ui:latest",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "doc"
+    },
+    {
+      "id": "checkout-spec-ts-chromium-desktop",
+      "name": "checkout-spec-ts-chromium-desktop",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "checkout.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/checkout-spec-ts-chromium-desktop-junit.xml' npx playwright test 'checkout.spec.ts' --browser=chromium --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "storefront-ui"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/checkout-spec-ts-chromium-desktop-junit.xml",
+          "name": "checkout-spec-ts-chromium-desktop",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "traces/checkout-spec-ts-chromium-desktop.zip",
+          "name": "checkout-spec-ts-chromium-desktop-trace",
+          "on": "failure"
+        },
+        {
+          "path": "screenshots/checkout-spec-ts-chromium-desktop",
+          "name": "checkout-spec-ts-chromium-desktop-shots",
+          "on": "failure"
+        }
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "BASE_URL": "http://storefront-ui:3000",
+        "BROWSER": "chromium",
+        "COLLECT_TRACES": "true",
+        "COLLECT_VIDEO": "false",
+        "DEVICE": "desktop",
+        "DEVICE_SCALE": "1",
+        "IS_MOBILE": "false",
+        "VIEWPORT_HEIGHT": "800",
+        "VIEWPORT_WIDTH": "1280"
+      }
+    },
+    {
+      "id": "checkout-spec-ts-chromium-mobile",
+      "name": "checkout-spec-ts-chromium-mobile",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "checkout.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/checkout-spec-ts-chromium-mobile-junit.xml' npx playwright test 'checkout.spec.ts' --browser=chromium --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "storefront-ui"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/checkout-spec-ts-chromium-mobile-junit.xml",
+          "name": "checkout-spec-ts-chromium-mobile",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "traces/checkout-spec-ts-chromium-mobile.zip",
+          "name": "checkout-spec-ts-chromium-mobile-trace",
+          "on": "failure"
+        },
+        {
+          "path": "screenshots/checkout-spec-ts-chromium-mobile",
+          "name": "checkout-spec-ts-chromium-mobile-shots",
+          "on": "failure"
+        }
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "BASE_URL": "http://storefront-ui:3000",
+        "BROWSER": "chromium",
+        "COLLECT_TRACES": "true",
+        "COLLECT_VIDEO": "false",
+        "DEVICE": "mobile",
+        "DEVICE_SCALE": "3",
+        "IS_MOBILE": "true",
+        "VIEWPORT_HEIGHT": "844",
+        "VIEWPORT_WIDTH": "390"
+      }
+    },
+    {
+      "id": "checkout-spec-ts-firefox-desktop",
+      "name": "checkout-spec-ts-firefox-desktop",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "checkout.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/checkout-spec-ts-firefox-desktop-junit.xml' npx playwright test 'checkout.spec.ts' --browser=firefox --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "storefront-ui"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/checkout-spec-ts-firefox-desktop-junit.xml",
+          "name": "checkout-spec-ts-firefox-desktop",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "traces/checkout-spec-ts-firefox-desktop.zip",
+          "name": "checkout-spec-ts-firefox-desktop-trace",
+          "on": "failure"
+        },
+        {
+          "path": "screenshots/checkout-spec-ts-firefox-desktop",
+          "name": "checkout-spec-ts-firefox-desktop-shots",
+          "on": "failure"
+        }
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "BASE_URL": "http://storefront-ui:3000",
+        "BROWSER": "firefox",
+        "COLLECT_TRACES": "true",
+        "COLLECT_VIDEO": "false",
+        "DEVICE": "desktop",
+        "DEVICE_SCALE": "1",
+        "IS_MOBILE": "false",
+        "VIEWPORT_HEIGHT": "800",
+        "VIEWPORT_WIDTH": "1280"
+      }
+    },
+    {
+      "id": "checkout-spec-ts-firefox-mobile",
+      "name": "checkout-spec-ts-firefox-mobile",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "checkout.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/checkout-spec-ts-firefox-mobile-junit.xml' npx playwright test 'checkout.spec.ts' --browser=firefox --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "storefront-ui"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/checkout-spec-ts-firefox-mobile-junit.xml",
+          "name": "checkout-spec-ts-firefox-mobile",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "traces/checkout-spec-ts-firefox-mobile.zip",
+          "name": "checkout-spec-ts-firefox-mobile-trace",
+          "on": "failure"
+        },
+        {
+          "path": "screenshots/checkout-spec-ts-firefox-mobile",
+          "name": "checkout-spec-ts-firefox-mobile-shots",
+          "on": "failure"
+        }
+      ],
+      "level": 1,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "BASE_URL": "http://storefront-ui:3000",
+        "BROWSER": "firefox",
+        "COLLECT_TRACES": "true",
+        "COLLECT_VIDEO": "false",
+        "DEVICE": "mobile",
+        "DEVICE_SCALE": "3",
+        "IS_MOBILE": "true",
+        "VIEWPORT_HEIGHT": "844",
+        "VIEWPORT_WIDTH": "390"
+      }
+    },
+    {
+      "id": "a11y-audit-http-storefront-ui-3000-checkout",
+      "name": "a11y-audit-http-storefront-ui-3000-checkout",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "a11y_audit.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/a11y-audit-http-storefront-ui-3000-checkout.xml' npx playwright test 'a11y_audit.spec.ts' --browser=chromium --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "checkout-spec-ts-chromium-desktop",
+        "checkout-spec-ts-chromium-mobile",
+        "checkout-spec-ts-firefox-desktop",
+        "checkout-spec-ts-firefox-mobile"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "AXE_CRITICAL"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/a11y-audit-http-storefront-ui-3000-checkout.xml",
+          "name": "a11y-audit-http-storefront-ui-3000-checkout",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "reports/a11y-audit-http-storefront-ui-3000-checkout.json",
+          "name": "a11y-audit-http-storefront-ui-3000-checkout-detail",
+          "on": "always"
+        }
+      ],
+      "level": 2,
+      "sourceSuiteId": "doc",
+      "runtimeEnv": {
+        "TARGET_URL": "http://storefront-ui:3000/checkout",
+        "WCAG_LEVEL": "AA"
+      }
+    }
+  ],
+  "Dependencies": null
+}

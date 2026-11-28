@@ -1,101 +1,105 @@
-load("@babelsuite/runtime", "mock", "task", "test", "traffic", "log")
-load("@babelsuite/kafka",   "kafka", "create_topic")
-load("@babelsuite/redis",   "redis")
+load("@babelsuite/runtime", "mock", "service", "test", "traffic", "log")
 
 # ── environment knobs ────────────────────────────────────────────────────────
-REGIONS          = env.get("REGIONS",          "eu-west,us-east,ap-south").split(",")
-VEHICLE_CLASSES  = env.get("VEHICLE_CLASSES",  "van,truck,motorcycle").split(",")
-LOAD_TEST_REGIONS = env.get("LOAD_TEST_REGIONS", "eu-west,us-east").split(",")
-ENABLE_TELEMETRY = env.get("ENABLE_TELEMETRY", "true") == "true"
-ENABLE_GEO_FENCE = env.get("ENABLE_GEO_FENCE", "true") == "true"
+REGIONS          = env.get("REGIONS", "eu-west,us-east,ap-south").split(",")
 SPIKE_MULTIPLIER = int(env.get("SPIKE_MULTIPLIER", "5"))
 
 TRAFFIC_PHASES = ["ramp", "steady", "spike", "drain"]
 
-# ── infrastructure ────────────────────────────────────────────────────────────
-cache          = redis()
-broker         = kafka()
-telemetry_mock = mock.api(name="telemetry-mock", after=[cache]) if ENABLE_TELEMETRY else None
-geo_fence_mock = mock.api(name="geo-fence-mock", after=[cache]) if ENABLE_GEO_FENCE else None
+PYTHON = "python:3.12-alpine"
 
-infra_mocks = [m for m in [telemetry_mock, geo_fence_mock] if m != None]
+# ── what the dispatcher depends on, both mocks ───────────────────────────────
+# telemetry-mock takes vehicle frames; geo-fence-mock says which zones may be
+# entered. The route planner is a gRPC mock the gateway serves from
+# api/proto/fleet_control.proto.
+telemetry_mock = mock.api(name="telemetry-mock")
+geo_fence_mock = mock.api(name="geo-fence-mock", after=[telemetry_mock])
 
-# In perf.yaml profile this step gets devices: ["gpu"] for fast graph init
-seed_routes = task.run(file="seed_routes.sh", image="bash:5.2", after=[cache])
-
-# ── per-vehicle-class telemetry topics ───────────────────────────────────────
-telemetry_topics = []
-if ENABLE_TELEMETRY:
-    for vehicle_class in VEHICLE_CLASSES:
-        t = create_topic(broker, "telemetry-" + vehicle_class, partitions=6)
-        telemetry_topics.append(t)
-
-infra_ready = [cache, seed_routes] + infra_mocks + telemetry_topics
-
-# ── per-region load tests, for the designated regions ────────────────────────
-for region in REGIONS:
-    if region in LOAD_TEST_REGIONS:
-        traffic.stress(
-            name   = "stress-" + region,
-            target = "https://fleet-control-room.mock.internal",
-            plan   = "status.star",
-            rps    = min(20 * SPIKE_MULTIPLIER, 80),
-            after  = infra_ready,
-            env    = {"REGION": region},
-        )
-
-fleet_ready = log.info(
-    str(len(REGIONS)) + " regions configured",
-    after=infra_ready,
+# ── the service under test ───────────────────────────────────────────────────
+# tasks/dispatcher.py assigns routes: it asks the geo-fence service whether the
+# zone may be entered, then the planner for an assignment. A route into a
+# restricted zone is refused before the planner is asked.
+dispatcher = service.run(
+    name  = "dispatcher",
+    image = PYTHON,
+    file  = "dispatcher.py",
+    env   = {
+        "PORT":        "8080",
+        "REGIONS":     ",".join(REGIONS),
+        "GATEWAY_URL": "http://babelsuite-gateway:9080",
+        "GEOFENCE_URL":  "http://geo-fence-mock:9080",
+        "TELEMETRY_URL": "http://telemetry-mock:9080",
+    },
+    after = [telemetry_mock, geo_fence_mock],
 )
 
-# ── multi-phase traffic simulation ────────────────────────────────────────────
+dispatcher_ready = test.run(
+    name     = "dispatcher-ready",
+    image    = PYTHON,
+    after    = [dispatcher],
+    commands = ["for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://dispatcher:8080/health')\" 2>/dev/null && exit 0; sleep 1; done; echo 'dispatcher never answered /health'; exit 1"],
+)
+
+fleet_ready = log.info(
+    str(len(REGIONS)) + " regions configured; dispatcher is answering",
+    after = [dispatcher_ready],
+)
+
+# ── multi-phase traffic: real route assignments through the dispatcher ───────
 phase_nodes = []
 prev_phase  = None
 for phase in TRAFFIC_PHASES:
     after_nodes = [fleet_ready] + ([prev_phase] if prev_phase != None else [])
 
     if phase == "ramp":
-        t = traffic.baseline(name="fleet-ramp",   target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes)
+        t = traffic.baseline(name="fleet-ramp",   target="http://dispatcher:8080", plan="dispatch.star", after=after_nodes)
     elif phase == "steady":
-        t = traffic.baseline(name="fleet-steady",  target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes)
+        t = traffic.baseline(name="fleet-steady", target="http://dispatcher:8080", plan="dispatch.star", after=after_nodes)
     elif phase == "spike":
-        t = traffic.spike(   name="fleet-spike",   target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes, rps=10 * SPIKE_MULTIPLIER)
+        t = traffic.spike(   name="fleet-spike",  target="http://dispatcher:8080", plan="dispatch.star", after=after_nodes, rps=10 * SPIKE_MULTIPLIER)
     else:
-        t = traffic.soak(    name="fleet-drain",   target="https://fleet-control-room.mock.internal", plan="status.star", after=after_nodes)
+        t = traffic.soak(    name="fleet-drain",  target="http://dispatcher:8080", plan="dispatch.star", after=after_nodes)
 
     phase_nodes.append(t)
     prev_phase = t
 
 # ── smoke tests ───────────────────────────────────────────────────────────────
 fleet_smoke = test.run(
-    file="fleet_smoke.py",
-    image="python:3.12",
-    after=phase_nodes + infra_mocks,
-    fail_on_logs=["DISPATCH_TIMEOUT", "PLANNER_STALL", "TELEMETRY_GAP"],
-    exports=[
-        {"path": "reports/fleet-junit.xml",    "name": "fleet-smoke",    "on": "always", "format": "junit"},
-        {"path": "reports/fleet-coverage.xml", "name": "fleet-coverage", "on": "always", "format": "cobertura"},
-    ],
+    name         = "fleet-smoke",
+    file         = "fleet_smoke.py",
+    image        = PYTHON,
+    after        = phase_nodes,
+    fail_on_logs = ["PLANNER_REFUSED", "Traceback"],
+    exports      = [{"path": "reports/fleet-junit.xml", "name": "fleet-smoke", "on": "always", "format": "junit"}],
 )
 
 # ── per-region acceptance tests ───────────────────────────────────────────────
 for region in REGIONS:
     test.run(
-        name="acceptance-" + region,
-        file="regional_acceptance.py",
-        image="python:3.12",
-        after=[fleet_smoke],
-        env={"REGION": region, "VEHICLE_CLASSES": ",".join(VEHICLE_CLASSES)},
-        exports=[{"path": "reports/acceptance-" + region + ".xml", "name": "acceptance-" + region, "on": "always", "format": "junit"}],
+        name    = "acceptance-" + region,
+        file    = "regional_acceptance.py",
+        image   = PYTHON,
+        after   = [fleet_smoke],
+        env     = {"REGION": region},
+        exports = [{"path": "reports/acceptance-" + region + ".xml", "name": "acceptance-" + region, "on": "always", "format": "junit"}],
     )
 
-# ── geo-fence validation (only when enabled) ──────────────────────────────────
-if ENABLE_GEO_FENCE:
-    test.run(
-        name="geo-fence-audit",
-        file="geo_fence_audit.py",
-        image="python:3.12",
-        after=[fleet_smoke],
-        fail_on_logs=["BOUNDARY_VIOLATION", "UNREPORTED_EXIT"],
-    )
+# ── geo-fence audit: no route enters the restricted zone ─────────────────────
+test.run(
+    name         = "geo-fence-audit",
+    file         = "geo_fence_audit.py",
+    image        = PYTHON,
+    after        = [fleet_smoke],
+    env          = {"REGIONS": ",".join(REGIONS)},
+    fail_on_logs = ["BOUNDARY_VIOLATION"],
+    exports      = [{"path": "reports/geo-fence-audit.xml", "name": "geo-fence-audit", "on": "always", "format": "junit"}],
+)
+
+# ── degraded dependencies: the planner and telemetry refuse something ────────
+test.run(
+    name    = "route-degradation",
+    file    = "route_degradation.py",
+    image   = PYTHON,
+    after   = [fleet_smoke],
+    exports = [{"path": "reports/route-degradation.xml", "name": "route-degradation", "on": "always", "format": "junit"}],
+)

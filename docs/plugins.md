@@ -509,46 +509,47 @@ The sidecar runs in **standalone mode**: `deployment.role: data_plane` with `con
 Modules can load and re-export plugins just like they load `@babelsuite/runtime`. The `@plugins/<name>` path is resolved through the same mechanism inside module `.star` files, so a module can bundle both infrastructure setup **and** plugin-backed verification helpers in one package.
 
 ```python
-# examples/oci-modules/kafka/admin.star
-load("@babelsuite/runtime",    "task")
-load("@plugins/consumer-lag",  "check_lag")
-load("@plugins/dlq-inspector", "inspect")
+# examples/oci-modules/kafka-checks/checks.star
+load("@plugins/consumer-lag", "check_lag")
 
-def check_consumer_health(broker, group, topic, kafka_rest_url,
-                          max_lag = 1000, after = []):
-    lag = check_lag(
-        name             = broker.name + "-lag-" + group,
-        kafka_rest_url   = kafka_rest_url,
-        group            = group,
-        max_lag          = max_lag,
-        after            = [broker] + after,
+def assert_consumer_healthy(group, rest_proxy = None, max_lag = 500, rest_port = None, after = []):
+    if rest_proxy == None:
+        fail("assert_consumer_healthy needs rest_proxy=: apache/kafka has no REST proxy ...")
+    port = rest_port if rest_port != None else _rest_port(rest_proxy)
+    return check_lag(
+        name           = group + "-lag-check",
+        group          = group,
+        max_lag        = max_lag,
+        kafka_rest_url = "http://" + rest_proxy.name + ":" + str(port),
+        severity       = "critical",
+        after          = after,
     )
-    dlq = inspect(
-        name           = broker.name + "-dlq-" + topic,
-        kafka_rest_url = kafka_rest_url,
-        topic          = topic + ".DLQ",
-        max_messages   = 0,
-        after          = [lag],
-    )
-    return lag, dlq
 ```
 
-A suite then gets both the infrastructure and the verification checks from a single module load:
+A suite then gets the lag check from a module load. The check needs a Kafka REST proxy that serves consumer-group lag (the Confluent REST Proxy v3 API), which `apache/kafka` does not ship, so the suite starts one and passes it as `rest_proxy=`:
 
 ```python
-load("@babelsuite/kafka", "kafka", "create_topic", "check_consumer_health")
+load("@babelsuite/kafka",        "kafka", "create_topic")
+load("@babelsuite/kafka-checks", "assert_consumer_healthy")
 
-broker  = kafka()
-topic   = create_topic(broker, "orders", partitions=3)
-app     = service.run(image="orders-app:latest", after=[topic])
-lag, dlq = check_consumer_health(
-    broker,
-    group          = "orders-consumer",
-    topic          = "orders",
-    kafka_rest_url = "http://kafka:8082",
-    after          = [app],
+broker = kafka()
+topic  = create_topic(broker, "orders", partitions=3)
+proxy  = service.run(
+    name  = "rest-proxy",
+    image = "confluentinc/cp-kafka-rest:7.7.1",
+    env   = {"KAFKA_REST_BOOTSTRAP_SERVERS": "kafka:9092", "KAFKA_REST_LISTENERS": "http://0.0.0.0:8082"},
+    after = [broker],
+)
+app = service.run(image="orders-app:latest", after=[topic])
+lag = assert_consumer_healthy(
+    group      = "orders-consumer",
+    rest_proxy = proxy,
+    max_lag    = 500,
+    after      = [app, proxy],
 )
 ```
+
+The proxy's port is read from the node's own `KAFKA_REST_LISTENERS` (or `PORT`), or given with `rest_port=`. Without `rest_proxy=` the suite fails at evaluation and says why.
 
 The plugins referenced inside a module must still be registered in platform settings before any suite that loads the module can run — the module provides the Starlark API, but the Lua code runs in the APISIX sidecar at execution time.
 
@@ -589,7 +590,10 @@ Each exported function corresponds to one operation in the plugin's `operations`
 ### How it's used in a suite
 
 ```python
+load("@babelsuite/runtime", "mock")
 load("@plugins/spice-sim", "transient", "dc_sweep")
+
+spice_mock = mock.api(name="spice-service")
 
 rc_filter = transient(
     name        = "rc-filter",

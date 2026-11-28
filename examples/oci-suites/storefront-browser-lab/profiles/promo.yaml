@@ -1,10 +1,6 @@
 name: Promo Burst
-description: All browsers, promo fixtures, GPU-accelerated catalog seeding.
+description: All three browsers.
 default: false
-# Only an agent tagged gpu-enabled may run this profile: a step below asks
-# for a GPU, and a backend without one would fail it or silently skip it.
-agent:
-  tags: [gpu-enabled]
 
 network:
   mode: execution
@@ -12,7 +8,3 @@ network:
 env:
   LOG_LEVEL: info
   BROWSERS: chromium,firefox,webkit
-
-services:
-  seed-products:
-    devices: ["gpu"]

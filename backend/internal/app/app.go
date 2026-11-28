@@ -198,7 +198,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	}
 
 	health := buildHealthService(driver, primaryStore, cacheLayer, telemetryPipeline,
-		platformBaseStore, profileBaseStore, agentRegistry, executionService)
+		platformBaseStore, profileBaseStore, agentRegistry, executionService, catalogBacked)
 
 	mux := http.NewServeMux()
 	health.Register(mux)
@@ -210,7 +210,9 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	suites.NewHandler(newCatalogSuiteHandler(catalogBacked, suiteService), jwtSvc).Register(mux)
 	mocking.NewHandler(mockingService, mockToken).Register(mux)
 	execution.NewHandler(executionService, engineStore, jwtSvc).Register(mux)
-	platform.NewHandler(platformStore, jwtSvc).Register(mux)
+	platformHandler := platform.NewHandler(platformStore, jwtSvc)
+	platformHandler.OnRegistrySync(catalogBacked.Refresh)
+	platformHandler.Register(mux)
 	environments.NewHandler(environmentService, jwtSvc).Register(mux)
 	if cronService != nil {
 		cronjobs.NewHandler(cronService, jwtSvc).Register(mux)

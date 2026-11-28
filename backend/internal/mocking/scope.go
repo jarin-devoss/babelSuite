@@ -48,9 +48,19 @@ func (s *Service) RegisterExecution(executionID, suiteID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.runs == nil {
-		s.runs = make(map[string]string)
+		s.runs = make(map[string]map[string]struct{})
 	}
-	s.runs[executionID] = suiteID
+	if s.runs[executionID] == nil {
+		s.runs[executionID] = make(map[string]struct{})
+	}
+	s.runs[executionID][suiteID] = struct{}{}
+}
+
+// runHasSuite reports whether the run was registered for the suite: the suite it
+// runs, or one it imports. The caller holds the lock.
+func (s *Service) runHasSuite(executionID, suiteID string) bool {
+	_, ok := s.runs[executionID][suiteID]
+	return ok
 }
 
 // RegisterIngress records the address the suite's gateway has on the run's
@@ -90,7 +100,7 @@ func (s *Service) DropExecutionState(executionID string) {
 // no scope of its own, and its reset clears the suite-wide state instead.
 func (s *Service) ResetExecutionState(ctx context.Context, executionID, suiteID string) error {
 	s.mu.RLock()
-	known := s.runs[strings.TrimSpace(executionID)] == strings.TrimSpace(suiteID)
+	known := s.runHasSuite(strings.TrimSpace(executionID), strings.TrimSpace(suiteID))
 	s.mu.RUnlock()
 	if !known {
 		return s.ResetSuiteState(ctx, suiteID)
@@ -115,11 +125,11 @@ func (s *Service) scopeFor(suiteID string, request *http.Request) string {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if id := strings.TrimSpace(request.Header.Get(HeaderExecution)); id != "" && s.runs[id] == suiteID {
+	if id := strings.TrimSpace(request.Header.Get(HeaderExecution)); id != "" && s.runHasSuite(id, suiteID) {
 		return executionScope(id)
 	}
 	if address := strings.TrimSpace(request.Header.Get(HeaderIngress)); address != "" {
-		if id := s.ingress[address]; id != "" && s.runs[id] == suiteID {
+		if id := s.ingress[address]; id != "" && s.runHasSuite(id, suiteID) {
 			return executionScope(id)
 		}
 	}

@@ -1,0 +1,48 @@
+{
+  "Error": "",
+  "Spec": {
+    "variant": "traffic.baseline",
+    "target": "http://target",
+    "users": [
+      {
+        "id": "probe",
+        "name": "submit-claim",
+        "weight": 1,
+        "wait": {
+          "mode": "constant",
+          "seconds": 0.1
+        },
+        "tasks": [
+          {
+            "name": "submit-claim",
+            "weight": 1,
+            "request": {
+              "method": "POST",
+              "path": "/claims",
+              "name": "submit-claim",
+              "headers": {
+                "Content-Type": "application/json",
+                "X-Soap-Version": "1.1"
+              },
+              "body": "{\"amount\":4200,\"claimType\":\"medical\",\"lossType\":\"water\",\"policyNumber\":\"MED-1024\"}"
+            }
+          }
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "duration": 10000000000,
+        "users": 4,
+        "spawnRate": 4
+      }
+    ],
+    "thresholds": [
+      {
+        "metric": "http.error_rate",
+        "op": "\u003c=",
+        "value": 0.01
+      }
+    ]
+  }
+}

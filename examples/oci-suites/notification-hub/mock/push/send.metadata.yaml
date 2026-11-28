@@ -1,0 +1,26 @@
+apiVersion: mocks.babelsuite.io/v1alpha1
+kind: MockOperation
+metadata:
+    metadataPath: mock/push/send.metadata.yaml
+    operationId: send-push
+    sourceArtifact: mock/push/send.cue
+    suite: notification-hub
+spec:
+    adapter: rest
+    delayMillis: 0
+    fallback:
+        mode: static
+        examplename: ""
+        proxyurl: ""
+        status: "200"
+        mediatype: application/json
+        body: |-
+            {
+              "accepted": true,
+              "providerMessageId": "push-msg-1"
+            }
+        headers: []
+    parameterConstraints: []
+    resolverUrl: /internal/mock-data/notification-hub/channel-providers/send-push
+    runtimeUrl: /mocks/rest/notification-hub/channel-providers/push/send
+    state: null

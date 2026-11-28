@@ -1,0 +1,304 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "catalog-api",
+      "name": "catalog-api",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "storefront",
+      "name": "storefront",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "storefront.py",
+      "dependsOn": [
+        "catalog-api"
+      ],
+      "level": 1,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "CATALOG_URL": "http://catalog-api:9080",
+        "PORT": "8080"
+      }
+    },
+    {
+      "id": "storefront-ready",
+      "name": "storefront-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://storefront:8080/health')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 1; done; echo 'storefront never answered /health'; exit 1"
+      ],
+      "dependsOn": [
+        "storefront"
+      ],
+      "level": 2,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "ready",
+      "name": "ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "storefront ready — {{ healthy }}/{{ total }} healthy — BROWSERS={{ env.BROWSERS }}",
+      "dependsOn": [
+        "storefront-ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "cart-soak",
+      "name": "cart-soak",
+      "kind": "traffic",
+      "variant": "traffic.soak",
+      "traffic": {
+        "variant": "traffic.soak",
+        "planPath": "traffic/catalog.star",
+        "target": "http://storefront:8080",
+        "users": [
+          {
+            "id": "browse",
+            "name": "browse",
+            "weight": 3,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "list-products",
+                "weight": 1,
+                "request": {
+                  "method": "GET",
+                  "path": "/api/products",
+                  "name": "list-products",
+                  "headers": {
+                    "Accept": "application/json"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "buy",
+            "name": "buy",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "order",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/api/orders",
+                  "name": "order",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"email\":\"shopper@demo.test\",\"quantity\":1,\"sku\":\"sku_1001\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 20000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "ready"
+      ],
+      "level": 4,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "api-smoke",
+      "name": "api-smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "node:22-alpine",
+      "file": "api.test.ts",
+      "dependsOn": [
+        "cart-soak"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "ORDER_CONFIRMED_FOR_SOLD_OUT"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/api.xml",
+          "name": "api-tests",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "reports/ctrf.json",
+          "name": "api-ctrf",
+          "on": "always",
+          "format": "ctrf"
+        }
+      ],
+      "level": 5,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "STOREFRONT_URL": "http://storefront:8080"
+      }
+    },
+    {
+      "id": "checkout-spec-ts-chromium-desktop",
+      "name": "checkout-spec-ts-chromium-desktop",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "checkout.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/checkout-spec-ts-chromium-desktop-junit.xml' npx playwright test 'checkout.spec.ts' --browser=chromium --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "api-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/checkout-spec-ts-chromium-desktop-junit.xml",
+          "name": "checkout-spec-ts-chromium-desktop",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "traces/checkout-spec-ts-chromium-desktop.zip",
+          "name": "checkout-spec-ts-chromium-desktop-trace",
+          "on": "failure"
+        },
+        {
+          "path": "screenshots/checkout-spec-ts-chromium-desktop",
+          "name": "checkout-spec-ts-chromium-desktop-shots",
+          "on": "failure"
+        }
+      ],
+      "level": 6,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "BASE_URL": "http://storefront:8080",
+        "BROWSER": "chromium",
+        "COLLECT_TRACES": "true",
+        "COLLECT_VIDEO": "false",
+        "DEVICE": "desktop",
+        "DEVICE_SCALE": "1",
+        "IS_MOBILE": "false",
+        "VIEWPORT_HEIGHT": "800",
+        "VIEWPORT_WIDTH": "1280"
+      }
+    },
+    {
+      "id": "cart-abandonment-spec-ts-chromium-desktop",
+      "name": "cart-abandonment-spec-ts-chromium-desktop",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "mcr.microsoft.com/playwright:v1.53.0-noble",
+      "file": "cart_abandonment.spec.ts",
+      "commands": [
+        "npm install --no-save --no-audit --no-fund @playwright/test@1.53.0",
+        "PLAYWRIGHT_JUNIT_OUTPUT_NAME='reports/cart-abandonment-spec-ts-chromium-desktop-junit.xml' npx playwright test 'cart_abandonment.spec.ts' --browser=chromium --reporter=junit,line"
+      ],
+      "dependsOn": [
+        "checkout-spec-ts-chromium-desktop"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/cart-abandonment-spec-ts-chromium-desktop-junit.xml",
+          "name": "cart-abandonment-spec-ts-chromium-desktop",
+          "on": "always",
+          "format": "junit"
+        },
+        {
+          "path": "traces/cart-abandonment-spec-ts-chromium-desktop.zip",
+          "name": "cart-abandonment-spec-ts-chromium-desktop-trace",
+          "on": "failure"
+        },
+        {
+          "path": "screenshots/cart-abandonment-spec-ts-chromium-desktop",
+          "name": "cart-abandonment-spec-ts-chromium-desktop-shots",
+          "on": "failure"
+        }
+      ],
+      "level": 7,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "BASE_URL": "http://storefront:8080",
+        "BROWSER": "chromium",
+        "COLLECT_TRACES": "true",
+        "COLLECT_VIDEO": "false",
+        "DEVICE": "desktop",
+        "DEVICE_SCALE": "1",
+        "IS_MOBILE": "false",
+        "VIEWPORT_HEIGHT": "800",
+        "VIEWPORT_WIDTH": "1280"
+      }
+    },
+    {
+      "id": "lab_complete",
+      "name": "lab_complete",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "browser lab complete — {{ healthy }}/{{ total }} healthy",
+      "dependsOn": [
+        "cart-abandonment-spec-ts-chromium-desktop"
+      ],
+      "level": 8,
+      "sourceSuiteId": "storefront-browser-lab",
+      "sourceSuiteTitle": "# Storefront Browser Lab",
+      "sourceRepository": "workspace/storefront-browser-lab",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

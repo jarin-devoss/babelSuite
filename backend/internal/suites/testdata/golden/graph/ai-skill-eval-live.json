@@ -1,0 +1,582 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "ollama",
+      "name": "ollama",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "ollama/ollama:0.5.7",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pull-model",
+      "name": "pull-model",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "ollama/ollama:0.5.7",
+      "commands": [
+        "for i in $(seq 1 30); do ollama pull qwen2.5:1.5b-instruct-q4_K_M \u0026\u0026 exit 0; sleep 2; done; exit 1"
+      ],
+      "dependsOn": [
+        "ollama"
+      ],
+      "level": 1,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "OLLAMA_HOST": "http://ollama:11434"
+      }
+    },
+    {
+      "id": "ready",
+      "name": "ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "real model resident on {{ profile }} — evaluating skills next",
+      "dependsOn": [
+        "pull-model"
+      ],
+      "level": 2,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "routing",
+      "name": "routing",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "trigger",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "case_criteria": [
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "case_expects": [
+            "issue_refund",
+            "issue_refund",
+            "track_shipment",
+            "track_shipment",
+            "lookup_order",
+            null,
+            null
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, I want my money back.",
+            "You sent me a blue jacket instead of the red one I ordered, order 1002. Please refund it.",
+            "Where is my parcel for order 1001 right now?",
+            "When will order 1003 be delivered?",
+            "What items are in order 1004?",
+            "Thanks, that's all for today!",
+            "What are your opening hours?"
+          ],
+          "case_sequences": [
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 0.7,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "routing-stability",
+      "name": "routing-stability",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "consistency",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [],
+            [],
+            []
+          ],
+          "case_criteria": [
+            [],
+            [],
+            []
+          ],
+          "case_expects": [
+            "issue_refund",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, I want my money back.",
+            "You sent me a blue jacket instead of the red one I ordered, order 1002. Please refund it.",
+            "Where is my parcel for order 1001 right now?"
+          ],
+          "case_sequences": [
+            [],
+            [],
+            []
+          ],
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "samples": 3,
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "temperature": 0.7,
+          "threshold": 0.7,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 4,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-arguments",
+      "name": "refund-arguments",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "arguments",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [
+              [
+                "order_id",
+                1001
+              ],
+              [
+                "reason",
+                "damaged"
+              ]
+            ],
+            [
+              [
+                "order_id",
+                1005
+              ],
+              [
+                "reason",
+                "not_delivered"
+              ]
+            ]
+          ],
+          "case_criteria": [
+            [],
+            []
+          ],
+          "case_expects": [
+            "issue_refund",
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, refund it.",
+            "Order 1005 never showed up. I want a refund."
+          ],
+          "case_sequences": [
+            [],
+            []
+          ],
+          "check_schema": true,
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 4,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-plan",
+      "name": "refund-plan",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "sequence",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            []
+          ],
+          "case_expects": [
+            null
+          ],
+          "case_prompts": [
+            "Check what's in order 1001, and if it's the mug, refund it as damaged."
+          ],
+          "case_sequences": [
+            [
+              "lookup_order",
+              "issue_refund"
+            ]
+          ],
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "sequence_match": "in_order",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 4,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "answer-latency",
+      "name": "answer-latency",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "latency",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            [],
+            []
+          ],
+          "case_criteria": [
+            [],
+            []
+          ],
+          "case_expects": [
+            "issue_refund",
+            "track_shipment"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed, I want my money back.",
+            "Where is my parcel for order 1001 right now?"
+          ],
+          "case_sequences": [
+            [],
+            []
+          ],
+          "max_latency_ms": 60000,
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "routing"
+      ],
+      "level": 4,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-answers",
+      "name": "refund-answers",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "outcome",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            [
+              "says the refund arrives within 5 business days",
+              "says the customer does not need to return the item",
+              "does not offer a discount code"
+            ]
+          ],
+          "case_expects": [
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed. When do I get my money, and do I need to send it back?"
+          ],
+          "case_sequences": [
+            []
+          ],
+          "judge_api_key": "",
+          "judge_model": "",
+          "judge_url": "",
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "structured": true,
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "refund-arguments"
+      ],
+      "level": 5,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "refund-uplift",
+      "name": "refund-uplift",
+      "kind": "plugin",
+      "variant": "skill-eval",
+      "plugin": {
+        "name": "skill-eval",
+        "op": "uplift",
+        "config": {
+          "api_key": "",
+          "case_args": [
+            []
+          ],
+          "case_criteria": [
+            [
+              "says the refund arrives within 5 business days",
+              "says the customer does not need to return the item",
+              "does not offer a discount code"
+            ]
+          ],
+          "case_expects": [
+            "issue_refund"
+          ],
+          "case_prompts": [
+            "Order 1001 arrived smashed. When do I get my money, and do I need to send it back?"
+          ],
+          "case_sequences": [
+            []
+          ],
+          "judge_api_key": "",
+          "judge_model": "",
+          "judge_url": "",
+          "min_gain": 1,
+          "model": "qwen2.5:1.5b-instruct-q4_K_M",
+          "model_url": "http://ollama:11434/v1/chat/completions",
+          "severity": "warn",
+          "skill_descriptions": [
+            "Look up an order's status, items and delivery date by order id.",
+            "Refund an order that arrived damaged, wrong or not at all.",
+            "Report where a parcel is right now and when it will arrive."
+          ],
+          "skill_instructions": [
+            "",
+            "You are handling a refund for Northwind Outfitters. Confirm the order id back to the customer. Refunds reach the original payment method within 5 business days. Customers keep the damaged item; never ask them to send it back. Never offer discount codes.",
+            ""
+          ],
+          "skill_names": [
+            "lookup_order",
+            "issue_refund",
+            "track_shipment"
+          ],
+          "skill_parameters": [
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"},\"reason\":{\"type\":\"string\",\"enum\":[\"damaged\",\"wrong_item\",\"not_delivered\"]}},\"required\":[\"order_id\",\"reason\"]}",
+            "{\"type\":\"object\",\"properties\":{\"order_id\":{\"type\":\"integer\"}},\"required\":[\"order_id\"]}"
+          ],
+          "structured": true,
+          "system": "",
+          "threshold": 1,
+          "timeout_ms": 120000
+        }
+      },
+      "dependsOn": [
+        "refund-answers"
+      ],
+      "level": 6,
+      "sourceSuiteId": "ai-skill-eval-live",
+      "sourceSuiteTitle": "Ai Skill Eval Live",
+      "sourceRepository": "workspace/ai-skill-eval-live",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

@@ -5,7 +5,7 @@ probe = traffic.user(
     tasks=[
         traffic.task(
             name="begin-login",
-            request=traffic.post("/sessions/login?provider=oidc", name="begin-login", json={"email": "admin@babelsuite.test"}),
+            request=traffic.post("/login?provider=oidc", name="begin-login", json={"email": "load@babelsuite.test"}),
         ),
     ],
 )

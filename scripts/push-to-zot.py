@@ -10,8 +10,10 @@ layer.
 import argparse
 import gzip
 import hashlib
+import http.cookiejar
 import io
 import json
+import os
 import pathlib
 import sys
 import tarfile
@@ -121,8 +123,50 @@ def push(registry: str, repository: str, tags, layer: bytes) -> None:
         print(f"  pushed {repository}:{tag}")
 
 
+def sync_backend(url: str, registry: str) -> None:
+    """Ask a running backend to re-read its registries, so what was just pushed is
+    found without restarting it. Signs in as the admin (ADMIN_EMAIL and
+    ADMIN_PASSWORD from the environment) and syncs the registry that serves
+    `registry`.
+    """
+    email, password = os.environ.get("ADMIN_EMAIL", ""), os.environ.get("ADMIN_PASSWORD", "")
+    if not email or not password:
+        print("! --sync needs ADMIN_EMAIL and ADMIN_PASSWORD in the environment", file=sys.stderr)
+        return
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+
+    def call(method, path, body=None, token=None):
+        request = urllib.request.Request(url.rstrip("/") + path, method=method,
+                                         data=None if body is None else json.dumps(body).encode())
+        request.add_header("Content-Type", "application/json")
+        if token:
+            request.add_header("Authorization", "Bearer " + token)
+        else:
+            for cookie in jar:
+                if cookie.name == "csrf_token":
+                    request.add_header("X-CSRF-Token", cookie.value)
+        with opener.open(request, timeout=120) as response:
+            return json.loads(response.read() or b"{}")
+
+    try:
+        call("GET", "/api/v1/auth/config")  # sets the CSRF cookie
+        token = call("POST", "/api/v1/auth/sign-in", {"email": email, "password": password}).get("token")
+        settings = call("GET", "/api/v1/platform-settings", token=token)
+        host = registry.replace("http://", "").replace("https://", "")
+        for entry in settings.get("registries", []):
+            if host in entry.get("registryUrl", ""):
+                call("POST", "/api/v1/platform-settings/registries/%s/sync" % entry["registryId"], token=token)
+                print(f"synced registry {entry['registryId']} on {url}")
+                return
+        print(f"! no registry of {url} serves {registry}", file=sys.stderr)
+    except (urllib.error.URLError, OSError) as exc:
+        print(f"! could not sync {url}: {exc}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--sync", metavar="BACKEND_URL", help="after pushing, ask this running backend to re-read its registries (needs ADMIN_EMAIL and ADMIN_PASSWORD in the environment), so it finds the push without a restart")
     parser.add_argument("--registry", default="http://localhost:5000")
     parser.add_argument("--suite", action="append", help="only push these suite ids")
     parser.add_argument(
@@ -175,6 +219,8 @@ def main() -> int:
             return 1
 
     print(f"\npushed {pushed} suite(s) to {registry}")
+    if args.sync:
+        sync_backend(args.sync, registry)
     return 0
 
 

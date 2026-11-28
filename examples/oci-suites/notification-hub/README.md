@@ -1,52 +1,47 @@
 # Notification Hub
 
-Redis-backed notification service with Postgres, a mock email provider, database migrations, template seeding, and a background dispatcher worker.
+A service that renders a template for a locale and sends it to a channel provider (one mock per channel), keeps what was delivered and dead-letters what a provider refuses. It only serves a caller the identity broker vouches for, and announces payment events it has checked against the payment service. `identity-broker` and `payment-suite` are imported with `suite.run`: their services and mocks are on this run's gateway.
 
-## Overview
-
-This suite models a notification platform that sends transactional emails through a mocked provider. A Postgres database and Redis cache back a notification API; a separate dispatcher worker handles async delivery. Migrations and template seeding run before the API starts, ensuring the database is fully prepared before any requests arrive.
-
-Use it as a reference for any service that combines a relational store, a cache layer, an external provider mock, and an async background worker.
-
-## Execution Order
+## Execution order
 
 ```
-db                         cache
-├── email_mock              │
-├── seed_templates          │
-└── migrations ─────────────┤
-                       notification_api
-                            └── dispatcher
-                                    │
-                               notify_smoke  ← exports junit.xml
+identity-broker (imported) ── payment-suite (imported)
+<channel>-provider-mock (one per channel) ── notify-api ── notify-api-ready ── channels_ready
+                                                           ├── notify-smoke-<channel>
+                                                           ├── template-render-<locale>
+                                                           ├── dlq-drain-audit
+                                                           ├── rate-limit-boundary
+                                                           └── payment-notify-<suite>
 ```
+
+## What breaks it
+
+A send a provider refuses is dead-lettered, never dropped: `dead_letter()` in `tasks/notify_api.py`. Make it return without appending and `dlq-drain-audit`, which counts what was sent against what was delivered plus dead-lettered, fails.
+
+A payment event the payment service does not bear out is dropped, not announced; remove that check and `payment-notify-*` fails.
+
+## Profiles
+
+| Profile | What it does |
+|---|---|
+| `local.yaml` | All channels and locales, rate limit 20 requests a second. |
+| `ci.yaml` | Quiet logs, the same rate limit. |
 
 ## Structure
 
 | Path | Description |
 |---|---|
-| `suite.star` | Declarative topology — cache, database, mock, seeders, API, dispatcher, and tests |
-| `profiles/` | Environment-specific overrides for SMTP settings, cache TTLs, and delivery concurrency |
-| `api/` | OpenAPI contracts for the notification API |
-| `mock/` | Email provider mock schemas and delivery receipt fixtures |
-| `tasks/` | `seed_templates.sql` (notification templates) and `migrate.sh` (schema migrations) |
-| `tests/` | `notify_smoke.py` — send, delivery confirmation, and bounce handling tests |
-| `fixtures/` | Pre-built notification payloads and recipient lists |
+| `suite.star` | The topology, with the two imported suites. |
+| `dependencies.yaml` | Where the imported suites come from. |
+| `tasks/notify_api.py` | The notification service. |
+| `api/channels.yaml` | The providers' contract. |
+| `mock/<channel>/` | A mock per channel; `fail@example.test` is refused. |
+| `tests/` | Smoke, template, dead-letter, rate-limit and payment-event tests. |
 
 ## Running
 
 ```bash
-# Run locally with the mock email provider and dev database
-babelctl run localhost:5000/babelsuite/notification-hub:latest --profile local
-
-# Run in CI with a smaller fixture set and faster delivery timeouts
-babelctl run localhost:5000/babelsuite/notification-hub:latest --profile ci
+python scripts/push-to-zot.py --suite notification-hub --sync http://localhost:8090
 ```
 
-## Key Concepts Demonstrated
-
-- **Parallel pre-flight tasks** — `seed_templates` and `migrations` both wait on the database but run concurrently, shortening the startup critical path
-- **Cache and database as independent roots** — `cache` and `db` start in parallel since neither depends on the other, with the API waiting for both
-- **Background worker in test scope** — `dispatcher` runs as a live service during the smoke test, validating that async delivery completes within the test window
-- **Artifact export** — `notify_smoke` exports a JUnit report on every run for CI test result tracking
-- **Reports fail until the tests run** — `notify-smoke-*` fail until the smoke scripts run and write real JUnit reports
+Then launch it from the UI, or `POST /api/v1/executions` with `{"suiteId": "notification-hub", "profile": "local.yaml"}`.

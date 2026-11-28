@@ -1,5 +1,5 @@
 name: CI Browser
-description: Headless Chromium only, tight timeouts, deterministic mocks.
+description: Headless Chromium only, quiet logs.
 default: false
 
 network:
@@ -8,4 +8,3 @@ network:
 env:
   LOG_LEVEL: warn
   BROWSERS: chromium
-

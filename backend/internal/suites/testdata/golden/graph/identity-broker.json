@@ -1,0 +1,482 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "pre-hook/session-store",
+      "name": "pre-hook/session-store",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "redis:7.2-alpine",
+      "commands": [
+        "redis-server --save '' --appendonly no"
+      ],
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pre-hook/upstream-idp",
+      "name": "pre-hook/upstream-idp",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "busybox:1.37",
+      "commands": [
+        "mkdir -p /www/.well-known",
+        "echo '{\"issuer\":\"http://upstream-idp:9000\",\"jwks_uri\":\"http://upstream-idp:9000/jwks\"}' \u003e /www/.well-known/openid-configuration",
+        "echo '{\"keys\":[]}' \u003e /www/jwks",
+        "httpd -f -p 9000 -h /www"
+      ],
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pre-hook/session-store-alive",
+      "name": "pre-hook/session-store-alive",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "redis:7.2-alpine",
+      "commands": [
+        "attempt=0",
+        "until [ \"$(redis-cli -h session-store ping 2\u003e/dev/null)\" = 'PONG' ]; do   attempt=$((attempt+1));   if [ \"$attempt\" -ge 30 ]; then echo 'session store never answered PING' \u003e\u00262; exit 1; fi;   echo \"waiting for session store (attempt $attempt)\";   sleep 1; done",
+        "echo 'session store answered PING'",
+        "redis-cli -h session-store set babelsuite:gate ok \u003e/dev/null",
+        "test \"$(redis-cli -h session-store get babelsuite:gate)\" = 'ok' || (echo 'session store rejected a write' \u003e\u00262; exit 1)",
+        "redis-cli -h session-store del babelsuite:gate \u003e/dev/null",
+        "echo 'session store accepted a read-write round trip'"
+      ],
+      "dependsOn": [
+        "pre-hook/session-store"
+      ],
+      "level": 1,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pre-hook/upstream-idp-alive",
+      "name": "pre-hook/upstream-idp-alive",
+      "kind": "task",
+      "variant": "task.run",
+      "image": "busybox:1.37",
+      "commands": [
+        "attempt=0",
+        "until wget -q -O- http://upstream-idp:9000/.well-known/openid-configuration 2\u003e/dev/null | grep -q 'issuer'; do   attempt=$((attempt+1));   if [ \"$attempt\" -ge 30 ]; then echo 'upstream IdP discovery never became reachable' \u003e\u00262; exit 1; fi;   echo \"waiting for upstream IdP (attempt $attempt)\";   sleep 1; done",
+        "echo 'upstream IdP is serving its discovery document'",
+        "wget -q -O- http://upstream-idp:9000/jwks | grep -q 'keys' || (echo 'JWKS endpoint is not serving keys' \u003e\u00262; exit 1)",
+        "echo 'upstream IdP JWKS endpoint is live'"
+      ],
+      "dependsOn": [
+        "pre-hook/upstream-idp"
+      ],
+      "level": 1,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "pre-hook/environment_ready",
+      "name": "pre-hook/environment_ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "identity environment ready — session store and upstream IdP are both live",
+      "dependsOn": [
+        "pre-hook/upstream-idp-alive",
+        "pre-hook/session-store-alive"
+      ],
+      "level": 2,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "oidc-mock",
+      "name": "oidc-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "pre-hook/environment_ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "saml-mock",
+      "name": "saml-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "pre-hook/environment_ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "ldap-mock",
+      "name": "ldap-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "pre-hook/environment_ready"
+      ],
+      "level": 3,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "broker-api",
+      "name": "broker-api",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "broker_api.py",
+      "dependsOn": [
+        "oidc-mock",
+        "saml-mock",
+        "ldap-mock"
+      ],
+      "level": 4,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "ENABLE_MFA": "true",
+        "PORT": "8080",
+        "PROVIDERS": "oidc,saml,ldap",
+        "REALM_COUNT": "3"
+      }
+    },
+    {
+      "id": "broker-api-ready",
+      "name": "broker-api-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://broker-api:8080/health')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 1; done; echo 'broker-api never answered /health'; exit 1"
+      ],
+      "dependsOn": [
+        "broker-api"
+      ],
+      "level": 5,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "providers_ready",
+      "name": "providers_ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "broker-api is answering; 3 provider mocks up",
+      "dependsOn": [
+        "broker-api-ready"
+      ],
+      "level": 6,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "login-baseline",
+      "name": "login-baseline",
+      "kind": "traffic",
+      "variant": "traffic.baseline",
+      "traffic": {
+        "variant": "traffic.baseline",
+        "planPath": "traffic/login.star",
+        "target": "http://broker-api:8080",
+        "users": [
+          {
+            "id": "probe",
+            "name": "begin-login",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "begin-login",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/login?provider=oidc",
+                  "name": "begin-login",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"email\":\"load@babelsuite.test\"}"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "providers_ready"
+      ],
+      "level": 7,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "login-smoke-oidc",
+      "name": "login-smoke-oidc",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "login_smoke.py",
+      "dependsOn": [
+        "login-baseline"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/oidc-junit.xml",
+          "name": "login-smoke-oidc",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 8,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "AUTH_PROVIDER": "oidc"
+      }
+    },
+    {
+      "id": "login-smoke-saml",
+      "name": "login-smoke-saml",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "login_smoke.py",
+      "dependsOn": [
+        "login-baseline"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/saml-junit.xml",
+          "name": "login-smoke-saml",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 8,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "AUTH_PROVIDER": "saml"
+      }
+    },
+    {
+      "id": "login-smoke-ldap",
+      "name": "login-smoke-ldap",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "login_smoke.py",
+      "dependsOn": [
+        "login-baseline"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/ldap-junit.xml",
+          "name": "login-smoke-ldap",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 8,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "AUTH_PROVIDER": "ldap"
+      }
+    },
+    {
+      "id": "expired-session",
+      "name": "expired-session",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "expired_session.py",
+      "dependsOn": [
+        "login-smoke-oidc",
+        "login-smoke-saml",
+        "login-smoke-ldap"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/expired-session.xml",
+          "name": "expired-session",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 9,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "mfa-smoke",
+      "name": "mfa-smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "mfa_smoke.py",
+      "dependsOn": [
+        "expired-session"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "MFA_BYPASS_ATTEMPTED",
+          "TOKEN_REPLAY_DETECTED"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/mfa-junit.xml",
+          "name": "mfa-smoke",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "realm-isolation-0",
+      "name": "realm-isolation-0",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "realm_isolation.py",
+      "dependsOn": [
+        "mfa-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/realm-0-isolation.xml",
+          "name": "realm-isolation-0",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 11,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "REALM_COUNT": "3",
+        "REALM_ID": "realm-0"
+      }
+    },
+    {
+      "id": "realm-isolation-1",
+      "name": "realm-isolation-1",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "realm_isolation.py",
+      "dependsOn": [
+        "mfa-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/realm-1-isolation.xml",
+          "name": "realm-isolation-1",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 11,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "REALM_COUNT": "3",
+        "REALM_ID": "realm-1"
+      }
+    },
+    {
+      "id": "realm-isolation-2",
+      "name": "realm-isolation-2",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "realm_isolation.py",
+      "dependsOn": [
+        "mfa-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/realm-2-isolation.xml",
+          "name": "realm-isolation-2",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 11,
+      "sourceSuiteId": "identity-broker",
+      "sourceSuiteTitle": "# Identity Broker",
+      "sourceRepository": "workspace/identity-broker",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "REALM_COUNT": "3",
+        "REALM_ID": "realm-2"
+      }
+    }
+  ],
+  "Dependencies": []
+}

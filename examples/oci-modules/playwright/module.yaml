@@ -11,5 +11,5 @@ spec:
     - 1.0.0
     - latest
   description: Starlark helpers for Playwright browser tests — browser×device matrix, accessibility audits, and visual regression diffs, built on BabelSuite's test primitive.
-  pullCommand: babelctl run localhost:5000/babelsuite/playwright:1.0.0
+  pullCommand: load("@babelsuite/playwright", ...)
   forkCommand: babelctl fork localhost:5000/babelsuite/playwright:1.0.0 ./stdlib-playwright

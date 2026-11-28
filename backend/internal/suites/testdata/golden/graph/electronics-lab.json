@@ -1,0 +1,215 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "spice-service",
+      "name": "spice-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "verilog-service",
+      "name": "verilog-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "control-service",
+      "name": "control-service",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "rc-filter-step-response",
+      "name": "rc-filter-step-response",
+      "kind": "plugin",
+      "variant": "spice-sim",
+      "plugin": {
+        "name": "spice-sim",
+        "op": "transient",
+        "config": {
+          "end_time_ms": 10,
+          "max_rise_ms": 3,
+          "max_voltage": 5.5,
+          "min_voltage": null,
+          "netlist": "RC Filter\nVinput 1 0 DC 5V\nR1 1 2 1k\nC1 2 0 1uF\n.tran 0.1ms 10ms\n.end",
+          "probe_node": "2",
+          "severity": "critical",
+          "sim_url": "http://spice-service:9080",
+          "step_time_ms": 0.1,
+          "timeout_ms": null
+        }
+      },
+      "dependsOn": [
+        "spice-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "4bit-counter-correctness",
+      "name": "4bit-counter-correctness",
+      "kind": "plugin",
+      "variant": "verilog-sim",
+      "plugin": {
+        "name": "verilog-sim",
+        "op": "simulate",
+        "config": {
+          "assert_no_x": true,
+          "max_errors": 0,
+          "severity": "critical",
+          "sim_url": "http://verilog-service:9080",
+          "testbench": "module tb_counter;\n  reg clk, rst; wire [3:0] out; integer errors;\n  counter uut (.clk(clk), .rst(rst), .out(out));\n  always #5 clk = ~clk;\n  initial begin\n    clk=0; rst=1; errors=0; #10 rst=0; #10;\n    if (out !== 4'd1) begin $error(\"expected 1, got %d\", out); errors=errors+1; end\n    #10;\n    if (out !== 4'd2) begin $error(\"expected 2, got %d\", out); errors=errors+1; end\n    #80;\n    if (errors \u003e 0) $fatal(1, \"%d assertion(s) failed\", errors);\n    $finish;\n  end\nendmodule",
+          "timeout_ns": 200,
+          "top_module": "tb_counter",
+          "verilog": "module counter(input wire clk, input wire rst, output reg [3:0] out);\n  always @(posedge clk or posedge rst) begin\n    if (rst) out \u003c= 4'b0000; else out \u003c= out + 1;\n  end\nendmodule"
+        }
+      },
+      "dependsOn": [
+        "verilog-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "4bit-counter-lint",
+      "name": "4bit-counter-lint",
+      "kind": "plugin",
+      "variant": "verilog-sim",
+      "plugin": {
+        "name": "verilog-sim",
+        "op": "lint",
+        "config": {
+          "fail_on_warnings": true,
+          "severity": "critical",
+          "sim_url": "http://verilog-service:9080",
+          "testbench": "",
+          "timeout_ns": 200,
+          "top_module": "tb_counter",
+          "verilog": "module counter(input wire clk, input wire rst, output reg [3:0] out);\n  always @(posedge clk or posedge rst) begin\n    if (rst) out \u003c= 4'b0000; else out \u003c= out + 1;\n  end\nendmodule"
+        }
+      },
+      "dependsOn": [
+        "verilog-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "4bit-counter-coverage",
+      "name": "4bit-counter-coverage",
+      "kind": "plugin",
+      "variant": "verilog-sim",
+      "plugin": {
+        "name": "verilog-sim",
+        "op": "check_coverage",
+        "config": {
+          "min_coverage_pct": 80,
+          "severity": "critical",
+          "sim_url": "http://verilog-service:9080",
+          "testbench": "module tb_counter;\n  reg clk, rst; wire [3:0] out; integer errors;\n  counter uut (.clk(clk), .rst(rst), .out(out));\n  always #5 clk = ~clk;\n  initial begin\n    clk=0; rst=1; errors=0; #10 rst=0; #10;\n    if (out !== 4'd1) begin $error(\"expected 1, got %d\", out); errors=errors+1; end\n    #10;\n    if (out !== 4'd2) begin $error(\"expected 2, got %d\", out); errors=errors+1; end\n    #80;\n    if (errors \u003e 0) $fatal(1, \"%d assertion(s) failed\", errors);\n    $finish;\n  end\nendmodule",
+          "timeout_ns": 200,
+          "top_module": "tb_counter",
+          "verilog": "module counter(input wire clk, input wire rst, output reg [3:0] out);\n  always @(posedge clk or posedge rst) begin\n    if (rst) out \u003c= 4'b0000; else out \u003c= out + 1;\n  end\nendmodule"
+        }
+      },
+      "dependsOn": [
+        "verilog-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "mass-spring-damper-response",
+      "name": "mass-spring-damper-response",
+      "kind": "plugin",
+      "variant": "control-sim",
+      "plugin": {
+        "name": "control-sim",
+        "op": "step_response",
+        "config": {
+          "denominator": [
+            1,
+            2,
+            1
+          ],
+          "max_dc_gain": 1.1,
+          "max_overshoot_pct": 5,
+          "max_settling_time": 8,
+          "min_dc_gain": 0.9,
+          "numerator": [
+            1
+          ],
+          "severity": "critical",
+          "sim_url": "http://control-service:9080",
+          "time_end": 10
+        }
+      },
+      "dependsOn": [
+        "control-service"
+      ],
+      "level": 1,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "4bit-counter-strict",
+      "name": "4bit-counter-strict",
+      "kind": "plugin",
+      "variant": "verilog-sim",
+      "plugin": {
+        "name": "verilog-sim",
+        "op": "strict",
+        "config": {
+          "severity": "critical",
+          "sim_url": "http://verilog-service:9080",
+          "testbench": "module tb_counter;\n  reg clk, rst; wire [3:0] out; integer errors;\n  counter uut (.clk(clk), .rst(rst), .out(out));\n  always #5 clk = ~clk;\n  initial begin\n    clk=0; rst=1; errors=0; #10 rst=0; #10;\n    if (out !== 4'd1) begin $error(\"expected 1, got %d\", out); errors=errors+1; end\n    #10;\n    if (out !== 4'd2) begin $error(\"expected 2, got %d\", out); errors=errors+1; end\n    #80;\n    if (errors \u003e 0) $fatal(1, \"%d assertion(s) failed\", errors);\n    $finish;\n  end\nendmodule",
+          "timeout_ns": 200,
+          "top_module": "tb_counter",
+          "verilog": "module counter(input wire clk, input wire rst, output reg [3:0] out);\n  always @(posedge clk or posedge rst) begin\n    if (rst) out \u003c= 4'b0000; else out \u003c= out + 1;\n  end\nendmodule"
+        }
+      },
+      "dependsOn": [
+        "4bit-counter-correctness"
+      ],
+      "level": 2,
+      "sourceSuiteId": "electronics-lab",
+      "sourceSuiteTitle": "# Electronics Lab",
+      "sourceRepository": "workspace/electronics-lab",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

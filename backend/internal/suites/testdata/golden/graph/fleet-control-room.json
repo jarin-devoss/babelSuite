@@ -1,0 +1,525 @@
+{
+  "Error": "",
+  "Topology": [
+    {
+      "id": "telemetry-mock",
+      "name": "telemetry-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [],
+      "level": 0,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "geo-fence-mock",
+      "name": "geo-fence-mock",
+      "kind": "mock",
+      "variant": "mock.api",
+      "dependsOn": [
+        "telemetry-mock"
+      ],
+      "level": 1,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "dispatcher",
+      "name": "dispatcher",
+      "kind": "service",
+      "variant": "service.run",
+      "image": "python:3.12-alpine",
+      "file": "dispatcher.py",
+      "dependsOn": [
+        "telemetry-mock",
+        "geo-fence-mock"
+      ],
+      "level": 2,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "GATEWAY_URL": "http://babelsuite-gateway:9080",
+        "GEOFENCE_URL": "http://geo-fence-mock:9080",
+        "PORT": "8080",
+        "REGIONS": "eu-west",
+        "TELEMETRY_URL": "http://telemetry-mock:9080"
+      }
+    },
+    {
+      "id": "dispatcher-ready",
+      "name": "dispatcher-ready",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "commands": [
+        "for i in $(seq 1 60); do python -c \"import urllib.request; urllib.request.urlopen('http://dispatcher:8080/health')\" 2\u003e/dev/null \u0026\u0026 exit 0; sleep 1; done; echo 'dispatcher never answered /health'; exit 1"
+      ],
+      "dependsOn": [
+        "dispatcher"
+      ],
+      "level": 3,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fleet_ready",
+      "name": "fleet_ready",
+      "kind": "log",
+      "variant": "log.info",
+      "message": "1 regions configured; dispatcher is answering",
+      "dependsOn": [
+        "dispatcher-ready"
+      ],
+      "level": 4,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fleet-ramp",
+      "name": "fleet-ramp",
+      "kind": "traffic",
+      "variant": "traffic.baseline",
+      "traffic": {
+        "variant": "traffic.baseline",
+        "planPath": "traffic/dispatch.star",
+        "target": "http://dispatcher:8080",
+        "users": [
+          {
+            "id": "assign",
+            "name": "assign-route",
+            "weight": 3,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "assign-route",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/routes/assign",
+                  "name": "assign-route",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"region\":\"eu-west\",\"routeId\":\"load-1\",\"vehicleId\":\"vh-11\",\"zone\":\"depot-north\"}"
+                }
+              }
+            ]
+          },
+          {
+            "id": "status",
+            "name": "read-status",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "read-status",
+                "weight": 1,
+                "request": {
+                  "method": "GET",
+                  "path": "/fleet/status",
+                  "name": "read-status"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "fleet_ready"
+      ],
+      "level": 5,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fleet-steady",
+      "name": "fleet-steady",
+      "kind": "traffic",
+      "variant": "traffic.baseline",
+      "traffic": {
+        "variant": "traffic.baseline",
+        "planPath": "traffic/dispatch.star",
+        "target": "http://dispatcher:8080",
+        "users": [
+          {
+            "id": "assign",
+            "name": "assign-route",
+            "weight": 3,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "assign-route",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/routes/assign",
+                  "name": "assign-route",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"region\":\"eu-west\",\"routeId\":\"load-1\",\"vehicleId\":\"vh-11\",\"zone\":\"depot-north\"}"
+                }
+              }
+            ]
+          },
+          {
+            "id": "status",
+            "name": "read-status",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "read-status",
+                "weight": 1,
+                "request": {
+                  "method": "GET",
+                  "path": "/fleet/status",
+                  "name": "read-status"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "fleet_ready",
+        "fleet-ramp"
+      ],
+      "level": 6,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fleet-spike",
+      "name": "fleet-spike",
+      "kind": "traffic",
+      "variant": "traffic.spike",
+      "traffic": {
+        "variant": "traffic.spike",
+        "planPath": "traffic/dispatch.star",
+        "target": "http://dispatcher:8080",
+        "requestsPerSecond": 20,
+        "users": [
+          {
+            "id": "assign",
+            "name": "assign-route",
+            "weight": 3,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "assign-route",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/routes/assign",
+                  "name": "assign-route",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"region\":\"eu-west\",\"routeId\":\"load-1\",\"vehicleId\":\"vh-11\",\"zone\":\"depot-north\"}"
+                }
+              }
+            ]
+          },
+          {
+            "id": "status",
+            "name": "read-status",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "read-status",
+                "weight": 1,
+                "request": {
+                  "method": "GET",
+                  "path": "/fleet/status",
+                  "name": "read-status"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "fleet_ready",
+        "fleet-steady"
+      ],
+      "level": 7,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fleet-drain",
+      "name": "fleet-drain",
+      "kind": "traffic",
+      "variant": "traffic.soak",
+      "traffic": {
+        "variant": "traffic.soak",
+        "planPath": "traffic/dispatch.star",
+        "target": "http://dispatcher:8080",
+        "users": [
+          {
+            "id": "assign",
+            "name": "assign-route",
+            "weight": 3,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "assign-route",
+                "weight": 1,
+                "request": {
+                  "method": "POST",
+                  "path": "/routes/assign",
+                  "name": "assign-route",
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": "{\"region\":\"eu-west\",\"routeId\":\"load-1\",\"vehicleId\":\"vh-11\",\"zone\":\"depot-north\"}"
+                }
+              }
+            ]
+          },
+          {
+            "id": "status",
+            "name": "read-status",
+            "weight": 1,
+            "wait": {
+              "mode": "constant",
+              "seconds": 0.1
+            },
+            "tasks": [
+              {
+                "name": "read-status",
+                "weight": 1,
+                "request": {
+                  "method": "GET",
+                  "path": "/fleet/status",
+                  "name": "read-status"
+                }
+              }
+            ]
+          }
+        ],
+        "stages": [
+          {
+            "duration": 10000000000,
+            "users": 4,
+            "spawnRate": 4
+          }
+        ],
+        "thresholds": [
+          {
+            "metric": "http.error_rate",
+            "op": "\u003c=",
+            "value": 0.01
+          }
+        ]
+      },
+      "dependsOn": [
+        "fleet_ready",
+        "fleet-spike"
+      ],
+      "level": 8,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "fleet-smoke",
+      "name": "fleet-smoke",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "fleet_smoke.py",
+      "dependsOn": [
+        "fleet-ramp",
+        "fleet-steady",
+        "fleet-spike",
+        "fleet-drain"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "PLANNER_REFUSED",
+          "Traceback"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/fleet-junit.xml",
+          "name": "fleet-smoke",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 9,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    },
+    {
+      "id": "acceptance-eu-west",
+      "name": "acceptance-eu-west",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "regional_acceptance.py",
+      "dependsOn": [
+        "fleet-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/acceptance-eu-west.xml",
+          "name": "acceptance-eu-west",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "REGION": "eu-west"
+      }
+    },
+    {
+      "id": "geo-fence-audit",
+      "name": "geo-fence-audit",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "geo_fence_audit.py",
+      "dependsOn": [
+        "fleet-smoke"
+      ],
+      "evaluation": {
+        "failOnLogs": [
+          "BOUNDARY_VIOLATION"
+        ]
+      },
+      "artifactExports": [
+        {
+          "path": "reports/geo-fence-audit.xml",
+          "name": "geo-fence-audit",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace",
+      "runtimeEnv": {
+        "REGIONS": "eu-west"
+      }
+    },
+    {
+      "id": "route-degradation",
+      "name": "route-degradation",
+      "kind": "test",
+      "variant": "test.run",
+      "image": "python:3.12-alpine",
+      "file": "route_degradation.py",
+      "dependsOn": [
+        "fleet-smoke"
+      ],
+      "artifactExports": [
+        {
+          "path": "reports/route-degradation.xml",
+          "name": "route-degradation",
+          "on": "always",
+          "format": "junit"
+        }
+      ],
+      "level": 10,
+      "sourceSuiteId": "fleet-control-room",
+      "sourceSuiteTitle": "# Fleet Control Room",
+      "sourceRepository": "workspace/fleet-control-room",
+      "sourceVersion": "workspace"
+    }
+  ],
+  "Dependencies": []
+}

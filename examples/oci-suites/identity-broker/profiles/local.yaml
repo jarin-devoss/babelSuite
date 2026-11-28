@@ -11,8 +11,3 @@ secretRefs:
   - key: JWT_SIGNING_KEY
     provider: Local Secret
     ref: secrets://developer/jwt-signing-key
-
-services:
-  oidc-provider:
-    env:
-      RESPONSE_DELAY_MS: "50"
