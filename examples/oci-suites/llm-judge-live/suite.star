@@ -18,7 +18,7 @@ OLLAMA = "http://ollama:11434"
 
 ollama = service.run(
     name  = "ollama",
-    image = "ollama/ollama",
+    image = "ollama/ollama:0.5.7",
 )
 
 # The service answers as soon as it binds, but it has no weights yet. Pulling
@@ -31,7 +31,7 @@ ollama = service.run(
 # is exactly the gate this step needs.
 pull_model = task.run(
     name     = "pull-model",
-    image    = "ollama/ollama",
+    image    = "ollama/ollama:0.5.7",
     env      = {"OLLAMA_HOST": OLLAMA},
     commands = [
         "for i in $(seq 1 30); do ollama pull " + MODEL + " && exit 0; sleep 2; done; exit 1",
