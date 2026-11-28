@@ -51,7 +51,7 @@ ledger_alive = task.run(
 # ── 3. the settlement API the suite calls out to, and proof it is alive ─────
 settlement_api = service.run(
     name  = "settlement-api",
-    image = "busybox",
+    image = "busybox:1.37",
     commands = [
         "mkdir -p /www",
         "echo '{\"status\":\"ok\",\"window\":\"open\"}' > /www/health",
@@ -61,7 +61,7 @@ settlement_api = service.run(
 
 settlement_alive = task.run(
     name  = "settlement-api-alive",
-    image = "busybox",
+    image = "busybox:1.37",
     commands = [
         "attempt=0",
         "until wget -q -O- http://settlement-api:8080/health 2>/dev/null | grep -q '\"status\":\"ok\"'; do " +

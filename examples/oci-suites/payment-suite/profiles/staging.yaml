@@ -4,7 +4,7 @@ description: Production-like topology with execution network and Vault secrets.
 default: false
 
 # network.mode: execution — containers reach each other by name
-# (db, stripe-mock and the test steps all on the same bridge)
+# (payment-api, stripe-mock and the test steps all on the same bridge)
 network:
   mode: execution
 

@@ -1,57 +1,46 @@
 # Payment Suite
 
-Bank-grade reference environment covering a full payment flow: Postgres, Kafka, a Stripe mock, fraud detection, baseline traffic, and smoke tests with exported JUnit and coverage reports.
+A payment service the suite ships and tests. It takes a payment, asks a card processor (the Stripe mock) to authorize it, and keeps the payment, its refunds and a ledger. The tests call the service and replay its contract; the reconcile steps compare the ledger with the payments.
 
-## Overview
-
-This suite exercises the core BabelSuite primitives across a realistic payment topology. It shows how to compose services with external mock dependencies, sequence database migrations before application startup, run a baseline traffic plan against a live API, and export test artifacts on every run regardless of outcome.
-
-Use it as a starting point for integrating any service that depends on a payment gateway, a message broker, and a relational database.
-
-## Execution Order
+## Execution order
 
 ```
-db
-├── stripe_mock
-├── migrations ──┐
-│               payment_gateway
-kafka            │
-└── bootstrap_topics ──┐
-                   fraud_worker
-                       │
-                   checkout_baseline  ← traffic plan against payment_gateway
-                       │
-                   checkout_smoke     ← exports junit.xml + cobertura.xml
+stripe-mock ── payment-api ── payment-api-ready ── payment-api is answering
+                                                   ├── checkout-baseline / checkout-stress  (traffic)
+                                                   ├── checkout-smoke
+                                                   ├── refund-regression
+                                                   └── reconcile-<currency>   (one per currency)
 ```
+
+## What breaks it
+
+A payment is posted to the ledger only when the processor authorized it: the `if code == AUTHORIZED:` line in `tasks/payment_api.py`. Take that line out (`if True:`) and the `reconcile-*` steps fail, because the ledger no longer matches the payments, and `checkout-smoke` fails, because a payment parked for review must leave the ledger untouched.
+
+A refund larger than what is left of a payment is refused (422). Remove that check and `refund-regression` fails.
+
+## Profiles
+
+| Profile | What it does |
+|---|---|
+| `local.yaml` | `FRAUD_STRATEGY: permissive`, verbose logs. |
+| `staging.yaml` | `FRAUD_STRATEGY: strict`: a payment the processor parks for review is declined. |
+| `year.yaml` | Year-end settings. |
+| `base.yaml` | What the others extend (`extendsId`). |
 
 ## Structure
 
 | Path | Description |
 |---|---|
-| `suite.star` | Declarative topology — services, mocks, tasks, traffic, and tests |
-| `profiles/` | Environment overlays for `local`, `ci`, `staging`, and `production` |
-| `api/` | OpenAPI contracts for the payment gateway and fraud service |
-| `mock/` | Stripe mock schemas, response examples, and state machine definitions |
-| `tasks/` | `bootstrap_topics.sh` (Kafka setup) and `migrate.py` (schema migrations) |
-| `tests/` | `checkout_smoke.py` — payment flow smoke tests |
-| `traffic/` | `checkout_baseline.star` — baseline load plan targeting the payment gateway |
-| `fixtures/` | Seed data: payment methods, merchants, and test card numbers |
+| `suite.star` | The topology: mock, service, wait step, traffic, tests. |
+| `tasks/payment_api.py` | The payment service (standard library only). |
+| `mock/wiremock/stripe/` | The card processor's answers, by the request's `status`. |
+| `tests/` | `checkout_smoke.py`, `refund_regression.py`, `reconcile_smoke.py`. |
+| `traffic/checkout.star` | The load plan, aimed at `payment-api`. |
 
 ## Running
 
 ```bash
-# Pull and run with the local profile
-babelctl run localhost:5000/babelsuite/payment-suite:latest --profile local
-
-# Run a specific version
-babelctl run localhost:5000/babelsuite/payment-suite:2.1.0 --profile ci
+python scripts/push-to-zot.py --suite payment-suite --sync http://localhost:8090
 ```
 
-## Key Concepts Demonstrated
-
-- **Mock with database dependency** — `stripe_mock` waits for `db` to be healthy before accepting connections
-- **Parallel task execution** — `bootstrap_topics` and `migrations` run concurrently since neither depends on the other
-- **Traffic before tests** — the smoke test only starts after the baseline traffic plan completes
-- **Always-export artifacts** — JUnit and Cobertura reports are exported even when tests fail (`"on": "always"`)
-- **Load test targets the suite's mock** — the traffic step sends real requests to the suite's mock host until a real service is added
-- **Reports fail until the tests write them** — `checkout-smoke` fails with `report … was not produced` until `checkout_smoke.py` writes a real JUnit report
+Then launch it from the UI, or `POST /api/v1/executions` with `{"suiteId": "payment-suite", "profile": "local.yaml"}`.

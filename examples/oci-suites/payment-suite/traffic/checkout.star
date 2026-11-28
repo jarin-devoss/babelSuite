@@ -5,7 +5,7 @@ probe = traffic.user(
     tasks=[
         traffic.task(
             name="authorize-payment",
-            request=traffic.post("/payments?status=approved", name="authorize-payment", json={"amount": 1299, "cardToken": "tok_visa", "currency": "USD", "merchantId": "m-117"}),
+            request=traffic.post("/payments", name="authorize-payment", json={"amount": 1299, "cardToken": "tok_visa", "currency": "USD", "merchantId": "m-117"}),
         ),
     ],
 )
