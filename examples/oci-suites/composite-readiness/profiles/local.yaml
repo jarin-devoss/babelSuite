@@ -1,7 +1,10 @@
 name: Local
-description: Local composite profile for readiness validation.
+description: The three imported suites, each given up to 120 seconds to answer /health.
 default: true
-runtime:
-  suite: composite-readiness
-  repository: localhost:5000/composite/composite-readiness
-  profileFile: local.yaml
+
+network:
+  mode: execution
+
+env:
+  SUITES_TO_CHECK: payment-suite,identity-broker,soap-claims-hub
+  READINESS_TIMEOUT_SECONDS: "120"

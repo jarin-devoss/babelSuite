@@ -1,140 +1,63 @@
-load("@babelsuite/runtime", "test", "suite", "task", "log")
-load("@babelsuite/postgres", "pg", "connect")
+load("@babelsuite/runtime", "test", "suite", "log")
 
 # ── environment knobs ────────────────────────────────────────────────────────
-SUITES_TO_CHECK   = env.get("SUITES_TO_CHECK", "payment-suite,identity-broker,returns-control-plane").split(",")
-READINESS_TIMEOUT = int(env.get("READINESS_TIMEOUT_SECONDS", "120"))
-STRICT_MODE       = env.get("STRICT_MODE", "true") == "true"
-ENABLE_DB_PROBE   = env.get("ENABLE_DB_PROBE", "true") == "true"
-REGIONS           = env.get("REGIONS", "eu,us").split(",")
+SUITES_TO_CHECK   = env.get("SUITES_TO_CHECK", "payment-suite,identity-broker,soap-claims-hub").split(",")
+READINESS_TIMEOUT = env.get("READINESS_TIMEOUT_SECONDS", "120")
 
-SUITE_REGISTRY_REFS = {
-    "payment-suite":          "localhost:5000/core-platform/payment-suite",
-    "identity-broker":        "localhost:5000/security/identity-broker",
-    "returns-control-plane":  "localhost:5000/qa/returns-control-plane",
-    "notification-hub":       "localhost:5000/platform/notification-hub",
-    "fleet-control-room":     "localhost:5000/platform/fleet-control-room",
+PYTHON = "python:3.12-alpine"
+
+# The suites this one can import, and the service of each that answers /health.
+# A suite's own services keep running while this suite's steps do, so each is
+# reachable by its name. Only suites whose mocks are HTTP can be imported: the
+# gateway serves an imported suite's HTTP and SOAP mocks, not its gRPC ones, so
+# returns-control-plane (which calls a gRPC pricing mock) is not on the list.
+KNOWN_SUITES = {
+    "payment-suite":         "http://payment-api:8080/health",
+    "identity-broker":       "http://broker-api:8080/health",
+    "soap-claims-hub":       "http://claims-bridge:8080/health",
 }
 
-SUITE_HEALTH_ENDPOINTS = {
-    "payment-suite":          "http://payment-gateway:8080/health",
-    "identity-broker":        "http://broker-api:9000/health",
-    "returns-control-plane":  "http://returns-api:8080/health",
-    "notification-hub":       "http://notification-api:8080/health",
-    "fleet-control-room":     "http://control-room:8080/health",
-}
+for name in SUITES_TO_CHECK:
+    if name not in KNOWN_SUITES:
+        fail("SUITES_TO_CHECK names " + name + ", which this suite does not import; it imports " + ", ".join(KNOWN_SUITES.keys()))
 
-# ── optional DB connectivity probe ────────────────────────────────────────────
-if ENABLE_DB_PROBE:
-    db   = pg()
-    conn = connect(db)
-    log.debug("DB connectivity probe enabled — waiting for postgres", after=[conn])
-    db_deps = [conn]
-else:
-    db_deps = []
+# ── the imported suites ──────────────────────────────────────────────────────
+# Each runs as it would on its own: its services, and the mocks they call, which
+# this run's gateway serves.
+imported = []
+for name in SUITES_TO_CHECK:
+    imported.append(suite.run(name = name, ref = name))
 
-# ── load dependent suites ─────────────────────────────────────────────────────
-suite_nodes  = []
-unknown_suites = []
-
-for suite_name in SUITES_TO_CHECK:
-    if suite_name not in SUITE_REGISTRY_REFS:
-        unknown_suites.append(suite_name)
-        continue
-
-    s   = suite.run(name=suite_name, ref=suite_name, after=db_deps)
-    suite_nodes.append(s)
-
-# ── pre-flight connectivity checks ────────────────────────────────────────────
-preflight_nodes = []
-for suite_name in SUITES_TO_CHECK:
-    if suite_name not in SUITE_HEALTH_ENDPOINTS:
-        continue
-    endpoint = SUITE_HEALTH_ENDPOINTS[suite_name]
-    probe = task.run(
-        name="preflight-" + suite_name,
-        file="probe_health.sh",
-        image="bash:5.2",
-        after=suite_nodes,
-        env={
-            "ENDPOINT":  endpoint,
-            "TIMEOUT":   str(READINESS_TIMEOUT),
-            "SUITE":     suite_name,
-        },
-    )
-    preflight_nodes.append(probe)
-
-# ── readiness smoke — one per suite ──────────────────────────────────────────
+# ── readiness: one step per imported suite, asking its service for /health ───
 readiness_nodes = []
-for suite_name in SUITES_TO_CHECK:
-    if suite_name not in SUITE_HEALTH_ENDPOINTS:
-        continue
-
-    fail_logs = ["SUITE_NOT_READY", "HEALTH_CHECK_FAILED", "DEPENDENCY_MISSING"]
-    if STRICT_MODE:
-        fail_logs.append("DEGRADED_STATE")
-
-    smoke = test.run(
-        name="readiness-smoke-" + suite_name,
-        file="readiness_smoke.py",
-        image="python:3.12",
-        after=preflight_nodes,
-        env={
-            "TARGET_SUITE":       suite_name,
-            "HEALTH_ENDPOINT":    SUITE_HEALTH_ENDPOINTS[suite_name],
-            "STRICT_MODE":        str(STRICT_MODE).lower(),
-            "TIMEOUT_SECONDS":    str(READINESS_TIMEOUT),
+for name in SUITES_TO_CHECK:
+    readiness_nodes.append(test.run(
+        name    = "readiness-smoke-" + name,
+        file    = "readiness_smoke.py",
+        image   = PYTHON,
+        after   = imported,
+        env     = {
+            "TARGET_SUITE":     name,
+            "HEALTH_ENDPOINT":  KNOWN_SUITES[name],
+            "TIMEOUT_SECONDS":  READINESS_TIMEOUT,
         },
-        fail_on_logs=fail_logs,
-        exports=[
-            {"path": "reports/readiness-" + suite_name + ".xml", "name": "readiness-" + suite_name, "on": "always", "format": "junit"},
-        ],
-    )
-    readiness_nodes.append(smoke)
+        fail_on_logs = ["SUITE_NOT_READY"],
+        exports = [{"path": "reports/readiness-" + name + ".xml", "name": "readiness-" + name, "on": "always", "format": "junit"}],
+    ))
 
-# ── per-region end-to-end readiness ──────────────────────────────────────────
-for region in REGIONS:
-    region_suites = [s for s in SUITES_TO_CHECK if s in SUITE_HEALTH_ENDPOINTS]
+# ── the composed environment as a whole ──────────────────────────────────────
+endpoints = []
+for name in SUITES_TO_CHECK:
+    endpoints.append(name + "=" + KNOWN_SUITES[name])
 
-    test.run(
-        name="e2e-readiness-" + region,
-        file="e2e_readiness.py",
-        image="python:3.12",
-        after=readiness_nodes,
-        env={
-            "REGION":        region,
-            "TARGET_SUITES": ",".join(region_suites),
-            "STRICT_MODE":   str(STRICT_MODE).lower(),
-        },
-        exports=[{"path": "reports/e2e-" + region + ".xml", "name": "e2e-readiness-" + region, "on": "always", "format": "junit"}],
-    )
-
-# ── unknown suites report (fail if any were requested but not registered) ─────
-if len(unknown_suites) > 0 and STRICT_MODE:
-    task.run(
-        name="report-unknown-suites",
-        file="report_unknown.sh",
-        image="bash:5.2",
-        after=readiness_nodes,
-        env={"UNKNOWN_SUITES": ",".join(unknown_suites)},
-    )
-
-# ── composite health summary ──────────────────────────────────────────────────
-log.info(
-    str(len(SUITES_TO_CHECK)) + " suites checked across " + str(len(REGIONS)) + " regions — running summary",
-    after=readiness_nodes,
+summary = test.run(
+    name    = "composite-health-summary",
+    file    = "composite_summary.py",
+    image   = PYTHON,
+    after   = readiness_nodes,
+    env     = {"ENDPOINTS": ",".join(endpoints), "TIMEOUT_SECONDS": READINESS_TIMEOUT},
+    fail_on_logs = ["HEALTH_CHECK_FAILED"],
+    exports = [{"path": "reports/composite-summary.xml", "name": "composite-health-summary", "on": "always", "format": "junit"}],
 )
-test.run(
-    name="composite-health-summary",
-    file="composite_summary.py",
-    image="python:3.12",
-    after=readiness_nodes,
-    env={
-        "CHECKED_SUITES": ",".join(SUITES_TO_CHECK),
-        "REGIONS":        ",".join(REGIONS),
-        "STRICT_MODE":    str(STRICT_MODE).lower(),
-    },
-    exports=[
-        {"path": "reports/composite-summary.xml", "name": "composite-health-summary", "on": "always", "format": "junit"},
-    ],
-)
+
+log.info(str(len(SUITES_TO_CHECK)) + " imported suites are ready", after = [summary])

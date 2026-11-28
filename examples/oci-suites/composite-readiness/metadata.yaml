@@ -9,4 +9,4 @@ spec:
   tags:
     - v1.0.0
     - latest
-  description: Minimal workspace suite that imports another suite as a pinned OCI dependency, then runs a single Go smoke test to confirm end-to-end readiness.
+  description: "Imports payment-suite, identity-broker and returns-control-plane, then asks each imported service whether it is ready. A suite that does not become ready fails the run."
